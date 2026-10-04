@@ -33,17 +33,22 @@ import {
   Sparkles,
   School,
   Building2,
-  UserX
+  UserX,
+  Receipt,
+  Wallet,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
+import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank, safeFormat, numberToPortugueseWords, calculateAge, formatAge, isBirthdayToday, isValidCPF } from '../lib/utils';
 import { getClassStartDateFromSchedule } from '../lib/academicUtils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
-import { Student, Class, Enrollment, Course } from '../types';
+import { Student, Class, Enrollment, Course, Contribution } from '../types';
+import { financialConfigService } from '../services/financialConfigService';
+import { getClassStartYear } from '../lib/contributionRules';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
@@ -51,6 +56,9 @@ import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { maskRG, calculateRGValidation, RG_MAX_FORMATTED_LENGTH } from '../lib/rgUtils';
 import { fetchAddressByCEP } from '../lib/cepUtils';
+import { EnrollmentReceiptModal } from '../components/EnrollmentReceiptModal';
+import { LiquidateEnrollmentFeeModal } from '../components/LiquidateEnrollmentFeeModal';
+import { EnrollClassWithFeeModal } from '../components/EnrollClassWithFeeModal';
 
 // Memoized List Item to prevent lag
 const StudentItem = React.memo(({ 
@@ -244,6 +252,137 @@ export function Students() {
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
 
+  // Estados para Amarração da Taxa de Matrícula / Inscrição
+  const [studentContributions, setStudentContributions] = useState<Contribution[]>([]);
+  const [financialSettings, setFinancialSettings] = useState<any>(null);
+
+  const [enrollmentFeeStatus, setEnrollmentFeeStatus] = useState<'paid' | 'pending' | 'exempt'>('paid');
+  const [enrollmentFeeAmount, setEnrollmentFeeAmount] = useState<number>(100);
+  const [enrollmentFeeAmountStr, setEnrollmentFeeAmountStr] = useState<string>('100,00');
+  const [enrollmentFeePaymentMethod, setEnrollmentFeePaymentMethod] = useState<'Dinheiro' | 'PIX' | 'Cartão'>('Dinheiro');
+  const [enrollmentFeePaymentDate, setEnrollmentFeePaymentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [enrollmentFeeObservations, setEnrollmentFeeObservations] = useState<string>('');
+  const [enrollmentFeeExemptionReason, setEnrollmentFeeExemptionReason] = useState<string>('');
+
+  const handleFeeAmountChange = (val: string) => {
+    setEnrollmentFeeAmountStr(val);
+    const clean = val.replace(/[^\d.,]/g, '');
+    let numStr = clean;
+    if (numStr.includes(',')) {
+      numStr = numStr.replace(/\./g, '').replace(',', '.');
+    }
+    const num = parseFloat(numStr);
+    if (!isNaN(num)) {
+      setEnrollmentFeeAmount(num);
+    }
+  };
+
+  const handleFeeAmountBlur = () => {
+    let clean = enrollmentFeeAmountStr.replace(/[^\d.,]/g, '');
+    if (!clean) {
+      setEnrollmentFeeAmountStr('0,00');
+      setEnrollmentFeeAmount(0);
+      return;
+    }
+    let numStr = clean;
+    if (numStr.includes(',')) {
+      numStr = numStr.replace(/\./g, '').replace(',', '.');
+    }
+    const num = parseFloat(numStr);
+    if (!isNaN(num)) {
+      setEnrollmentFeeAmount(num);
+      setEnrollmentFeeAmountStr(num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    }
+  };
+
+  // Modal para confirmação de matrícula em turma adicional com amarração da taxa
+  const [enrollModalClass, setEnrollModalClass] = useState<Class | null>(null);
+  const [enrollModalFeeStatus, setEnrollModalFeeStatus] = useState<'paid' | 'pending' | 'exempt'>('exempt');
+  const [enrollModalFeeAmount, setEnrollModalFeeAmount] = useState<number>(100);
+  const [enrollModalPaymentMethod, setEnrollModalPaymentMethod] = useState<string>('PIX');
+  const [enrollModalPaymentDate, setEnrollModalPaymentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [enrollModalExemptionReason, setEnrollModalExemptionReason] = useState<string>('Segunda turma / Curso adicional');
+
+  // Modal de Liquidação Rápida da Taxa de Matrícula Pendente
+  const [liquidateFeeModalData, setLiquidateFeeModalData] = useState<{
+    student: Student;
+    classItem?: Class;
+    enrollment?: Enrollment;
+    amount: number;
+    year: number;
+  } | null>(null);
+  const [liquidatePaymentMethod, setLiquidatePaymentMethod] = useState<string>('PIX');
+  const [liquidatePaymentDate, setLiquidatePaymentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [liquidateObservations, setLiquidateObservations] = useState<string>('');
+  const [isLiquidating, setIsLiquidating] = useState<boolean>(false);
+
+  // Modal de Comprovante de Matrícula e Recibo de Taxa
+  const [receiptModalData, setReceiptModalData] = useState<{
+    student: Student;
+    classItem?: Class;
+    enrollment?: Enrollment;
+    feeAmount: number;
+    feeStatus: 'paid' | 'pending' | 'exempt';
+    paymentMethod?: string;
+    paymentDate?: string;
+    observations?: string;
+    isNew?: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    financialConfigService.getSettings().then(setFinancialSettings).catch(() => {});
+  }, []);
+
+  const fetchStudentContributions = useCallback(async (studentId: string) => {
+    if (!studentId) {
+      setStudentContributions([]);
+      return;
+    }
+    try {
+      const data = await fetchQuery('contributions', 'student_id', '==', studentId);
+      setStudentContributions(data || []);
+    } catch (e) {
+      console.warn('Erro ao carregar contribuições do aluno:', e);
+      setStudentContributions([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedStudent?.id) {
+      fetchStudentContributions(selectedStudent.id);
+    } else {
+      setStudentContributions([]);
+    }
+  }, [selectedStudent?.id, fetchStudentContributions]);
+
+  // Taxa de Matrícula paga existente para o ano da turma do aluno
+  const paidEnrollmentFeeContrib = useMemo(() => {
+    if (!selectedStudent?.id || !studentContributions.length) return null;
+    const targetCls = classes.find(c => c.id === (formData.class_id || selectedStudent.class_id));
+    const targetYear = targetCls ? getClassStartYear(targetCls) : (targetCls?.start_year || new Date().getFullYear());
+    return studentContributions.find(c => {
+      const isMonthZero = Number(c.reference_month) === 0;
+      const yrMatch = !c.reference_year || Number(c.reference_year) === targetYear;
+      return isMonthZero && yrMatch;
+    }) || null;
+  }, [selectedStudent, studentContributions, classes, formData.class_id]);
+
+  // Atualiza o valor sugerido da taxa sempre que a turma é alterada no formulário
+  useEffect(() => {
+    if (formData.class_id) {
+      const targetCls = classes.find(c => c.id === formData.class_id);
+      const targetYear = targetCls ? getClassStartYear(targetCls) : (Number(targetCls?.start_year) || new Date().getFullYear());
+      const resolved = financialConfigService.resolveFee({
+        classId: formData.class_id,
+        studentClass: targetCls,
+        year: Number(targetYear) || new Date().getFullYear()
+      }, financialSettings);
+      const fee = resolved || 100;
+      setEnrollmentFeeAmount(fee);
+      setEnrollmentFeeAmountStr(fee.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    }
+  }, [formData.class_id, classes, financialSettings]);
+
   const getScheduleStartDateForClass = useCallback((targetClass: any) => {
     return getClassStartDateFromSchedule(targetClass, academicSettingsList, calendarEvents);
   }, [academicSettingsList, calendarEvents]);
@@ -269,6 +408,84 @@ export function Students() {
   const rgValidation = useMemo(() => {
     return calculateRGValidation(formData.rg || '');
   }, [formData.rg]);
+
+  // Validação em tempo real do CPF
+  const cpfValidation = useMemo(() => {
+    const rawDigits = (formData.cpf || '').replace(/\D/g, '');
+    if (!rawDigits) {
+      return { rawLength: 0, isValid: true, isIncomplete: false, message: '' };
+    }
+    if (rawDigits.length < 11) {
+      return { rawLength: rawDigits.length, isValid: false, isIncomplete: true, message: `Incompleto (${rawDigits.length}/11 dígitos)` };
+    }
+    const valid = isValidCPF(formData.cpf);
+    return {
+      rawLength: 11,
+      isValid: valid,
+      isIncomplete: false,
+      message: valid ? 'CPF válido' : 'Dígitos verificadores inconsistentes'
+    };
+  }, [formData.cpf]);
+
+  // Cálculo da idade em tempo real a partir da data de nascimento
+  const calculatedAge = useMemo(() => {
+    return calculateAge(formData.birth_date);
+  }, [formData.birth_date]);
+
+  // Validação em tempo real da data de nascimento
+  const birthDateValidation = useMemo(() => {
+    if (!formData.birth_date) {
+      return { isValid: true, isFuture: false, isAncient: false, message: '' };
+    }
+    const cleanDate = formData.birth_date.split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (cleanDate > todayStr) {
+      return { isValid: false, isFuture: true, isAncient: false, message: 'Data futura incompatível' };
+    }
+    const year = parseInt(cleanDate.split('-')[0], 10);
+    if (year < 1900 || (calculatedAge !== null && calculatedAge > 120)) {
+      return { isValid: false, isFuture: false, isAncient: true, message: 'Ano incompatível (> 120 anos)' };
+    }
+    return { isValid: true, isFuture: false, isAncient: false, message: '' };
+  }, [formData.birth_date, calculatedAge]);
+
+  // Validação em tempo real da taxa de matrícula
+  const isFeeAmountIncompatible = useMemo(() => {
+    if (enrollmentFeeStatus === 'exempt') return false;
+    return !enrollmentFeeAmount || isNaN(enrollmentFeeAmount) || enrollmentFeeAmount <= 0;
+  }, [enrollmentFeeStatus, enrollmentFeeAmount]);
+
+  const isFeeDateInFuture = useMemo(() => {
+    if (enrollmentFeeStatus !== 'paid' || !enrollmentFeePaymentDate) return false;
+    const todayStr = new Date().toISOString().split('T')[0];
+    return enrollmentFeePaymentDate > todayStr;
+  }, [enrollmentFeeStatus, enrollmentFeePaymentDate]);
+
+  const isStudentBirthdayToday = useMemo(() => {
+    return isBirthdayToday(formData.birth_date);
+  }, [formData.birth_date]);
+
+  // Turma atualmente selecionada na ficha
+  const currentTargetClass = useMemo(() => {
+    return classes.find(c => c.id === formData.class_id);
+  }, [classes, formData.class_id]);
+
+  // Curso informativo vinculado automaticamente à turma ou ao cadastro
+  const effectiveCourseName = useMemo(() => {
+    if (currentTargetClass) {
+      return currentTargetClass.course || detectCourseFromClass(currentTargetClass, coursesList) || formData.course || '';
+    }
+    return formData.course || '';
+  }, [currentTargetClass, coursesList, formData.course]);
+
+  // Data de início informativa pré-definida no cadastro ou cronograma da turma
+  const effectiveClassStartDate = useMemo(() => {
+    if (currentTargetClass) {
+      const cronoDate = getScheduleStartDateForClass(currentTargetClass);
+      return cronoDate || currentTargetClass.start_date || formData.start_date || '';
+    }
+    return formData.start_date || '';
+  }, [currentTargetClass, getScheduleStartDateForClass, formData.start_date]);
 
   // Estados e busca automática de endereço via CEP (ViaCEP)
   const [loadingCep, setLoadingCep] = useState(false);
@@ -616,7 +833,16 @@ export function Students() {
     });
     setIsEditing(true);
     setHoverShowList(false);
-  }, [students, globalUnitId, activeUnits]);
+    // Reset dos estados da Taxa de Matrícula para o novo aluno
+    const fee = financialSettings?.enrollment_fee || 100;
+    setEnrollmentFeeStatus('paid');
+    setEnrollmentFeeAmount(fee);
+    setEnrollmentFeeAmountStr(fee.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setEnrollmentFeePaymentMethod('Dinheiro');
+    setEnrollmentFeePaymentDate(new Date().toISOString().split('T')[0]);
+    setEnrollmentFeeObservations('');
+    setEnrollmentFeeExemptionReason('');
+  }, [students, globalUnitId, activeUnits, financialSettings]);
 
   // Fecha a ficha e retorna para a tela / modal de origem se veio de outro módulo
   const handleCloseFicha = useCallback(() => {
@@ -877,6 +1103,162 @@ export function Students() {
     }
   };
 
+  const handleOpenLiquidateModal = () => {
+    if (!selectedStudent) return;
+    const targetCls = classes.find(c => c.id === (formData.class_id || selectedStudent.class_id));
+    const targetYear = targetCls ? getClassStartYear(targetCls) : (Number(targetCls?.start_year) || new Date().getFullYear());
+    const resolved = financialConfigService.resolveFee({
+      classId: targetCls?.id,
+      studentClass: targetCls,
+      year: Number(targetYear) || new Date().getFullYear()
+    }, financialSettings);
+
+    setLiquidateFeeModalData({
+      student: selectedStudent,
+      classItem: targetCls,
+      amount: resolved || enrollmentFeeAmount || 100,
+      year: Number(targetYear) || new Date().getFullYear()
+    });
+  };
+
+  const handleConfirmLiquidate = async (data: {
+    amount: number;
+    paymentMethod: string;
+    paymentDate: string;
+    observations: string;
+  }) => {
+    if (!liquidateFeeModalData) return;
+    try {
+      const newContrib: Partial<Contribution> = {
+        student_id: liquidateFeeModalData.student.id,
+        reference_month: 0,
+        reference_year: Number(liquidateFeeModalData.year) || new Date().getFullYear(),
+        amount: Number(data.amount) || 0,
+        payment_date: parseDateToDB(data.paymentDate) || new Date().toISOString().split('T')[0],
+        payment_method: data.paymentMethod,
+        observations: data.observations || 'Quitação da Taxa de Matrícula na secretaria',
+        created_at: new Date().toISOString()
+      };
+
+      await saveData('contributions', undefined, newContrib);
+      await fetchStudentContributions(liquidateFeeModalData.student.id);
+
+      setNotification({ type: 'success', message: 'Taxa de matrícula quitada e registrada com sucesso!' });
+
+      setReceiptModalData({
+        student: liquidateFeeModalData.student,
+        classItem: liquidateFeeModalData.classItem,
+        feeAmount: Number(data.amount) || 0,
+        feeStatus: 'paid',
+        paymentMethod: data.paymentMethod,
+        paymentDate: data.paymentDate,
+        observations: data.observations
+      });
+      setLiquidateFeeModalData(null);
+    } catch (err: any) {
+      console.error('Erro ao liquidar taxa:', err);
+      setNotification({ type: 'error', message: 'Erro ao liquidar taxa: ' + err.message });
+    } finally {
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleOpenEnrollModal = (classId: string) => {
+    if (!selectedStudent || !classId) return;
+    const targetClass = classes.find(c => c.id === classId);
+    if (!targetClass) return;
+
+    if (studentEnrollments.some(e => e.class_id === classId && (e.status || 'Ativo') === 'Ativo')) {
+      setNotification({ type: 'error', message: 'Aluno já está matriculado nesta turma' });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    const targetYear = getClassStartYear(targetClass) || targetClass.start_year || new Date().getFullYear();
+    const resolvedFee = financialConfigService.resolveFee({
+      classId: targetClass.id,
+      studentClass: targetClass,
+      year: targetYear
+    }, financialSettings);
+
+    setEnrollModalFeeAmount(resolvedFee || 100);
+    setEnrollModalClass(targetClass);
+  };
+
+  const handleConfirmEnrollWithFee = async (data: {
+    classId: string;
+    feeStatus: 'paid' | 'pending' | 'exempt';
+    feeAmount: number;
+    paymentMethod: string;
+    paymentDate: string;
+    observations: string;
+    exemptionReason: string;
+  }) => {
+    if (!selectedStudent || !data.classId) return;
+    if (data.feeStatus === 'paid') {
+      const numAmount = Number(data.feeAmount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        setNotification({
+          type: 'error',
+          message: 'Valor incompatível: O valor da taxa de matrícula para pagamento imediato deve ser maior que zero (R$ 0,00). O sistema não registrará valores incompatíveis.'
+        });
+        return;
+      }
+    }
+    const targetClass = classes.find(c => c.id === data.classId);
+    const studentUnitId = formData.unit_id || selectedStudent.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
+
+    const newEnrollment: Partial<Enrollment> = {
+      student_id: selectedStudent.id,
+      class_id: data.classId,
+      unit_id: studentUnitId,
+      status: 'Ativo',
+      enrollment_date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      await saveData('enrollments', undefined, newEnrollment);
+
+      if (data.feeStatus === 'paid') {
+        const targetYear = targetClass ? getClassStartYear(targetClass) : (Number(targetClass?.start_year) || new Date().getFullYear());
+        const newFeeContrib: Partial<Contribution> = {
+          student_id: selectedStudent.id,
+          reference_month: 0,
+          reference_year: Number(targetYear) || new Date().getFullYear(),
+          amount: Number(data.feeAmount) || 0,
+          payment_date: parseDateToDB(data.paymentDate) || new Date().toISOString().split('T')[0],
+          payment_method: data.paymentMethod,
+          observations: data.observations || `Taxa de Matrícula - Turma Adicional: ${targetClass?.name || ''}`,
+          created_at: new Date().toISOString()
+        };
+        await saveData('contributions', undefined, newFeeContrib);
+        await fetchStudentContributions(selectedStudent.id);
+
+        setReceiptModalData({
+          student: selectedStudent,
+          classItem: targetClass,
+          feeAmount: Number(data.feeAmount) || 0,
+          feeStatus: 'paid',
+          paymentMethod: data.paymentMethod,
+          paymentDate: data.paymentDate,
+          observations: data.observations || `Matrícula em curso adicional: ${targetClass?.name || ''}`
+        });
+      }
+
+      setNotification({ type: 'success', message: `Aluno matriculado com sucesso na turma "${targetClass?.name || ''}"!` });
+      fetchEnrollments(selectedStudent.id);
+      fetchAllEnrollments();
+      fetchStudents();
+      setEnrollModalClass(null);
+      setEnrollClassId('');
+    } catch (err: any) {
+      setNotification({ type: 'error', message: 'Erro ao matricular: ' + err.message });
+    } finally {
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
   const handleQuickAssignClass = async () => {
     if (!selectedStudent?.id || !quickAssignClassId) return;
     setIsAssigningClass(true);
@@ -965,15 +1347,170 @@ export function Students() {
       return;
     }
 
-    // Validação do tamanho válido do RG (se preenchido)
+    // 1. Validação do Nome do Aluno (obrigatório e mínimo 3 caracteres)
+    const cleanName = (formData.name || '').trim();
+    if (!cleanName || cleanName.length < 3) {
+      setNotification({ 
+        type: 'error', 
+        message: 'Valor incompatível: O Nome Completo do aluno é obrigatório (mínimo de 3 caracteres). O sistema não registrará com campos obrigatórios vazios ou inconsistentes.' 
+      });
+      return;
+    }
+
+    // 2. Validação do CPF (se preenchido)
+    const cleanCPF = (formData.cpf || '').replace(/\D/g, '');
+    if (cleanCPF.length > 0) {
+      if (cleanCPF.length < 11) {
+        setNotification({ 
+          type: 'error', 
+          message: `Valor incompatível: O CPF informado está incompleto (${cleanCPF.length} dígitos informados, esperado 11 dígitos). O sistema não registrará valores inconsistentes.` 
+        });
+        return;
+      }
+      if (!isValidCPF(formData.cpf)) {
+        setNotification({ 
+          type: 'error', 
+          message: 'Valor incompatível: O CPF informado possui dígitos verificadores inválidos pelo padrão nacional. O sistema não registrará valores incompatíveis.' 
+        });
+        return;
+      }
+    }
+
+    // 3. Validação do tamanho válido do RG (se preenchido)
     if (formData.rg) {
       const rgVal = calculateRGValidation(formData.rg);
       if (!rgVal.isValid) {
         setNotification({ 
           type: 'error', 
-          message: `RG incompleto ou com formato não reconhecido (${rgVal.rawLength} dígitos). Um documento de identidade válido no Brasil possui entre 7 e 11 caracteres (padrões estaduais ou Nova CIN).` 
+          message: `Valor incompatível: RG incompleto ou com formato não reconhecido (${rgVal.rawLength} dígitos). Um documento de identidade válido no Brasil possui entre 7 e 11 caracteres (padrões estaduais ou Nova CIN). O sistema não registrará.` 
         });
         return;
+      }
+    }
+
+    // 4. Validação da Data de Nascimento (se preenchida)
+    if (formData.birth_date) {
+      const cleanBirth = formData.birth_date.split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (cleanBirth > todayStr) {
+        setNotification({ 
+          type: 'error', 
+          message: 'Valor incompatível: A data de nascimento não pode ser uma data futura. O sistema não registrará valores incompatíveis.' 
+        });
+        return;
+      }
+      const birthParts = cleanBirth.split('-');
+      const birthYear = parseInt(birthParts[0], 10);
+      const studentAge = calculateAge(cleanBirth);
+      if (birthYear < 1900 || (studentAge !== null && studentAge > 120)) {
+        setNotification({ 
+          type: 'error', 
+          message: `Valor incompatível: A data de nascimento informada resulta em uma idade superior a 120 anos (${studentAge || 'ano inválido'}). O sistema não registrará.` 
+        });
+        return;
+      }
+    }
+
+    // 5. Validação de E-mail (se preenchido)
+    if (formData.email && formData.email.trim().length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        setNotification({
+          type: 'error',
+          message: `Valor incompatível: O e-mail informado ("${formData.email}") possui formato inválido. Corrija o endereço ou deixe o campo em branco.`
+        });
+        return;
+      }
+    }
+
+    // 6. Validação de CEP (se preenchido)
+    const cleanCEP = (formData.address_zip || '').replace(/\D/g, '');
+    if (cleanCEP.length > 0 && cleanCEP.length < 8) {
+      setNotification({
+        type: 'error',
+        message: `Valor incompatível: O CEP informado está incompleto (${cleanCEP.length} dígitos, esperado 8 dígitos). O sistema não registrará.`
+      });
+      return;
+    }
+
+    // 7. Validação de Telefones (se preenchido)
+    const cleanMobile = (formData.phone_mobile || '').replace(/\D/g, '');
+    if (cleanMobile.length > 0 && cleanMobile.length < 10) {
+      setNotification({
+        type: 'error',
+        message: 'Valor incompatível: O telefone celular está incompleto (deve conter DDD + número com no mínimo 10 dígitos). O sistema não registrará.'
+      });
+      return;
+    }
+
+    // 8. Validação da Taxa de Matrícula (Módulo de Amarração da Taxa ao final da ficha)
+    if (formData.class_id && !paidEnrollmentFeeContrib) {
+      if (enrollmentFeeStatus === 'paid') {
+        const numFee = Number(enrollmentFeeAmount);
+        if (isNaN(numFee) || numFee <= 0) {
+          setNotification({
+            type: 'error',
+            message: 'Valor incompatível: Para a opção de pagamento imediato da Taxa de Matrícula ("Pagar Agora"), o valor deve ser maior que zero (R$ 0,00). Caso o aluno seja isento, selecione "Isento". O sistema não registrará valores incompatíveis.'
+          });
+          return;
+        }
+
+        if (numFee > 50000) {
+          setNotification({
+            type: 'error',
+            message: `Valor incompatível: O valor da taxa de matrícula informado (R$ ${numFee.toFixed(2)}) ultrapassa o limite máximo permitido pelo sistema (R$ 50.000,00).`
+          });
+          return;
+        }
+
+        if (!enrollmentFeePaymentDate) {
+          setNotification({
+            type: 'error',
+            message: 'Valor incompatível: Selecione uma data de pagamento válida para a quitação da taxa de matrícula.'
+          });
+          return;
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (enrollmentFeePaymentDate > todayStr) {
+          setNotification({
+            type: 'error',
+            message: 'Valor incompatível: A data de quitação da taxa de matrícula não pode ser uma data futura. O sistema não registrará.'
+          });
+          return;
+        }
+
+        if (!enrollmentFeePaymentMethod) {
+          setNotification({
+            type: 'error',
+            message: 'Valor incompatível: Selecione a forma de pagamento (Dinheiro, PIX ou Cartão).'
+          });
+          return;
+        }
+      } else if (enrollmentFeeStatus === 'pending') {
+        const numFee = Number(enrollmentFeeAmount);
+        if (isNaN(numFee) || numFee <= 0) {
+          setNotification({
+            type: 'error',
+            message: 'Valor incompatível: Para taxa de matrícula com status "Pendente", o valor a ser recebido deve ser maior que zero (R$ 0,00). Se o aluno for isento, marque como "Isento". O sistema não registrará.'
+          });
+          return;
+        }
+        if (numFee > 50000) {
+          setNotification({
+            type: 'error',
+            message: 'Valor incompatível: O valor da taxa pendente excede o limite permitido pelo sistema.'
+          });
+          return;
+        }
+      } else if (enrollmentFeeStatus === 'exempt') {
+        if (!enrollmentFeeExemptionReason) {
+          setNotification({
+            type: 'error',
+            message: 'Valor incompatível: Selecione o motivo da isenção da taxa de matrícula.'
+          });
+          return;
+        }
       }
     }
     
@@ -986,7 +1523,12 @@ export function Students() {
       if (!finalStartDate && cronoStartDate) {
         finalStartDate = cronoStartDate;
       }
+      if (!finalStartDate && targetClass?.start_date) {
+        finalStartDate = parseDateToDB(targetClass.start_date);
+      }
       
+      const resolvedCourse = effectiveCourseName || formData.course || (targetClass ? (targetClass.course || detectCourseFromClass(targetClass, coursesList)) : null);
+
       const studentUnitId = formData.unit_id || targetClass?.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
 
       const dataToSave: any = { 
@@ -995,7 +1537,7 @@ export function Students() {
         birth_date: parseDateToDB(formData.birth_date),
         start_date: finalStartDate,
         class_id: formData.class_id || null,
-        course: formData.course || null
+        course: resolvedCourse || null
       };
 
       // Ensure unit_id is also preserved in observations metadata
@@ -1075,11 +1617,57 @@ export function Students() {
           console.error('Error ensuring primary enrollment on save:', enrollErr);
         }
       }
+
+      // Amarração da Taxa de Matrícula / Inscrição
+      if (effectiveStudentId && dataToSave.class_id) {
+        const targetCls = classes.find(c => c.id === dataToSave.class_id);
+        const targetYear = targetCls ? getClassStartYear(targetCls) : (Number(targetCls?.start_year) || new Date().getFullYear());
+        
+        // Verificar se já tem contribuição da taxa (mês 0) para esse aluno e ano
+        const existingFeeContrib = (studentContributions || []).find(c => 
+          c.student_id === effectiveStudentId && 
+          Number(c.reference_month) === 0 && 
+          (!c.reference_year || Number(c.reference_year) === Number(targetYear))
+        );
+
+        if (!existingFeeContrib && enrollmentFeeStatus === 'paid') {
+          try {
+            const newFeeContrib: Partial<Contribution> = {
+              student_id: effectiveStudentId,
+              reference_month: 0,
+              reference_year: Number(targetYear) || new Date().getFullYear(),
+              amount: Number(enrollmentFeeAmount) || 0,
+              payment_date: parseDateToDB(enrollmentFeePaymentDate) || new Date().toISOString().split('T')[0],
+              payment_method: enrollmentFeePaymentMethod,
+              observations: enrollmentFeeObservations || `Taxa de Inscrição / Matrícula inicial - Turma ${targetCls?.name || ''}`,
+              created_at: new Date().toISOString()
+            };
+            await saveData('contributions', undefined, newFeeContrib);
+            await fetchStudentContributions(effectiveStudentId);
+
+            // Disponibilizar o comprovante de matrícula e recibo oficial
+            const savedStudentObj = { ...dataToSave, id: effectiveStudentId };
+            setReceiptModalData({
+              student: savedStudentObj,
+              classItem: targetCls,
+              feeAmount: Number(enrollmentFeeAmount) || 0,
+              feeStatus: 'paid',
+              paymentMethod: enrollmentFeePaymentMethod,
+              paymentDate: enrollmentFeePaymentDate,
+              observations: enrollmentFeeObservations,
+              isNew: isNew
+            });
+          } catch (feeErr) {
+            console.error('Erro ao salvar taxa de matrícula:', feeErr);
+          }
+        }
+      }
       
       setNotification({ type: 'success', message: 'Ficha do aluno salva com sucesso!' });
       setIsEditing(false);
       setUploadingPhoto(false); // Reset upload state on save success
-      setSelectedStudent(null);
+      const finalSavedStudent = { ...dataToSave, id: effectiveStudentId };
+      setSelectedStudent(finalSavedStudent);
       await fetchStudents();
       await fetchAllEnrollments();
       if (returnOrigin) {
@@ -1728,6 +2316,31 @@ export function Students() {
 
   return (
     <>
+      {notification && (
+        <div className={cn(
+          "fixed top-4 left-1/2 -translate-x-1/2 z-[300] px-4 py-3 rounded-none shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-start sm:items-center gap-3 max-w-xl w-[94vw] sm:w-auto border",
+          notification.type === 'success' 
+            ? "bg-emerald-600 border-emerald-700 text-white" 
+            : "bg-rose-700 border-rose-800 text-white shadow-rose-950/30 ring-2 ring-rose-500/20"
+        )}>
+          {notification.type === 'success' ? (
+            <CheckCircle2 size={18} className="shrink-0 mt-0.5 sm:mt-0 text-white" />
+          ) : (
+            <AlertCircle size={18} className="shrink-0 mt-0.5 sm:mt-0 text-amber-200" />
+          )}
+          <div className="flex-1">
+            <p className="text-xs font-bold leading-snug">{notification.message}</p>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => setNotification(null)}
+            className="p-1 hover:bg-white/20 transition-colors cursor-pointer text-white/80 hover:text-white shrink-0 ml-1"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="pt-3 sm:pt-4 mb-3 print:hidden">
         <UnitConflictBanner
           moduleName="Alunos"
@@ -1936,15 +2549,6 @@ export function Students() {
       )}>
         {selectedStudent || isEditing ? (
           <>
-            {notification && (
-              <div className={cn(
-                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-none shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2 max-w-[90vw]",
-                notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
-              )}>
-                {notification.type === 'success' ? <CheckCircle2 size={16} className="shrink-0" /> : <AlertCircle size={16} className="shrink-0" />}
-                <p className="text-[11px] font-bold uppercase tracking-wider truncate">{notification.message}</p>
-              </div>
-            )}
             <div className="p-3 sm:px-6 sm:py-4 border-b border-slate-100 bg-slate-50/30">
               {/* Banner de navegação de retorno quando a ficha foi aberta a partir de outro módulo */}
               {returnOrigin && (
@@ -2278,18 +2882,47 @@ export function Students() {
                           <option value="Suspenso">Suspenso</option>
                         </select>
                       </div>
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">CPF</label>
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">CPF</label>
+                          {formData.cpf ? (
+                            cpfValidation.rawLength === 11 ? (
+                              cpfValidation.isValid ? (
+                                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1 py-0.5 border border-emerald-200">
+                                  ✓ Válido
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-rose-800 bg-rose-50 px-1 py-0.5 border border-rose-200 animate-pulse">
+                                  ⚠️ Incompatível
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-[10px] text-amber-700 font-mono">
+                                {cpfValidation.rawLength}/11
+                              </span>
+                            )
+                          ) : null}
+                        </div>
                         <input 
                           type="text"
                           disabled={!isEditing}
                           value={formData.cpf || ''}
                           onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className={cn(
+                            "w-full px-4 py-2 bg-white border rounded-none text-sm focus:ring-2 disabled:opacity-60 transition-colors",
+                            formData.cpf && cpfValidation.rawLength === 11 && !cpfValidation.isValid
+                              ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                              : "border-slate-200 focus:ring-slate-500/10"
+                          )}
                           placeholder="000.000.000-00"
                           tabIndex={4}
                         />
+                        {formData.cpf && cpfValidation.rawLength === 11 && !cpfValidation.isValid && (
+                          <span className="text-[10px] text-rose-600 font-bold block">
+                            Dígitos verificadores inconsistentes
+                          </span>
+                        )}
                       </div>
                       <div className="col-span-12 sm:col-span-4 space-y-1">
                         <div className="flex items-center justify-between">
@@ -2338,19 +2971,73 @@ export function Students() {
                           </span>
                         </div>
                       </div>
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Data de Nascimento</label>
+                      <div className="col-span-8 sm:col-span-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Data de Nascimento</label>
+                          {!birthDateValidation.isValid ? (
+                            <span className="text-[10px] font-black text-rose-800 bg-rose-50 px-1 py-0.5 border border-rose-200 animate-pulse">
+                              ⚠️ {birthDateValidation.message}
+                            </span>
+                          ) : isStudentBirthdayToday ? (
+                            <span className="text-[10px] font-black text-amber-700 animate-pulse">🎂 Hoje!</span>
+                          ) : null}
+                        </div>
                         <input 
                           type="date"
                           disabled={!isEditing}
                           value={formData.birth_date || ''}
                           onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className={cn(
+                            "w-full px-3 py-2 bg-white border rounded-none text-sm focus:ring-2 disabled:opacity-60 text-slate-900 font-medium",
+                            !birthDateValidation.isValid
+                              ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                              : "border-slate-200 focus:ring-slate-500/10"
+                          )}
                           tabIndex={6}
                         />
                       </div>
-                      <div className="col-span-12 md:col-span-5 space-y-1">
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Idade</label>
+                          {calculatedAge !== null && (
+                            <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                              {calculatedAge === 1 ? 'ano' : 'anos'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            readOnly
+                            disabled
+                            value={
+                              !birthDateValidation.isValid && birthDateValidation.isFuture
+                                ? 'Inválida'
+                                : calculatedAge !== null 
+                                  ? `${calculatedAge} ${calculatedAge === 1 ? 'ano' : 'anos'}` 
+                                  : ''
+                            }
+                            placeholder="---"
+                            className={cn(
+                              "w-full px-2 py-2 border rounded-none text-sm font-bold text-center select-none disabled:opacity-90 font-mono",
+                              !birthDateValidation.isValid
+                                ? "bg-rose-50 border-rose-300 text-rose-700"
+                                : "bg-slate-100 border-slate-200 text-slate-800"
+                            )}
+                            title={
+                              !birthDateValidation.isValid
+                                ? birthDateValidation.message
+                                : calculatedAge !== null 
+                                  ? `Idade calculada: ${calculatedAge} anos completos` 
+                                  : 'Idade calculada automaticamente a partir da data de nascimento'
+                            }
+                            tabIndex={-1}
+                          />
+                        </div>
+                      </div>
+                      {/* Turma Principal (Vínculo Direto) */}
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Turma Principal (Vínculo Direto)</label>
                         <select 
                           disabled={!isEditing}
@@ -2358,7 +3045,7 @@ export function Students() {
                           onChange={(e) => {
                             const newClassId = e.target.value;
                             const targetClass = classes.find(c => c.id === newClassId);
-                            const detectedCourse = targetClass ? detectCourseFromClass(targetClass, coursesList) : '';
+                            const detectedCourse = targetClass ? (targetClass.course || detectCourseFromClass(targetClass, coursesList)) : '';
                             const cronoStartDate = targetClass ? getScheduleStartDateForClass(targetClass) : '';
                             const resolvedStartDate = cronoStartDate || targetClass?.start_date || '';
                             const classUnit = targetClass?.unit_id || formData.unit_id || 'matriz';
@@ -2397,73 +3084,50 @@ export function Students() {
                         </select>
                       </div>
 
-                      <div className="col-span-12 md:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Curso / Identificação</label>
-                        <select 
-                          disabled={!isEditing}
-                          value={
-                            formData.course || 
-                            (formData.class_id ? detectCourseFromClass(classes.find(c => c.id === formData.class_id), coursesList) : '')
-                          }
-                          onChange={(e) => setFormData({...formData, course: e.target.value})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-205 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold text-slate-800"
-                          tabIndex={8}
-                        >
-                          <option value="">Identificar Curso...</option>
-                          {coursesList.length > 0 ? (
-                            <>
-                              {coursesList.filter(c => c.status === 'Ativo').map((c, cIdx) => (
-                                <option key={`st-crs-opt-${c.id || c.code || cIdx}-${cIdx}`} value={c.name}>{c.name} ({c.code})</option>
-                              ))}
-                              {formData.course && !coursesList.some(c => c.name === formData.course) && (
-                                <option value={formData.course}>{formData.course}</option>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <option value="Teologia">Teologia</option>
-                              <option value="Latim">Latim</option>
-                              <option value="Doutrina Social da Igreja">Doutrina Social da Igreja</option>
-                              <option value="História dos Santos Negros">História dos Santos Negros</option>
-                              {formData.course && !['Teologia', 'Latim', 'Doutrina Social da Igreja', 'História dos Santos Negros', 'Outros'].includes(formData.course) && (
-                                <option value={formData.course}>{formData.course}</option>
-                              )}
-                            </>
-                          )}
-                          <option value="Outros">Outros</option>
-                        </select>
+                      {/* Curso / Identificação - Campo Somente Informativo */}
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Curso / Identificação</label>
+                          <span className="text-[10px] text-slate-400 font-medium">Informativo</span>
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            readOnly
+                            disabled
+                            value={effectiveCourseName || ''}
+                            placeholder="Vinculado à turma..."
+                            className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-none text-sm font-bold text-slate-800 truncate select-none disabled:opacity-90 pr-8"
+                            title={effectiveCourseName ? `Curso: ${effectiveCourseName}` : 'Curso vinculado à turma selecionada'}
+                            tabIndex={-1}
+                          />
+                          <BookOpen size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
                       </div>
 
-                      <div className="col-span-12 md:col-span-4 space-y-1">
+                      {/* Data Início da Turma - Campo Somente Informativo com mesmo comprimento da Data de Nascimento (3 colunas) */}
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
                         <div className="flex items-center justify-between gap-1">
                           <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Data Início da Turma</label>
-                          {formData.class_id && (() => {
-                            const targetCls = classes.find(c => c.id === formData.class_id);
-                            const schedDate = targetCls ? getScheduleStartDateForClass(targetCls) : '';
-                            if (schedDate) {
-                              return (
-                                <span 
-                                  className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors whitespace-nowrap shrink-0"
-                                  title="Clique para aplicar a data definida no cronograma"
-                                  onClick={() => isEditing && setFormData(prev => ({ ...prev, start_date: schedDate }))}
-                                >
-                                  <Calendar size={10} /> Cronograma: {formatDateForDisplay(schedDate)}
-                                </span>
-                              );
-                            }
-                            return null;
-                          })()}
+                          {effectiveClassStartDate && (
+                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 whitespace-nowrap shrink-0">
+                              Cronograma
+                            </span>
+                          )}
                         </div>
-                        <input 
-                          type="date"
-                          disabled={!isEditing}
-                          value={formData.start_date || ''}
-                          onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
-                          tabIndex={9}
-                        />
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            readOnly
+                            disabled
+                            value={effectiveClassStartDate ? formatDateForDisplay(effectiveClassStartDate) : ''}
+                            placeholder="DD/MM/AAAA"
+                            className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-none text-sm font-bold text-slate-800 select-none disabled:opacity-90 font-mono pr-8"
+                            title={effectiveClassStartDate ? `Data de início definida no cronograma: ${formatDateForDisplay(effectiveClassStartDate)}` : 'Data definida no cadastro e cronograma da turma'}
+                            tabIndex={-1}
+                          />
+                          <Calendar size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
                       </div>
 
                       {hasMultipleUnits && (
@@ -2579,8 +3243,7 @@ export function Students() {
                             </select>
                             <button
                               onClick={() => {
-                                handleAddEnrollment(enrollClassId);
-                                setEnrollClassId('');
+                                handleOpenEnrollModal(enrollClassId);
                               }}
                               disabled={!enrollClassId || !isEditing}
                               className={cn(
@@ -2896,27 +3559,338 @@ export function Students() {
                           tabIndex={22}
                         />
                       </div>
+                      <div className="col-span-12 sm:col-span-12 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span className="flex items-center gap-1 font-bold text-slate-600">
+                          <Calendar size={13} className="text-slate-400" />
+                          Data do Registro Inicial:
+                        </span>
+                        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border border-slate-200">
+                          {formData.created_at ? formatDateForDisplay(formData.created_at) : 'Será preenchido automaticamente ao salvar'}
+                        </span>
+                      </div>
                     </div>
                   </section>
 
-                  {/* Registration Date (Last Field) */}
-                  <section className="space-y-4 pt-4 border-t border-slate-100">
-                    <div className="grid grid-cols-12 gap-4">
-                      <div className="col-span-12 sm:col-span-6 space-y-1">
-                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-help" title="Data em que o aluno foi cadastrado pela primeira vez">
-                          <AlertCircle size={12} className="text-slate-705" />
-                          Data da Inscrição
-                        </label>
-                        <div className="w-full px-4 py-2 bg-slate-100/50 text-slate-500 rounded-none text-sm border border-dashed border-slate-200 flex items-center gap-2">
-                          <Calendar size={14} />
-                          {formData.created_at ? (
-                            <span className="font-bold">{formatDateForDisplay(formData.created_at)}</span>
-                          ) : (
-                            <span className="italic">Será preenchido automaticamente ao salvar</span>
-                          )}
+                  {/* Seção Amarração da Taxa de Matrícula / Inscrição (Ao Final da Ficha) */}
+                  <section className="space-y-3 pt-5 border-t-2 border-indigo-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-[#00174b] text-white rounded-none flex items-center justify-center shadow-xs">
+                          <DollarSign size={14} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+                            Amarração da Taxa de Matrícula / Inscrição
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            Etapa final do preenchimento da ficha de matrícula
+                          </p>
                         </div>
                       </div>
+                      <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 uppercase tracking-wider">
+                        Financeiro & Matrícula
+                      </span>
                     </div>
+
+                    {formData.class_id ? (
+                      paidEnrollmentFeeContrib ? (
+                        /* CASO 1: Taxa já paga para este ano */
+                        <div className="bg-emerald-50/90 border-2 border-emerald-500/80 p-3.5 sm:p-4 rounded-none shadow-xs">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-start sm:items-center gap-3">
+                              <div className="w-10 h-10 bg-emerald-600 text-white rounded-none flex items-center justify-center shrink-0 shadow-xs">
+                                <CheckCircle2 size={20} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-200 text-emerald-950 border border-emerald-300">
+                                    ✓ Taxa de Matrícula Quitada
+                                  </span>
+                                  <span className="text-base font-mono font-black text-emerald-900">
+                                    {formatCurrency(paidEnrollmentFeeContrib.amount)}
+                                  </span>
+                                  <span className="text-[11px] text-emerald-800 font-bold flex items-center gap-1">
+                                    <Calendar size={12} />
+                                    Pago em: {formatDateForDisplay(paidEnrollmentFeeContrib.payment_date)}
+                                  </span>
+                                  {paidEnrollmentFeeContrib.payment_method && (
+                                    <span className="text-[10px] uppercase font-black px-2 py-0.5 bg-white text-emerald-900 border border-emerald-300 shadow-2xs">
+                                      Forma: {paidEnrollmentFeeContrib.payment_method}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-emerald-800 font-medium mt-1">
+                                  A taxa de inscrição deste aluno está regularizada no financeiro referente ao ano letivo {paidEnrollmentFeeContrib.reference_year || 'vigente'}.
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetCls = classes.find(c => c.id === (formData.class_id || selectedStudent?.class_id));
+                                setReceiptModalData({
+                                  student: selectedStudent || formData as any,
+                                  classItem: targetCls,
+                                  feeAmount: paidEnrollmentFeeContrib.amount,
+                                  feeStatus: 'paid',
+                                  paymentMethod: paidEnrollmentFeeContrib.payment_method || 'Dinheiro',
+                                  paymentDate: paidEnrollmentFeeContrib.payment_date,
+                                  observations: paidEnrollmentFeeContrib.observations || 'Taxa de Matrícula quitada na secretaria'
+                                });
+                              }}
+                              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer self-start sm:self-auto"
+                            >
+                              <Receipt size={14} />
+                              <span>Ver / Imprimir Recibo</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : isEditing ? (
+                        /* CASO 2: Em Edição / Novo Aluno - Amarração da Taxa */
+                        <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-blue-50/70 border-2 border-indigo-200 p-3.5 sm:p-4 rounded-none shadow-xs space-y-3.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
+                            <div>
+                              <h5 className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                                Definição da Taxa de Inscrição / Matrícula
+                              </h5>
+                              <p className="text-[10px] text-indigo-700 font-medium">
+                                A taxa será vinculada e lançada automaticamente no financeiro ao salvar a ficha
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-1 bg-white p-1 border border-indigo-200 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={() => setEnrollmentFeeStatus('paid')}
+                                className={cn(
+                                  "px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                                  enrollmentFeeStatus === 'paid'
+                                    ? "bg-emerald-600 text-white shadow-2xs"
+                                    : "text-slate-600 hover:bg-slate-100"
+                                )}
+                              >
+                                ✓ Pagar Agora
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEnrollmentFeeStatus('pending')}
+                                className={cn(
+                                  "px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                                  enrollmentFeeStatus === 'pending'
+                                    ? "bg-amber-500 text-white shadow-2xs"
+                                    : "text-slate-600 hover:bg-slate-100"
+                                )}
+                              >
+                                ⏳ Pendente
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEnrollmentFeeStatus('exempt')}
+                                className={cn(
+                                  "px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                                  enrollmentFeeStatus === 'exempt'
+                                    ? "bg-slate-700 text-white shadow-2xs"
+                                    : "text-slate-600 hover:bg-slate-100"
+                                )}
+                              >
+                                🛡️ Isento
+                              </button>
+                            </div>
+                          </div>
+
+                          {enrollmentFeeStatus === 'paid' && (
+                            <div className="space-y-3 pt-1">
+                              <div className="grid grid-cols-12 gap-3">
+                                {/* Campo Valor Formatado como Moeda */}
+                                <div className="col-span-12 sm:col-span-4 space-y-1">
+                                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center justify-between">
+                                    <span>Valor da Taxa</span>
+                                    {isFeeAmountIncompatible ? (
+                                      <span className="text-[9px] text-rose-600 font-bold normal-case animate-pulse">
+                                        ⚠️ Incompatível (&gt; R$ 0,00)
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] text-indigo-600 font-bold normal-case">Tabela vigente</span>
+                                    )}
+                                  </label>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                                    <input
+                                      type="text"
+                                      value={enrollmentFeeAmountStr}
+                                      onChange={(e) => handleFeeAmountChange(e.target.value)}
+                                      onBlur={handleFeeAmountBlur}
+                                      onKeyDown={(e) => e.key === 'Enter' && handleFeeAmountBlur()}
+                                      className={cn(
+                                        "w-full pl-9 pr-3 py-2 bg-white border rounded-none text-sm font-black text-slate-900 focus:ring-2 shadow-2xs placeholder:text-slate-300 transition-colors",
+                                        isFeeAmountIncompatible
+                                          ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                                          : "border-indigo-300 focus:ring-indigo-500/20"
+                                      )}
+                                      placeholder="0,00"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Campo Data Formatado como Data */}
+                                <div className="col-span-12 sm:col-span-4 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                                      Data do Pagamento
+                                    </label>
+                                    {isFeeDateInFuture && (
+                                      <span className="text-[9px] text-rose-600 font-bold animate-pulse">
+                                        ⚠️ Data futura incompatível
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="relative">
+                                    <input
+                                      type="date"
+                                      value={enrollmentFeePaymentDate}
+                                      onChange={(e) => setEnrollmentFeePaymentDate(e.target.value)}
+                                      className={cn(
+                                        "w-full px-3 py-2 bg-white border rounded-none text-xs font-bold text-slate-900 focus:ring-2 shadow-2xs h-[38px] transition-colors",
+                                        isFeeDateInFuture
+                                          ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                                          : "border-indigo-300 focus:ring-indigo-500/20"
+                                      )}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Campo Forma de Pagamento Padronizado com Contribuições (Dinheiro, PIX, Cartão) */}
+                                <div className="col-span-12 sm:col-span-4 space-y-1">
+                                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                                    Forma de Pagamento
+                                  </label>
+                                  <div className="grid grid-cols-3 gap-1.5 h-[38px]">
+                                    {(['Dinheiro', 'PIX', 'Cartão'] as const).map((method) => (
+                                      <button
+                                        key={method}
+                                        type="button"
+                                        onClick={() => setEnrollmentFeePaymentMethod(method)}
+                                        className={cn(
+                                          "h-full rounded-none text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
+                                          enrollmentFeePaymentMethod === method
+                                            ? "bg-[#00174b] border-[#00174b] text-white shadow-xs"
+                                            : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
+                                        )}
+                                      >
+                                        {method}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Observações / Recibo */}
+                                <div className="col-span-12 space-y-1">
+                                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                                    Observações do Recibo (Opcional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ex: Quitado na secretaria / Comprovante entregue"
+                                    value={enrollmentFeeObservations}
+                                    onChange={(e) => setEnrollmentFeeObservations(e.target.value)}
+                                    className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-none text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/20 shadow-2xs"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="bg-emerald-50 border border-emerald-200 p-2.5 text-[11px] text-emerald-900 flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                                  <span>
+                                    <strong>Integração ativa:</strong> Ao salvar a ficha do aluno, a taxa de <strong>{formatCurrency(enrollmentFeeAmount)}</strong> ({enrollmentFeePaymentMethod}) será gravada e o <strong>Comprovante com Recibo Oficial</strong> será emitido para impressão imediata.
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {enrollmentFeeStatus === 'pending' && (
+                            <div className="p-3 bg-amber-50 border border-amber-300 text-amber-950 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle size={16} className="text-amber-600 shrink-0" />
+                                <p className="text-xs font-bold">
+                                  Taxa de Matrícula ficará registrada como PENDENTE ({formatCurrency(enrollmentFeeAmount)})
+                                </p>
+                              </div>
+                              {isFeeAmountIncompatible && (
+                                <p className="text-[11px] text-rose-700 font-bold bg-rose-50 p-2 border border-rose-300">
+                                  ⚠️ Valor incompatível: para taxa pendente, informe um valor maior que R$ 0,00 ou marque como &quot;Isento&quot;. O sistema não registrará valores zerados ou negativos.
+                                </p>
+                              )}
+                              <p className="text-[11px] text-amber-800">
+                                O valor da taxa constará no controle financeiro como a receber. O operador poderá liquidá-la a qualquer momento com emissão imediata do recibo.
+                              </p>
+                            </div>
+                          )}
+
+                          {enrollmentFeeStatus === 'exempt' && (
+                            <div className="p-3 bg-slate-100 border border-slate-300 text-slate-800 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Info size={16} className="text-slate-600 shrink-0" />
+                                <p className="text-xs font-bold">Isenção da Taxa de Inscrição / Matrícula</p>
+                              </div>
+                              <div className="grid grid-cols-12 gap-2">
+                                <div className="col-span-12 sm:col-span-6 space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-600">Motivo da Isenção</label>
+                                  <select
+                                    value={enrollmentFeeExemptionReason}
+                                    onChange={(e) => setEnrollmentFeeExemptionReason(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-bold"
+                                  >
+                                    <option value="Seminarista / Vocacionado">Seminarista / Vocacionado</option>
+                                    <option value="Bolsista Integral">Bolsista Integral</option>
+                                    <option value="Segunda Turma / Curso Paralelo">Segunda Turma / Curso Paralelo</option>
+                                    <option value="Autorização da Direção / Caritativo">Autorização da Direção / Caritativo</option>
+                                    <option value="Outro">Outro</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        /* CASO 3: Visualização do Aluno com Taxa Não Paga / Pendente */
+                        <div className="bg-amber-50/80 border-2 border-amber-300 p-3.5 sm:p-4 rounded-none shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-start sm:items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-500 text-white rounded-none flex items-center justify-center shrink-0 shadow-xs">
+                              <AlertCircle size={20} />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-amber-200 text-amber-950 border border-amber-300">
+                                  ⚠️ Taxa de Matrícula Pendente / Não Registrada
+                                </span>
+                                <span className="text-xs font-bold text-amber-900">
+                                  Valor sugerido: {formatCurrency(enrollmentFeeAmount)}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-amber-800 font-medium mt-1">
+                                Não consta comprovante de quitação da taxa de matrícula para este aluno no ano letivo.
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleOpenLiquidateModal}
+                            className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer self-start sm:self-auto"
+                          >
+                            <CreditCard size={14} />
+                            <span>Registrar Quitação da Taxa</span>
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <div className="p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-none text-slate-500 text-center space-y-1">
+                        <GraduationCap size={20} className="mx-auto text-slate-400" />
+                        <p className="text-xs font-bold text-slate-700">Selecione uma turma no bloco acadêmico</p>
+                        <p className="text-[11px] text-slate-500">Ao vincular a turma do aluno, as opções da taxa de matrícula e emissão de recibo serão habilitadas aqui.</p>
+                      </div>
+                    )}
                   </section>
 
                   {/* Action Buttons removed from footer and moved to the persistent top header actions bar */}
@@ -2980,6 +3954,48 @@ export function Students() {
       </div>
 
       <PrintableGrade />
+
+      {/* Modal de Comprovante de Matrícula e Recibo Oficial */}
+      {receiptModalData && (
+        <EnrollmentReceiptModal
+          isOpen={Boolean(receiptModalData)}
+          onClose={() => setReceiptModalData(null)}
+          student={receiptModalData.student}
+          classItem={receiptModalData.classItem}
+          institution={institution}
+          feeAmount={receiptModalData.feeAmount}
+          feeStatus={receiptModalData.feeStatus}
+          paymentMethod={receiptModalData.paymentMethod}
+          paymentDate={receiptModalData.paymentDate}
+          observations={receiptModalData.observations}
+          unitName={getUnitName(receiptModalData.student.unit_id)}
+          isNew={receiptModalData.isNew}
+        />
+      )}
+
+      {/* Modal de Quitação Rápida da Taxa de Matrícula */}
+      {liquidateFeeModalData && (
+        <LiquidateEnrollmentFeeModal
+          isOpen={Boolean(liquidateFeeModalData)}
+          onClose={() => setLiquidateFeeModalData(null)}
+          student={liquidateFeeModalData.student}
+          classItem={liquidateFeeModalData.classItem}
+          suggestedAmount={liquidateFeeModalData.amount}
+          onConfirm={handleConfirmLiquidate}
+        />
+      )}
+
+      {/* Modal de Matrícula em Turma Adicional com Taxa */}
+      {enrollModalClass && (
+        <EnrollClassWithFeeModal
+          isOpen={Boolean(enrollModalClass)}
+          onClose={() => setEnrollModalClass(null)}
+          student={selectedStudent}
+          targetClass={enrollModalClass}
+          suggestedFee={enrollModalFeeAmount}
+          onConfirm={handleConfirmEnrollWithFee}
+        />
+      )}
     </>
   );
 }

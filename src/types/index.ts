@@ -99,6 +99,12 @@ export interface Enrollment {
   enrollment_date: string;
   user_id: string;
   created_at: string;
+  fee_status?: 'paid' | 'pending' | 'exempt';
+  fee_amount?: number;
+  fee_payment_method?: string;
+  fee_payment_date?: string;
+  fee_exemption_reason?: string;
+  fee_contribution_id?: string;
 }
 
 export interface Assessment {
@@ -227,7 +233,7 @@ export interface Contribution {
   reference_month: number;
   reference_year: number;
   payment_date: string;
-  payment_method?: 'PIX' | 'Cartão' | 'Dinheiro';
+  payment_method?: 'PIX' | 'Cartão' | 'Dinheiro' | string;
   origin?: string;
   pix_id?: string;
   observations?: string;

@@ -21,7 +21,7 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
@@ -1273,7 +1273,18 @@ export function StudentFicha() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400 font-semibold uppercase text-[9.5px]">Nascimento:</span>
-                          <span className="font-semibold text-slate-750">{activeStudent.birth_date ? formatDateForDisplay(activeStudent.birth_date) : 'Não informado'}</span>
+                          <span className="font-semibold text-slate-750">
+                            {activeStudent.birth_date ? (
+                              <>
+                                {formatDateForDisplay(activeStudent.birth_date)}
+                                {calculateAge(activeStudent.birth_date) !== null && (
+                                  <span className="text-slate-500 font-normal ml-1">
+                                    ({calculateAge(activeStudent.birth_date)} {calculateAge(activeStudent.birth_date) === 1 ? 'ano' : 'anos'})
+                                  </span>
+                                )}
+                              </>
+                            ) : 'Não informado'}
+                          </span>
                         </div>
                       </div>
                     </div>

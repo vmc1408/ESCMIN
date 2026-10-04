@@ -139,6 +139,33 @@ export function maskDate(value: string) {
   return `${digits.substring(0, 2)}/${digits.substring(2, 4)}/${digits.substring(4)}`;
 }
 
+export function isValidCPF(cpf: string | null | undefined): boolean {
+  if (!cpf) return true; // Optional if empty
+  const clean = cpf.replace(/\D/g, '');
+  if (!clean) return true;
+  if (clean.length !== 11) return false;
+  // Sequence of repeated identical digits (e.g. 111.111.111-11)
+  if (/^(\d)\1{10}$/.test(clean)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (10 - i);
+  }
+  let rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(9), 10)) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (11 - i);
+  }
+  rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(10), 10)) return false;
+
+  return true;
+}
+
 export function formatDateForDisplay(dateStr: string | undefined | null): string {
   if (!dateStr) return '';
   
@@ -159,6 +186,107 @@ export function formatDateForDisplay(dateStr: string | undefined | null): string
     if (day.length === 4) return `${year}/${month}/${day}`; // Handles some weird cases
   }
   return pureDate;
+}
+
+export function calculateAge(birthDate: string | Date | null | undefined): number | null {
+  if (!birthDate) return null;
+  let year: number, month: number, day: number;
+
+  if (typeof birthDate === 'string') {
+    const clean = birthDate.trim().split('T')[0];
+    if (clean.includes('-')) {
+      const parts = clean.split('-');
+      if (parts.length >= 3) {
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10) - 1;
+        day = parseInt(parts[2], 10);
+      } else {
+        return null;
+      }
+    } else if (clean.includes('/')) {
+      const parts = clean.split('/');
+      if (parts.length >= 3) {
+        day = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10) - 1;
+        year = parseInt(parts[2], 10);
+      } else {
+        return null;
+      }
+    } else {
+      const d = new Date(clean);
+      if (isNaN(d.getTime())) return null;
+      year = d.getFullYear();
+      month = d.getMonth();
+      day = d.getDate();
+    }
+  } else if (birthDate instanceof Date) {
+    if (isNaN(birthDate.getTime())) return null;
+    year = birthDate.getFullYear();
+    month = birthDate.getMonth();
+    day = birthDate.getDate();
+  } else {
+    return null;
+  }
+
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  const currentDay = today.getDate();
+
+  let age = currentYear - year;
+  if (currentMonth < month || (currentMonth === month && currentDay < day)) {
+    age--;
+  }
+
+  return age >= 0 && age <= 130 ? age : null;
+}
+
+export function formatAge(birthDate: string | Date | null | undefined, fallback: string = '---'): string {
+  const age = calculateAge(birthDate);
+  if (age === null) return fallback;
+  return `${age} ${age === 1 ? 'ano' : 'anos'}`;
+}
+
+export function isBirthdayToday(birthDate: string | Date | null | undefined): boolean {
+  if (!birthDate) return false;
+  let month: number, day: number;
+  if (typeof birthDate === 'string') {
+    const clean = birthDate.trim().split('T')[0];
+    if (clean.includes('-')) {
+      const parts = clean.split('-');
+      if (parts.length >= 3) {
+        month = parseInt(parts[1], 10) - 1;
+        day = parseInt(parts[2], 10);
+      } else {
+        return false;
+      }
+    } else if (clean.includes('/')) {
+      const parts = clean.split('/');
+      if (parts.length >= 3) {
+        month = parseInt(parts[1], 10) - 1;
+        day = parseInt(parts[0], 10);
+      } else {
+        return false;
+      }
+    } else {
+      const d = new Date(clean);
+      if (isNaN(d.getTime())) return false;
+      month = d.getMonth();
+      day = d.getDate();
+    }
+  } else if (birthDate instanceof Date) {
+    if (isNaN(birthDate.getTime())) return false;
+    month = birthDate.getMonth();
+    day = birthDate.getDate();
+  } else {
+    return false;
+  }
+
+  if (isNaN(month) || isNaN(day)) return false;
+  const today = new Date();
+  return today.getMonth() === month && today.getDate() === day;
 }
 
 export function parseDateToDB(dateStr: string | undefined | null): string | null {
