@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, CheckCircle2, Copy } from 'lucide-react';
+import { X, Printer, CheckCircle2, Copy, FileText } from 'lucide-react';
 import { formatCurrency, formatDateForDisplay, numberToPortugueseWords, formatRegistrationNumber, cn, safeFormat } from '../lib/utils';
 import { Student, Class } from '../types';
 import { DEFAULT_LOGO } from '../lib/default-logo';
@@ -57,149 +57,152 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   const receiptNumber = `MAT-${rawReg}-${currentYear}`;
   const effectivePaymentDate = paymentDate || new Date().toISOString().split('T')[0];
 
-  const dioceseTitle = instSettings?.city_uf 
-    ? `DIOCESE DE ${instSettings.city_uf.split('/')[0].toUpperCase()}`
-    : 'DIOCESE DE GUARULHOS';
-  const instName = (instSettings?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase();
-  const instSubtitle = (instSettings?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase();
-  const instAddress = instSettings?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - CEP 07044-170';
+  const instName = (instSettings?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase();
+  const instAddress = instSettings?.address || 'Av. Venus, 195 - Itapegica - Guarulhos/SP';
   const instLogo = instSettings?.logo_url || DEFAULT_LOGO;
-  const instPhone = instSettings?.phone || '';
-  const instEmail = instSettings?.email ? instSettings.email.toLowerCase() : '';
-  const receiptMsg = instSettings?.receipt_message || 'Inscrição e matrícula confirmadas com gratidão. O(a) aluno(a) declara estar de acordo com o regimento escolar e as normas acadêmicas da instituição diocesana.';
+  const instPhone = instSettings?.phone || '(11) 2421-2935';
+  const instEmail = instSettings?.email ? instSettings.email.toLowerCase() : 'email@email.com.br';
+  const receiptMsg = instSettings?.receipt_message || 'Contribuição recebida com gratidão para a formação teológica e espiritual. Este valor apoia a missão educativa da escola e o desenvolvimento dos alunos. Deus lhe recompense pela generosidade e confiança.';
 
   const viasToRender = copies === 1 ? [1] : [1, 2];
 
   /**
-   * Constrói o HTML puro de uma via para envio direto à impressora via iframe.
-   * Totalmente monocromático, calibrado em milímetros para encaixe exato em A4.
+   * Constrói o HTML puro de uma via no padrão idêntico ao Recibo de Contribuição (Contributions.tsx)
    */
   const generateViaHtml = (via: number, activeCopies: 1 | 2 = copies) => {
-    const viaLabel = via === 1
-      ? activeCopies === 1
-        ? 'VIA ÚNICA - ALUNO'
-        : 'VIA 1 - ESCOLA / SECRETARIA'
-      : 'VIA 2 - ALUNO';
+    const viaLabel = activeCopies === 1
+      ? 'VIA ÚNICA'
+      : via === 1
+        ? 'VIA ESCOLA'
+        : 'VIA ALUNO';
 
-    const statusBadge = feeStatus === 'paid' 
-      ? '✓ QUITADO' 
-      : feeStatus === 'exempt' 
-        ? 'ISENTO' 
-        : 'PENDENTE';
+    const courseName = (classItem?.course || student.course || 'TEOLOGIA').toUpperCase();
+    const className = (classItem?.name || `${courseName} ${currentYear}`).toUpperCase();
+    const studentFullName = student.name.toUpperCase();
+    const studentReg = formatRegistrationNumber(student.registration_number);
 
     return `
-      <div class="via-box">
-        <!-- Cabeçalho Oficial Diocesano -->
-        <div class="header-section">
-          <div class="header-left">
-            <div class="logo-box">
+      <div class="receipt-via">
+        <!-- Header Recibo -->
+        <div class="receipt-header">
+          <div class="receipt-header-left">
+            <div class="receipt-logo">
               <img src="${instLogo}" alt="Logo" class="logo-img" />
             </div>
-            <div class="header-texts">
-              <div class="diocese-name">${dioceseTitle}</div>
-              <div class="inst-name">${instName}</div>
-              <div class="inst-sub">${instSubtitle}</div>
-              <div class="inst-addr">${instAddress}</div>
-              <div class="inst-contact">
+            <div class="receipt-inst-info">
+              <h4 class="inst-title">${instName}</h4>
+              <p class="inst-addr">${instAddress}</p>
+              <div class="inst-contacts">
                 ${instPhone ? `<span>TEL: ${instPhone}</span>` : ''}
-                ${instEmail ? `<span>EMAIL: ${instEmail}</span>` : ''}
+                ${instEmail ? `<span>email: ${instEmail}</span>` : ''}
               </div>
             </div>
           </div>
-          <div class="header-right">
-            <div class="via-badge">${viaLabel}</div>
+          <div class="receipt-vertical-via">
+            <span>${viaLabel}</span>
           </div>
         </div>
 
-        <!-- Título do Documento -->
-        <div class="title-section">
-          <div class="doc-title">RECIBO DE MATRÍCULA E INSCRIÇÃO</div>
-          <div class="meta-row">
-            <span>Nº COMPROVANTE: <strong>${receiptNumber}</strong></span>
-            <span>DATA DE EMISSÃO: <strong>${formatDateForDisplay(new Date().toISOString())}</strong></span>
-          </div>
+        <div class="header-divider"></div>
+
+        <!-- Título Centralizado -->
+        <div class="receipt-title-box">
+          <h2 class="receipt-title">RECIBO DE MATRÍCULA</h2>
         </div>
 
-        <!-- Bloco 1: Aluno e Turma -->
-        <div class="info-block">
-          <div class="info-header">
-            <span>IDENTIFICAÇÃO DO ALUNO(A)</span>
-            <span class="status-indicator">SITUAÇÃO: ${student.status?.toUpperCase() || 'ATIVO'}</span>
-          </div>
-          <div class="student-name">${formatRegistrationNumber(student.registration_number)} - ${student.name.toUpperCase()}</div>
-          <div class="student-meta">
-            <span>CPF: <strong>${student.cpf || 'Não informado'}</strong></span>
-            <span>RG: <strong>${student.rg || 'Não informado'}</strong></span>
-            ${unitName ? `<span>Polo/Unidade: <strong>${unitName}</strong></span>` : ''}
-          </div>
-        </div>
-
-        <!-- Bloco 2: Dados Acadêmicos -->
-        <div class="academic-block">
-          <div class="acad-row-1">
-            <strong>CURSO:</strong> ${(classItem?.course || student.course || 'Curso Regular').toUpperCase()}
-            <span style="float: right;"><strong>Ano Letivo:</strong> ${currentYear}</span>
-          </div>
-          <div class="acad-row-2">
-            <span>Turma: <strong>${classItem?.name || 'Turma Regular'}</strong></span>
-            <span>Turno: <strong>${classItem?.period || 'Regular'}</strong></span>
-            <span>Início das Aulas: <strong>${classItem?.start_date ? formatDateForDisplay(classItem.start_date) : 'Conforme cronograma'}</strong></span>
-          </div>
-        </div>
-
-        <!-- Bloco 3: Detalhamento Financeiro -->
-        <div class="financial-block">
-          <div class="fin-header">
-            <span class="fin-title">DETALHAMENTO DA TAXA DE MATRÍCULA</span>
-            <span class="fin-status">${statusBadge}</span>
-          </div>
-          <div class="fin-body">
-            <div class="fin-desc">
-              <div class="fin-ref">Taxa de Matrícula e Inscrição Acadêmica (${currentYear})</div>
-              <div class="fin-words">Extenso: ${numberToPortugueseWords(feeAmount)}</div>
+        <div class="receipt-body">
+          <!-- Box Aluno e Turma -->
+          <div class="student-card">
+            <div class="card-accent-bar"></div>
+            <div class="student-col">
+              <p class="col-label">MATRICULA / ALUNO(A)</p>
+              <p class="col-value">${studentReg} - ${studentFullName}</p>
             </div>
-            <div class="fin-amount">
-              <div class="amount-label">VALOR DO LANÇAMENTO</div>
-              <div class="amount-value">${formatCurrency(feeAmount)}</div>
+            <div class="turma-col">
+              <p class="col-label">TURMA ACADÊMICA</p>
+              <p class="col-value">${className}</p>
             </div>
           </div>
-          <div class="fin-footer">
-            <span>Forma de Quitação: <strong>${paymentMethod}</strong></span>
-            <span>Data do Pagamento: <strong>${formatDateForDisplay(effectivePaymentDate)}</strong></span>
-            ${observations ? `<div class="fin-obs">Obs: ${observations}</div>` : ''}
+
+          <!-- Grid Financeiro -->
+          <div class="grid-finance">
+            <div class="table-container">
+              <table class="finance-table">
+                <thead>
+                  <tr>
+                    <th>MÊS / ANO</th>
+                    <th>VALOR</th>
+                    <th>MODO</th>
+                    <th>DATA PAGTO.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="td-bold">Matr. / ${currentYear}</td>
+                    <td class="td-bold">${formatCurrency(feeAmount)}</td>
+                    <td class="td-muted">${paymentMethod}</td>
+                    <td class="td-date">${formatDateForDisplay(effectivePaymentDate)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-container">
+              <table class="finance-table empty-table">
+                <thead>
+                  <tr>
+                    <th>MÊS / ANO</th>
+                    <th>VALOR</th>
+                    <th>MODO</th>
+                    <th>DATA PAGTO.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="4" style="color: transparent;">&nbsp;</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        <!-- Bloco 4: Mensagem Institucional -->
-        <div class="msg-block">
-          "${receiptMsg}"
-        </div>
-
-        <!-- Bloco 5: Assinatura da Secretaria -->
-        <div class="signatures-row">
-          <div class="sig-col-single">
-            <div class="sig-line"></div>
-            <div class="sig-label">SECRETARIA ACADÊMICA / CARIMBO</div>
+          <!-- Mensagem e Total -->
+          <div class="grid-summary">
+            <div class="msg-box">
+              <span class="msg-label">MENSAGEM / AVISO DE RECIBO</span>
+              <p class="msg-text">${receiptMsg}</p>
+            </div>
+            <div class="total-box">
+              <span class="total-label">TOTAL DAS CONTRIBUIÇÕES</span>
+              <span class="total-value">${formatCurrency(feeAmount)}</span>
+            </div>
           </div>
-        </div>
 
-        <!-- Rodapé do Sistema -->
-        <div class="footer-meta">
-          <span>SISTEMA ${instName}</span>
-          <span>REGISTRO: ${formatDateForDisplay(effectivePaymentDate)} • FORMA: ${paymentMethod.toUpperCase()}</span>
-          <span>EMISSÃO: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</span>
+          <div class="footer-divider"></div>
+
+          <!-- Rodapé de Emissão e Assinatura -->
+          <div class="receipt-footer">
+            <div class="footer-meta-texts">
+              <p>Data do Recebimento: ${formatDateForDisplay(effectivePaymentDate)}</p>
+              <p>Modo de Pagamento: Pagamento Direto (${paymentMethod})</p>
+              <p>Registro no Sistema: ${formatDateForDisplay(effectivePaymentDate)} 00:00</p>
+              <p class="footer-light">Emissão: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+            </div>
+            <div class="signature-box">
+              <div class="sig-line"></div>
+              <p class="sig-label">RESPONSÁVEL / TESOURARIA</p>
+            </div>
+          </div>
         </div>
       </div>
     `;
   };
 
   /**
-   * Executa a impressão direta da opção escolhida (1 via ou 2 vias)
-   * sem necessidade de repetir a ação com botões duplicados.
+   * Executa a impressão física da opção de vias escolhida
    */
-  const triggerPrint = (selectedCopies: 1 | 2) => {
+  const handleConfirmPrint = () => {
     setIsPrintingDirect(true);
-    setCopies(selectedCopies);
 
     try {
       let iframe = document.getElementById('enrollment-print-iframe') as HTMLIFrameElement;
@@ -216,12 +219,14 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
         document.body.appendChild(iframe);
       }
 
-      const via1 = generateViaHtml(1, selectedCopies);
-      const via2 = selectedCopies === 2 ? generateViaHtml(2, selectedCopies) : '';
+      const via1 = generateViaHtml(1, copies);
+      const via2 = copies === 2 ? generateViaHtml(2, copies) : '';
 
-      const cutLineHtml = selectedCopies === 2 ? `
-        <div class="cut-line">
-          <span>✂ - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - ✂</span>
+      const cutLineHtml = copies === 2 ? `
+        <div class="cut-divider">
+          <div class="cut-dashed-line">
+            <span class="cut-text">✂️ CORTE AQUI ✂️</span>
+          </div>
         </div>
       ` : '';
 
@@ -234,7 +239,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
           <style>
             @page {
               size: A4 portrait;
-              margin: 4mm 8mm 4mm 8mm;
+              margin: 8mm 12mm 8mm 12mm;
             }
             * {
               box-sizing: border-box;
@@ -247,305 +252,331 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
               padding: 0;
               background: #ffffff;
               color: #000000;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             }
             .page-container {
               width: 100%;
-              max-width: 194mm;
+              max-width: 190mm;
               margin: 0 auto;
               box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
             }
-            .via-box {
-              border: 1.5px solid #000000;
+            .receipt-via {
               background: #ffffff;
-              color: #000000;
-              padding: 8px 10px;
-              box-sizing: border-box;
+              padding: 10px 14px;
+              position: relative;
               page-break-inside: avoid;
               break-inside: avoid;
-              font-size: 10px;
-              line-height: 1.25;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              margin-bottom: ${copies === 2 ? '4px' : '0'};
             }
-            .header-section {
+            .receipt-header {
               display: flex;
-              justify-content: space-between;
               align-items: flex-start;
-              border-bottom: 1.5px solid #000000;
-              padding-bottom: 5px;
-              margin-bottom: 5px;
+              justify-content: space-between;
+              position: relative;
+              margin-bottom: 6px;
             }
-            .header-left {
+            .receipt-header-left {
               display: flex;
               align-items: center;
-              gap: 8px;
+              gap: 16px;
             }
-            .logo-box {
-              width: 44px;
-              height: 44px;
+            .receipt-logo {
+              width: 52px;
+              height: 52px;
+              flex-shrink: 0;
               display: flex;
               align-items: center;
               justify-content: center;
-              flex-shrink: 0;
             }
             .logo-img {
               max-width: 100%;
               max-height: 100%;
-              object-contain: contain;
-              filter: grayscale(100%) contrast(150%);
+              object-fit: contain;
             }
-            .header-texts {
+            .receipt-inst-info {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+            }
+            .inst-title {
+              font-size: 15px;
+              font-weight: 900;
+              color: #00174b;
+              text-transform: uppercase;
+              letter-spacing: -0.3px;
+              margin: 0;
+              line-height: 1.1;
+            }
+            .inst-addr {
+              font-size: 9px;
+              font-weight: 700;
+              color: #64748b;
+              margin: 0;
+              line-height: 1.2;
+            }
+            .inst-contacts {
+              font-size: 8px;
+              font-weight: 700;
+              color: #94a3b8;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              display: flex;
+              gap: 12px;
+              margin: 0;
+            }
+            .receipt-vertical-via {
+              position: absolute;
+              right: 0;
+              top: 50%;
+              transform: translateY(-50%);
+              opacity: 0.35;
+              user-select: none;
+            }
+            .receipt-vertical-via span {
+              font-size: 8px;
+              font-weight: 900;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.4em;
+              writing-mode: vertical-rl;
+              transform: rotate(180deg);
+              display: block;
+              padding: 8px 0;
+            }
+            .header-divider {
+              width: 100%;
+              height: 1px;
+              background-color: #f1f5f9;
+              margin-bottom: 6px;
+            }
+            .receipt-title-box {
+              text-align: center;
+              margin-bottom: 8px;
+            }
+            .receipt-title {
+              font-size: 15px;
+              font-weight: 900;
+              color: #00174b;
+              text-transform: uppercase;
+              letter-spacing: 0.2em;
+              display: inline-block;
+              border-bottom: 2px solid #00174b;
+              padding-bottom: 2px;
+              margin: 0;
+            }
+            .receipt-body {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            }
+            .student-card {
+              background-color: #f8fafc;
+              padding: 10px 14px;
+              border-radius: 10px;
+              border: 1px solid #f1f5f9;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 16px;
+              position: relative;
+              overflow: hidden;
+            }
+            .card-accent-bar {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 5px;
+              height: 100%;
+              background-color: #2563eb;
+            }
+            .col-label {
+              font-size: 9px;
+              font-weight: 900;
+              color: #94a3b8;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              margin: 0 0 3px 0;
+            }
+            .col-value {
+              font-size: 12px;
+              font-weight: 900;
+              color: #00174b;
+              margin: 0;
+              text-transform: uppercase;
+            }
+            .grid-finance {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+            }
+            .table-container {
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              overflow: hidden;
+              min-height: 80px;
+              background: #ffffff;
+            }
+            .finance-table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 10px;
+              text-align: center;
+              height: 100%;
+            }
+            .finance-table thead {
+              background-color: #f8fafc;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .finance-table th {
+              padding: 6px 4px;
+              font-weight: 900;
+              color: #64748b;
+              text-transform: uppercase;
+              font-size: 8.5px;
+              line-height: 1;
+              border-left: 1px solid #e2e8f0;
+            }
+            .finance-table th:first-child {
+              border-left: none;
+            }
+            .finance-table td {
+              padding: 8px 4px;
+              border-left: 1px solid #f1f5f9;
+            }
+            .finance-table td:first-child {
+              border-left: none;
+            }
+            .td-bold {
+              font-weight: 900;
+              color: #131b2e;
+            }
+            .td-muted {
+              font-size: 9px;
+              font-weight: 600;
+              color: #475569;
+            }
+            .td-date {
+              font-weight: 900;
+              color: #00174b;
+            }
+            .grid-summary {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+            }
+            .msg-box {
+              background-color: #f8fafc;
+              padding: 8px 12px;
+              border-radius: 10px;
+              border: 1px solid #f1f5f9;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              min-height: 52px;
+            }
+            .msg-label {
+              font-size: 7.5px;
+              font-weight: 900;
+              color: #94a3b8;
+              text-transform: uppercase;
+              margin-bottom: 3px;
+            }
+            .msg-text {
+              font-size: 8.5px;
+              font-weight: 600;
+              color: #475569;
+              line-height: 1.25;
+              margin: 0;
+            }
+            .total-box {
+              background-color: #eff6ff;
+              padding: 8px 16px;
+              border-radius: 10px;
+              border: 1px solid #dbeafe;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              min-height: 52px;
+            }
+            .total-label {
+              font-size: 9.5px;
+              font-weight: 900;
+              color: #1e3a8a;
+              text-transform: uppercase;
+            }
+            .total-value {
+              font-size: 17px;
+              font-weight: 900;
+              color: #1e3a8a;
+              font-family: monospace;
+            }
+            .footer-divider {
+              width: 100%;
+              height: 1px;
+              background-color: #f1f5f9;
+              margin: 6px 0;
+            }
+            .receipt-footer {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              padding-top: 2px;
+            }
+            .footer-meta-texts {
               display: flex;
               flex-direction: column;
               gap: 1px;
             }
-            .diocese-name {
-              font-size: 7.5px;
-              font-weight: 900;
-              letter-spacing: 0.5px;
-              color: #333333;
-              text-transform: uppercase;
-            }
-            .inst-name {
-              font-size: 11px;
-              font-weight: 900;
-              color: #000000;
-              text-transform: uppercase;
-              letter-spacing: -0.2px;
-            }
-            .inst-sub {
+            .footer-meta-texts p {
+              margin: 0;
               font-size: 8px;
               font-weight: 700;
-              color: #333333;
-              text-transform: uppercase;
+              color: #94a3b8;
             }
-            .inst-addr {
-              font-size: 7.5px;
-              color: #444444;
+            .footer-light {
+              color: #cbd5e1 !important;
             }
-            .inst-contact {
-              font-size: 7px;
-              color: #555555;
-              font-weight: 700;
-              display: flex;
-              gap: 8px;
-              text-transform: uppercase;
-            }
-            .via-badge {
-              border: 1px solid #000000;
-              background: #f0f0f0;
-              padding: 2px 6px;
-              font-size: 7.5px;
-              font-family: monospace;
-              font-weight: 900;
-              text-transform: uppercase;
-              white-space: nowrap;
-            }
-            .title-section {
+            .signature-box {
               text-align: center;
-              margin-bottom: 5px;
-            }
-            .doc-title {
-              font-size: 11px;
-              font-weight: 900;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              display: inline-block;
-              border-bottom: 1.5px solid #000000;
-              padding-bottom: 1px;
-            }
-            .meta-row {
-              display: flex;
-              justify-content: space-between;
-              font-size: 8px;
-              font-family: monospace;
-              margin-top: 3px;
-              padding: 0 2px;
-              color: #222222;
-            }
-            .info-block {
-              border: 1px solid #000000;
-              background: #fafafa;
-              padding: 5px 7px;
-              margin-bottom: 4px;
-            }
-            .info-header {
-              display: flex;
-              justify-content: space-between;
-              font-size: 7.5px;
-              font-weight: 900;
-              color: #444444;
-              margin-bottom: 2px;
-            }
-            .status-indicator {
-              border: 1px solid #000000;
-              background: #ffffff;
-              padding: 0 4px;
-              font-family: monospace;
-              color: #000000;
-            }
-            .student-name {
-              font-size: 11px;
-              font-weight: 900;
-              color: #000000;
-            }
-            .student-meta {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 12px;
-              font-size: 8.5px;
-              color: #222222;
-              border-top: 1px solid #dddddd;
-              margin-top: 3px;
-              padding-top: 2px;
-            }
-            .academic-block {
-              border: 1px solid #000000;
-              background: #ffffff;
-              padding: 5px 7px;
-              margin-bottom: 4px;
-            }
-            .acad-row-1 {
-              font-size: 9.5px;
-              color: #000000;
-              margin-bottom: 2px;
-            }
-            .acad-row-2 {
-              display: flex;
-              justify-content: space-between;
-              font-size: 8.5px;
-              color: #333333;
-            }
-            .financial-block {
-              border: 1px solid #000000;
-              background: #fafafa;
-              padding: 5px 7px;
-              margin-bottom: 4px;
-            }
-            .fin-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              border-bottom: 1px solid #cccccc;
-              padding-bottom: 3px;
-              margin-bottom: 4px;
-            }
-            .fin-title {
-              font-size: 7.5px;
-              font-weight: 900;
-              color: #000000;
-              text-transform: uppercase;
-            }
-            .fin-status {
-              border: 1px solid #000000;
-              background: #ffffff;
-              padding: 1px 5px;
-              font-size: 7.5px;
-              font-weight: 900;
-              text-transform: uppercase;
-            }
-            .fin-body {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-            }
-            .fin-ref {
-              font-size: 9.5px;
-              font-weight: 800;
-              color: #000000;
-            }
-            .fin-words {
-              font-size: 8px;
-              font-style: italic;
-              color: #444444;
-              margin-top: 2px;
-            }
-            .fin-amount {
-              text-align: right;
-            }
-            .amount-label {
-              font-size: 7px;
-              font-weight: 700;
-              color: #555555;
-            }
-            .amount-value {
-              font-size: 13px;
-              font-weight: 900;
-              font-family: monospace;
-              color: #000000;
-            }
-            .fin-footer {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 12px;
-              font-size: 8.5px;
-              border-top: 1px solid #dddddd;
-              margin-top: 4px;
-              padding-top: 3px;
-              color: #222222;
-            }
-            .fin-obs {
-              width: 100%;
-              font-size: 7.5px;
-              color: #555555;
-            }
-            .msg-block {
-              border: 1px solid #cccccc;
-              background: #ffffff;
-              padding: 3px 5px;
-              text-align: center;
-              font-size: 7.5px;
-              font-style: italic;
-              color: #555555;
-              margin-bottom: 5px;
-              line-height: 1.2;
-            }
-            .signatures-row {
-              display: flex;
-              justify-content: flex-end;
-              align-items: flex-end;
-              padding-top: 8px;
-              margin-bottom: 4px;
-            }
-            .sig-col-single {
-              text-align: center;
-              width: 230px;
+              width: 190px;
             }
             .sig-line {
-              border-bottom: 1px solid #000000;
+              border-bottom: 1px solid #94a3b8;
               margin-bottom: 3px;
             }
             .sig-label {
+              margin: 0;
               font-size: 8px;
               font-weight: 900;
-              letter-spacing: 0.5px;
-              color: #000000;
-            }
-            .footer-meta {
-              border-top: 1px solid #cccccc;
-              padding-top: 3px;
-              display: flex;
-              justify-content: space-between;
-              font-size: 6.5px;
-              font-family: monospace;
-              color: #666666;
+              color: #64748b;
               text-transform: uppercase;
+              letter-spacing: 1px;
             }
-            .cut-line {
-              border-top: 1.5px dashed #000000;
-              margin: 6px 0;
-              text-align: center;
-              height: 12px;
-              line-height: 12px;
+            .cut-divider {
+              width: 100%;
+              margin: 8px 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
             }
-            .cut-line span {
+            .cut-dashed-line {
+              width: 100%;
+              border-bottom: 1.5px dashed #94a3b8;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .cut-text {
               background: #ffffff;
-              padding: 0 10px;
-              font-size: 7.5px;
-              font-family: monospace;
-              font-weight: 700;
-              color: #000000;
-              position: relative;
-              top: -8px;
+              padding: 0 12px;
+              font-size: 8px;
+              font-weight: 900;
+              color: #64748b;
+              text-transform: uppercase;
+              transform: translateY(50%);
             }
           </style>
         </head>
@@ -587,28 +618,34 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
     }
   };
 
-  // Componente de visualização na tela da via individual
-  const renderPreviewVia = (via: number) => {
-    const viaLabel = via === 1
-      ? copies === 1
-        ? 'VIA ÚNICA - ALUNO'
-        : 'VIA 1 - ESCOLA / SECRETARIA'
-      : 'VIA 2 - ALUNO';
+  /**
+   * Componente de visualização do recibo na tela com o visual idêntico ao modelo de contribuição
+   */
+  const renderContributionPatternVia = (via: number) => {
+    const viaLabel = copies === 1
+      ? 'VIA ÚNICA'
+      : via === 1
+        ? 'VIA ESCOLA'
+        : 'VIA ALUNO';
+
+    const courseName = (classItem?.course || student.course || 'TEOLOGIA').toUpperCase();
+    const className = (classItem?.name || `${courseName} ${currentYear}`).toUpperCase();
+    const studentFullName = student.name.toUpperCase();
+    const studentReg = formatRegistrationNumber(student.registration_number);
 
     return (
       <div 
         key={via}
-        className="bg-white border-2 border-black p-3.5 sm:p-4 text-black relative box-border shadow-xs"
+        className="bg-white p-6 sm:p-8 border border-slate-200 rounded-xl relative overflow-hidden shadow-xs mb-3"
       >
-        {/* Cabeçalho Oficial Diocesano */}
-        <div className="flex items-start justify-between border-b-2 border-black pb-2 mb-2 relative">
-          <div className="flex items-center gap-3">
-            {/* Logotipo Monocromático */}
-            <div className="w-12 h-12 flex items-center justify-center shrink-0">
-              <img
-                src={instLogo}
-                alt="Logo"
-                className="w-full h-full object-contain grayscale contrast-150"
+        {/* Header Recibo Oficial */}
+        <div className="flex items-start justify-between relative mb-2">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 shrink-0 flex items-center justify-center">
+              <img 
+                src={instLogo} 
+                alt="Logo" 
+                className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
                   if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_LOGO) {
@@ -617,149 +654,135 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
                 }}
               />
             </div>
-
-            {/* Texto Institucional em P&B */}
+            
             <div className="space-y-0.5">
-              <p className="text-[8.5px] font-black tracking-widest text-slate-800 uppercase leading-none">
-                {dioceseTitle}
-              </p>
-              <h4 className="text-xs sm:text-sm font-black text-black uppercase tracking-tight leading-tight">
+              <h4 className="text-base sm:text-lg font-black text-[#00174b] uppercase tracking-tight leading-tight">
                 {instName}
               </h4>
-              <p className="text-[9px] font-bold text-slate-800 uppercase tracking-wider">
-                {instSubtitle}
-              </p>
-              <p className="text-[8px] text-slate-700 font-medium leading-tight">
+              <p className="text-[9px] text-slate-500 font-bold max-w-md leading-relaxed">
                 {instAddress}
               </p>
-              <div className="flex flex-wrap items-center gap-x-2 text-[7.5px] text-slate-600 font-bold uppercase">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
                 {instPhone && <span>TEL: {instPhone}</span>}
-                {instEmail && <span>EMAIL: {instEmail}</span>}
+                {instEmail && <span className="lowercase">email: {instEmail}</span>}
               </div>
             </div>
           </div>
-
-          {/* Etiqueta da Via */}
-          <div className="text-right shrink-0">
-            <span className="inline-block px-2 py-0.5 border border-black bg-slate-100 text-[8.5px] font-mono font-black text-black uppercase">
+          
+          {/* Rótulo da Via em texto vertical na lateral direita */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-35 select-none pointer-events-none">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.4em] [writing-mode:vertical-rl] rotate-180 py-4 block">
               {viaLabel}
             </span>
           </div>
         </div>
 
-        {/* Título do Documento com Número e Data */}
-        <div className="text-center mb-2">
-          <h2 className="text-xs sm:text-sm font-black text-black uppercase tracking-[0.18em] inline-block border-b-2 border-black pb-0.5">
-            Recibo de Matrícula e Inscrição
+        <div className="w-full h-px bg-slate-100 mb-2" />
+      
+        {/* Título Centralizado com Borda */}
+        <div className="text-center mb-3">
+          <h2 className="text-base sm:text-lg font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">
+            Recibo de Matrícula
           </h2>
-          <div className="flex items-center justify-between text-[9px] text-slate-800 font-mono mt-1 px-1">
-            <span>Nº COMPROVANTE: <strong className="text-black">{receiptNumber}</strong></span>
-            <span>DATA DE EMISSÃO: <strong className="text-black">{formatDateForDisplay(new Date().toISOString())}</strong></span>
-          </div>
         </div>
 
-        {/* Bloco 1: Identificação do Aluno */}
-        <div className="border border-black bg-slate-50 p-2 mb-2 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[8.5px] font-black text-slate-700 uppercase tracking-wider">
-              Identificação do Aluno(a)
-            </span>
-            <span className="text-[8.5px] font-mono font-bold text-black border border-black bg-white px-1 py-0.2">
-              SITUAÇÃO: {student.status?.toUpperCase() || 'ATIVO'}
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm font-black text-black uppercase pt-0.5">
-            {formatRegistrationNumber(student.registration_number)} - {student.name}
-          </p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[9.5px] text-slate-800 pt-1 border-t border-slate-300 mt-1">
-            <span>CPF: <strong className="text-black">{student.cpf || 'Não informado'}</strong></span>
-            <span>RG: <strong className="text-black">{student.rg || 'Não informado'}</strong></span>
-            {unitName && <span>Polo / Unidade: <strong className="text-black">{unitName}</strong></span>}
-          </div>
-        </div>
-
-        {/* Bloco 2: Dados Acadêmicos da Turma */}
-        <div className="border border-black p-2 mb-2 text-xs bg-white">
-          <div className="flex items-center justify-between mb-0.5">
-            <span className="text-[8.5px] font-black text-slate-700 uppercase tracking-wider">
-              Dados Acadêmicos e Turma Vinculada
-            </span>
-            <span className="text-[9px] font-bold text-black">
-              Ano Letivo: {currentYear}
-            </span>
-          </div>
-          <p className="text-xs font-black text-black uppercase">
-            CURSO: {classItem?.course || student.course || 'Curso Regular'}
-          </p>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[9.5px] text-slate-800 pt-0.5">
-            <span>Turma: <strong className="text-black">{classItem?.name || 'Turma Regular'}</strong></span>
-            <span>Turno: <strong className="text-black">{classItem?.period || 'Regular'}</strong></span>
-            <span>Início das Aulas: <strong className="text-black">{classItem?.start_date ? formatDateForDisplay(classItem.start_date) : 'Conforme cronograma'}</strong></span>
-          </div>
-        </div>
-
-        {/* Bloco 3: Quadro Financeiro da Taxa de Matrícula */}
-        <div className="border border-black p-2.5 mb-2 text-xs bg-slate-50">
-          <div className="flex items-center justify-between border-b border-slate-400 pb-1 mb-1.5">
-            <span className="text-[8.5px] font-black text-black uppercase tracking-wider">
-              Detalhamento da Taxa de Matrícula
-            </span>
-            <span className="border border-black px-1.5 py-0.2 text-[8.5px] font-black text-black uppercase bg-white">
-              {feeStatus === 'paid' ? '✓ QUITADO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE'}
-            </span>
-          </div>
-
-          <div className="flex items-start justify-between">
+        <div className="space-y-3">
+          {/* Card Aluno e Turma com Barra Azul Lateral */}
+          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4 relative overflow-hidden">
+            <div className="absolute left-0 top-0 w-1.5 h-full bg-blue-600"></div>
             <div>
-              <p className="text-[8px] font-bold text-slate-700 uppercase">Referência</p>
-              <p className="text-xs font-black text-black">
-                Taxa de Inscrição e Matrícula Acadêmica ({currentYear})
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">
+                Matricula / Aluno(a)
               </p>
-              <p className="text-[9.5px] text-slate-800 italic pt-0.5">
-                Extenso: {numberToPortugueseWords(feeAmount)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[8px] font-bold text-slate-700 uppercase">Valor do Lançamento</p>
-              <p className="text-base font-black text-black font-mono">
-                {formatCurrency(feeAmount)}
+              <p className="text-xs sm:text-sm font-black text-[#00174b]">
+                {studentReg} - {studentFullName}
               </p>
             </div>
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">
+                Turma Acadêmica
+              </p>
+              <p className="text-xs sm:text-sm font-black text-[#00174b]">
+                {className}
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-1.5 mt-1.5 border-t border-slate-300 text-[9.5px] text-slate-900">
-            <div>Forma de Quitação: <strong className="text-black">{paymentMethod}</strong></div>
-            <div>Data do Pagamento: <strong className="text-black">{formatDateForDisplay(effectivePaymentDate)}</strong></div>
-            {observations && (
-              <div className="col-span-2 text-[8.5px] text-slate-700 pt-0.5">
-                Observações: {observations}
-              </div>
-            )}
+          {/* Grid de 2 Colunas com a Tabela de Pagamento */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="border border-slate-200 rounded-xl overflow-hidden min-h-[100px] bg-white">
+              <table className="w-full text-xs text-center h-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase leading-none text-[9px]">Mês / Ano</th>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Valor</th>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Modo</th>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Data Pagto.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="font-bold text-[#131b2e]">
+                    <td className="py-2.5 px-2 text-[10px]">Matr. / {currentYear}</td>
+                    <td className="py-2.5 px-2 border-l border-slate-100 text-[10px]">{formatCurrency(feeAmount)}</td>
+                    <td className="py-2.5 px-2 border-l border-slate-100 text-[9px] font-semibold text-slate-600">
+                      {paymentMethod}
+                    </td>
+                    <td className="py-2.5 px-2 border-l border-slate-100 text-[#00174b] text-[10px]">{formatDateForDisplay(effectivePaymentDate)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden min-h-[100px] bg-white hidden sm:block">
+              <table className="w-full text-xs text-center h-full opacity-60">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase leading-none text-[9px]">Mês / Ano</th>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Valor</th>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Modo</th>
+                    <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Data Pagto.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colSpan={4} className="py-5 text-slate-300 font-mono text-[9px]">
+                      ---
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        {/* Bloco 4: Declaração / Mensagem Institucional */}
-        <div className="border border-slate-300 bg-white p-1 text-center mb-2.5">
-          <p className="text-[8px] text-slate-700 italic leading-snug">
-            &quot;{receiptMsg}&quot;
-          </p>
-        </div>
-
-        {/* Bloco 5: Assinatura da Secretaria (aluno removido conforme solicitado) */}
-        <div className="flex justify-end items-end pt-2 mb-1.5 text-xs">
-          <div className="text-center w-52 sm:w-60">
-            <div className="border-b border-black mb-1"></div>
-            <p className="text-[8.5px] font-black uppercase tracking-wider text-black">
-              Secretaria Acadêmica / Carimbo
-            </p>
+          {/* Mensagem Institucional e Total */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-center px-4 min-h-[55px]">
+              <span className="text-[8px] font-black text-slate-400 uppercase mb-1">Mensagem / Aviso de Recibo</span>
+              <p className="text-[9px] font-semibold text-slate-600 leading-tight">
+                {receiptMsg}
+              </p>
+            </div>
+            <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center px-5 sm:px-6 min-h-[55px]">
+              <span className="text-[10px] font-black text-blue-900 uppercase">Total das Contribuições</span>
+              <span className="text-lg sm:text-xl font-black text-blue-900">{formatCurrency(feeAmount)}</span>
+            </div>
           </div>
-        </div>
 
-        {/* Rodapé Informativo */}
-        <div className="pt-1 mt-1 border-t border-slate-300 flex items-center justify-between text-[7px] text-slate-600 font-mono uppercase">
-          <span>SISTEMA {instName}</span>
-          <span>REGISTRO: {formatDateForDisplay(effectivePaymentDate)} • FORMA: {paymentMethod.toUpperCase()}</span>
-          <span>EMISSÃO: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</span>
+          <div className="w-full h-px bg-slate-100 my-2" />
+
+          {/* Metadados e Assinatura */}
+          <div className="flex justify-between items-end pt-1">
+            <div className="space-y-0.5">
+              <p className="text-[8px] font-bold text-slate-400">Data do Recebimento: {formatDateForDisplay(effectivePaymentDate)}</p>
+              <p className="text-[8px] font-bold text-slate-400">Modo de Pagamento: Pagamento Direto ({paymentMethod})</p>
+              <p className="text-[8px] font-bold text-slate-400">Registro no Sistema: {formatDateForDisplay(effectivePaymentDate)} 00:00</p>
+              <p className="text-[8px] font-bold text-slate-300">Emissão: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+            </div>
+            <div className="text-center">
+              <div className="w-48 border-b border-slate-400 mb-1"></div>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Responsável / Tesouraria</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -767,9 +790,9 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
 
   return (
     <>
-      {/* 1. Modal Interativo em Tela (Interface Clara, Amigável e Moderna) */}
-      <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200 print:hidden">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-4xl w-full my-auto overflow-hidden flex flex-col max-h-[96vh]">
+      {/* 1. Modal Interativo com Escolha de Vias Exatamente como em Recibos e Visualização */}
+      <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200 print:hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full my-auto overflow-hidden flex flex-col max-h-[96vh]">
           {/* Alerta de Sucesso se Recém-Inscrito */}
           {isNew && (
             <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-900 px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between shrink-0">
@@ -781,111 +804,151 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
             </div>
           )}
 
-          {/* BARRA SUPERIOR CLARA COM BOTÕES DIRETOS E FECHAR NA MESMA LINHA */}
-          <div className="px-4 sm:px-6 py-3.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-            {/* Título Limpo */}
+          {/* CABEÇALHO DO MODAL */}
+          <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between gap-4 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#00174b] shrink-0 shadow-2xs">
-                <Printer size={18} />
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Printer size={22} />
               </div>
-              <div>
-                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#00174b]">
-                  Recibo de Matrícula
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                  Como deseja emitir o recibo?
                 </h3>
-                <p className="text-[10px] text-slate-500 font-medium">
-                  Selecione a opção desejada para imprimir o documento
+                <p className="text-[10px] text-slate-400 font-bold uppercase">
+                  Recibo Nº {receiptNumber}
                 </p>
               </div>
             </div>
 
-            {/* Ações Diretas: 1 Via + 2 Vias + Fechar (Tudo na mesma linha) */}
-            <div className="flex items-center gap-2 shrink-0 ml-auto">
-              {/* Botão de Ação Direta: 1 Via */}
-              <button
+            {/* Botão de Fechar */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              title="Fechar janela"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* PAINEL DE ESCOLHA DAS VIAS (EXATAMENTE COMO EM RECIBOS - IMAGEM 4) */}
+          <div className="px-6 py-3 bg-slate-50/70 border-b border-slate-100 shrink-0">
+            <p className="text-xs text-slate-500 font-medium leading-relaxed mb-3">
+              Escolha a quantidade de vias para gerar o documento de <span className="font-semibold text-slate-700">{student.name}</span> no valor de <span className="font-semibold text-slate-700">{formatCurrency(feeAmount)}</span>:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Opção 1: 1 Via */}
+              <button 
                 type="button"
-                onClick={() => triggerPrint(1)}
-                disabled={isPrintingDirect}
+                onClick={() => setCopies(1)}
                 className={cn(
-                  "px-3.5 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all border shadow-xs rounded-lg disabled:opacity-50",
+                  "flex items-start gap-3.5 p-3.5 rounded-xl border text-left transition-all cursor-pointer",
                   copies === 1
-                    ? "bg-[#00174b] hover:bg-blue-900 text-white border-[#00174b]"
-                    : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
+                    ? "border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20 shadow-xs"
+                    : "border-slate-200 hover:border-slate-300 hover:bg-white bg-white/70"
                 )}
-                title="Imprimir 1 via avulsa do recibo"
               >
-                <Printer size={14} />
-                <span>1 Via</span>
+                <div className={cn(
+                  "p-2 rounded-lg transition-colors shrink-0",
+                  copies === 1 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"
+                )}>
+                  <FileText size={18} />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    1 Via <span className="text-[9px] font-bold bg-slate-100 text-slate-600 py-0.5 px-2 rounded-md">Meia Página</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-500 leading-normal font-medium">
+                    Gera uma única via ocupando exatamente a metade superior de uma folha A4 retrato.
+                  </p>
+                </div>
               </button>
 
-              {/* Botão de Ação Direta: 2 Vias (1 Página A4) */}
-              <button
+              {/* Opção 2: 2 Vias */}
+              <button 
                 type="button"
-                onClick={() => triggerPrint(2)}
-                disabled={isPrintingDirect}
+                onClick={() => setCopies(2)}
                 className={cn(
-                  "px-3.5 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all border shadow-xs rounded-lg disabled:opacity-50",
+                  "flex items-start gap-3.5 p-3.5 rounded-xl border text-left transition-all cursor-pointer",
                   copies === 2
-                    ? "bg-[#00174b] hover:bg-blue-900 text-white border-[#00174b]"
-                    : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
+                    ? "border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20 shadow-xs"
+                    : "border-slate-200 hover:border-slate-300 hover:bg-white bg-white/70"
                 )}
-                title="Imprimir 2 vias (Escola e Aluno) na mesma página com linha de corte"
               >
-                <Copy size={14} />
-                <span>2 Vias (1 Página A4)</span>
-              </button>
-
-              {/* Botão Fechar - Elevado e Alinhado na Mesma Linha */}
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ml-1 shadow-2xs"
-                title="Fechar janela"
-              >
-                <X size={15} />
-                <span>Fechar</span>
+                <div className={cn(
+                  "p-2 rounded-lg transition-colors shrink-0",
+                  copies === 2 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"
+                )}>
+                  <Copy size={18} />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    2 Vias <span className="text-[9px] font-bold bg-blue-50 text-blue-600 py-0.5 px-2 rounded-md">Página Inteira</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-500 leading-normal font-medium">
+                    Gera duas vias idênticas (Secretaria e Aluno) na mesma folha A4 com linha tracejada para recorte no meio.
+                  </p>
+                </div>
               </button>
             </div>
           </div>
 
-          {/* Área de Visualização com Fundo Claro e Agradável */}
-          <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100">
-            <div className="max-w-2xl mx-auto space-y-3">
+          {/* ÁREA DE VISUALIZAÇÃO PRÉVIA (OCUPANDO O ESPAÇO HARMONIOSO DA FOLHA A4) */}
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100/60">
+            <div className="max-w-3xl mx-auto">
               {viasToRender.map((via) => (
                 <React.Fragment key={via}>
-                  {renderPreviewVia(via)}
+                  {renderContributionPatternVia(via)}
 
                   {via === 1 && copies === 2 && (
-                    <div className="py-1 flex items-center justify-center my-1">
-                      <div className="w-full border-b border-dashed border-black flex items-center justify-center">
-                        <span className="bg-white px-3 text-[9px] font-mono font-bold text-black uppercase -translate-y-1/2">
-                          ✂ - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - ✂
-                        </span>
-                      </div>
+                    <div className="w-full border-b-2 border-dashed border-slate-400 my-4 flex items-center justify-center">
+                      <span className="bg-white px-4 text-[8px] font-black text-slate-500 uppercase -translate-y-[1px] flex items-center gap-1">
+                        ✂️ CORTE AQUI ✂️
+                      </span>
                     </div>
                   )}
                 </React.Fragment>
               ))}
             </div>
           </div>
+
+          {/* BARRA INFERIOR DE CONFIRMAÇÃO DA IMPRESSÃO */}
+          <div className="p-4 bg-white border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
+            <button 
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              onClick={handleConfirmPrint}
+              disabled={isPrintingDirect}
+              className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2.5 cursor-pointer shadow-lg transition-all disabled:opacity-50"
+            >
+              <Printer size={18} />
+              <span>{isPrintingDirect ? 'Enviando...' : `Confirmar Impressão (${copies} ${copies === 1 ? 'Via' : 'Vias'})`}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 2. ÁREA DE IMPRESSÃO EMBARCADA NO DOM
-          Utilizada caso o usuário utilize Ctrl+P diretamente pelo navegador.
-          Completamente isolada e visível apenas durante @media print.
-      */}
+      {/* 2. ÁREA DE IMPRESSÃO EMBARCADA NO DOM */}
       <div id="printable-enrollment-receipt" className="hidden print:block bg-white text-black p-0 m-0 w-full">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
               size: A4 portrait;
-              margin: 4mm 8mm 4mm 8mm !important;
+              margin: 8mm 12mm 8mm 12mm !important;
             }
             #printable-enrollment-receipt {
               display: block !important;
               position: static !important;
               width: 100% !important;
-              max-width: 194mm !important;
+              max-width: 190mm !important;
               margin: 0 auto !important;
               padding: 0 !important;
               background: #ffffff !important;
@@ -904,13 +967,13 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
           {viasToRender.map((via) => (
             <React.Fragment key={`prt-dom-via-${via}`}>
               <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                {renderPreviewVia(via)}
+                {renderContributionPatternVia(via)}
               </div>
 
               {via === 1 && copies === 2 && (
-                <div className="w-full border-b border-dashed border-black flex items-center justify-center my-1.5" style={{ height: '4mm' }}>
-                  <span className="bg-white px-3 text-[8px] font-mono font-bold text-black uppercase -translate-y-1/2">
-                    ✂ - - - - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - - - - ✂
+                <div className="w-full border-b-2 border-dashed border-slate-400 my-4 flex items-center justify-center">
+                  <span className="bg-white px-4 text-[8px] font-black text-slate-500 uppercase -translate-y-[1px] flex items-center gap-1">
+                    ✂️ CORTE AQUI ✂️
                   </span>
                 </div>
               )}
