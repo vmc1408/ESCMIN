@@ -1,9 +1,10 @@
-import React from 'react';
-import { X, Printer, Download, CheckCircle2, AlertCircle, ShieldCheck, GraduationCap, Building2, Calendar, FileText } from 'lucide-react';
-import { formatCurrency, formatDateForDisplay, numberToPortugueseWords, formatRegistrationNumber } from '../lib/utils';
+import React, { useState, useEffect } from 'react';
+import { X, Printer, Download, CheckCircle2, Copy, FileText } from 'lucide-react';
+import { formatCurrency, formatDateForDisplay, numberToPortugueseWords, formatRegistrationNumber, cn, safeFormat } from '../lib/utils';
 import { Student, Class } from '../types';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { DEFAULT_LOGO } from '../lib/default-logo';
+import { getInstitutionSettings } from '../lib/database';
 
 interface EnrollmentReceiptModalProps {
   isOpen: boolean;
@@ -34,13 +35,35 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   unitName,
   isNew = false
 }) => {
+  const [copies, setCopies] = useState<1 | 2>(2);
+  const [instSettings, setInstSettings] = useState<any>(institution || null);
+
+  useEffect(() => {
+    if (institution) {
+      setInstSettings(institution);
+    } else {
+      getInstitutionSettings()
+        .then((data) => {
+          if (data) setInstSettings(data);
+        })
+        .catch((err) => console.warn('Não foi possível carregar dados da instituição:', err));
+    }
+  }, [institution]);
+
   if (!isOpen || !student) return null;
 
   const currentYear = classItem?.start_year || new Date().getFullYear();
-  const receiptNumber = `MAT-${(student.registration_number || student.id.slice(0, 6)).replace(/\//g, '')}-${currentYear}`;
+  const rawReg = (student.registration_number || student.id.slice(0, 6)).replace(/\//g, '');
+  const receiptNumber = `MAT-${rawReg}-${currentYear}`;
   const effectivePaymentDate = paymentDate || new Date().toISOString().split('T')[0];
-  const instName = institution?.name || 'Escola Diocesana de Teologia e Ministérios';
-  const instSubtitle = institution?.subtitle || 'Mitra Diocesana de Guarulhos';
+
+  const dioceseTitle = instSettings?.city_uf 
+    ? `DIOCESE DE ${instSettings.city_uf.split('/')[0].toUpperCase()}`
+    : 'DIOCESE DE GUARULHOS';
+  const instName = (instSettings?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase();
+  const instSubtitle = (instSettings?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase();
+  const instAddress = instSettings?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - CEP 07044-170';
+  const instLogo = instSettings?.logo_url || DEFAULT_LOGO;
 
   const handleDownloadPDF = () => {
     try {
@@ -49,136 +72,201 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
         unit: 'mm',
         format: 'a4'
       });
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 12;
 
-      const drawVia = (yOffset: number, viaLabel: string) => {
+      const drawSingleVia = (startY: number, viaLabel: string) => {
+        const boxHeight = copies === 1 ? 138 : 132;
+
         // Moldura externa
-        doc.setDrawColor(100, 116, 139);
-        doc.setLineWidth(0.4);
-        doc.rect(10, yOffset + 10, 190, 128, 'S');
+        doc.setDrawColor(200, 210, 225);
+        doc.setLineWidth(0.3);
+        doc.rect(margin, startY, pageWidth - margin * 2, boxHeight);
 
-        // Logo se disponível
-        if (institution?.logo_url) {
+        // Logo
+        let logoWidth = 0;
+        try {
+          doc.addImage(instLogo, 'auto', margin + 3, startY + 3, 16, 16);
+          logoWidth = 20;
+        } catch (e) {
           try {
-            doc.addImage(institution.logo_url, 'auto', 14, yOffset + 14, 18, 18);
-          } catch (e) {}
+            doc.addImage(DEFAULT_LOGO, 'PNG', margin + 3, startY + 3, 16, 16);
+            logoWidth = 20;
+          } catch (e2) {}
         }
 
-        // Identificador da via
+        const textStartX = margin + logoWidth + 2;
+
+        // Cabeçalho Institucional
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(7);
         doc.setFont('helvetica', 'bold');
+        doc.text(dioceseTitle, textStartX, startY + 5);
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75); // #00174b
+        doc.text(instName, textStartX, startY + 10);
+
         doc.setFontSize(7.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text(viaLabel.toUpperCase(), 195, yOffset + 16, { align: 'right' });
-
-        // Cabeçalho da Instituição
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(71, 85, 105);
-        doc.text(instSubtitle.toUpperCase(), 105, yOffset + 18, { align: 'center' });
+        doc.setTextColor(80, 80, 80);
+        doc.text(instSubtitle, textStartX, startY + 14);
 
-        doc.setFontSize(12);
-        doc.setTextColor(15, 23, 42);
-        doc.text(instName.toUpperCase(), 105, yOffset + 23.5, { align: 'center' });
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
-        doc.setTextColor(30, 58, 138); // Blue
-        doc.text('COMPROVANTE DE MATRÍCULA E RECIBO DE TAXA', 105, yOffset + 29.5, { align: 'center' });
-
-        // Faixa de Metadados
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(51, 65, 85);
-        doc.text(`Nº COMPROVANTE: ${receiptNumber}`, 14, yOffset + 36);
-        doc.text(`DATA EMISSÃO: ${formatDateForDisplay(new Date().toISOString())}`, 195, yOffset + 36, { align: 'right' });
-
-        doc.setDrawColor(203, 213, 225);
-        doc.line(14, yOffset + 38, 195, yOffset + 38);
-
-        // Box Aluno
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`ALUNO(A): ${student.name.toUpperCase()}`, 14, yOffset + 44);
-        
+        const contactInfo = [
+          instAddress,
+          instSettings?.phone ? `TEL: ${instSettings.phone}` : '',
+          instSettings?.email ? `EMAIL: ${instSettings.email.toLowerCase()}` : ''
+        ].filter(Boolean).join('  |  ');
+        doc.setFontSize(6);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(`MATRÍCULA / RA: ${formatRegistrationNumber(student.registration_number)}`, 14, yOffset + 49);
-        doc.text(`CPF: ${student.cpf || 'Não informado'}    RG: ${student.rg || 'Não informado'}`, 80, yOffset + 49);
-        if (unitName) {
-          doc.text(`POLO / UNIDADE: ${unitName}`, 14, yOffset + 54);
-        }
+        doc.setTextColor(100, 100, 100);
+        doc.text(contactInfo.slice(0, 95), textStartX, startY + 17.5);
+
+        // Etiqueta da Via (Canto superior direito)
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 116, 139);
+        doc.text(viaLabel.toUpperCase(), pageWidth - margin - 3, startY + 6, { align: 'right' });
+
+        // Divisória do Cabeçalho
+        doc.setDrawColor(0, 23, 75);
+        doc.setLineWidth(0.4);
+        doc.line(margin + 2, startY + 20, pageWidth - margin - 2, startY + 20);
+
+        // Título Central
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('RECIBO DE MATRÍCULA E INSCRIÇÃO', pageWidth / 2, startY + 25, { align: 'center' });
+
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Nº: ${receiptNumber}    DATA: ${formatDateForDisplay(new Date().toISOString())}`, pageWidth / 2, startY + 29, { align: 'center' });
+
+        // Box Identificação do Aluno
+        doc.setFillColor(248, 250, 252);
+        doc.rect(margin + 2, startY + 31, pageWidth - margin * 2 - 4, 15, 'F');
+        doc.setDrawColor(220, 226, 235);
+        doc.rect(margin + 2, startY + 31, pageWidth - margin * 2 - 4, 15, 'S');
+        // Faixa azul lateral
+        doc.setFillColor(37, 99, 235); // blue-600
+        doc.rect(margin + 2, startY + 31, 1.5, 15, 'F');
+
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 100, 100);
+        doc.text('MATRÍCULA / ALUNO(A):', margin + 5, startY + 35);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text(`${formatRegistrationNumber(student.registration_number)} - ${student.name.toUpperCase()}`, margin + 5, startY + 39.5);
+
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        const docLine = [
+          `CPF: ${student.cpf || 'Não informado'}`,
+          `RG: ${student.rg || 'Não informado'}`,
+          unitName ? `Polo / Unidade: ${unitName}` : ''
+        ].filter(Boolean).join('    ');
+        doc.text(docLine, margin + 5, startY + 43.5);
 
         // Box Turma / Curso
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(30, 58, 138);
+        doc.setFillColor(241, 245, 249);
+        doc.rect(margin + 2, startY + 48, pageWidth - margin * 2 - 4, 12, 'F');
+        doc.setDrawColor(220, 226, 235);
+        doc.rect(margin + 2, startY + 48, pageWidth - margin * 2 - 4, 12, 'S');
+
         const courseName = classItem?.course || student.course || 'Curso Teológico';
         const className = classItem?.name || 'Turma Regular';
-        doc.text(`CURSO: ${courseName}  |  TURMA: ${className}`, 14, yOffset + 61);
-        
-        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 100, 100);
+        doc.text('DADOS ACADÊMICOS:', margin + 4, startY + 52);
         doc.setFontSize(8);
-        doc.setTextColor(51, 65, 85);
-        doc.text(`PERÍODO / TURNO: ${classItem?.period || 'Regular'}  |  INÍCIO: ${formatDateForDisplay(classItem?.start_date || student.start_date || '')}`, 14, yOffset + 66);
-
-        // Box Financeiro da Taxa
-        doc.setFillColor(248, 250, 252);
-        doc.rect(14, yOffset + 70, 181, 26, 'FD');
-        doc.setDrawColor(203, 213, 225);
-
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(15, 23, 42);
-        doc.text('DISCRIMINAÇÃO FINANCEIRA:', 18, yOffset + 75);
+        doc.setTextColor(0, 23, 75);
+        doc.text(`${courseName.toUpperCase()} — TURMA: ${className} (${classItem?.period || 'Regular'})`, margin + 4, startY + 56.5);
 
-        const statusLabel = feeStatus === 'paid' ? 'QUITADO / PAGO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE';
-        doc.text(`TAXA DE INSCRIÇÃO E MATRÍCULA: ${formatCurrency(feeAmount)} (${statusLabel})`, 18, yOffset + 80);
+        // Box Financeiro da Taxa de Matrícula
+        doc.setFillColor(236, 253, 245); // emerald-50
+        doc.rect(margin + 2, startY + 62, pageWidth - margin * 2 - 4, 25, 'F');
+        doc.setDrawColor(167, 243, 208); // emerald-200
+        doc.rect(margin + 2, startY + 62, pageWidth - margin * 2 - 4, 25, 'S');
 
+        const statusLabel = feeStatus === 'paid' ? '✓ QUITADO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE';
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(6, 78, 59); // emerald-900
+        doc.text('DETALHAMENTO DA TAXA DE MATRÍCULA', margin + 4, startY + 67);
+        doc.text(statusLabel, pageWidth - margin - 5, startY + 67, { align: 'right' });
+
+        doc.setFontSize(10.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text(formatCurrency(feeAmount), margin + 4, startY + 74);
+
+        doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(`EXTENSO: ${numberToPortugueseWords(feeAmount)}`, 18, yOffset + 85);
-        doc.text(`FORMA DE PAGTO: ${paymentMethod.toUpperCase()}    DATA QUITAÇÃO: ${formatDateForDisplay(effectivePaymentDate)}`, 18, yOffset + 90);
+        doc.setTextColor(50, 50, 50);
+        doc.text(`Extenso: ${numberToPortugueseWords(feeAmount)}`, margin + 4, startY + 78);
+        doc.text(`Forma de Pagamento: ${paymentMethod.toUpperCase()}    Data Quitação: ${formatDateForDisplay(effectivePaymentDate)}`, margin + 4, startY + 82);
 
         if (observations) {
-          doc.text(`OBSERVAÇÕES: ${observations}`, 14, yOffset + 101);
+          doc.text(`Obs: ${observations}`, margin + 4, startY + 85.5);
         }
 
-        // Termo de Declaração
+        // Mensagem / Aviso do Recibo
         doc.setFont('helvetica', 'italic');
-        doc.setFontSize(7);
-        doc.setTextColor(100, 116, 139);
-        doc.text('Declaro que realizei a inscrição/matrícula acadêmica e estou ciente das normas da instituição.', 105, yOffset + 107, { align: 'center' });
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 100, 100);
+        const msgText = instSettings?.receipt_message || 'Inscrição e matrícula confirmadas com gratidão. O(a) aluno(a) declara estar de acordo com o regimento escolar diocesano.';
+        doc.text(msgText, pageWidth / 2, startY + 95, { align: 'center' });
 
-        // Assinaturas
-        doc.setDrawColor(148, 163, 184);
-        doc.line(25, yOffset + 124, 85, yOffset + 124);
-        doc.line(125, yOffset + 124, 185, yOffset + 124);
+        // Linhas de Assinaturas
+        const sigY = startY + 114;
+        doc.setDrawColor(160, 160, 160);
+        doc.setLineWidth(0.3);
+        doc.line(margin + 12, sigY, margin + 75, sigY);
+        doc.line(pageWidth - margin - 75, sigY, pageWidth - margin - 12, sigY);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(51, 65, 85);
-        doc.text('ASSINATURA DO ALUNO(A)', 55, yOffset + 128, { align: 'center' });
-        doc.text('SECRETARIA ACADÊMICA', 155, yOffset + 128, { align: 'center' });
+        doc.setFontSize(6.5);
+        doc.setTextColor(60, 60, 60);
+        doc.text('ASSINATURA DO ALUNO(A)', margin + 43.5, sigY + 3.5, { align: 'center' });
+        doc.text('SECRETARIA ACADÊMICA / RESPONSÁVEL', pageWidth - margin - 43.5, sigY + 3.5, { align: 'center' });
+
+        // Rodapé da Via
+        doc.setFontSize(5.5);
+        doc.setTextColor(160, 160, 160);
+        doc.text(`DOCUMENTO EMITIDO VIA SISTEMA DIOCESANO • ${instName}`, pageWidth / 2, startY + 128, { align: 'center' });
       };
 
-      // Desenhar 1ª via (Aluno)
-      drawVia(0, '1ª Via - Aluno(a)');
+      if (copies === 1) {
+        drawSingleVia(15, 'VIA ÚNICA - ALUNO(A)');
+      } else {
+        // 1ª Via: Escola / Secretaria
+        drawSingleVia(6, '1ª VIA - ESCOLA / SECRETARIA');
 
-      // Linha tracejada divisória
-      doc.setDrawColor(148, 163, 184);
-      doc.setLineDashPattern([2, 2], 0);
-      doc.line(5, 148, 205, 148);
-      doc.setFontSize(6.5);
-      doc.setTextColor(148, 163, 184);
-      doc.text('- - - - - - - - - - - - - - - - - - - - - - - - - - - -  CORTE AQUI  - - - - - - - - - - - - - - - - - - - - - - - - - - - -', 105, 147.5, { align: 'center' });
-      doc.setLineDashPattern([], 0);
+        // Linha tracejada divisória central para recorte
+        doc.setDrawColor(120, 120, 120);
+        doc.setLineWidth(0.3);
+        (doc as any).setLineDash([2, 2], 0);
+        doc.line(0, 148.5, pageWidth, 148.5);
+        (doc as any).setLineDash([], 0);
 
-      // Desenhar 2ª via (Secretaria / Arquivo)
-      drawVia(140, '2ª Via - Secretaria / Arquivo');
+        doc.setFontSize(6);
+        doc.setTextColor(120, 120, 120);
+        doc.text('- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  CORTE AQUI  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', pageWidth / 2, 148, { align: 'center' });
 
-      doc.save(`Comprovante_Matricula_${student.name.replace(/\s+/g, '_')}_${receiptNumber}.pdf`);
+        // 2ª Via: Aluno
+        drawSingleVia(154, '2ª VIA - ALUNO(A)');
+      }
+
+      const safeStudentName = student.name.replace(/\s+/g, '_');
+      doc.save(`Recibo_Matricula_${safeStudentName}_${copies}Vias.pdf`);
     } catch (err) {
-      console.error('Erro ao gerar PDF do comprovante de matrícula:', err);
+      console.error('Erro ao gerar PDF do recibo de matrícula:', err);
     }
   };
 
@@ -186,12 +274,39 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
     window.print();
   };
 
+  const viasToRender = copies === 1 ? [1] : [1, 2];
+
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-none border border-slate-300 shadow-2xl max-w-2xl w-full my-auto overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
+      {/* CSS para Impressão Perfeita na Página A4 */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 6mm 8mm 6mm 8mm !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-enrollment-receipt, #printable-enrollment-receipt * {
+            visibility: visible !important;
+          }
+          #printable-enrollment-receipt {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+        }
+      `}} />
+
+      <div className="bg-white rounded-none border border-slate-300 shadow-2xl max-w-4xl w-full my-auto overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh]">
         {/* Banner de Sucesso quando recém cadastrado */}
         {isNew && (
-          <div className="bg-emerald-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+          <div className="bg-emerald-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between shrink-0">
             <span className="flex items-center gap-2">
               <CheckCircle2 size={16} />
               Aluno Inscrito e Taxa de Matrícula Registrada com Sucesso!
@@ -201,143 +316,289 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
         )}
 
         {/* Modal Top Bar */}
-        <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-5 py-3 bg-[#00174b] text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <FileText size={18} className="text-amber-400" />
             <h3 className="text-sm font-black uppercase tracking-wider">
-              Comprovante de Matrícula e Recibo de Inscrição
+              Recibo de Matrícula e Inscrição
             </h3>
           </div>
+
+          {/* Opção de 1 ou 2 Vias (padrão Contribuições) */}
+          <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 border border-white/20">
+            <span className="text-[10px] font-bold text-slate-300 uppercase px-2 hidden sm:inline">
+              Vias:
+            </span>
+            <button
+              type="button"
+              onClick={() => setCopies(1)}
+              className={cn(
+                "px-3 py-1 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1",
+                copies === 1
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "text-slate-300 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <FileText size={12} />
+              <span>1 Via</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCopies(2)}
+              className={cn(
+                "px-3 py-1 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1",
+                copies === 2
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "text-slate-300 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Copy size={12} />
+              <span>2 Vias</span>
+            </button>
+          </div>
+
           <button
             onClick={onClose}
-            className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1 hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer ml-2"
             title="Fechar"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Recibo Printable Container */}
-        <div className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto bg-slate-50/50">
-          <div className="bg-white border-2 border-slate-300 p-5 sm:p-6 shadow-sm space-y-4 text-slate-800">
-            {/* Header Instituição */}
-            <div className="text-center border-b border-slate-200 pb-3 space-y-0.5">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                {instSubtitle}
-              </p>
-              <h2 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                {instName}
-              </h2>
-              <div className="inline-block px-3 py-1 bg-blue-50 text-blue-900 border border-blue-200 text-xs font-black uppercase tracking-wider mt-1">
-                Comprovante de Inscrição / Matrícula e Recibo
-              </div>
-            </div>
+        {/* Área do Recibo Rolável no Modal */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100/70">
+          <div id="printable-enrollment-receipt" className="space-y-4">
+            {viasToRender.map((via) => (
+              <React.Fragment key={via}>
+                <div className="bg-white border-2 border-slate-300 p-4 sm:p-5 shadow-xs relative overflow-hidden break-inside-avoid">
+                  {/* Cabeçalho Institucional Padrão Contribuição */}
+                  <div className="flex items-start justify-between relative mb-2 pb-2 border-b border-slate-200">
+                    <div className="flex items-center gap-4">
+                      {/* Logotipo da Instituição */}
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
+                        <img
+                          src={instLogo}
+                          alt="Logotipo"
+                          className="w-full h-full object-contain"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_LOGO) {
+                              (e.currentTarget as HTMLImageElement).src = DEFAULT_LOGO;
+                            }
+                          }}
+                        />
+                      </div>
 
-            {/* Número e Data */}
-            <div className="flex items-center justify-between text-xs border-b border-slate-200 pb-2">
-              <span className="font-mono font-bold text-slate-700">
-                Nº: <strong className="text-slate-900">{receiptNumber}</strong>
-              </span>
-              <span className="text-slate-500 font-medium">
-                Data: <strong>{formatDateForDisplay(new Date().toISOString())}</strong>
-              </span>
-            </div>
+                      {/* Dados Institucionais */}
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
+                          {dioceseTitle}
+                        </p>
+                        <h4 className="text-base sm:text-lg font-black text-[#00174b] uppercase tracking-tight leading-tight">
+                          {instName}
+                        </h4>
+                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                          {instSubtitle}
+                        </p>
+                        <p className="text-[9px] text-slate-500 font-medium max-w-xl leading-relaxed">
+                          {instAddress}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[8.5px] text-slate-400 font-bold uppercase tracking-wider">
+                          {instSettings?.phone && <span>TEL: {instSettings.phone}</span>}
+                          {instSettings?.email && <span className="lowercase">EMAIL: {instSettings.email.toLowerCase()}</span>}
+                        </div>
+                      </div>
+                    </div>
 
-            {/* Dados do Aluno */}
-            <div className="space-y-1 bg-slate-50 p-3 border border-slate-200 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-bold uppercase text-[10px]">Identificação do Aluno</span>
-                <span className="font-mono font-black text-slate-800">RA: {formatRegistrationNumber(student.registration_number)}</span>
-              </div>
-              <p className="text-sm font-black text-slate-900 uppercase">
-                {student.name}
-              </p>
-              <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-slate-600">
-                <div>CPF: <strong>{student.cpf || 'Não informado'}</strong></div>
-                <div>RG: <strong>{student.rg || 'Não informado'}</strong></div>
-                {unitName && <div className="col-span-2">Polo / Unidade: <strong>{unitName}</strong></div>}
-              </div>
-            </div>
+                    {/* Identificador da Via no Canto Superior Direito */}
+                    <div className="text-right shrink-0">
+                      <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-black uppercase tracking-wider">
+                        {via === 1
+                          ? copies === 1
+                            ? 'VIA ÚNICA - ALUNO'
+                            : 'VIA 1 - ESCOLA / SECRETARIA'
+                          : 'VIA 2 - ALUNO'}
+                      </span>
+                    </div>
+                  </div>
 
-            {/* Dados da Turma / Curso */}
-            <div className="space-y-1 bg-blue-50/60 p-3 border border-blue-200 text-xs text-blue-950">
-              <span className="text-blue-700 font-bold uppercase text-[10px]">Dados Acadêmicos</span>
-              <p className="text-sm font-black uppercase text-blue-900">
-                {classItem?.course || student.course || 'Curso Regular'}
-              </p>
-              <div className="flex items-center justify-between text-[11px] text-blue-800 pt-0.5">
-                <span>Turma: <strong>{classItem?.name || 'Turma Vinculada'}</strong></span>
-                <span>Turno: <strong>{classItem?.period || 'Regular'}</strong></span>
-              </div>
-            </div>
+                  {/* Título Centralizado do Recibo */}
+                  <div className="text-center mb-3">
+                    <h2 className="text-sm sm:text-base font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">
+                      Recibo de Matrícula e Inscrição
+                    </h2>
+                    <div className="flex items-center justify-between text-xs text-slate-600 font-mono mt-1 pt-1 px-1">
+                      <span>Nº: <strong className="text-slate-900">{receiptNumber}</strong></span>
+                      <span>Data de Emissão: <strong className="text-slate-900">{formatDateForDisplay(new Date().toISOString())}</strong></span>
+                    </div>
+                  </div>
 
-            {/* Detalhamento da Taxa de Matrícula */}
-            <div className="space-y-2 bg-emerald-50/70 p-3.5 border-2 border-emerald-300 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-emerald-900 font-black uppercase text-[10px] tracking-wider">
-                  Detalhamento da Taxa de Matrícula
-                </span>
-                <span className="px-2 py-0.5 bg-emerald-200 text-emerald-950 font-black text-[10px] uppercase border border-emerald-400">
-                  {feeStatus === 'paid' ? '✓ QUITADO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE'}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between pt-1">
-                <span className="text-sm font-bold text-slate-700">Valor da Taxa:</span>
-                <span className="text-lg font-black text-emerald-900 font-mono">
-                  {formatCurrency(feeAmount)}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-600 italic">
-                Extenso: {numberToPortugueseWords(feeAmount)}
-              </p>
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-200/80 text-[11px] text-emerald-950">
-                <div>Forma de Quitação: <strong>{paymentMethod}</strong></div>
-                <div>Data do Pagamento: <strong>{formatDateForDisplay(effectivePaymentDate)}</strong></div>
-              </div>
-              {observations && (
-                <div className="text-[10px] text-slate-600 pt-1">
-                  Obs: {observations}
+                  {/* Identificação do Aluno (Box com faixa lateral azul padrão Contribuições) */}
+                  <div className="bg-slate-50 p-3 border border-slate-200 relative overflow-hidden mb-3">
+                    <div className="absolute left-0 top-0 w-1.5 h-full bg-blue-600"></div>
+                    <div className="grid grid-cols-12 gap-2 text-xs">
+                      <div className="col-span-12 sm:col-span-8">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+                          Matrícula / Aluno(a)
+                        </p>
+                        <p className="text-sm font-black text-[#00174b] uppercase">
+                          {formatRegistrationNumber(student.registration_number)} - {student.name}
+                        </p>
+                      </div>
+                      <div className="col-span-12 sm:col-span-4 sm:text-right">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+                          Situação do Registro
+                        </p>
+                        <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-900 font-bold text-[10px] uppercase">
+                          {student.status || 'Ativo'}
+                        </span>
+                      </div>
+                      <div className="col-span-12 pt-1 border-t border-slate-200/70 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+                        <span>CPF: <strong className="text-slate-800">{student.cpf || 'Não informado'}</strong></span>
+                        <span>RG: <strong className="text-slate-800">{student.rg || 'Não informado'}</strong></span>
+                        {unitName && <span>Polo / Unidade: <strong className="text-slate-800">{unitName}</strong></span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dados da Turma / Formação Acadêmica */}
+                  <div className="bg-blue-50/60 p-2.5 border border-blue-200 text-xs text-blue-950 mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[9px] font-black text-blue-800 uppercase tracking-wider">
+                        Dados Acadêmicos e Turma Vinculada
+                      </span>
+                      <span className="text-[10px] font-bold text-blue-900">
+                        Ano Letivo: {currentYear}
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm font-black uppercase text-blue-950">
+                      {classItem?.course || student.course || 'Curso Regular'}
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-blue-900 pt-0.5">
+                      <span>Turma: <strong>{classItem?.name || 'Turma Vinculada'}</strong></span>
+                      <span>Turno: <strong>{classItem?.period || 'Regular'}</strong></span>
+                      <span>Início das Aulas: <strong>{classItem?.start_date ? formatDateForDisplay(classItem.start_date) : 'Conforme cronograma'}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Quadro Financeiro da Taxa de Matrícula (Padrão Contribuições) */}
+                  <div className="bg-emerald-50/70 border border-emerald-300 p-3 text-xs mb-3">
+                    <div className="flex items-center justify-between border-b border-emerald-200 pb-1.5 mb-2">
+                      <span className="text-[10px] font-black uppercase text-emerald-950 tracking-wider">
+                        Detalhamento Financeiro da Taxa de Matrícula
+                      </span>
+                      <span className={cn(
+                        "px-2 py-0.5 text-[10px] font-black uppercase border",
+                        feeStatus === 'paid'
+                          ? "bg-emerald-200 text-emerald-950 border-emerald-400"
+                          : feeStatus === 'exempt'
+                            ? "bg-slate-200 text-slate-800 border-slate-300"
+                            : "bg-amber-200 text-amber-950 border-amber-400"
+                      )}>
+                        {feeStatus === 'paid' ? '✓ QUITADO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-12 sm:col-span-7">
+                        <p className="text-[9px] font-bold text-emerald-800 uppercase">Referência</p>
+                        <p className="text-xs font-black text-slate-900">
+                          Taxa de Inscrição e Matrícula Acadêmica ({currentYear})
+                        </p>
+                        <p className="text-[10.5px] text-slate-600 italic pt-0.5">
+                          Extenso: {numberToPortugueseWords(feeAmount)}
+                        </p>
+                      </div>
+                      <div className="col-span-12 sm:col-span-5 sm:text-right">
+                        <p className="text-[9px] font-bold text-emerald-800 uppercase">Valor do Lançamento</p>
+                        <p className="text-lg font-black text-[#00174b] font-mono">
+                          {formatCurrency(feeAmount)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 mt-2 border-t border-emerald-200/80 text-[11px] text-emerald-950">
+                      <div>Forma de Quitação: <strong>{paymentMethod}</strong></div>
+                      <div>Data do Pagamento: <strong>{formatDateForDisplay(effectivePaymentDate)}</strong></div>
+                      {observations && (
+                        <div className="col-span-2 text-[10px] text-slate-600 pt-0.5">
+                          Observações: {observations}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Mensagem / Declaração Institucional */}
+                  <div className="bg-slate-50 p-2.5 border border-slate-200 text-center mb-4">
+                    <p className="text-[9.5px] text-slate-600 italic leading-snug">
+                      &quot;{instSettings?.receipt_message || 'Inscrição e matrícula confirmadas com gratidão. O(a) aluno(a) declara estar de acordo com o regimento escolar diocesano.'}&quot;
+                    </p>
+                  </div>
+
+                  {/* Linhas de Assinaturas */}
+                  <div className="flex justify-between items-end pt-3 text-xs text-slate-700">
+                    <div className="text-center w-52 sm:w-60">
+                      <div className="border-b border-slate-400 mb-1"></div>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-700">
+                        Assinatura do Aluno(a)
+                      </p>
+                    </div>
+
+                    <div className="text-center w-52 sm:w-60">
+                      <div className="border-b border-slate-400 mb-1"></div>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-700">
+                        Secretaria Acadêmica / Carimbo
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Rodapé da Via */}
+                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[8px] text-slate-400 font-bold uppercase tracking-wider">
+                    <span>SISTEMA {instName}</span>
+                    <span>REGISTRO: {formatDateForDisplay(effectivePaymentDate)} • FORMA: {paymentMethod.toUpperCase()}</span>
+                    <span>EMISSÃO: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</span>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Declaração e Assinaturas */}
-            <div className="pt-4 space-y-6">
-              <p className="text-[9.5px] text-slate-500 italic text-center">
-                O(a) aluno(a) declara estar de acordo com o regimento escolar e as normas acadêmicas da instituição diocesana.
-              </p>
-              <div className="grid grid-cols-2 gap-6 pt-3 text-center text-xs text-slate-700">
-                <div className="border-t border-slate-400 pt-1.5 font-bold">
-                  Assinatura do Aluno(a)
-                </div>
-                <div className="border-t border-slate-400 pt-1.5 font-bold">
-                  Secretaria Acadêmica
-                </div>
-              </div>
-            </div>
+                {/* Linha Divisória de Corte para 2 Vias (Padrão Contribuições) */}
+                {via === 1 && copies === 2 && (
+                  <div className="py-2.5 flex items-center justify-center my-1 print:my-4">
+                    <div className="w-full border-b-2 border-dashed border-slate-400 flex items-center justify-center">
+                      <span className="bg-white px-4 text-[9px] font-black text-slate-500 uppercase flex items-center gap-1.5 -translate-y-1/2">
+                        ✂️ CORTE AQUI ✂️
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
 
-        {/* Modal Footer Actions */}
-        <div className="px-5 py-3.5 bg-slate-100 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-[11px] text-slate-500 font-medium">
-            Imprima ou faça o download para entrega ao aluno e arquivo.
+        {/* Modal Footer Controls */}
+        <div className="px-5 py-3.5 bg-slate-100 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+          <p className="text-xs text-slate-600 font-medium">
+            Recibo configurado para <strong>{copies} {copies === 1 ? 'Via' : 'Vias'}</strong>. Formato padrão para impressão e arquivamento oficial.
           </p>
+
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={handlePrint}
-              className="flex-1 sm:flex-initial px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              className="flex-1 sm:flex-initial px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
-              <Printer size={14} />
-              Imprimir
+              <Printer size={15} />
+              <span>Imprimir ({copies} {copies === 1 ? 'Via' : 'Vias'})</span>
             </button>
+
             <button
               onClick={handleDownloadPDF}
-              className="flex-1 sm:flex-initial px-3.5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
-              <Download size={14} />
-              Baixar PDF
+              <Download size={15} />
+              <span>Baixar PDF</span>
             </button>
+
             <button
               onClick={onClose}
               className="px-4 py-2 bg-white hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
