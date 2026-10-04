@@ -3953,7 +3953,8 @@ export function Students() {
       </div>
       </div>
 
-      <PrintableGrade />
+      {/* Ficha impressa do aluno - Renderizada apenas se não houver recibo de matrícula aberto */}
+      {!receiptModalData && <PrintableGrade />}
 
       {/* Modal de Comprovante de Matrícula e Recibo Oficial */}
       {receiptModalData && (

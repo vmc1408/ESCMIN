@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Printer, Download, CheckCircle2, Copy, FileText } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Printer, CheckCircle2, Copy, FileText, Check } from 'lucide-react';
 import { formatCurrency, formatDateForDisplay, numberToPortugueseWords, formatRegistrationNumber, cn, safeFormat } from '../lib/utils';
 import { Student, Class } from '../types';
-import { jsPDF } from 'jspdf';
 import { DEFAULT_LOGO } from '../lib/default-logo';
 import { getInstitutionSettings } from '../lib/database';
 
@@ -29,7 +28,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   institution,
   feeAmount,
   feeStatus,
-  paymentMethod = 'PIX',
+  paymentMethod = 'Dinheiro',
   paymentDate,
   observations,
   unitName,
@@ -37,6 +36,8 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
 }) => {
   const [copies, setCopies] = useState<1 | 2>(2);
   const [instSettings, setInstSettings] = useState<any>(institution || null);
+  const [isPrintingDirect, setIsPrintingDirect] = useState<boolean>(false);
+  const printFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (institution) {
@@ -46,7 +47,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
         .then((data) => {
           if (data) setInstSettings(data);
         })
-        .catch((err) => console.warn('Não foi possível carregar dados da instituição:', err));
+        .catch((err) => console.warn('Não foi possível carregar configurações da instituição:', err));
     }
   }, [institution]);
 
@@ -60,554 +61,901 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   const dioceseTitle = instSettings?.city_uf 
     ? `DIOCESE DE ${instSettings.city_uf.split('/')[0].toUpperCase()}`
     : 'DIOCESE DE GUARULHOS';
-  const instName = (instSettings?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase();
+  const instName = (instSettings?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase();
   const instSubtitle = (instSettings?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase();
   const instAddress = instSettings?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - CEP 07044-170';
   const instLogo = instSettings?.logo_url || DEFAULT_LOGO;
-
-  const handleDownloadPDF = () => {
-    try {
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 12;
-
-      const drawSingleVia = (startY: number, viaLabel: string) => {
-        const boxHeight = copies === 1 ? 138 : 132;
-
-        // Moldura externa
-        doc.setDrawColor(200, 210, 225);
-        doc.setLineWidth(0.3);
-        doc.rect(margin, startY, pageWidth - margin * 2, boxHeight);
-
-        // Logo
-        let logoWidth = 0;
-        try {
-          doc.addImage(instLogo, 'auto', margin + 3, startY + 3, 16, 16);
-          logoWidth = 20;
-        } catch (e) {
-          try {
-            doc.addImage(DEFAULT_LOGO, 'PNG', margin + 3, startY + 3, 16, 16);
-            logoWidth = 20;
-          } catch (e2) {}
-        }
-
-        const textStartX = margin + logoWidth + 2;
-
-        // Cabeçalho Institucional
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'bold');
-        doc.text(dioceseTitle, textStartX, startY + 5);
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 23, 75); // #00174b
-        doc.text(instName, textStartX, startY + 10);
-
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(80, 80, 80);
-        doc.text(instSubtitle, textStartX, startY + 14);
-
-        const contactInfo = [
-          instAddress,
-          instSettings?.phone ? `TEL: ${instSettings.phone}` : '',
-          instSettings?.email ? `EMAIL: ${instSettings.email.toLowerCase()}` : ''
-        ].filter(Boolean).join('  |  ');
-        doc.setFontSize(6);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 100, 100);
-        doc.text(contactInfo.slice(0, 95), textStartX, startY + 17.5);
-
-        // Etiqueta da Via (Canto superior direito)
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(100, 116, 139);
-        doc.text(viaLabel.toUpperCase(), pageWidth - margin - 3, startY + 6, { align: 'right' });
-
-        // Divisória do Cabeçalho
-        doc.setDrawColor(0, 23, 75);
-        doc.setLineWidth(0.4);
-        doc.line(margin + 2, startY + 20, pageWidth - margin - 2, startY + 20);
-
-        // Título Central
-        doc.setFontSize(9.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 23, 75);
-        doc.text('RECIBO DE MATRÍCULA E INSCRIÇÃO', pageWidth / 2, startY + 25, { align: 'center' });
-
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80, 80, 80);
-        doc.text(`Nº: ${receiptNumber}    DATA: ${formatDateForDisplay(new Date().toISOString())}`, pageWidth / 2, startY + 29, { align: 'center' });
-
-        // Box Identificação do Aluno
-        doc.setFillColor(248, 250, 252);
-        doc.rect(margin + 2, startY + 31, pageWidth - margin * 2 - 4, 15, 'F');
-        doc.setDrawColor(220, 226, 235);
-        doc.rect(margin + 2, startY + 31, pageWidth - margin * 2 - 4, 15, 'S');
-        // Faixa azul lateral
-        doc.setFillColor(37, 99, 235); // blue-600
-        doc.rect(margin + 2, startY + 31, 1.5, 15, 'F');
-
-        doc.setFontSize(6.5);
-        doc.setTextColor(100, 100, 100);
-        doc.text('MATRÍCULA / ALUNO(A):', margin + 5, startY + 35);
-        doc.setFontSize(8.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 23, 75);
-        doc.text(`${formatRegistrationNumber(student.registration_number)} - ${student.name.toUpperCase()}`, margin + 5, startY + 39.5);
-
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60, 60, 60);
-        const docLine = [
-          `CPF: ${student.cpf || 'Não informado'}`,
-          `RG: ${student.rg || 'Não informado'}`,
-          unitName ? `Polo / Unidade: ${unitName}` : ''
-        ].filter(Boolean).join('    ');
-        doc.text(docLine, margin + 5, startY + 43.5);
-
-        // Box Turma / Curso
-        doc.setFillColor(241, 245, 249);
-        doc.rect(margin + 2, startY + 48, pageWidth - margin * 2 - 4, 12, 'F');
-        doc.setDrawColor(220, 226, 235);
-        doc.rect(margin + 2, startY + 48, pageWidth - margin * 2 - 4, 12, 'S');
-
-        const courseName = classItem?.course || student.course || 'Curso Teológico';
-        const className = classItem?.name || 'Turma Regular';
-        doc.setFontSize(6.5);
-        doc.setTextColor(100, 100, 100);
-        doc.text('DADOS ACADÊMICOS:', margin + 4, startY + 52);
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 23, 75);
-        doc.text(`${courseName.toUpperCase()} — TURMA: ${className} (${classItem?.period || 'Regular'})`, margin + 4, startY + 56.5);
-
-        // Box Financeiro da Taxa de Matrícula
-        doc.setFillColor(236, 253, 245); // emerald-50
-        doc.rect(margin + 2, startY + 62, pageWidth - margin * 2 - 4, 25, 'F');
-        doc.setDrawColor(167, 243, 208); // emerald-200
-        doc.rect(margin + 2, startY + 62, pageWidth - margin * 2 - 4, 25, 'S');
-
-        const statusLabel = feeStatus === 'paid' ? '✓ QUITADO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE';
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(6, 78, 59); // emerald-900
-        doc.text('DETALHAMENTO DA TAXA DE MATRÍCULA', margin + 4, startY + 67);
-        doc.text(statusLabel, pageWidth - margin - 5, startY + 67, { align: 'right' });
-
-        doc.setFontSize(10.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 23, 75);
-        doc.text(formatCurrency(feeAmount), margin + 4, startY + 74);
-
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(50, 50, 50);
-        doc.text(`Extenso: ${numberToPortugueseWords(feeAmount)}`, margin + 4, startY + 78);
-        doc.text(`Forma de Pagamento: ${paymentMethod.toUpperCase()}    Data Quitação: ${formatDateForDisplay(effectivePaymentDate)}`, margin + 4, startY + 82);
-
-        if (observations) {
-          doc.text(`Obs: ${observations}`, margin + 4, startY + 85.5);
-        }
-
-        // Mensagem / Aviso do Recibo
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(6.5);
-        doc.setTextColor(100, 100, 100);
-        const msgText = instSettings?.receipt_message || 'Inscrição e matrícula confirmadas com gratidão. O(a) aluno(a) declara estar de acordo com o regimento escolar diocesano.';
-        doc.text(msgText, pageWidth / 2, startY + 95, { align: 'center' });
-
-        // Linhas de Assinaturas
-        const sigY = startY + 114;
-        doc.setDrawColor(160, 160, 160);
-        doc.setLineWidth(0.3);
-        doc.line(margin + 12, sigY, margin + 75, sigY);
-        doc.line(pageWidth - margin - 75, sigY, pageWidth - margin - 12, sigY);
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.5);
-        doc.setTextColor(60, 60, 60);
-        doc.text('ASSINATURA DO ALUNO(A)', margin + 43.5, sigY + 3.5, { align: 'center' });
-        doc.text('SECRETARIA ACADÊMICA / RESPONSÁVEL', pageWidth - margin - 43.5, sigY + 3.5, { align: 'center' });
-
-        // Rodapé da Via
-        doc.setFontSize(5.5);
-        doc.setTextColor(160, 160, 160);
-        doc.text(`DOCUMENTO EMITIDO VIA SISTEMA DIOCESANO • ${instName}`, pageWidth / 2, startY + 128, { align: 'center' });
-      };
-
-      if (copies === 1) {
-        drawSingleVia(15, 'VIA ÚNICA - ALUNO(A)');
-      } else {
-        // 1ª Via: Escola / Secretaria
-        drawSingleVia(6, '1ª VIA - ESCOLA / SECRETARIA');
-
-        // Linha tracejada divisória central para recorte
-        doc.setDrawColor(120, 120, 120);
-        doc.setLineWidth(0.3);
-        (doc as any).setLineDash([2, 2], 0);
-        doc.line(0, 148.5, pageWidth, 148.5);
-        (doc as any).setLineDash([], 0);
-
-        doc.setFontSize(6);
-        doc.setTextColor(120, 120, 120);
-        doc.text('- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  CORTE AQUI  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', pageWidth / 2, 148, { align: 'center' });
-
-        // 2ª Via: Aluno
-        drawSingleVia(154, '2ª VIA - ALUNO(A)');
-      }
-
-      const safeStudentName = student.name.replace(/\s+/g, '_');
-      doc.save(`Recibo_Matricula_${safeStudentName}_${copies}Vias.pdf`);
-    } catch (err) {
-      console.error('Erro ao gerar PDF do recibo de matrícula:', err);
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
+  const instPhone = instSettings?.phone || '';
+  const instEmail = instSettings?.email ? instSettings.email.toLowerCase() : '';
+  const receiptMsg = instSettings?.receipt_message || 'Inscrição e matrícula confirmadas com gratidão. O(a) aluno(a) declara estar de acordo com o regimento escolar e as normas acadêmicas da instituição diocesana.';
 
   const viasToRender = copies === 1 ? [1] : [1, 2];
 
-  return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      {/* CSS para Impressão Perfeita na Página A4 */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 6mm 8mm 6mm 8mm !important;
-          }
-          body * {
-            visibility: hidden !important;
-          }
-          #printable-enrollment-receipt, #printable-enrollment-receipt * {
-            visibility: visible !important;
-          }
-          #printable-enrollment-receipt {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-        }
-      `}} />
+  /**
+   * Constrói o HTML puro de uma via para envio direto à impressora via iframe.
+   * Totalmente monocromático, calibrado em milímetros para encaixe exato em A4.
+   */
+  const generateViaHtml = (via: number) => {
+    const viaLabel = via === 1
+      ? copies === 1
+        ? 'VIA ÚNICA - ALUNO'
+        : 'VIA 1 - ESCOLA / SECRETARIA'
+      : 'VIA 2 - ALUNO';
 
-      <div className="bg-white rounded-none border border-slate-300 shadow-2xl max-w-4xl w-full my-auto overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh]">
-        {/* Banner de Sucesso quando recém cadastrado */}
-        {isNew && (
-          <div className="bg-emerald-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between shrink-0">
-            <span className="flex items-center gap-2">
-              <CheckCircle2 size={16} />
-              Aluno Inscrito e Taxa de Matrícula Registrada com Sucesso!
-            </span>
-            <span className="text-[10px] bg-emerald-700 px-2 py-0.5 rounded">Novo Aluno</span>
+    const statusBadge = feeStatus === 'paid' 
+      ? '✓ QUITADO' 
+      : feeStatus === 'exempt' 
+        ? 'ISENTO' 
+        : 'PENDENTE';
+
+    return `
+      <div class="via-box">
+        <!-- Cabeçalho Oficial Diocesano -->
+        <div class="header-section">
+          <div class="header-left">
+            <div class="logo-box">
+              <img src="${instLogo}" alt="Logo" class="logo-img" />
+            </div>
+            <div class="header-texts">
+              <div class="diocese-name">${dioceseTitle}</div>
+              <div class="inst-name">${instName}</div>
+              <div class="inst-sub">${instSubtitle}</div>
+              <div class="inst-addr">${instAddress}</div>
+              <div class="inst-contact">
+                ${instPhone ? `<span>TEL: ${instPhone}</span>` : ''}
+                ${instEmail ? `<span>EMAIL: ${instEmail}</span>` : ''}
+              </div>
+            </div>
           </div>
-        )}
-
-        {/* Modal Top Bar */}
-        <div className="px-5 py-3 bg-[#00174b] text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <FileText size={18} className="text-amber-400" />
-            <h3 className="text-sm font-black uppercase tracking-wider">
-              Recibo de Matrícula e Inscrição
-            </h3>
+          <div class="header-right">
+            <div class="via-badge">${viaLabel}</div>
           </div>
-
-          {/* Opção de 1 ou 2 Vias (padrão Contribuições) */}
-          <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 border border-white/20">
-            <span className="text-[10px] font-bold text-slate-300 uppercase px-2 hidden sm:inline">
-              Vias:
-            </span>
-            <button
-              type="button"
-              onClick={() => setCopies(1)}
-              className={cn(
-                "px-3 py-1 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1",
-                copies === 1
-                  ? "bg-amber-500 text-white shadow-xs"
-                  : "text-slate-300 hover:text-white hover:bg-white/10"
-              )}
-            >
-              <FileText size={12} />
-              <span>1 Via</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setCopies(2)}
-              className={cn(
-                "px-3 py-1 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1",
-                copies === 2
-                  ? "bg-amber-500 text-white shadow-xs"
-                  : "text-slate-300 hover:text-white hover:bg-white/10"
-              )}
-            >
-              <Copy size={12} />
-              <span>2 Vias</span>
-            </button>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer ml-2"
-            title="Fechar"
-          >
-            <X size={18} />
-          </button>
         </div>
 
-        {/* Área do Recibo Rolável no Modal */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100/70">
-          <div id="printable-enrollment-receipt" className="space-y-4">
-            {viasToRender.map((via) => (
-              <React.Fragment key={via}>
-                <div className="bg-white border-2 border-slate-300 p-4 sm:p-5 shadow-xs relative overflow-hidden break-inside-avoid">
-                  {/* Cabeçalho Institucional Padrão Contribuição */}
-                  <div className="flex items-start justify-between relative mb-2 pb-2 border-b border-slate-200">
-                    <div className="flex items-center gap-4">
-                      {/* Logotipo da Instituição */}
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-                        <img
-                          src={instLogo}
-                          alt="Logotipo"
-                          className="w-full h-full object-contain"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_LOGO) {
-                              (e.currentTarget as HTMLImageElement).src = DEFAULT_LOGO;
-                            }
-                          }}
-                        />
-                      </div>
+        <!-- Título do Documento -->
+        <div class="title-section">
+          <div class="doc-title">RECIBO DE MATRÍCULA E INSCRIÇÃO</div>
+          <div class="meta-row">
+            <span>Nº COMPROVANTE: <strong>${receiptNumber}</strong></span>
+            <span>DATA DE EMISSÃO: <strong>${formatDateForDisplay(new Date().toISOString())}</strong></span>
+          </div>
+        </div>
 
-                      {/* Dados Institucionais */}
-                      <div className="space-y-0.5">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
-                          {dioceseTitle}
-                        </p>
-                        <h4 className="text-base sm:text-lg font-black text-[#00174b] uppercase tracking-tight leading-tight">
-                          {instName}
-                        </h4>
-                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                          {instSubtitle}
-                        </p>
-                        <p className="text-[9px] text-slate-500 font-medium max-w-xl leading-relaxed">
-                          {instAddress}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[8.5px] text-slate-400 font-bold uppercase tracking-wider">
-                          {instSettings?.phone && <span>TEL: {instSettings.phone}</span>}
-                          {instSettings?.email && <span className="lowercase">EMAIL: {instSettings.email.toLowerCase()}</span>}
-                        </div>
-                      </div>
-                    </div>
+        <!-- Bloco 1: Aluno e Turma -->
+        <div class="info-block">
+          <div class="info-header">
+            <span>IDENTIFICAÇÃO DO ALUNO(A)</span>
+            <span class="status-indicator">SITUAÇÃO: ${student.status?.toUpperCase() || 'ATIVO'}</span>
+          </div>
+          <div class="student-name">${formatRegistrationNumber(student.registration_number)} - ${student.name.toUpperCase()}</div>
+          <div class="student-meta">
+            <span>CPF: <strong>${student.cpf || 'Não informado'}</strong></span>
+            <span>RG: <strong>${student.rg || 'Não informado'}</strong></span>
+            ${unitName ? `<span>Polo/Unidade: <strong>${unitName}</strong></span>` : ''}
+          </div>
+        </div>
 
-                    {/* Identificador da Via no Canto Superior Direito */}
-                    <div className="text-right shrink-0">
-                      <span className="inline-block px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-black uppercase tracking-wider">
-                        {via === 1
-                          ? copies === 1
-                            ? 'VIA ÚNICA - ALUNO'
-                            : 'VIA 1 - ESCOLA / SECRETARIA'
-                          : 'VIA 2 - ALUNO'}
-                      </span>
-                    </div>
-                  </div>
+        <!-- Bloco 2: Dados Acadêmicos -->
+        <div class="academic-block">
+          <div class="acad-row-1">
+            <strong>CURSO:</strong> ${(classItem?.course || student.course || 'Curso Regular').toUpperCase()}
+            <span style="float: right;"><strong>Ano Letivo:</strong> ${currentYear}</span>
+          </div>
+          <div class="acad-row-2">
+            <span>Turma: <strong>${classItem?.name || 'Turma Regular'}</strong></span>
+            <span>Turno: <strong>${classItem?.period || 'Regular'}</strong></span>
+            <span>Início das Aulas: <strong>${classItem?.start_date ? formatDateForDisplay(classItem.start_date) : 'Conforme cronograma'}</strong></span>
+          </div>
+        </div>
 
-                  {/* Título Centralizado do Recibo */}
-                  <div className="text-center mb-3">
-                    <h2 className="text-sm sm:text-base font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">
-                      Recibo de Matrícula e Inscrição
-                    </h2>
-                    <div className="flex items-center justify-between text-xs text-slate-600 font-mono mt-1 pt-1 px-1">
-                      <span>Nº: <strong className="text-slate-900">{receiptNumber}</strong></span>
-                      <span>Data de Emissão: <strong className="text-slate-900">{formatDateForDisplay(new Date().toISOString())}</strong></span>
-                    </div>
-                  </div>
+        <!-- Bloco 3: Detalhamento Financeiro -->
+        <div class="financial-block">
+          <div class="fin-header">
+            <span class="fin-title">DETALHAMENTO DA TAXA DE MATRÍCULA</span>
+            <span class="fin-status">${statusBadge}</span>
+          </div>
+          <div class="fin-body">
+            <div class="fin-desc">
+              <div class="fin-ref">Taxa de Matrícula e Inscrição Acadêmica (${currentYear})</div>
+              <div class="fin-words">Extenso: ${numberToPortugueseWords(feeAmount)}</div>
+            </div>
+            <div class="fin-amount">
+              <div class="amount-label">VALOR DO LANÇAMENTO</div>
+              <div class="amount-value">${formatCurrency(feeAmount)}</div>
+            </div>
+          </div>
+          <div class="fin-footer">
+            <span>Forma de Quitação: <strong>${paymentMethod}</strong></span>
+            <span>Data do Pagamento: <strong>${formatDateForDisplay(effectivePaymentDate)}</strong></span>
+            ${observations ? `<div class="fin-obs">Obs: ${observations}</div>` : ''}
+          </div>
+        </div>
 
-                  {/* Identificação do Aluno (Box com faixa lateral azul padrão Contribuições) */}
-                  <div className="bg-slate-50 p-3 border border-slate-200 relative overflow-hidden mb-3">
-                    <div className="absolute left-0 top-0 w-1.5 h-full bg-blue-600"></div>
-                    <div className="grid grid-cols-12 gap-2 text-xs">
-                      <div className="col-span-12 sm:col-span-8">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
-                          Matrícula / Aluno(a)
-                        </p>
-                        <p className="text-sm font-black text-[#00174b] uppercase">
-                          {formatRegistrationNumber(student.registration_number)} - {student.name}
-                        </p>
-                      </div>
-                      <div className="col-span-12 sm:col-span-4 sm:text-right">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
-                          Situação do Registro
-                        </p>
-                        <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-900 font-bold text-[10px] uppercase">
-                          {student.status || 'Ativo'}
+        <!-- Bloco 4: Mensagem Institucional -->
+        <div class="msg-block">
+          "${receiptMsg}"
+        </div>
+
+        <!-- Bloco 5: Assinaturas -->
+        <div class="signatures-row">
+          <div class="sig-col">
+            <div class="sig-line"></div>
+            <div class="sig-label">ASSINATURA DO ALUNO(A)</div>
+          </div>
+          <div class="sig-col">
+            <div class="sig-line"></div>
+            <div class="sig-label">SECRETARIA ACADÊMICA / CARIMBO</div>
+          </div>
+        </div>
+
+        <!-- Rodapé do Sistema -->
+        <div class="footer-meta">
+          <span>SISTEMA ${instName}</span>
+          <span>REGISTRO: ${formatDateForDisplay(effectivePaymentDate)} • FORMA: ${paymentMethod.toUpperCase()}</span>
+          <span>EMISSÃO: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</span>
+        </div>
+      </div>
+    `;
+  };
+
+  /**
+   * Executa a impressão com garantia absoluta de ZERO folha em branco:
+   * Cria um iframe isolado com o CSS e conteúdo estrito da página A4,
+   * garantindo impressão 100% monocromática e calibrada.
+   */
+  const handlePrint = () => {
+    setIsPrintingDirect(true);
+
+    try {
+      let iframe = document.getElementById('enrollment-print-iframe') as HTMLIFrameElement;
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'enrollment-print-iframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.style.zIndex = '-9999';
+        document.body.appendChild(iframe);
+      }
+
+      const via1 = generateViaHtml(1);
+      const via2 = copies === 2 ? generateViaHtml(2) : '';
+
+      const cutLineHtml = copies === 2 ? `
+        <div class="cut-line">
+          <span>✂ - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - ✂</span>
+        </div>
+      ` : '';
+
+      const fullHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Recibo de Matrícula - ${student.name}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 4mm 8mm 4mm 8mm;
+            }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+              color: #000000;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            }
+            .page-container {
+              width: 100%;
+              max-width: 194mm;
+              margin: 0 auto;
+              box-sizing: border-box;
+            }
+            .via-box {
+              border: 1.5px solid #000000;
+              background: #ffffff;
+              color: #000000;
+              padding: 8px 10px;
+              box-sizing: border-box;
+              page-break-inside: avoid;
+              break-inside: avoid;
+              font-size: 10px;
+              line-height: 1.25;
+            }
+            .header-section {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 1.5px solid #000000;
+              padding-bottom: 5px;
+              margin-bottom: 5px;
+            }
+            .header-left {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .logo-box {
+              width: 44px;
+              height: 44px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-shrink: 0;
+            }
+            .logo-img {
+              max-width: 100%;
+              max-height: 100%;
+              object-contain: contain;
+              filter: grayscale(100%) contrast(150%);
+            }
+            .header-texts {
+              display: flex;
+              flex-direction: column;
+              gap: 1px;
+            }
+            .diocese-name {
+              font-size: 7.5px;
+              font-weight: 900;
+              letter-spacing: 0.5px;
+              color: #333333;
+              text-transform: uppercase;
+            }
+            .inst-name {
+              font-size: 11px;
+              font-weight: 900;
+              color: #000000;
+              text-transform: uppercase;
+              letter-spacing: -0.2px;
+            }
+            .inst-sub {
+              font-size: 8px;
+              font-weight: 700;
+              color: #333333;
+              text-transform: uppercase;
+            }
+            .inst-addr {
+              font-size: 7.5px;
+              color: #444444;
+            }
+            .inst-contact {
+              font-size: 7px;
+              color: #555555;
+              font-weight: 700;
+              display: flex;
+              gap: 8px;
+              text-transform: uppercase;
+            }
+            .via-badge {
+              border: 1px solid #000000;
+              background: #f0f0f0;
+              padding: 2px 6px;
+              font-size: 7.5px;
+              font-family: monospace;
+              font-weight: 900;
+              text-transform: uppercase;
+              white-space: nowrap;
+            }
+            .title-section {
+              text-align: center;
+              margin-bottom: 5px;
+            }
+            .doc-title {
+              font-size: 11px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              display: inline-block;
+              border-bottom: 1.5px solid #000000;
+              padding-bottom: 1px;
+            }
+            .meta-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 8px;
+              font-family: monospace;
+              margin-top: 3px;
+              padding: 0 2px;
+              color: #222222;
+            }
+            .info-block {
+              border: 1px solid #000000;
+              background: #fafafa;
+              padding: 5px 7px;
+              margin-bottom: 4px;
+            }
+            .info-header {
+              display: flex;
+              justify-content: space-between;
+              font-size: 7.5px;
+              font-weight: 900;
+              color: #444444;
+              margin-bottom: 2px;
+            }
+            .status-indicator {
+              border: 1px solid #000000;
+              background: #ffffff;
+              padding: 0 4px;
+              font-family: monospace;
+              color: #000000;
+            }
+            .student-name {
+              font-size: 11px;
+              font-weight: 900;
+              color: #000000;
+            }
+            .student-meta {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 12px;
+              font-size: 8.5px;
+              color: #222222;
+              border-top: 1px solid #dddddd;
+              margin-top: 3px;
+              padding-top: 2px;
+            }
+            .academic-block {
+              border: 1px solid #000000;
+              background: #ffffff;
+              padding: 5px 7px;
+              margin-bottom: 4px;
+            }
+            .acad-row-1 {
+              font-size: 9.5px;
+              color: #000000;
+              margin-bottom: 2px;
+            }
+            .acad-row-2 {
+              display: flex;
+              justify-content: space-between;
+              font-size: 8.5px;
+              color: #333333;
+            }
+            .financial-block {
+              border: 1px solid #000000;
+              background: #fafafa;
+              padding: 5px 7px;
+              margin-bottom: 4px;
+            }
+            .fin-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 1px solid #cccccc;
+              padding-bottom: 3px;
+              margin-bottom: 4px;
+            }
+            .fin-title {
+              font-size: 7.5px;
+              font-weight: 900;
+              color: #000000;
+              text-transform: uppercase;
+            }
+            .fin-status {
+              border: 1px solid #000000;
+              background: #ffffff;
+              padding: 1px 5px;
+              font-size: 7.5px;
+              font-weight: 900;
+              text-transform: uppercase;
+            }
+            .fin-body {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+            }
+            .fin-ref {
+              font-size: 9.5px;
+              font-weight: 800;
+              color: #000000;
+            }
+            .fin-words {
+              font-size: 8px;
+              font-style: italic;
+              color: #444444;
+              margin-top: 2px;
+            }
+            .fin-amount {
+              text-align: right;
+            }
+            .amount-label {
+              font-size: 7px;
+              font-weight: 700;
+              color: #555555;
+            }
+            .amount-value {
+              font-size: 13px;
+              font-weight: 900;
+              font-family: monospace;
+              color: #000000;
+            }
+            .fin-footer {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 12px;
+              font-size: 8.5px;
+              border-top: 1px solid #dddddd;
+              margin-top: 4px;
+              padding-top: 3px;
+              color: #222222;
+            }
+            .fin-obs {
+              width: 100%;
+              font-size: 7.5px;
+              color: #555555;
+            }
+            .msg-block {
+              border: 1px solid #cccccc;
+              background: #ffffff;
+              padding: 3px 5px;
+              text-align: center;
+              font-size: 7.5px;
+              font-style: italic;
+              color: #555555;
+              margin-bottom: 5px;
+              line-height: 1.2;
+            }
+            .signatures-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              padding-top: 6px;
+              margin-bottom: 3px;
+            }
+            .sig-col {
+              text-align: center;
+              width: 44%;
+            }
+            .sig-line {
+              border-bottom: 1px solid #000000;
+              margin-bottom: 2px;
+            }
+            .sig-label {
+              font-size: 7.5px;
+              font-weight: 900;
+              letter-spacing: 0.5px;
+              color: #000000;
+            }
+            .footer-meta {
+              border-top: 1px solid #cccccc;
+              padding-top: 3px;
+              display: flex;
+              justify-content: space-between;
+              font-size: 6.5px;
+              font-family: monospace;
+              color: #666666;
+              text-transform: uppercase;
+            }
+            .cut-line {
+              border-top: 1.5px dashed #000000;
+              margin: 6px 0;
+              text-align: center;
+              height: 12px;
+              line-height: 12px;
+            }
+            .cut-line span {
+              background: #ffffff;
+              padding: 0 10px;
+              font-size: 7.5px;
+              font-family: monospace;
+              font-weight: 700;
+              color: #000000;
+              position: relative;
+              top: -8px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="page-container">
+            ${via1}
+            ${cutLineHtml}
+            ${via2}
+          </div>
+        </body>
+        </html>
+      `;
+
+      const doc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(fullHtml);
+        doc.close();
+
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch (err) {
+            console.warn('Erro ao acionar impressão via iframe, executando window.print():', err);
+            window.print();
+          } finally {
+            setIsPrintingDirect(false);
+          }
+        }, 250);
+      } else {
+        window.print();
+        setIsPrintingDirect(false);
+      }
+    } catch (error) {
+      console.error('Falha na impressão isolada, recorrendo a window.print():', error);
+      window.print();
+      setIsPrintingDirect(false);
+    }
+  };
+
+  // Componente de visualização na tela da via individual
+  const renderPreviewVia = (via: number) => {
+    const viaLabel = via === 1
+      ? copies === 1
+        ? 'VIA ÚNICA - ALUNO'
+        : 'VIA 1 - ESCOLA / SECRETARIA'
+      : 'VIA 2 - ALUNO';
+
+    return (
+      <div 
+        key={via}
+        className="bg-white border-2 border-black p-3.5 sm:p-4 text-black relative box-border shadow-xs"
+      >
+        {/* Cabeçalho Oficial Diocesano */}
+        <div className="flex items-start justify-between border-b-2 border-black pb-2 mb-2 relative">
+          <div className="flex items-center gap-3">
+            {/* Logotipo Monocromático */}
+            <div className="w-12 h-12 flex items-center justify-center shrink-0">
+              <img
+                src={instLogo}
+                alt="Logo"
+                className="w-full h-full object-contain grayscale contrast-150"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_LOGO) {
+                    (e.currentTarget as HTMLImageElement).src = DEFAULT_LOGO;
+                  }
+                }}
+              />
+            </div>
+
+            {/* Texto Institucional em P&B */}
+            <div className="space-y-0.5">
+              <p className="text-[8.5px] font-black tracking-widest text-slate-800 uppercase leading-none">
+                {dioceseTitle}
+              </p>
+              <h4 className="text-xs sm:text-sm font-black text-black uppercase tracking-tight leading-tight">
+                {instName}
+              </h4>
+              <p className="text-[9px] font-bold text-slate-800 uppercase tracking-wider">
+                {instSubtitle}
+              </p>
+              <p className="text-[8px] text-slate-700 font-medium leading-tight">
+                {instAddress}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-2 text-[7.5px] text-slate-600 font-bold uppercase">
+                {instPhone && <span>TEL: {instPhone}</span>}
+                {instEmail && <span>EMAIL: {instEmail}</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Etiqueta da Via */}
+          <div className="text-right shrink-0">
+            <span className="inline-block px-2 py-0.5 border border-black bg-slate-100 text-[8.5px] font-mono font-black text-black uppercase">
+              {viaLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Título do Documento com Número e Data */}
+        <div className="text-center mb-2">
+          <h2 className="text-xs sm:text-sm font-black text-black uppercase tracking-[0.18em] inline-block border-b-2 border-black pb-0.5">
+            Recibo de Matrícula e Inscrição
+          </h2>
+          <div className="flex items-center justify-between text-[9px] text-slate-800 font-mono mt-1 px-1">
+            <span>Nº COMPROVANTE: <strong className="text-black">{receiptNumber}</strong></span>
+            <span>DATA DE EMISSÃO: <strong className="text-black">{formatDateForDisplay(new Date().toISOString())}</strong></span>
+          </div>
+        </div>
+
+        {/* Bloco 1: Identificação do Aluno */}
+        <div className="border border-black bg-slate-50 p-2 mb-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[8.5px] font-black text-slate-700 uppercase tracking-wider">
+              Identificação do Aluno(a)
+            </span>
+            <span className="text-[8.5px] font-mono font-bold text-black border border-black bg-white px-1 py-0.2">
+              SITUAÇÃO: {student.status?.toUpperCase() || 'ATIVO'}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm font-black text-black uppercase pt-0.5">
+            {formatRegistrationNumber(student.registration_number)} - {student.name}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[9.5px] text-slate-800 pt-1 border-t border-slate-300 mt-1">
+            <span>CPF: <strong className="text-black">{student.cpf || 'Não informado'}</strong></span>
+            <span>RG: <strong className="text-black">{student.rg || 'Não informado'}</strong></span>
+            {unitName && <span>Polo / Unidade: <strong className="text-black">{unitName}</strong></span>}
+          </div>
+        </div>
+
+        {/* Bloco 2: Dados Acadêmicos da Turma */}
+        <div className="border border-black p-2 mb-2 text-xs bg-white">
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="text-[8.5px] font-black text-slate-700 uppercase tracking-wider">
+              Dados Acadêmicos e Turma Vinculada
+            </span>
+            <span className="text-[9px] font-bold text-black">
+              Ano Letivo: {currentYear}
+            </span>
+          </div>
+          <p className="text-xs font-black text-black uppercase">
+            CURSO: {classItem?.course || student.course || 'Curso Regular'}
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[9.5px] text-slate-800 pt-0.5">
+            <span>Turma: <strong className="text-black">{classItem?.name || 'Turma Regular'}</strong></span>
+            <span>Turno: <strong className="text-black">{classItem?.period || 'Regular'}</strong></span>
+            <span>Início das Aulas: <strong className="text-black">{classItem?.start_date ? formatDateForDisplay(classItem.start_date) : 'Conforme cronograma'}</strong></span>
+          </div>
+        </div>
+
+        {/* Bloco 3: Quadro Financeiro da Taxa de Matrícula */}
+        <div className="border border-black p-2.5 mb-2 text-xs bg-slate-50">
+          <div className="flex items-center justify-between border-b border-slate-400 pb-1 mb-1.5">
+            <span className="text-[8.5px] font-black text-black uppercase tracking-wider">
+              Detalhamento da Taxa de Matrícula
+            </span>
+            <span className="border border-black px-1.5 py-0.2 text-[8.5px] font-black text-black uppercase bg-white">
+              {feeStatus === 'paid' ? '✓ QUITADO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE'}
+            </span>
+          </div>
+
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[8px] font-bold text-slate-700 uppercase">Referência</p>
+              <p className="text-xs font-black text-black">
+                Taxa de Inscrição e Matrícula Acadêmica ({currentYear})
+              </p>
+              <p className="text-[9.5px] text-slate-800 italic pt-0.5">
+                Extenso: {numberToPortugueseWords(feeAmount)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[8px] font-bold text-slate-700 uppercase">Valor do Lançamento</p>
+              <p className="text-base font-black text-black font-mono">
+                {formatCurrency(feeAmount)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-1.5 mt-1.5 border-t border-slate-300 text-[9.5px] text-slate-900">
+            <div>Forma de Quitação: <strong className="text-black">{paymentMethod}</strong></div>
+            <div>Data do Pagamento: <strong className="text-black">{formatDateForDisplay(effectivePaymentDate)}</strong></div>
+            {observations && (
+              <div className="col-span-2 text-[8.5px] text-slate-700 pt-0.5">
+                Observações: {observations}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bloco 4: Declaração / Mensagem Institucional */}
+        <div className="border border-slate-300 bg-white p-1 text-center mb-2.5">
+          <p className="text-[8px] text-slate-700 italic leading-snug">
+            &quot;{receiptMsg}&quot;
+          </p>
+        </div>
+
+        {/* Bloco 5: Linhas de Assinaturas */}
+        <div className="flex justify-between items-end pt-1 mb-1 text-xs">
+          <div className="text-center w-48 sm:w-56">
+            <div className="border-b border-black mb-1"></div>
+            <p className="text-[8px] font-black uppercase tracking-wider text-black">
+              Assinatura do Aluno(a)
+            </p>
+          </div>
+
+          <div className="text-center w-48 sm:w-56">
+            <div className="border-b border-black mb-1"></div>
+            <p className="text-[8px] font-black uppercase tracking-wider text-black">
+              Secretaria Acadêmica / Carimbo
+            </p>
+          </div>
+        </div>
+
+        {/* Rodapé Informativo */}
+        <div className="pt-1 mt-1 border-t border-slate-300 flex items-center justify-between text-[7px] text-slate-600 font-mono uppercase">
+          <span>SISTEMA {instName}</span>
+          <span>REGISTRO: {formatDateForDisplay(effectivePaymentDate)} • FORMA: {paymentMethod.toUpperCase()}</span>
+          <span>EMISSÃO: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {/* 1. Modal Interativo em Tela com Opções Concentradas no Topo */}
+      <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200 print:hidden">
+        <div className="bg-white rounded-none border border-slate-400 shadow-2xl max-w-4xl w-full my-auto overflow-hidden flex flex-col max-h-[96vh]">
+          {/* Alerta de Sucesso se Recém-Inscrito */}
+          {isNew && (
+            <div className="bg-slate-800 border-b border-slate-700 text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between shrink-0">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={15} className="text-slate-300" />
+                Aluno Inscrito e Taxa de Matrícula Registrada com Sucesso!
+              </span>
+              <span className="text-[10px] bg-slate-900 border border-slate-600 px-2 py-0.5">Novo Aluno</span>
+            </div>
+          )}
+
+          {/* BARRA DE CONTROLE CONCENTRADA E INTUITIVA NO TOPO
+              Concentra todas as opções no mesmo local: 1 ou 2 vias + Imprimir + Fechar.
+              Sem botão de PDF, visual neutro e limpo.
+          */}
+          <div className="px-4 py-3 bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-3 shrink-0 border-b border-slate-700">
+            {/* Título e Subtítulo */}
+            <div className="flex items-center gap-2.5 self-start md:self-auto">
+              <div className="w-8 h-8 bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 shrink-0">
+                <Printer size={18} />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                  Imprimir Recibo de Matrícula
+                </h3>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  Configurado para Impressoras a Laser Monocromáticas (P&B)
+                </p>
+              </div>
+            </div>
+
+            {/* Painel Concentrado de Ações: Seleção de 1 ou 2 Vias + Imprimir + Fechar */}
+            <div className="flex items-center flex-wrap gap-2 w-full md:w-auto justify-end">
+              {/* Seletor Segmentado de 1 ou 2 Vias */}
+              <div className="flex items-center bg-slate-800 p-0.5 border border-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setCopies(1)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
+                    copies === 1
+                      ? "bg-white text-slate-950 shadow-xs"
+                      : "text-slate-300 hover:text-white hover:bg-slate-700"
+                  )}
+                  title="Imprime apenas 1 via avulsa (ocupando metade da folha)"
+                >
+                  <FileText size={13} />
+                  <span>1 Via</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCopies(2)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
+                    copies === 2
+                      ? "bg-white text-slate-950 shadow-xs"
+                      : "text-slate-300 hover:text-white hover:bg-slate-700"
+                  )}
+                  title="Gera 2 vias idênticas (Escola e Aluno) na mesma folha com linha de corte"
+                >
+                  <Copy size={13} />
+                  <span>2 Vias (1 Página A4)</span>
+                </button>
+              </div>
+
+              {/* Botão de Impressão Direta */}
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={isPrintingDirect}
+                className="px-5 py-2 bg-slate-100 hover:bg-white active:scale-[0.98] text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md transition-all border border-white disabled:opacity-50"
+              >
+                <Printer size={16} />
+                <span>{isPrintingDirect ? 'Enviando...' : `Imprimir (${copies} ${copies === 1 ? 'Via' : 'Vias'})`}</span>
+              </button>
+
+              {/* Botão Fechar */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1"
+                title="Fechar janela"
+              >
+                <X size={15} />
+                <span className="hidden sm:inline">Fechar</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Faixa Informativa e Calibração Monocromática */}
+          <div className="bg-slate-100 border-b border-slate-300 px-4 py-1.5 text-[11px] text-slate-700 flex items-center justify-between font-medium">
+            <span className="flex items-center gap-1.5">
+              <Check size={14} className="text-slate-800" />
+              <span>
+                Visualização formatada em <strong>{copies} {copies === 1 ? 'Via (Avulsa)' : 'Vias (Página Inteira com Linha de Corte)'}</strong>. Calibrada para papel <strong>A4</strong> sem folhas em branco.
+              </span>
+            </span>
+            <span className="text-[10px] text-slate-600 font-mono uppercase hidden sm:inline">
+              Formato: A4 Retrato (P&B)
+            </span>
+          </div>
+
+          {/* Área de Visualização com Rolagem */}
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-200">
+            <div className="max-w-2xl mx-auto space-y-3">
+              {viasToRender.map((via) => (
+                <React.Fragment key={via}>
+                  {renderPreviewVia(via)}
+
+                  {via === 1 && copies === 2 && (
+                    <div className="py-1 flex items-center justify-center my-1">
+                      <div className="w-full border-b border-dashed border-black flex items-center justify-center">
+                        <span className="bg-white px-3 text-[9px] font-mono font-bold text-black uppercase -translate-y-1/2">
+                          ✂ - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - ✂
                         </span>
                       </div>
-                      <div className="col-span-12 pt-1 border-t border-slate-200/70 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
-                        <span>CPF: <strong className="text-slate-800">{student.cpf || 'Não informado'}</strong></span>
-                        <span>RG: <strong className="text-slate-800">{student.rg || 'Não informado'}</strong></span>
-                        {unitName && <span>Polo / Unidade: <strong className="text-slate-800">{unitName}</strong></span>}
-                      </div>
                     </div>
-                  </div>
-
-                  {/* Dados da Turma / Formação Acadêmica */}
-                  <div className="bg-blue-50/60 p-2.5 border border-blue-200 text-xs text-blue-950 mb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[9px] font-black text-blue-800 uppercase tracking-wider">
-                        Dados Acadêmicos e Turma Vinculada
-                      </span>
-                      <span className="text-[10px] font-bold text-blue-900">
-                        Ano Letivo: {currentYear}
-                      </span>
-                    </div>
-                    <p className="text-xs sm:text-sm font-black uppercase text-blue-950">
-                      {classItem?.course || student.course || 'Curso Regular'}
-                    </p>
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-blue-900 pt-0.5">
-                      <span>Turma: <strong>{classItem?.name || 'Turma Vinculada'}</strong></span>
-                      <span>Turno: <strong>{classItem?.period || 'Regular'}</strong></span>
-                      <span>Início das Aulas: <strong>{classItem?.start_date ? formatDateForDisplay(classItem.start_date) : 'Conforme cronograma'}</strong></span>
-                    </div>
-                  </div>
-
-                  {/* Quadro Financeiro da Taxa de Matrícula (Padrão Contribuições) */}
-                  <div className="bg-emerald-50/70 border border-emerald-300 p-3 text-xs mb-3">
-                    <div className="flex items-center justify-between border-b border-emerald-200 pb-1.5 mb-2">
-                      <span className="text-[10px] font-black uppercase text-emerald-950 tracking-wider">
-                        Detalhamento Financeiro da Taxa de Matrícula
-                      </span>
-                      <span className={cn(
-                        "px-2 py-0.5 text-[10px] font-black uppercase border",
-                        feeStatus === 'paid'
-                          ? "bg-emerald-200 text-emerald-950 border-emerald-400"
-                          : feeStatus === 'exempt'
-                            ? "bg-slate-200 text-slate-800 border-slate-300"
-                            : "bg-amber-200 text-amber-950 border-amber-400"
-                      )}>
-                        {feeStatus === 'paid' ? '✓ QUITADO' : feeStatus === 'exempt' ? 'ISENTO' : 'PENDENTE'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-12 sm:col-span-7">
-                        <p className="text-[9px] font-bold text-emerald-800 uppercase">Referência</p>
-                        <p className="text-xs font-black text-slate-900">
-                          Taxa de Inscrição e Matrícula Acadêmica ({currentYear})
-                        </p>
-                        <p className="text-[10.5px] text-slate-600 italic pt-0.5">
-                          Extenso: {numberToPortugueseWords(feeAmount)}
-                        </p>
-                      </div>
-                      <div className="col-span-12 sm:col-span-5 sm:text-right">
-                        <p className="text-[9px] font-bold text-emerald-800 uppercase">Valor do Lançamento</p>
-                        <p className="text-lg font-black text-[#00174b] font-mono">
-                          {formatCurrency(feeAmount)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-2 mt-2 border-t border-emerald-200/80 text-[11px] text-emerald-950">
-                      <div>Forma de Quitação: <strong>{paymentMethod}</strong></div>
-                      <div>Data do Pagamento: <strong>{formatDateForDisplay(effectivePaymentDate)}</strong></div>
-                      {observations && (
-                        <div className="col-span-2 text-[10px] text-slate-600 pt-0.5">
-                          Observações: {observations}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Mensagem / Declaração Institucional */}
-                  <div className="bg-slate-50 p-2.5 border border-slate-200 text-center mb-4">
-                    <p className="text-[9.5px] text-slate-600 italic leading-snug">
-                      &quot;{instSettings?.receipt_message || 'Inscrição e matrícula confirmadas com gratidão. O(a) aluno(a) declara estar de acordo com o regimento escolar diocesano.'}&quot;
-                    </p>
-                  </div>
-
-                  {/* Linhas de Assinaturas */}
-                  <div className="flex justify-between items-end pt-3 text-xs text-slate-700">
-                    <div className="text-center w-52 sm:w-60">
-                      <div className="border-b border-slate-400 mb-1"></div>
-                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-700">
-                        Assinatura do Aluno(a)
-                      </p>
-                    </div>
-
-                    <div className="text-center w-52 sm:w-60">
-                      <div className="border-b border-slate-400 mb-1"></div>
-                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-700">
-                        Secretaria Acadêmica / Carimbo
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Rodapé da Via */}
-                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-                    <span>SISTEMA {instName}</span>
-                    <span>REGISTRO: {formatDateForDisplay(effectivePaymentDate)} • FORMA: {paymentMethod.toUpperCase()}</span>
-                    <span>EMISSÃO: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</span>
-                  </div>
-                </div>
-
-                {/* Linha Divisória de Corte para 2 Vias (Padrão Contribuições) */}
-                {via === 1 && copies === 2 && (
-                  <div className="py-2.5 flex items-center justify-center my-1 print:my-4">
-                    <div className="w-full border-b-2 border-dashed border-slate-400 flex items-center justify-center">
-                      <span className="bg-white px-4 text-[9px] font-black text-slate-500 uppercase flex items-center gap-1.5 -translate-y-1/2">
-                        ✂️ CORTE AQUI ✂️
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-
-        {/* Modal Footer Controls */}
-        <div className="px-5 py-3.5 bg-slate-100 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <p className="text-xs text-slate-600 font-medium">
-            Recibo configurado para <strong>{copies} {copies === 1 ? 'Via' : 'Vias'}</strong>. Formato padrão para impressão e arquivamento oficial.
-          </p>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={handlePrint}
-              className="flex-1 sm:flex-initial px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-            >
-              <Printer size={15} />
-              <span>Imprimir ({copies} {copies === 1 ? 'Via' : 'Vias'})</span>
-            </button>
-
-            <button
-              onClick={handleDownloadPDF}
-              className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-            >
-              <Download size={15} />
-              <span>Baixar PDF</span>
-            </button>
-
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-white hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
-            >
-              Fechar
-            </button>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* 2. ÁREA DE IMPRESSÃO EMBARCADA NO DOM
+          Utilizada caso o usuário utilize Ctrl+P diretamente pelo navegador.
+          Completamente isolada e visível apenas durante @media print.
+      */}
+      <div id="printable-enrollment-receipt" className="hidden print:block bg-white text-black p-0 m-0 w-full">
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 4mm 8mm 4mm 8mm !important;
+            }
+            #printable-enrollment-receipt {
+              display: block !important;
+              position: static !important;
+              width: 100% !important;
+              max-width: 194mm !important;
+              margin: 0 auto !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              overflow: visible !important;
+            }
+            #printable-enrollment-receipt * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+          }
+        `}} />
+
+        <div className="w-full flex flex-col justify-between" style={{ boxSizing: 'border-box' }}>
+          {viasToRender.map((via) => (
+            <React.Fragment key={`prt-dom-via-${via}`}>
+              <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                {renderPreviewVia(via)}
+              </div>
+
+              {via === 1 && copies === 2 && (
+                <div className="w-full border-b border-dashed border-black flex items-center justify-center my-1.5" style={{ height: '4mm' }}>
+                  <span className="bg-white px-3 text-[8px] font-mono font-bold text-black uppercase -translate-y-1/2">
+                    ✂ - - - - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - - - - ✂
+                  </span>
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </>
   );
 };
