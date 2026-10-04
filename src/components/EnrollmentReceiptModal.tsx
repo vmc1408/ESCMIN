@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Printer, CheckCircle2, Copy, FileText, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Printer, CheckCircle2, Copy } from 'lucide-react';
 import { formatCurrency, formatDateForDisplay, numberToPortugueseWords, formatRegistrationNumber, cn, safeFormat } from '../lib/utils';
 import { Student, Class } from '../types';
 import { DEFAULT_LOGO } from '../lib/default-logo';
@@ -37,7 +37,6 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   const [copies, setCopies] = useState<1 | 2>(2);
   const [instSettings, setInstSettings] = useState<any>(institution || null);
   const [isPrintingDirect, setIsPrintingDirect] = useState<boolean>(false);
-  const printFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (institution) {
@@ -75,9 +74,9 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
    * Constrói o HTML puro de uma via para envio direto à impressora via iframe.
    * Totalmente monocromático, calibrado em milímetros para encaixe exato em A4.
    */
-  const generateViaHtml = (via: number) => {
+  const generateViaHtml = (via: number, activeCopies: 1 | 2 = copies) => {
     const viaLabel = via === 1
-      ? copies === 1
+      ? activeCopies === 1
         ? 'VIA ÚNICA - ALUNO'
         : 'VIA 1 - ESCOLA / SECRETARIA'
       : 'VIA 2 - ALUNO';
@@ -176,13 +175,9 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
           "${receiptMsg}"
         </div>
 
-        <!-- Bloco 5: Assinaturas -->
+        <!-- Bloco 5: Assinatura da Secretaria -->
         <div class="signatures-row">
-          <div class="sig-col">
-            <div class="sig-line"></div>
-            <div class="sig-label">ASSINATURA DO ALUNO(A)</div>
-          </div>
-          <div class="sig-col">
+          <div class="sig-col-single">
             <div class="sig-line"></div>
             <div class="sig-label">SECRETARIA ACADÊMICA / CARIMBO</div>
           </div>
@@ -199,12 +194,12 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   };
 
   /**
-   * Executa a impressão com garantia absoluta de ZERO folha em branco:
-   * Cria um iframe isolado com o CSS e conteúdo estrito da página A4,
-   * garantindo impressão 100% monocromática e calibrada.
+   * Executa a impressão direta da opção escolhida (1 via ou 2 vias)
+   * sem necessidade de repetir a ação com botões duplicados.
    */
-  const handlePrint = () => {
+  const triggerPrint = (selectedCopies: 1 | 2) => {
     setIsPrintingDirect(true);
+    setCopies(selectedCopies);
 
     try {
       let iframe = document.getElementById('enrollment-print-iframe') as HTMLIFrameElement;
@@ -221,10 +216,10 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
         document.body.appendChild(iframe);
       }
 
-      const via1 = generateViaHtml(1);
-      const via2 = copies === 2 ? generateViaHtml(2) : '';
+      const via1 = generateViaHtml(1, selectedCopies);
+      const via2 = selectedCopies === 2 ? generateViaHtml(2, selectedCopies) : '';
 
-      const cutLineHtml = copies === 2 ? `
+      const cutLineHtml = selectedCopies === 2 ? `
         <div class="cut-line">
           <span>✂ - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - ✂</span>
         </div>
@@ -506,21 +501,21 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
             }
             .signatures-row {
               display: flex;
-              justify-content: space-between;
+              justify-content: flex-end;
               align-items: flex-end;
-              padding-top: 6px;
-              margin-bottom: 3px;
+              padding-top: 8px;
+              margin-bottom: 4px;
             }
-            .sig-col {
+            .sig-col-single {
               text-align: center;
-              width: 44%;
+              width: 230px;
             }
             .sig-line {
               border-bottom: 1px solid #000000;
-              margin-bottom: 2px;
+              margin-bottom: 3px;
             }
             .sig-label {
-              font-size: 7.5px;
+              font-size: 8px;
               font-weight: 900;
               letter-spacing: 0.5px;
               color: #000000;
@@ -750,18 +745,11 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
           </p>
         </div>
 
-        {/* Bloco 5: Linhas de Assinaturas */}
-        <div className="flex justify-between items-end pt-1 mb-1 text-xs">
-          <div className="text-center w-48 sm:w-56">
+        {/* Bloco 5: Assinatura da Secretaria (aluno removido conforme solicitado) */}
+        <div className="flex justify-end items-end pt-2 mb-1.5 text-xs">
+          <div className="text-center w-52 sm:w-60">
             <div className="border-b border-black mb-1"></div>
-            <p className="text-[8px] font-black uppercase tracking-wider text-black">
-              Assinatura do Aluno(a)
-            </p>
-          </div>
-
-          <div className="text-center w-48 sm:w-56">
-            <div className="border-b border-black mb-1"></div>
-            <p className="text-[8px] font-black uppercase tracking-wider text-black">
+            <p className="text-[8.5px] font-black uppercase tracking-wider text-black">
               Secretaria Acadêmica / Carimbo
             </p>
           </div>
@@ -779,114 +767,88 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
 
   return (
     <>
-      {/* 1. Modal Interativo em Tela com Opções Concentradas no Topo */}
-      <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200 print:hidden">
-        <div className="bg-white rounded-none border border-slate-400 shadow-2xl max-w-4xl w-full my-auto overflow-hidden flex flex-col max-h-[96vh]">
+      {/* 1. Modal Interativo em Tela (Interface Clara, Amigável e Moderna) */}
+      <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200 print:hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-4xl w-full my-auto overflow-hidden flex flex-col max-h-[96vh]">
           {/* Alerta de Sucesso se Recém-Inscrito */}
           {isNew && (
-            <div className="bg-slate-800 border-b border-slate-700 text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between shrink-0">
+            <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-900 px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between shrink-0">
               <span className="flex items-center gap-2">
-                <CheckCircle2 size={15} className="text-slate-300" />
+                <CheckCircle2 size={16} className="text-emerald-700" />
                 Aluno Inscrito e Taxa de Matrícula Registrada com Sucesso!
               </span>
-              <span className="text-[10px] bg-slate-900 border border-slate-600 px-2 py-0.5">Novo Aluno</span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-bold">Novo Aluno</span>
             </div>
           )}
 
-          {/* BARRA DE CONTROLE CONCENTRADA E INTUITIVA NO TOPO
-              Concentra todas as opções no mesmo local: 1 ou 2 vias + Imprimir + Fechar.
-              Sem botão de PDF, visual neutro e limpo.
-          */}
-          <div className="px-4 py-3 bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-3 shrink-0 border-b border-slate-700">
-            {/* Título e Subtítulo */}
-            <div className="flex items-center gap-2.5 self-start md:self-auto">
-              <div className="w-8 h-8 bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 shrink-0">
+          {/* BARRA SUPERIOR CLARA COM BOTÕES DIRETOS E FECHAR NA MESMA LINHA */}
+          <div className="px-4 sm:px-6 py-3.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            {/* Título Limpo */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#00174b] shrink-0 shadow-2xs">
                 <Printer size={18} />
               </div>
               <div>
-                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                  Imprimir Recibo de Matrícula
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#00174b]">
+                  Recibo de Matrícula
                 </h3>
-                <p className="text-[10px] text-slate-400 font-medium">
-                  Configurado para Impressoras a Laser Monocromáticas (P&B)
+                <p className="text-[10px] text-slate-500 font-medium">
+                  Selecione a opção desejada para imprimir o documento
                 </p>
               </div>
             </div>
 
-            {/* Painel Concentrado de Ações: Seleção de 1 ou 2 Vias + Imprimir + Fechar */}
-            <div className="flex items-center flex-wrap gap-2 w-full md:w-auto justify-end">
-              {/* Seletor Segmentado de 1 ou 2 Vias */}
-              <div className="flex items-center bg-slate-800 p-0.5 border border-slate-600">
-                <button
-                  type="button"
-                  onClick={() => setCopies(1)}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
-                    copies === 1
-                      ? "bg-white text-slate-950 shadow-xs"
-                      : "text-slate-300 hover:text-white hover:bg-slate-700"
-                  )}
-                  title="Imprime apenas 1 via avulsa (ocupando metade da folha)"
-                >
-                  <FileText size={13} />
-                  <span>1 Via</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCopies(2)}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
-                    copies === 2
-                      ? "bg-white text-slate-950 shadow-xs"
-                      : "text-slate-300 hover:text-white hover:bg-slate-700"
-                  )}
-                  title="Gera 2 vias idênticas (Escola e Aluno) na mesma folha com linha de corte"
-                >
-                  <Copy size={13} />
-                  <span>2 Vias (1 Página A4)</span>
-                </button>
-              </div>
-
-              {/* Botão de Impressão Direta */}
+            {/* Ações Diretas: 1 Via + 2 Vias + Fechar (Tudo na mesma linha) */}
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
+              {/* Botão de Ação Direta: 1 Via */}
               <button
                 type="button"
-                onClick={handlePrint}
+                onClick={() => triggerPrint(1)}
                 disabled={isPrintingDirect}
-                className="px-5 py-2 bg-slate-100 hover:bg-white active:scale-[0.98] text-slate-950 text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md transition-all border border-white disabled:opacity-50"
+                className={cn(
+                  "px-3.5 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all border shadow-xs rounded-lg disabled:opacity-50",
+                  copies === 1
+                    ? "bg-[#00174b] hover:bg-blue-900 text-white border-[#00174b]"
+                    : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
+                )}
+                title="Imprimir 1 via avulsa do recibo"
               >
-                <Printer size={16} />
-                <span>{isPrintingDirect ? 'Enviando...' : `Imprimir (${copies} ${copies === 1 ? 'Via' : 'Vias'})`}</span>
+                <Printer size={14} />
+                <span>1 Via</span>
               </button>
 
-              {/* Botão Fechar */}
+              {/* Botão de Ação Direta: 2 Vias (1 Página A4) */}
+              <button
+                type="button"
+                onClick={() => triggerPrint(2)}
+                disabled={isPrintingDirect}
+                className={cn(
+                  "px-3.5 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all border shadow-xs rounded-lg disabled:opacity-50",
+                  copies === 2
+                    ? "bg-[#00174b] hover:bg-blue-900 text-white border-[#00174b]"
+                    : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300"
+                )}
+                title="Imprimir 2 vias (Escola e Aluno) na mesma página com linha de corte"
+              >
+                <Copy size={14} />
+                <span>2 Vias (1 Página A4)</span>
+              </button>
+
+              {/* Botão Fechar - Elevado e Alinhado na Mesma Linha */}
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1"
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ml-1 shadow-2xs"
                 title="Fechar janela"
               >
                 <X size={15} />
-                <span className="hidden sm:inline">Fechar</span>
+                <span>Fechar</span>
               </button>
             </div>
           </div>
 
-          {/* Faixa Informativa e Calibração Monocromática */}
-          <div className="bg-slate-100 border-b border-slate-300 px-4 py-1.5 text-[11px] text-slate-700 flex items-center justify-between font-medium">
-            <span className="flex items-center gap-1.5">
-              <Check size={14} className="text-slate-800" />
-              <span>
-                Visualização formatada em <strong>{copies} {copies === 1 ? 'Via (Avulsa)' : 'Vias (Página Inteira com Linha de Corte)'}</strong>. Calibrada para papel <strong>A4</strong> sem folhas em branco.
-              </span>
-            </span>
-            <span className="text-[10px] text-slate-600 font-mono uppercase hidden sm:inline">
-              Formato: A4 Retrato (P&B)
-            </span>
-          </div>
-
-          {/* Área de Visualização com Rolagem */}
-          <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-200">
+          {/* Área de Visualização com Fundo Claro e Agradável */}
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100">
             <div className="max-w-2xl mx-auto space-y-3">
               {viasToRender.map((via) => (
                 <React.Fragment key={via}>
