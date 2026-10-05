@@ -200,6 +200,8 @@ CREATE TABLE IF NOT EXISTS public.institution_settings (
     logo_url TEXT,
     footer_text TEXT,
     receipt_message TEXT,
+    enrollment_receipt_message TEXT,
+    show_enrollment_receipt_message BOOLEAN DEFAULT TRUE,
     secretary TEXT,
     cep TEXT,
     city_uf TEXT,

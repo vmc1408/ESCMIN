@@ -321,6 +321,8 @@ export interface InstitutionSettings {
   logo_url: string;
   footer_text: string;
   receipt_message: string;
+  enrollment_receipt_message?: string;
+  show_enrollment_receipt_message?: boolean;
   secretary?: string;
   cep?: string;
   city_uf?: string;

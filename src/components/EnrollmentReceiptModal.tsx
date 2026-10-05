@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer, CheckCircle2, Copy, FileText } from 'lucide-react';
-import { formatCurrency, formatDateForDisplay, numberToPortugueseWords, formatRegistrationNumber, cn, safeFormat } from '../lib/utils';
+import { formatCurrency, formatDateForDisplay, formatRegistrationNumber, cn } from '../lib/utils';
 import { Student, Class } from '../types';
 import { DEFAULT_LOGO } from '../lib/default-logo';
 import { getInstitutionSettings } from '../lib/database';
@@ -36,15 +36,24 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
 }) => {
   const [copies, setCopies] = useState<1 | 2>(2);
   const [instSettings, setInstSettings] = useState<any>(institution || null);
+  const [includeMessage, setIncludeMessage] = useState<boolean>(true);
   const [isPrintingDirect, setIsPrintingDirect] = useState<boolean>(false);
 
   useEffect(() => {
     if (institution) {
       setInstSettings(institution);
+      if (institution.show_enrollment_receipt_message !== undefined) {
+        setIncludeMessage(institution.show_enrollment_receipt_message !== false);
+      }
     } else {
       getInstitutionSettings()
         .then((data) => {
-          if (data) setInstSettings(data);
+          if (data) {
+            setInstSettings(data);
+            if (data.show_enrollment_receipt_message !== undefined) {
+              setIncludeMessage(data.show_enrollment_receipt_message !== false);
+            }
+          }
         })
         .catch((err) => console.warn('Não foi possível carregar configurações da instituição:', err));
     }
@@ -62,12 +71,13 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   const instLogo = instSettings?.logo_url || DEFAULT_LOGO;
   const instPhone = instSettings?.phone || '(11) 2421-2935';
   const instEmail = instSettings?.email ? instSettings.email.toLowerCase() : 'email@email.com.br';
-  const receiptMsg = instSettings?.receipt_message || 'Contribuição recebida com gratidão para a formação teológica e espiritual. Este valor apoia a missão educativa da escola e o desenvolvimento dos alunos. Deus lhe recompense pela generosidade e confiança.';
+  const receiptMsg = instSettings?.enrollment_receipt_message || instSettings?.receipt_message || 'Contribuição recebida com gratidão para a formação teológica e espiritual. Este valor apoia a missão educativa da escola e o desenvolvimento dos alunos. Deus lhe recompense pela generosidade e confiança.';
 
   const viasToRender = copies === 1 ? [1] : [1, 2];
 
   /**
    * Constrói o HTML puro de uma via no padrão idêntico ao Recibo de Contribuição (Contributions.tsx)
+   * Sem as duas linhas de registro do sistema e emissão.
    */
   const generateViaHtml = (via: number, activeCopies: 1 | 2 = copies) => {
     const viaLabel = activeCopies === 1
@@ -166,27 +176,34 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
             </div>
           </div>
 
-          <!-- Mensagem e Total -->
-          <div class="grid-summary">
-            <div class="msg-box">
-              <span class="msg-label">MENSAGEM / AVISO DE RECIBO</span>
-              <p class="msg-text">${receiptMsg}</p>
+          <!-- Mensagem e Total (Mensagem condicional com base na chave de configuração) -->
+          ${includeMessage ? `
+            <div class="grid-summary">
+              <div class="msg-box">
+                <span class="msg-label">MENSAGEM / AVISO DE MATRÍCULA</span>
+                <p class="msg-text">${receiptMsg}</p>
+              </div>
+              <div class="total-box">
+                <span class="total-label">TOTAL DAS CONTRIBUIÇÕES</span>
+                <span class="total-value">${formatCurrency(feeAmount)}</span>
+              </div>
             </div>
-            <div class="total-box">
-              <span class="total-label">TOTAL DAS CONTRIBUIÇÕES</span>
-              <span class="total-value">${formatCurrency(feeAmount)}</span>
+          ` : `
+            <div class="grid-summary-single">
+              <div class="total-box full-width">
+                <span class="total-label">TOTAL DA TAXA DE MATRÍCULA</span>
+                <span class="total-value">${formatCurrency(feeAmount)}</span>
+              </div>
             </div>
-          </div>
+          `}
 
           <div class="footer-divider"></div>
 
-          <!-- Rodapé de Emissão e Assinatura -->
+          <!-- Rodapé de Recebimento e Assinatura (Sem as linhas de Registro no Sistema e Emissão) -->
           <div class="receipt-footer">
             <div class="footer-meta-texts">
               <p>Data do Recebimento: ${formatDateForDisplay(effectivePaymentDate)}</p>
               <p>Modo de Pagamento: Pagamento Direto (${paymentMethod})</p>
-              <p>Registro no Sistema: ${formatDateForDisplay(effectivePaymentDate)} 00:00</p>
-              <p class="footer-light">Emissão: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
             </div>
             <div class="signature-box">
               <div class="sig-line"></div>
@@ -264,7 +281,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
             }
             .receipt-via {
               background: #ffffff;
-              padding: 10px 14px;
+              padding: 12px 16px;
               position: relative;
               page-break-inside: avoid;
               break-inside: avoid;
@@ -467,6 +484,10 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
               grid-template-columns: 1fr 1fr;
               gap: 12px;
             }
+            .grid-summary-single {
+              display: flex;
+              width: 100%;
+            }
             .msg-box {
               background-color: #f8fafc;
               padding: 8px 12px;
@@ -501,6 +522,9 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
               align-items: center;
               min-height: 52px;
             }
+            .total-box.full-width {
+              width: 100%;
+            }
             .total-label {
               font-size: 9.5px;
               font-weight: 900;
@@ -528,16 +552,13 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
             .footer-meta-texts {
               display: flex;
               flex-direction: column;
-              gap: 1px;
+              gap: 2px;
             }
             .footer-meta-texts p {
               margin: 0;
-              font-size: 8px;
+              font-size: 8.5px;
               font-weight: 700;
-              color: #94a3b8;
-            }
-            .footer-light {
-              color: #cbd5e1 !important;
+              color: #64748b;
             }
             .signature-box {
               text-align: center;
@@ -620,6 +641,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
 
   /**
    * Componente de visualização do recibo na tela com o visual idêntico ao modelo de contribuição
+   * Sem as duas linhas de registro no sistema e emissão.
    */
   const renderContributionPatternVia = (via: number) => {
     const viaLabel = copies === 1
@@ -755,28 +777,33 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
           </div>
 
           {/* Mensagem Institucional e Total */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-center px-4 min-h-[55px]">
-              <span className="text-[8px] font-black text-slate-400 uppercase mb-1">Mensagem / Aviso de Recibo</span>
-              <p className="text-[9px] font-semibold text-slate-600 leading-tight">
-                {receiptMsg}
-              </p>
+          {includeMessage ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-center px-4 min-h-[55px]">
+                <span className="text-[8px] font-black text-slate-400 uppercase mb-1">Mensagem / Aviso de Matrícula</span>
+                <p className="text-[9px] font-semibold text-slate-600 leading-tight">
+                  {receiptMsg}
+                </p>
+              </div>
+              <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center px-5 sm:px-6 min-h-[55px]">
+                <span className="text-[10px] font-black text-blue-900 uppercase">Total das Contribuições</span>
+                <span className="text-lg sm:text-xl font-black text-blue-900">{formatCurrency(feeAmount)}</span>
+              </div>
             </div>
-            <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center px-5 sm:px-6 min-h-[55px]">
-              <span className="text-[10px] font-black text-blue-900 uppercase">Total das Contribuições</span>
-              <span className="text-lg sm:text-xl font-black text-blue-900">{formatCurrency(feeAmount)}</span>
+          ) : (
+            <div className="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100 flex justify-between items-center px-6">
+              <span className="text-xs font-black text-blue-900 uppercase">Total da Taxa de Matrícula</span>
+              <span className="text-xl font-black text-blue-900">{formatCurrency(feeAmount)}</span>
             </div>
-          </div>
+          )}
 
           <div className="w-full h-px bg-slate-100 my-2" />
 
-          {/* Metadados e Assinatura */}
+          {/* Metadados de Recebimento e Assinatura (Removidas as duas linhas de Registro no Sistema e Emissão) */}
           <div className="flex justify-between items-end pt-1">
             <div className="space-y-0.5">
-              <p className="text-[8px] font-bold text-slate-400">Data do Recebimento: {formatDateForDisplay(effectivePaymentDate)}</p>
-              <p className="text-[8px] font-bold text-slate-400">Modo de Pagamento: Pagamento Direto ({paymentMethod})</p>
-              <p className="text-[8px] font-bold text-slate-400">Registro no Sistema: {formatDateForDisplay(effectivePaymentDate)} 00:00</p>
-              <p className="text-[8px] font-bold text-slate-300">Emissão: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+              <p className="text-[8px] font-bold text-slate-500">Data do Recebimento: {formatDateForDisplay(effectivePaymentDate)}</p>
+              <p className="text-[8px] font-bold text-slate-500">Modo de Pagamento: Pagamento Direto ({paymentMethod})</p>
             </div>
             <div className="text-center">
               <div className="w-48 border-b border-slate-400 mb-1"></div>
@@ -832,8 +859,8 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
           </div>
 
           {/* PAINEL DE ESCOLHA DAS VIAS (EXATAMENTE COMO EM RECIBOS - IMAGEM 4) */}
-          <div className="px-6 py-3 bg-slate-50/70 border-b border-slate-100 shrink-0">
-            <p className="text-xs text-slate-500 font-medium leading-relaxed mb-3">
+          <div className="px-6 py-3.5 bg-slate-50/70 border-b border-slate-100 shrink-0 space-y-3">
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               Escolha a quantidade de vias para gerar o documento de <span className="font-semibold text-slate-700">{student.name}</span> no valor de <span className="font-semibold text-slate-700">{formatCurrency(feeAmount)}</span>:
             </p>
 
@@ -891,6 +918,22 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
                   </p>
                 </div>
               </button>
+            </div>
+
+            {/* CHAVE DE CONTROLE RÁPIDO PARA INCLUIR OU NÃO A MENSAGEM NO RECIBO */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeMessage}
+                  onChange={(e) => setIncludeMessage(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                />
+                <span>Incluir mensagem / aviso de matrícula no recibo</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                Configurável em Configurações &gt; Geral
+              </span>
             </div>
           </div>
 

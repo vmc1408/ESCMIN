@@ -163,6 +163,8 @@ export function Settings() {
     logo_url: '',
     footer_text: '',
     receipt_message: '',
+    enrollment_receipt_message: '',
+    show_enrollment_receipt_message: true,
     secretary: '',
     cep: '',
     city_uf: '',
@@ -445,7 +447,7 @@ export function Settings() {
                 try {
                   const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
                   const whitelist: Record<string, string[]> = {
-                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'secretary', 'cep', 'city_uf', 'subtitle', 'phone_is_whatsapp', 'admission_norms', 'presentation_info', 'updated_at'],
+                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'enrollment_receipt_message', 'show_enrollment_receipt_message', 'secretary', 'cep', 'city_uf', 'subtitle', 'phone_is_whatsapp', 'admission_norms', 'presentation_info', 'updated_at'],
                     users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
                     email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
                     foraries: [...baseFields, 'code', 'name', 'priest_name'],
@@ -1366,6 +1368,55 @@ export function Settings() {
                       onChange={(e) => setInstitution({...institution, receipt_message: e.target.value.substring(0, 300)})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm resize-none"
                       placeholder="Ex: 'Mensalidade paga com sucesso. Paz e Bem!'"
+                      maxLength={300}
+                    />
+                  </div>
+
+                  {/* Aviso de Matrícula (Com chave de inclusão no recibo) */}
+                  <div className="md:col-span-3 space-y-1.5">
+                    <div className="flex justify-between items-center ml-1">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aviso de Matrícula</label>
+                        <button
+                          type="button"
+                          onClick={() => setInstitution({
+                            ...institution,
+                            show_enrollment_receipt_message: institution.show_enrollment_receipt_message === false ? true : false
+                          })}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border",
+                            institution.show_enrollment_receipt_message !== false
+                              ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                              : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600"
+                          )}
+                          title="Clique para ativar ou desativar a inclusão da mensagem no recibo de matrícula"
+                        >
+                          <span className={cn(
+                            "w-2 h-2 rounded-full",
+                            institution.show_enrollment_receipt_message !== false ? "bg-blue-600" : "bg-slate-300"
+                          )} />
+                          {institution.show_enrollment_receipt_message !== false ? "Incluído" : "Não Incluído"}
+                        </button>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-bold transition-colors",
+                        (institution.enrollment_receipt_message?.length || 0) >= 280 ? "text-amber-500" : "text-slate-300"
+                      )}>
+                        {institution.enrollment_receipt_message?.length || 0} / 300
+                      </span>
+                    </div>
+                    <textarea 
+                      rows={3}
+                      disabled={institution.show_enrollment_receipt_message === false}
+                      value={institution.enrollment_receipt_message !== undefined ? institution.enrollment_receipt_message : ''}
+                      onChange={(e) => setInstitution({...institution, enrollment_receipt_message: e.target.value.substring(0, 300)})}
+                      className={cn(
+                        "w-full px-5 py-3 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm resize-none",
+                        institution.show_enrollment_receipt_message === false
+                          ? "bg-slate-100/70 text-slate-400 cursor-not-allowed opacity-60"
+                          : "bg-slate-50"
+                      )}
+                      placeholder="Ex: 'Contribuição recebida com gratidão para a formação teológica e espiritual...'"
                       maxLength={300}
                     />
                   </div>

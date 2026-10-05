@@ -59,6 +59,8 @@ ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS website TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS footer_text TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS receipt_message TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS enrollment_receipt_message TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS show_enrollment_receipt_message BOOLEAN DEFAULT TRUE;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS secretary TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS cep TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS city_uf TEXT;

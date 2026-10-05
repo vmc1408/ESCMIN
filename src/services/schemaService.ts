@@ -86,6 +86,11 @@ export const schemaService = {
       return "TEXT DEFAULT 'matriz'";
     }
 
+    // Booleans
+    if (col.startsWith('show_') || col.startsWith('is_') || col === 'phone_is_whatsapp') {
+      return 'BOOLEAN DEFAULT TRUE';
+    }
+
     // Dates & Timestamps
     if (
       col === 'birth_date' || 
