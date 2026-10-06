@@ -1607,68 +1607,74 @@ export function Contributions() {
         />
       </div>
 
-      <div className="bg-white p-3 sm:p-5 rounded-none shadow-sm border border-slate-200/80 flex flex-col gap-3 shrink-0">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-none border border-slate-200/50">
-          {/* Busca por Nome / Matrícula (Comprimento reduzido) */}
-          <div className="lg:col-span-3 space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome / Matrícula</label>
+      {/* 1. Barra de Filtro e Busca Redesenhada: Elegante, Compacta e Direta */}
+      <div className="bg-white px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-2xs shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end">
+          {/* Busca por Nome / Matrícula */}
+          <div className="md:col-span-4 lg:col-span-4 space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Nome / Matrícula
+            </label>
             <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {isSearching ? <Loader2 size={15} className="text-blue-500 animate-spin" /> : <Search size={15} className="text-slate-400" />}
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+                {isSearching ? (
+                  <Loader2 size={14} className="text-blue-600 animate-spin" />
+                ) : (
+                  <Search size={14} className="text-slate-400" />
+                )}
               </div>
               <input 
                 type="text"
-                placeholder="Pesquisar..."
+                placeholder="Buscar por nome ou matrícula..."
                 value={searchTerm || searchByName}
                 onChange={(e) => {
                   setSearchByName(e.target.value);
                   handleSearchStudents(e.target.value);
                 }}
-                className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-none text-xs focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all font-medium text-slate-700 h-[3.25rem]"
+                className="w-full h-9 pl-8 pr-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
             </div>
           </div>
 
-          {/* Período (Ajustado ao tamanho adequado) */}
-          <div className="lg:col-span-5 space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Período</label>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white sm:p-1 p-2 rounded-none border border-slate-200 h-auto sm:h-[3.25rem]">
-              <div className="flex-1 flex items-center px-2.5 py-1 sm:py-0 gap-1.5 border-b sm:border-b-0 border-slate-100 sm:border-r border-slate-200">
-                <Calendar size={14} className="text-slate-400 shrink-0" />
-                <input 
-                  type="date" 
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent border-none text-sm sm:text-base font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
-                />
-              </div>
-              <div className="flex-1 flex items-center px-2.5 py-1 sm:py-0 gap-1.5">
-                <Calendar size={14} className="text-slate-400 shrink-0 sm:hidden" />
-                <input 
-                  type="date" 
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent border-none text-sm sm:text-base font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
-                />
-              </div>
+          {/* Período */}
+          <div className="md:col-span-5 lg:col-span-5 space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Período
+            </label>
+            <div className="h-9 flex items-center bg-slate-50/70 hover:bg-slate-50 focus-within:bg-white border border-slate-200 rounded-lg px-2.5 gap-2 transition-all focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500">
+              <Calendar size={13} className="text-slate-400 shrink-0" />
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold text-slate-800 focus:ring-0 p-0 cursor-pointer flex-1 min-w-0"
+              />
+              <span className="text-slate-300 font-medium text-xs select-none">→</span>
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold text-slate-800 focus:ring-0 p-0 cursor-pointer flex-1 min-w-0"
+              />
             </div>
           </div>
 
-          {/* Botões Lado a Lado: Filtrar e Limpar */}
-          <div className="lg:col-span-4 flex items-end gap-2">
+          {/* Botões Filtrar e Limpar */}
+          <div className="md:col-span-3 lg:col-span-3 flex items-center gap-2">
             <button 
               onClick={() => fetchPeriodContributions()}
-              className="flex-1 h-[3.25rem] bg-slate-900 text-white rounded-none font-bold text-[10px] uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+              className="flex-1 h-9 bg-[#00174b] hover:bg-[#00256e] text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-2xs"
             >
-              <Search size={14} />
-              Filtrar
+              <Search size={13} />
+              <span>Filtrar</span>
             </button>
             <button 
               onClick={clearSelection}
-              className="flex-1 h-[3.25rem] bg-white border border-slate-200 text-slate-700 rounded-none hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-sm text-[10px] font-bold uppercase tracking-wider"
+              className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 rounded-lg font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+              title="Limpar filtros"
             >
-              <X size={14} />
-              Limpar
+              <X size={13} />
+              <span>Limpar</span>
             </button>
           </div>
         </div>

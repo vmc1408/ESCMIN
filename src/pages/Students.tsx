@@ -1163,7 +1163,7 @@ export function Students() {
     }
   };
 
-  const handleOpenEnrollModal = (classId: string) => {
+  const handleOpenEnrollModal = async (classId: string) => {
     if (!selectedStudent || !classId) return;
     const targetClass = classes.find(c => c.id === classId);
     if (!targetClass) return;
@@ -1174,15 +1174,30 @@ export function Students() {
       return;
     }
 
-    const targetYear = getClassStartYear(targetClass) || targetClass.start_year || new Date().getFullYear();
-    const resolvedFee = financialConfigService.resolveFee({
-      classId: targetClass.id,
-      studentClass: targetClass,
-      year: targetYear
-    }, financialSettings);
+    // Alunos já matriculados: taxa de matrícula não se aplica para turmas adicionais
+    const studentUnitId = formData.unit_id || selectedStudent.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
 
-    setEnrollModalFeeAmount(resolvedFee || 100);
-    setEnrollModalClass(targetClass);
+    const newEnrollment: Partial<Enrollment> = {
+      student_id: selectedStudent.id,
+      class_id: classId,
+      unit_id: studentUnitId,
+      status: 'Ativo',
+      enrollment_date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      await saveData('enrollments', undefined, newEnrollment);
+      setNotification({ type: 'success', message: `Aluno matriculado com sucesso na turma "${targetClass?.name || ''}"!` });
+      fetchEnrollments(selectedStudent.id);
+      fetchAllEnrollments();
+      fetchStudents();
+      setEnrollClassId('');
+    } catch (err: any) {
+      setNotification({ type: 'error', message: 'Erro ao matricular: ' + err.message });
+    } finally {
+      setTimeout(() => setNotification(null), 3000);
+    }
   };
 
   const handleConfirmEnrollWithFee = async (data: {
@@ -1443,8 +1458,8 @@ export function Students() {
       return;
     }
 
-    // 8. Validação da Taxa de Matrícula (Módulo de Amarração da Taxa ao final da ficha)
-    if (formData.class_id && !paidEnrollmentFeeContrib) {
+    // 8. Validação da Taxa de Matrícula (Apenas para Novas Matrículas: !selectedStudent)
+    if (!selectedStudent && formData.class_id) {
       if (enrollmentFeeStatus === 'paid') {
         const numFee = Number(enrollmentFeeAmount);
         if (isNaN(numFee) || numFee <= 0) {
@@ -1618,8 +1633,8 @@ export function Students() {
         }
       }
 
-      // Amarração da Taxa de Matrícula / Inscrição
-      if (effectiveStudentId && dataToSave.class_id) {
+      // Amarração da Taxa de Matrícula / Inscrição (Apenas para novas matrículas: !selectedStudent)
+      if (!selectedStudent && effectiveStudentId && dataToSave.class_id) {
         const targetCls = classes.find(c => c.id === dataToSave.class_id);
         const targetYear = targetCls ? getClassStartYear(targetCls) : (Number(targetCls?.start_year) || new Date().getFullYear());
         
@@ -3571,327 +3586,195 @@ export function Students() {
                     </div>
                   </section>
 
-                  {/* Seção Amarração da Taxa de Matrícula / Inscrição (Ao Final da Ficha) */}
-                  <section className="space-y-3 pt-5 border-t-2 border-indigo-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-[#00174b] text-white rounded-none flex items-center justify-center shadow-xs">
+                  {/* Seção Taxa de Matrícula (Exibida somente para novas matrículas: !selectedStudent && isEditing) */}
+                  {!selectedStudent && isEditing && (
+                    <section className="space-y-3 pt-4 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                           <DollarSign size={14} />
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
-                            Amarração da Taxa de Matrícula / Inscrição
-                          </h4>
-                          <p className="text-[10px] text-slate-500 font-medium">
-                            Etapa final do preenchimento da ficha de matrícula
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 uppercase tracking-wider">
-                        Financeiro & Matrícula
-                      </span>
-                    </div>
+                          Taxa de Matrícula
+                        </h4>
 
-                    {formData.class_id ? (
-                      paidEnrollmentFeeContrib ? (
-                        /* CASO 1: Taxa já paga para este ano */
-                        <div className="bg-emerald-50/90 border-2 border-emerald-500/80 p-3.5 sm:p-4 rounded-none shadow-xs">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-start sm:items-center gap-3">
-                              <div className="w-10 h-10 bg-emerald-600 text-white rounded-none flex items-center justify-center shrink-0 shadow-xs">
-                                <CheckCircle2 size={20} />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-200 text-emerald-950 border border-emerald-300">
-                                    ✓ Taxa de Matrícula Quitada
-                                  </span>
-                                  <span className="text-base font-mono font-black text-emerald-900">
-                                    {formatCurrency(paidEnrollmentFeeContrib.amount)}
-                                  </span>
-                                  <span className="text-[11px] text-emerald-800 font-bold flex items-center gap-1">
-                                    <Calendar size={12} />
-                                    Pago em: {formatDateForDisplay(paidEnrollmentFeeContrib.payment_date)}
-                                  </span>
-                                  {paidEnrollmentFeeContrib.payment_method && (
-                                    <span className="text-[10px] uppercase font-black px-2 py-0.5 bg-white text-emerald-900 border border-emerald-300 shadow-2xs">
-                                      Forma: {paidEnrollmentFeeContrib.payment_method}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[11px] text-emerald-800 font-medium mt-1">
-                                  A taxa de inscrição deste aluno está regularizada no financeiro referente ao ano letivo {paidEnrollmentFeeContrib.reference_year || 'vigente'}.
-                                </p>
-                              </div>
-                            </div>
+                        {formData.class_id && (
+                          <div className="inline-flex items-center border border-slate-200 bg-slate-50 p-0.5">
                             <button
                               type="button"
-                              onClick={() => {
-                                const targetCls = classes.find(c => c.id === (formData.class_id || selectedStudent?.class_id));
-                                setReceiptModalData({
-                                  student: selectedStudent || formData as any,
-                                  classItem: targetCls,
-                                  feeAmount: paidEnrollmentFeeContrib.amount,
-                                  feeStatus: 'paid',
-                                  paymentMethod: paidEnrollmentFeeContrib.payment_method || 'Dinheiro',
-                                  paymentDate: paidEnrollmentFeeContrib.payment_date,
-                                  observations: paidEnrollmentFeeContrib.observations || 'Taxa de Matrícula quitada na secretaria'
-                                });
-                              }}
-                              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer self-start sm:self-auto"
+                              onClick={() => setEnrollmentFeeStatus('paid')}
+                              className={cn(
+                                "px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer",
+                                enrollmentFeeStatus === 'paid'
+                                  ? "bg-[#00174b] text-white shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              )}
                             >
-                              <Receipt size={14} />
-                              <span>Ver / Imprimir Recibo</span>
+                              Pagar Agora
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEnrollmentFeeStatus('pending')}
+                              className={cn(
+                                "px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer",
+                                enrollmentFeeStatus === 'pending'
+                                  ? "bg-[#00174b] text-white shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              )}
+                            >
+                              Pendente
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEnrollmentFeeStatus('exempt')}
+                              className={cn(
+                                "px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer",
+                                enrollmentFeeStatus === 'exempt'
+                                  ? "bg-[#00174b] text-white shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              )}
+                            >
+                              Isento
                             </button>
                           </div>
-                        </div>
-                      ) : isEditing ? (
-                        /* CASO 2: Em Edição / Novo Aluno - Amarração da Taxa */
-                        <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-blue-50/70 border-2 border-indigo-200 p-3.5 sm:p-4 rounded-none shadow-xs space-y-3.5">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
-                            <div>
-                              <h5 className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
-                                Definição da Taxa de Inscrição / Matrícula
-                              </h5>
-                              <p className="text-[10px] text-indigo-700 font-medium">
-                                A taxa será vinculada e lançada automaticamente no financeiro ao salvar a ficha
-                              </p>
-                            </div>
+                        )}
+                      </div>
 
-                            <div className="flex items-center gap-1 bg-white p-1 border border-indigo-200 shadow-2xs">
-                              <button
-                                type="button"
-                                onClick={() => setEnrollmentFeeStatus('paid')}
-                                className={cn(
-                                  "px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
-                                  enrollmentFeeStatus === 'paid'
-                                    ? "bg-emerald-600 text-white shadow-2xs"
-                                    : "text-slate-600 hover:bg-slate-100"
-                                )}
-                              >
-                                ✓ Pagar Agora
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEnrollmentFeeStatus('pending')}
-                                className={cn(
-                                  "px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
-                                  enrollmentFeeStatus === 'pending'
-                                    ? "bg-amber-500 text-white shadow-2xs"
-                                    : "text-slate-600 hover:bg-slate-100"
-                                )}
-                              >
-                                ⏳ Pendente
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEnrollmentFeeStatus('exempt')}
-                                className={cn(
-                                  "px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
-                                  enrollmentFeeStatus === 'exempt'
-                                    ? "bg-slate-700 text-white shadow-2xs"
-                                    : "text-slate-600 hover:bg-slate-100"
-                                )}
-                              >
-                                🛡️ Isento
-                              </button>
-                            </div>
-                          </div>
-
+                      {formData.class_id ? (
+                        <div className="space-y-3">
                           {enrollmentFeeStatus === 'paid' && (
-                            <div className="space-y-3 pt-1">
-                              <div className="grid grid-cols-12 gap-3">
-                                {/* Campo Valor Formatado como Moeda */}
-                                <div className="col-span-12 sm:col-span-4 space-y-1">
-                                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center justify-between">
-                                    <span>Valor da Taxa</span>
-                                    {isFeeAmountIncompatible ? (
-                                      <span className="text-[9px] text-rose-600 font-bold normal-case animate-pulse">
-                                        ⚠️ Incompatível (&gt; R$ 0,00)
-                                      </span>
-                                    ) : (
-                                      <span className="text-[9px] text-indigo-600 font-bold normal-case">Tabela vigente</span>
-                                    )}
-                                  </label>
-                                  <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
-                                    <input
-                                      type="text"
-                                      value={enrollmentFeeAmountStr}
-                                      onChange={(e) => handleFeeAmountChange(e.target.value)}
-                                      onBlur={handleFeeAmountBlur}
-                                      onKeyDown={(e) => e.key === 'Enter' && handleFeeAmountBlur()}
-                                      className={cn(
-                                        "w-full pl-9 pr-3 py-2 bg-white border rounded-none text-sm font-black text-slate-900 focus:ring-2 shadow-2xs placeholder:text-slate-300 transition-colors",
-                                        isFeeAmountIncompatible
-                                          ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                                          : "border-indigo-300 focus:ring-indigo-500/20"
-                                      )}
-                                      placeholder="0,00"
-                                    />
-                                  </div>
+                            <div className="grid grid-cols-12 gap-3">
+                              {/* Valor */}
+                              <div className="col-span-12 sm:col-span-3 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-slate-700">Valor da Taxa</label>
+                                  {isFeeAmountIncompatible && (
+                                    <span className="text-[10px] text-rose-600 font-medium">Inválido</span>
+                                  )}
                                 </div>
-
-                                {/* Campo Data Formatado como Data */}
-                                <div className="col-span-12 sm:col-span-4 space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
-                                      Data do Pagamento
-                                    </label>
-                                    {isFeeDateInFuture && (
-                                      <span className="text-[9px] text-rose-600 font-bold animate-pulse">
-                                        ⚠️ Data futura incompatível
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="relative">
-                                    <input
-                                      type="date"
-                                      value={enrollmentFeePaymentDate}
-                                      onChange={(e) => setEnrollmentFeePaymentDate(e.target.value)}
-                                      className={cn(
-                                        "w-full px-3 py-2 bg-white border rounded-none text-xs font-bold text-slate-900 focus:ring-2 shadow-2xs h-[38px] transition-colors",
-                                        isFeeDateInFuture
-                                          ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                                          : "border-indigo-300 focus:ring-indigo-500/20"
-                                      )}
-                                    />
-                                  </div>
-                                </div>
-
-                                {/* Campo Forma de Pagamento Padronizado com Contribuições (Dinheiro, PIX, Cartão) */}
-                                <div className="col-span-12 sm:col-span-4 space-y-1">
-                                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
-                                    Forma de Pagamento
-                                  </label>
-                                  <div className="grid grid-cols-3 gap-1.5 h-[38px]">
-                                    {(['Dinheiro', 'PIX', 'Cartão'] as const).map((method) => (
-                                      <button
-                                        key={method}
-                                        type="button"
-                                        onClick={() => setEnrollmentFeePaymentMethod(method)}
-                                        className={cn(
-                                          "h-full rounded-none text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
-                                          enrollmentFeePaymentMethod === method
-                                            ? "bg-[#00174b] border-[#00174b] text-white shadow-xs"
-                                            : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
-                                        )}
-                                      >
-                                        {method}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Observações / Recibo */}
-                                <div className="col-span-12 space-y-1">
-                                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
-                                    Observações do Recibo (Opcional)
-                                  </label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">R$</span>
                                   <input
                                     type="text"
-                                    placeholder="Ex: Quitado na secretaria / Comprovante entregue"
-                                    value={enrollmentFeeObservations}
-                                    onChange={(e) => setEnrollmentFeeObservations(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-none text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/20 shadow-2xs"
+                                    value={enrollmentFeeAmountStr}
+                                    onChange={(e) => handleFeeAmountChange(e.target.value)}
+                                    onBlur={handleFeeAmountBlur}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleFeeAmountBlur()}
+                                    className={cn(
+                                      "w-full pl-8 pr-3 py-2 bg-white border rounded-none text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
+                                      isFeeAmountIncompatible ? "border-rose-400 bg-rose-50/20" : "border-slate-200"
+                                    )}
+                                    placeholder="0,00"
                                   />
                                 </div>
                               </div>
 
-                              <div className="bg-emerald-50 border border-emerald-200 p-2.5 text-[11px] text-emerald-900 flex items-center justify-between">
-                                <span className="flex items-center gap-1.5">
-                                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-                                  <span>
-                                    <strong>Integração ativa:</strong> Ao salvar a ficha do aluno, a taxa de <strong>{formatCurrency(enrollmentFeeAmount)}</strong> ({enrollmentFeePaymentMethod}) será gravada e o <strong>Comprovante com Recibo Oficial</strong> será emitido para impressão imediata.
-                                  </span>
-                                </span>
+                              {/* Data do Pagamento */}
+                              <div className="col-span-12 sm:col-span-3 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-slate-700">Data do Pagamento</label>
+                                  {isFeeDateInFuture && (
+                                    <span className="text-[10px] text-rose-600 font-medium">Data futura</span>
+                                  )}
+                                </div>
+                                <input
+                                  type="date"
+                                  value={enrollmentFeePaymentDate}
+                                  onChange={(e) => setEnrollmentFeePaymentDate(e.target.value)}
+                                  className={cn(
+                                    "w-full px-3 py-2 bg-white border rounded-none text-sm text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
+                                    isFeeDateInFuture ? "border-rose-400 bg-rose-50/20" : "border-slate-200"
+                                  )}
+                                />
+                              </div>
+
+                              {/* Forma de Pagamento */}
+                              <div className="col-span-12 sm:col-span-3 space-y-1">
+                                <label className="text-xs font-bold text-slate-700">Forma de Pagamento</label>
+                                <select
+                                  value={enrollmentFeePaymentMethod}
+                                  onChange={(e) => setEnrollmentFeePaymentMethod(e.target.value as any)}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
+                                >
+                                  <option value="Dinheiro">Dinheiro</option>
+                                  <option value="PIX">PIX</option>
+                                  <option value="Cartão">Cartão</option>
+                                </select>
+                              </div>
+
+                              {/* Observações */}
+                              <div className="col-span-12 sm:col-span-3 space-y-1">
+                                <label className="text-xs font-bold text-slate-700">Observações (Opcional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="Ex: Quitado na secretaria"
+                                  value={enrollmentFeeObservations}
+                                  onChange={(e) => setEnrollmentFeeObservations(e.target.value)}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm text-slate-800 focus:ring-2 focus:ring-slate-500/10 placeholder:text-slate-300"
+                                />
                               </div>
                             </div>
                           )}
 
                           {enrollmentFeeStatus === 'pending' && (
-                            <div className="p-3 bg-amber-50 border border-amber-300 text-amber-950 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle size={16} className="text-amber-600 shrink-0" />
-                                <p className="text-xs font-bold">
-                                  Taxa de Matrícula ficará registrada como PENDENTE ({formatCurrency(enrollmentFeeAmount)})
-                                </p>
+                            <div className="grid grid-cols-12 gap-3 items-end">
+                              <div className="col-span-12 sm:col-span-3 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-slate-700">Valor da Taxa</label>
+                                  {isFeeAmountIncompatible && (
+                                    <span className="text-[10px] text-rose-600 font-medium">Inválido</span>
+                                  )}
+                                </div>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">R$</span>
+                                  <input
+                                    type="text"
+                                    value={enrollmentFeeAmountStr}
+                                    onChange={(e) => handleFeeAmountChange(e.target.value)}
+                                    onBlur={handleFeeAmountBlur}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleFeeAmountBlur()}
+                                    className={cn(
+                                      "w-full pl-8 pr-3 py-2 bg-white border rounded-none text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
+                                      isFeeAmountIncompatible ? "border-rose-400 bg-rose-50/20" : "border-slate-200"
+                                    )}
+                                    placeholder="0,00"
+                                  />
+                                </div>
                               </div>
-                              {isFeeAmountIncompatible && (
-                                <p className="text-[11px] text-rose-700 font-bold bg-rose-50 p-2 border border-rose-300">
-                                  ⚠️ Valor incompatível: para taxa pendente, informe um valor maior que R$ 0,00 ou marque como &quot;Isento&quot;. O sistema não registrará valores zerados ou negativos.
-                                </p>
-                              )}
-                              <p className="text-[11px] text-amber-800">
-                                O valor da taxa constará no controle financeiro como a receber. O operador poderá liquidá-la a qualquer momento com emissão imediata do recibo.
-                              </p>
+                              <div className="col-span-12 sm:col-span-9 py-2 text-xs text-amber-700 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                <span>A taxa de matrícula será registrada como pendente no controle financeiro.</span>
+                              </div>
                             </div>
                           )}
 
                           {enrollmentFeeStatus === 'exempt' && (
-                            <div className="p-3 bg-slate-100 border border-slate-300 text-slate-800 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <Info size={16} className="text-slate-600 shrink-0" />
-                                <p className="text-xs font-bold">Isenção da Taxa de Inscrição / Matrícula</p>
+                            <div className="grid grid-cols-12 gap-3 items-end">
+                              <div className="col-span-12 sm:col-span-5 space-y-1">
+                                <label className="text-xs font-bold text-slate-700">Motivo da Isenção</label>
+                                <select
+                                  value={enrollmentFeeExemptionReason}
+                                  onChange={(e) => setEnrollmentFeeExemptionReason(e.target.value)}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
+                                >
+                                  <option value="Seminarista / Vocacionado">Seminarista / Vocacionado</option>
+                                  <option value="Bolsista Integral">Bolsista Integral</option>
+                                  <option value="Segunda Turma / Curso Paralelo">Segunda Turma / Curso Paralelo</option>
+                                  <option value="Autorização da Direção / Caritativo">Autorização da Direção / Caritativo</option>
+                                  <option value="Outro">Outro</option>
+                                </select>
                               </div>
-                              <div className="grid grid-cols-12 gap-2">
-                                <div className="col-span-12 sm:col-span-6 space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-600">Motivo da Isenção</label>
-                                  <select
-                                    value={enrollmentFeeExemptionReason}
-                                    onChange={(e) => setEnrollmentFeeExemptionReason(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-bold"
-                                  >
-                                    <option value="Seminarista / Vocacionado">Seminarista / Vocacionado</option>
-                                    <option value="Bolsista Integral">Bolsista Integral</option>
-                                    <option value="Segunda Turma / Curso Paralelo">Segunda Turma / Curso Paralelo</option>
-                                    <option value="Autorização da Direção / Caritativo">Autorização da Direção / Caritativo</option>
-                                    <option value="Outro">Outro</option>
-                                  </select>
-                                </div>
+                              <div className="col-span-12 sm:col-span-7 py-2 text-xs text-slate-500 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                                <span>Aluno isento do pagamento da taxa de matrícula.</span>
                               </div>
                             </div>
                           )}
                         </div>
                       ) : (
-                        /* CASO 3: Visualização do Aluno com Taxa Não Paga / Pendente */
-                        <div className="bg-amber-50/80 border-2 border-amber-300 p-3.5 sm:p-4 rounded-none shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-start sm:items-center gap-3">
-                            <div className="w-10 h-10 bg-amber-500 text-white rounded-none flex items-center justify-center shrink-0 shadow-xs">
-                              <AlertCircle size={20} />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-amber-200 text-amber-950 border border-amber-300">
-                                  ⚠️ Taxa de Matrícula Pendente / Não Registrada
-                                </span>
-                                <span className="text-xs font-bold text-amber-900">
-                                  Valor sugerido: {formatCurrency(enrollmentFeeAmount)}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-amber-800 font-medium mt-1">
-                                Não consta comprovante de quitação da taxa de matrícula para este aluno no ano letivo.
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleOpenLiquidateModal}
-                            className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer self-start sm:self-auto"
-                          >
-                            <CreditCard size={14} />
-                            <span>Registrar Quitação da Taxa</span>
-                          </button>
-                        </div>
-                      )
-                    ) : (
-                      <div className="p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-none text-slate-500 text-center space-y-1">
-                        <GraduationCap size={20} className="mx-auto text-slate-400" />
-                        <p className="text-xs font-bold text-slate-700">Selecione uma turma no bloco acadêmico</p>
-                        <p className="text-[11px] text-slate-500">Ao vincular a turma do aluno, as opções da taxa de matrícula e emissão de recibo serão habilitadas aqui.</p>
-                      </div>
-                    )}
-                  </section>
+                        <p className="text-xs text-slate-400 italic py-1">
+                          Selecione uma turma no bloco acadêmico acima para definir a taxa de matrícula.
+                        </p>
+                      )}
+                    </section>
+                  )}
 
                   {/* Action Buttons removed from footer and moved to the persistent top header actions bar */}
                 </div>

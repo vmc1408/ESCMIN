@@ -1416,7 +1416,7 @@ export function Settings() {
                           ? "bg-slate-100/70 text-slate-400 cursor-not-allowed opacity-60"
                           : "bg-slate-50"
                       )}
-                      placeholder="Ex: 'Contribuição recebida com gratidão para a formação teológica e espiritual...'"
+                      placeholder="Ex: 'Valor recebido com gratidão para o apoio à missão educativa da escola e desenvolvimento dos alunos.'"
                       maxLength={300}
                     />
                   </div>

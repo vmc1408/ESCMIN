@@ -71,7 +71,14 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
   const instLogo = instSettings?.logo_url || DEFAULT_LOGO;
   const instPhone = instSettings?.phone || '(11) 2421-2935';
   const instEmail = instSettings?.email ? instSettings.email.toLowerCase() : 'email@email.com.br';
-  const receiptMsg = instSettings?.enrollment_receipt_message || instSettings?.receipt_message || 'Contribuição recebida com gratidão para a formação teológica e espiritual. Este valor apoia a missão educativa da escola e o desenvolvimento dos alunos. Deus lhe recompense pela generosidade e confiança.';
+  const rawReceiptMsg = instSettings?.enrollment_receipt_message || instSettings?.receipt_message || 'Valor recebido com gratidão para o apoio à missão educativa da escola e desenvolvimento dos alunos.';
+  // Higieniza o texto removendo termos inadequados para matrícula ou grifados
+  const receiptMsg = rawReceiptMsg
+    .replace(/para a formação teológica e espiritual\.?/gi, '')
+    .replace(/Deus lhe recompense pela generosidade e confiança\.?/gi, '')
+    .replace(/Contribuição recebida/gi, 'Valor recebido')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   const viasToRender = copies === 1 ? [1] : [1, 2];
 
@@ -184,7 +191,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
                 <p class="msg-text">${receiptMsg}</p>
               </div>
               <div class="total-box">
-                <span class="total-label">TOTAL DAS CONTRIBUIÇÕES</span>
+                <span class="total-label">TOTAL DA MATRÍCULA</span>
                 <span class="total-value">${formatCurrency(feeAmount)}</span>
               </div>
             </div>
@@ -786,7 +793,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
                 </p>
               </div>
               <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center px-5 sm:px-6 min-h-[55px]">
-                <span className="text-[10px] font-black text-blue-900 uppercase">Total das Contribuições</span>
+                <span className="text-[10px] font-black text-blue-900 uppercase">Total da Matrícula</span>
                 <span className="text-lg sm:text-xl font-black text-blue-900">{formatCurrency(feeAmount)}</span>
               </div>
             </div>

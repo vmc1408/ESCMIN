@@ -7,12 +7,15 @@ import {
   Calendar, 
   GraduationCap, 
   Users, 
+  User, 
   CheckCircle2, 
   AlertCircle, 
   Clock, 
   Search, 
   RefreshCw, 
   ChevronRight, 
+  ChevronLeft,
+  Zap,
   FileSpreadsheet, 
   FileText,
   Building2,
@@ -23,7 +26,14 @@ import {
   X,
   CreditCard,
   Layers,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronDown,
+  SlidersHorizontal,
+  BarChart3,
+  PieChart,
+  ShieldCheck,
+  Eye,
+  Sparkles
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, getInstitutionSettings } from '../lib/database';
@@ -66,7 +76,13 @@ export function FinancialReport() {
   const [financialSettings, setFinancialSettings] = useState<FinancialSettings | null>(null);
 
 // Filtros - Inicialmente limpos, sem dados pré-selecionados
+  // 1º Filtro: Aluno ou Turma
+  const [filterTarget, setFilterTarget] = useState<'class' | 'student'>('class');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
+
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [periodType, setPeriodType] = useState<PeriodType | ''>('');
   
@@ -77,8 +93,19 @@ export function FinancialReport() {
 
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [monthlyStandardFee, setMonthlyStandardFee] = useState<string>('');
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'matricula' | 'previsto' | 'efetuado' | 'pendente' | 'status'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [viewMode, setViewMode] = useState<'detailed' | 'compact'>('detailed');
+
+  const handleToggleSort = (field: 'name' | 'matricula' | 'previsto' | 'efetuado' | 'pendente' | 'status') => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder(field === 'name' || field === 'matricula' ? 'asc' : 'desc');
+    }
+  };
 
   // Anos de referência disponíveis baseados em turmas ou cadastros ativos
   const availableYears = useMemo(() => {
@@ -104,6 +131,9 @@ export function FinancialReport() {
   // Limpa todos os campos para estado inicial
   const handleClearFilters = useCallback(() => {
     setSelectedClassId('');
+    setSelectedStudentId('');
+    setStudentSearchQuery('');
+    setIsStudentDropdownOpen(false);
     setSelectedYear('');
     setPeriodType('');
     setSelectedMonth('');
@@ -111,15 +141,78 @@ export function FinancialReport() {
     setSelectedSemester('');
     setStatusFilter('');
     setSearchTerm('');
-    setMonthlyStandardFee('');
   }, []);
 
   const handlePeriodTypeChange = useCallback((type: PeriodType) => {
-    setPeriodType(prev => (prev === type ? '' : type));
-    setSelectedMonth('');
+    setPeriodType(type);
+    if (type === 'mensal') {
+      const now = new Date();
+      setSelectedMonth(String(now.getMonth() + 1));
+      setSelectedQuarter('');
+      setSelectedSemester('');
+    } else if (type === 'trimestral') {
+      const now = new Date();
+      const currentQ = Math.floor(now.getMonth() / 3) + 1;
+      setSelectedQuarter(String(currentQ));
+      setSelectedMonth('');
+      setSelectedSemester('');
+    } else if (type === 'semestral') {
+      const now = new Date();
+      const currentS = now.getMonth() < 6 ? '1' : '2';
+      setSelectedSemester(currentS);
+      setSelectedMonth('');
+      setSelectedQuarter('');
+    } else if (type === 'anual') {
+      setSelectedMonth('');
+      setSelectedQuarter('');
+      setSelectedSemester('');
+    }
+  }, []);
+
+  // Navegação rápida de meses (Mês Anterior / Próximo Mês)
+  const handlePrevMonth = useCallback(() => {
+    const currentM = selectedMonth ? Number(selectedMonth) : new Date().getMonth() + 1;
+    if (currentM > 1) {
+      setSelectedMonth(String(currentM - 1));
+    } else {
+      const currentY = Number(selectedYear) || new Date().getFullYear();
+      setSelectedYear(String(currentY - 1));
+      setSelectedMonth('12');
+    }
+    if (periodType !== 'mensal') setPeriodType('mensal');
+  }, [selectedMonth, selectedYear, periodType]);
+
+  const handleNextMonth = useCallback(() => {
+    const currentM = selectedMonth ? Number(selectedMonth) : new Date().getMonth() + 1;
+    if (currentM < 12) {
+      setSelectedMonth(String(currentM + 1));
+    } else {
+      const currentY = Number(selectedYear) || new Date().getFullYear();
+      setSelectedYear(String(currentY + 1));
+      setSelectedMonth('1');
+    }
+    if (periodType !== 'mensal') setPeriodType('mensal');
+  }, [selectedMonth, selectedYear, periodType]);
+
+  // Atalhos rápidos
+  const handleSetCurrentMonth = useCallback(() => {
+    const now = new Date();
+    setSelectedYear(String(now.getFullYear()));
+    setPeriodType('mensal');
+    setSelectedMonth(String(now.getMonth() + 1));
     setSelectedQuarter('');
     setSelectedSemester('');
   }, []);
+
+  const handleSetFullYear = useCallback(() => {
+    const now = new Date();
+    const yr = selectedYear || String(now.getFullYear());
+    setSelectedYear(yr);
+    setPeriodType('anual');
+    setSelectedMonth('');
+    setSelectedQuarter('');
+    setSelectedSemester('');
+  }, [selectedYear]);
 
   // Carregamento de dados
   const loadData = useCallback(async () => {
@@ -189,16 +282,55 @@ export function FinancialReport() {
     });
   }, [students, classes, selectedUnitId, activeUnits]);
 
+  // Aluno atualmente selecionado no filtro individual
+  const selectedStudent = useMemo(() => {
+    if (!selectedStudentId) return null;
+    return students.find(s => s.id === selectedStudentId) || null;
+  }, [students, selectedStudentId]);
+
+  // Lista de alunos correspondentes à busca de aluno no 1º filtro
+  const searchedStudents = useMemo(() => {
+    if (!studentSearchQuery.trim()) {
+      return scopedStudents.slice(0, 10);
+    }
+    const q = studentSearchQuery.trim().toLowerCase();
+    const cleanDigits = q.replace(/\D/g, '');
+    return scopedStudents.filter(s => {
+      const name = (s.name || '').toLowerCase();
+      const reg = (s.registration_number || '').toLowerCase();
+      const cpf = (s.cpf || '').replace(/\D/g, '');
+      return name.includes(q) || reg.includes(q) || (cleanDigits && cpf.includes(cleanDigits));
+    }).slice(0, 15);
+  }, [scopedStudents, studentSearchQuery]);
+
+  const handleSelectStudent = useCallback((s: Student) => {
+    setSelectedStudentId(s.id);
+    setStudentSearchQuery(s.name || '');
+    setIsStudentDropdownOpen(false);
+
+    // Se o ano ainda não estiver definido, infere pela turma do aluno ou usa o ano atual
+    if (!selectedYear) {
+      const stClass = classes.find(c => c.id === s.class_id);
+      const inferredYear = stClass?.start_year || stClass?.academic_year || new Date().getFullYear();
+      setSelectedYear(String(inferredYear));
+    }
+    // Se o tipo de período ainda não estiver definido, define como 'anual' para visualização completa
+    if (!periodType) {
+      setPeriodType('anual');
+    }
+  }, [selectedYear, periodType, classes]);
+
   // Valida se os parâmetros obrigatórios foram definidos pelo usuário
   const isFilterReady = useMemo(() => {
-    if (!selectedClassId) return false;
+    if (filterTarget === 'class' && !selectedClassId) return false;
+    if (filterTarget === 'student' && !selectedStudentId) return false;
     if (!selectedYear) return false;
     if (!periodType) return false;
     if (periodType === 'mensal' && !selectedMonth) return false;
     if (periodType === 'trimestral' && !selectedQuarter) return false;
     if (periodType === 'semestral' && !selectedSemester) return false;
     return true;
-  }, [selectedClassId, selectedYear, periodType, selectedMonth, selectedQuarter, selectedSemester]);
+  }, [filterTarget, selectedClassId, selectedStudentId, selectedYear, periodType, selectedMonth, selectedQuarter, selectedSemester]);
 
   // Determina os meses que compõem o período selecionado
   const periodMonths = useMemo((): number[] => {
@@ -309,15 +441,10 @@ const getExpectedMonthsForStudent = useCallback((student: Student, year: number,
 }, [academicSettingsList, classes]);
 
 // Helper para descobrir o valor da contribuição mensal do aluno:
-// 1. Prioriza o valor informado pelo usuário no filtro (caso preenchido)
-// 2. Resolve pelo padrão financeiro do sistema (Regra Customizada -> Curso -> Turno/Período -> Ano -> Padrão Geral)
-// 3. Procura histórico recente de contribuições do próprio aluno ou turma
-// 4. Fallback padrão fixo R$ 100,00
+// 1. Resolve pelas configurações do sistema por ano letivo e curso/turma (Regra Customizada -> Curso -> Turno/Período -> Ano -> Padrão Geral)
+// 2. Procura histórico recente de contribuições do próprio aluno ou turma
+// 3. Fallback padrão configurado no sistema ou R$ 100,00
 const getStudentFee = useCallback((student: Student) => {
-  if (monthlyStandardFee && Number(monthlyStandardFee) > 0) {
-    return Number(monthlyStandardFee);
-  }
-
   const studentClass = classes.find(c => 
     c.id === student.class_id ||
     ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
@@ -357,8 +484,8 @@ const getStudentFee = useCallback((student: Student) => {
   if (anyContrib && Number(anyContrib.amount) > 0) {
     return Number(anyContrib.amount);
   }
-  return 100; // Padrão de mensalidade do sistema escolar
-}, [monthlyStandardFee, selectedYear, classes, financialSettings, contributions, students]);
+  return Number(financialSettings?.default_monthly_fee) || 100;
+}, [selectedYear, classes, financialSettings, contributions, students]);
 
 // Processamento analítico por aluno
 const reportData = useMemo(() => {
@@ -368,8 +495,12 @@ const reportData = useMemo(() => {
 
   const yearNum = Number(selectedYear);
 
-  // Filtragem de alunos por turma e busca
+  // Filtragem de alunos por alvo (turma ou aluno individual) e busca
   const filteredStudents = scopedStudents.filter(student => {
+    if (filterTarget === 'student') {
+      return student.id === selectedStudentId;
+    }
+    // filterTarget === 'class'
     if (selectedClassId !== 'all' && student.class_id !== selectedClassId) {
       return false;
     }
@@ -488,9 +619,27 @@ const reportData = useMemo(() => {
     if (statusFilter === 'regular') return item.status === 'regular' || item.status === 'paid';
     return item.status === statusFilter;
   })
-  .sort((a, b) => (a.student.name || '').localeCompare(b.student.name || ''));
+  .sort((a, b) => {
+    let diff = 0;
+    if (sortField === 'name') {
+      diff = (a.student.name || '').localeCompare(b.student.name || '');
+    } else if (sortField === 'matricula') {
+      diff = (a.student.registration_number || '').localeCompare(b.student.registration_number || '');
+    } else if (sortField === 'previsto') {
+      diff = a.valorPrevisto - b.valorPrevisto;
+    } else if (sortField === 'efetuado') {
+      diff = a.valorEfetuado - b.valorEfetuado;
+    } else if (sortField === 'pendente') {
+      diff = a.saldoPendente - b.saldoPendente;
+    } else if (sortField === 'status') {
+      diff = a.status.localeCompare(b.status);
+    }
+    return sortOrder === 'asc' ? diff : -diff;
+  });
 }, [
   isFilterReady,
+  filterTarget,
+  selectedStudentId,
   scopedStudents, 
   classes, 
   contributions, 
@@ -499,6 +648,8 @@ const reportData = useMemo(() => {
   periodMonths, 
   searchTerm, 
   statusFilter, 
+  sortField,
+  sortOrder,
   getExpectedMonthsForStudent,
   getStudentFee
 ]);
@@ -568,11 +719,11 @@ const handleExportPDF = () => {
     // Parâmetros do Relatório
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    const selectedClassName = selectedClassId === 'all' 
-      ? 'Todas as Turmas' 
-      : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada';
+    const targetDesc = filterTarget === 'student'
+      ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${selectedStudent?.registration_number || '---'})`
+      : `Turma: ${selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
     
-    const paramsText = `Turma: ${selectedClassName}  |  Período: ${periodLabel}  |  Unidade: ${getUnitName(selectedUnitId) || 'Todas'}  |  Obs: Mês atual classificado como previsto`;
+    const paramsText = `${targetDesc}  |  Período: ${periodLabel}  |  Unidade: ${getUnitName(selectedUnitId) || 'Todas'}  |  Obs: Mês atual classificado como previsto`;
     doc.text(paramsText, 14, 35);
 
     // Linha divisória
@@ -702,7 +853,7 @@ return (
     {/* PageHeader exclusivo na visualização em tela */}
     <PageHeader
       title="Relatório Financeiro"
-      description="Acompanhamento consolidado de contribuições e mensalidades previstas e efetuadas por turma."
+      description="Acompanhamento consolidado e individual de contribuições previstas e efetuadas por turma ou aluno."
       icon={DollarSign}
       badge={getUnitName(selectedUnitId) || 'Geral'}
     >
@@ -710,17 +861,17 @@ return (
         <button
           onClick={loadData}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95"
           title="Recarregar Dados Financeiros"
         >
-          <RefreshCw size={14} className={cn(loading && "animate-spin")} />
+          <RefreshCw size={14} className={cn(loading && "animate-spin text-slate-500")} />
           <span className="hidden sm:inline">Atualizar</span>
         </button>
 
         <button
           onClick={handleExportCSV}
           disabled={!isFilterReady}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95"
           title={isFilterReady ? "Exportar dados para Excel/CSV" : "Selecione os parâmetros para exportar"}
         >
           <FileSpreadsheet size={15} className="text-emerald-600" />
@@ -730,7 +881,7 @@ return (
         <button
           onClick={handleExportPDF}
           disabled={!isFilterReady || isExportingPDF}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95"
           title={isFilterReady ? "Baixar em formato PDF Oficial" : "Selecione os parâmetros para baixar PDF"}
         >
           <Download size={15} className="text-blue-700" />
@@ -740,11 +891,11 @@ return (
         <button
           onClick={handlePrint}
           disabled={!isFilterReady}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+          className="flex items-center gap-1.5 px-4 py-2 bg-[#00174b] hover:bg-blue-900 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
           title={isFilterReady ? "Imprimir relatório formatado" : "Selecione os parâmetros para imprimir"}
         >
           <Printer size={15} />
-          <span>Imprimir</span>
+          <span>Imprimir Relatório</span>
         </button>
       </div>
     </PageHeader>
@@ -782,16 +933,14 @@ return (
       {/* Faixa de Parâmetros na Impressão */}
       <div className="mt-3 p-2.5 bg-slate-100 rounded text-xs flex items-center justify-between font-medium text-slate-800">
         <div>
-          <span className="font-bold">Turma: </span>
-          {selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Pendente'}
+          <span className="font-bold">{filterTarget === 'student' ? 'Aluno: ' : 'Turma: '}</span>
+          {filterTarget === 'student'
+            ? (selectedStudent ? `${selectedStudent.name} (${selectedStudent.registration_number || '---'})` : 'Pendente')
+            : (selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
         </div>
         <div>
           <span className="font-bold">Período: </span>
           {periodLabel}
-        </div>
-        <div>
-          <span className="font-bold">Valor Base Mensal: </span>
-          {formatCurrency(Number(monthlyStandardFee) || 0)}
         </div>
         <div>
           <span className="font-bold">Filtro de Situação: </span>
@@ -800,271 +949,650 @@ return (
       </div>
     </div>
 
-    {/* Painel de Filtros e Seletores (oculto na impressão) */}
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 sm:p-5 print:hidden space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Filter size={16} className="text-blue-600" />
-          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Filtros do Relatório</h3>
-          <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">Campos limpos</span>
-        </div>
+    {/* Console Executivo de Filtros e Parâmetros (oculto na impressão) */}
+    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs print:hidden overflow-hidden divide-y divide-slate-100">
+      {/* Barra de Modo & Atalhos Rápidos */}
+      <div className="px-4 py-3 sm:px-5 sm:py-3 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
+        {/* Lado Esquerdo: Seletor de Modo Principal */}
         <div className="flex items-center gap-3">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">
+            Consultar por:
+          </span>
+          <div className="inline-flex p-0.5 bg-slate-200/70 rounded-xl border border-slate-200/80">
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTarget('class');
+                setSelectedStudentId('');
+                setStudentSearchQuery('');
+                setIsStudentDropdownOpen(false);
+              }}
+              className={cn(
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                filterTarget === 'class'
+                  ? "bg-[#00174b] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              )}
+            >
+              <Users size={14} />
+              <span>Por Turma</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTarget('student');
+                setSelectedClassId('');
+                setIsStudentDropdownOpen(true);
+              }}
+              className={cn(
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                filterTarget === 'student'
+                  ? "bg-[#00174b] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              )}
+            >
+              <User size={14} />
+              <span>Por Aluno</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Lado Direito: Atalhos Rápidos e Limpar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500 mr-1">
+            <Zap size={13} className="text-amber-500" />
+            <span className="text-[11px] font-medium text-slate-400">Atalhos:</span>
+            <button
+              type="button"
+              onClick={handleSetCurrentMonth}
+              className="px-2 py-0.5 rounded-md hover:bg-slate-200/70 text-slate-700 font-semibold hover:text-blue-900 transition-colors cursor-pointer text-xs"
+            >
+              Mês Atual
+            </button>
+            <span className="text-slate-300">·</span>
+            <button
+              type="button"
+              onClick={handleSetFullYear}
+              className="px-2 py-0.5 rounded-md hover:bg-slate-200/70 text-slate-700 font-semibold hover:text-blue-900 transition-colors cursor-pointer text-xs"
+            >
+              Ano Completo
+            </button>
+          </div>
+
+          {isFilterReady && (
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-900 rounded-lg text-xs font-bold border border-blue-100">
+              <Calendar size={12} className="text-blue-600" />
+              <span>{periodLabel}</span>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleClearFilters}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors cursor-pointer"
             title="Limpar todos os campos e seleções"
           >
             <X size={13} />
-            <span>Limpar Campos</span>
+            <span>Limpar</span>
           </button>
-          <div className="text-xs font-medium text-slate-500 hidden sm:block">
-            Período: <span className="font-bold text-slate-800">{periodLabel}</span>
-          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Seletor de Turma */}
-        <div>
-          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Turma
-          </label>
-          <select
-            value={selectedClassId}
-            onChange={(e) => setSelectedClassId(e.target.value)}
-            className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
-          >
-            <option value="">Selecione uma Turma...</option>
-            <option value="all">Todas as Turmas ({scopedClasses.length})</option>
-            {scopedClasses.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.code ? `[${c.code}] ` : ''}{c.name} {c.period ? `(${c.period})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Seletor de Ano Letivo */}
-        <div>
-          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Ano de Referência
-          </label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
-          >
-            <option value="">Selecione o Ano...</option>
-            {availableYears.map(yr => (
-              <option key={yr} value={String(yr)}>
-                {yr} {yr === new Date().getFullYear() ? '(Ano Corrente)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Seletor de Regime do Período */}
-        <div>
-          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Tipo de Período
-          </label>
-          <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl h-10">
-            {(['mensal', 'trimestral', 'semestral', 'anual'] as PeriodType[]).map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => handlePeriodTypeChange(type)}
-                className={cn(
-                  "text-[10.5px] font-bold capitalize rounded-lg transition-all cursor-pointer flex items-center justify-center",
-                  periodType === type 
-                    ? "bg-white text-blue-900 shadow-2xs" 
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-                )}
-              >
-                {type === 'mensal' ? 'Mês' : type === 'trimestral' ? 'Trim' : type === 'semestral' ? 'Sem' : 'Ano'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sub-seletor do Período Especificado */}
-        <div>
-          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-            {periodType === 'mensal' ? 'Mês Selecionado' : periodType === 'trimestral' ? 'Trimestre' : periodType === 'semestral' ? 'Semestre' : periodType === 'anual' ? 'Exercício Anual' : 'Detalhamento do Período'}
-          </label>
-
-          {periodType === '' && (
-            <div className="w-full h-10 px-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400 flex items-center">
-              Aguardando tipo de período...
+      {/* Grid de Campos Principais: Distribuição Equilibrada e Proporcional */}
+      <div className="p-4 sm:p-5">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 sm:gap-4 items-end">
+          {/* Campo 1: Turma ou Aluno (5 colunas) */}
+          <div className="md:col-span-5 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                {filterTarget === 'class' ? <Users size={13} className="text-blue-700" /> : <User size={13} className="text-blue-700" />}
+                <span>{filterTarget === 'class' ? 'Turma Cadastrada' : 'Aluno Cadastrado'}</span>
+              </label>
+              {filterTarget === 'class' && (
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {scopedClasses.length} turmas disponíveis
+                </span>
+              )}
             </div>
-          )}
 
-          {periodType === 'mensal' && (
+            {filterTarget === 'class' ? (
+              <div className="relative">
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedClassId(val);
+                    if (val && val !== 'all' && !selectedYear) {
+                      const targetCls = classes.find(c => c.id === val);
+                      if (targetCls?.start_year || targetCls?.academic_year) {
+                        setSelectedYear(String(targetCls.start_year || targetCls.academic_year));
+                      }
+                    }
+                  }}
+                  className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
+                >
+                  <option value="">Selecione uma turma cadastrada...</option>
+                  <option value="all">Todas as Turmas Cadastradas ({scopedClasses.length})</option>
+                  {scopedClasses.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.code ? `[${c.code}] ` : ''}{c.name} {c.period ? `(${c.period})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="relative">
+                {selectedStudent ? (
+                  <div className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-md bg-[#00174b] text-white font-bold text-[11px] flex items-center justify-center shrink-0">
+                        {selectedStudent.name ? selectedStudent.name.charAt(0).toUpperCase() : 'A'}
+                      </div>
+                      <div className="min-w-0 flex items-center gap-2 truncate">
+                        <span className="font-bold text-slate-900 text-xs truncate">
+                          {selectedStudent.name}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">
+                          #{selectedStudent.registration_number || '---'}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold hidden md:inline">
+                          {selectedStudent.status || 'Ativo'}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedStudentId('');
+                        setStudentSearchQuery('');
+                        setIsStudentDropdownOpen(true);
+                      }}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 hover:underline shrink-0 cursor-pointer flex items-center gap-1"
+                      title="Selecionar outro aluno"
+                    >
+                      <RefreshCw size={11} />
+                      <span>Trocar</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por nome, matrícula ou CPF..."
+                      value={studentSearchQuery}
+                      onFocus={() => setIsStudentDropdownOpen(true)}
+                      onChange={(e) => {
+                        setStudentSearchQuery(e.target.value);
+                        setIsStudentDropdownOpen(true);
+                      }}
+                      className="w-full h-10 pl-9 pr-8 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition-all"
+                    />
+                    {studentSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setStudentSearchQuery('')}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Autocomplete Dropdown */}
+                {!selectedStudent && isStudentDropdownOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-20" 
+                      onClick={() => setIsStudentDropdownOpen(false)} 
+                    />
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-30 divide-y divide-slate-100">
+                      {searchedStudents.length > 0 ? (
+                        searchedStudents.map(st => {
+                          const stClass = classes.find(c => c.id === st.class_id);
+                          return (
+                            <button
+                              key={st.id}
+                              type="button"
+                              onClick={() => handleSelectStudent(st)}
+                              className="w-full text-left px-3.5 py-2 hover:bg-blue-50/70 transition-colors flex items-center justify-between cursor-pointer"
+                            >
+                              <div className="min-w-0 pr-2">
+                                <p className="text-xs font-bold text-slate-900 truncate">
+                                  {st.name}
+                                </p>
+                                <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                                  Mat: <span className="font-mono font-medium">{st.registration_number || '---'}</span>
+                                  {stClass ? ` • ${stClass.name}` : ''}
+                                  {st.cpf ? ` • CPF: ${st.cpf}` : ''}
+                                </p>
+                              </div>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0">
+                                {stClass?.code || 'Aluno'}
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="p-4 text-center text-xs text-slate-400">
+                          Nenhum aluno encontrado para &quot;{studentSearchQuery}&quot;
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Campo 2: Ano Letivo (2 colunas) */}
+          <div className="md:col-span-2 space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+              <Calendar size={13} className="text-blue-700" />
+              <span>Ano Letivo</span>
+            </label>
             <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
             >
-              <option value="">Selecione o mês...</option>
-              {MONTH_NAMES.map((name, idx) => (
-                <option key={idx + 1} value={String(idx + 1)}>
-                  {name}
+              <option value="">Selecione o ano...</option>
+              {availableYears.map(yr => (
+                <option key={yr} value={String(yr)}>
+                  Ano {yr}
                 </option>
               ))}
             </select>
-          )}
+          </div>
 
-          {periodType === 'trimestral' && (
+          {/* Campo 3: Regime de Periodicidade (2 colunas) */}
+          <div className="md:col-span-2 space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+              <Layers size={13} className="text-blue-700" />
+              <span>Periodicidade</span>
+            </label>
             <select
-              value={selectedQuarter}
-              onChange={(e) => setSelectedQuarter(e.target.value)}
-              className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+              value={periodType}
+              onChange={(e) => handlePeriodTypeChange(e.target.value as PeriodType)}
+              className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
             >
-              <option value="">Selecione o trimestre...</option>
-              <option value="1">1º Trimestre (Janeiro a Março)</option>
-              <option value="2">2º Trimestre (Abril a Junho)</option>
-              <option value="3">3º Trimestre (Julho a Setembro)</option>
-              <option value="4">4º Trimestre (Outubro a Dezembro)</option>
+              <option value="">Selecione...</option>
+              <option value="mensal">Mensal (1 Mês)</option>
+              <option value="trimestral">Trimestral (3 Meses)</option>
+              <option value="semestral">Semestral (6 Meses)</option>
+              <option value="anual">Anual (12 Meses)</option>
             </select>
-          )}
+          </div>
 
-          {periodType === 'semestral' && (
-            <select
-              value={selectedSemester}
-              onChange={(e) => setSelectedSemester(e.target.value)}
-              className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
-            >
-              <option value="">Selecione o semestre...</option>
-              <option value="1">1º Semestre (Janeiro a Junho)</option>
-              <option value="2">2º Semestre (Julho a Dezembro)</option>
-            </select>
-          )}
-
-          {periodType === 'anual' && (
-            <div className="w-full h-10 px-3 bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center">
-              12 Meses (Jan a Dez {selectedYear ? `de ${selectedYear}` : ''})
+          {/* Campo 4: Seletor Específico do Período (3 colunas) */}
+          <div className="md:col-span-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                <Clock size={13} className="text-blue-700" />
+                <span>Período</span>
+              </label>
+              {periodType === 'mensal' && selectedMonth && (
+                <span className="text-[10px] font-bold text-blue-900">
+                  {MONTH_SHORT[Number(selectedMonth) - 1]} {selectedYear && `/${selectedYear}`}
+                </span>
+              )}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Linha secundária de filtros: Situação, Busca e Valor Padrão */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 border-t border-slate-100">
-        {/* Filtro por Situação Financeira */}
-        <div>
-          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Situação da Contribuição
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
-          >
-            <option value="">Todas as Situações</option>
-            <option value="pending">Apenas com Pendências Vencidas (Vermelho)</option>
-            <option value="regular">Apenas em Dia / Previstos (Amarelo)</option>
-            <option value="paid">Apenas 100% Quitados (Verde)</option>
-          </select>
-        </div>
+            {periodType === '' && (
+              <div className="w-full h-10 px-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400 flex items-center justify-center italic">
+                Defina a periodicidade...
+              </div>
+            )}
 
-        {/* Busca por Aluno */}
-        <div>
-          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Buscar Aluno
-          </label>
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-3 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Nome, Matrícula ou CPF..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-10 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+            {periodType === 'mensal' && (
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  className="h-10 px-2 flex items-center justify-center text-slate-500 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl transition-colors cursor-pointer shrink-0"
+                  title="Mês anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-full h-10 px-2.5 bg-slate-50/50 hover:bg-white focus:bg-white border-y border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
+                >
+                  <option value="">Escolha o mês...</option>
+                  {MONTH_NAMES.map((name, idx) => (
+                    <option key={idx + 1} value={String(idx + 1)}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  className="h-10 px-2 flex items-center justify-center text-slate-500 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-l-0 border-slate-200 rounded-r-xl transition-colors cursor-pointer shrink-0"
+                  title="Próximo mês"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {periodType === 'trimestral' && (
+              <select
+                value={selectedQuarter}
+                onChange={(e) => setSelectedQuarter(e.target.value)}
+                className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
               >
-                <X size={14} />
-              </button>
+                <option value="">Selecione o trimestre...</option>
+                <option value="1">1º Trimestre (Jan - Mar)</option>
+                <option value="2">2º Trimestre (Abr - Jun)</option>
+                <option value="3">3º Trimestre (Jul - Set)</option>
+                <option value="4">4º Trimestre (Out - Dez)</option>
+              </select>
+            )}
+
+            {periodType === 'semestral' && (
+              <select
+                value={selectedSemester}
+                onChange={(e) => setSelectedSemester(e.target.value)}
+                className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
+              >
+                <option value="">Selecione o semestre...</option>
+                <option value="1">1º Semestre (Janeiro a Junho)</option>
+                <option value="2">2º Semestre (Julho a Dezembro)</option>
+              </select>
+            )}
+
+            {periodType === 'anual' && (
+              <div className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center">
+                Exercício Integral (Jan a Dez)
+              </div>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Valor Base da Mensalidade / Previsão */}
-        <div>
-          <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Valor Padrão da Contribuição (Mês) <span className="text-[10px] text-slate-400 font-normal lowercase ml-1">(opcional - padrão do sistema: {formatCurrency(financialSettings?.default_monthly_fee || 100)})</span>
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">R$</span>
-            <input
-              type="number"
-              min="0"
-              step="5"
-              placeholder={`Padrão: ${formatCurrency(financialSettings?.default_monthly_fee || 100)} ou turma/curso`}
-              value={monthlyStandardFee}
-              onChange={(e) => setMonthlyStandardFee(e.target.value)}
-              className="w-full h-10 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
+      {/* Barra Secundária: Filtro de Situação, Busca Rápida na Tabela e Modo de Exibição */}
+      <div className="px-4 py-2.5 sm:px-5 bg-slate-50/70 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Situação */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Situação:
+            </span>
+            <div className="inline-flex items-center gap-1">
+              {[
+                { id: '', label: 'Todos' },
+                { id: 'paid', label: 'Quitados', dot: 'bg-emerald-500' },
+                { id: 'regular', label: 'Em Dia', dot: 'bg-amber-500' },
+                { id: 'pending', label: 'Inadimplentes', dot: 'bg-red-500' }
+              ].map(st => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setStatusFilter(st.id)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                    statusFilter === st.id
+                      ? "bg-white text-slate-900 shadow-2xs border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                  )}
+                >
+                  {st.dot && <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", st.dot)} />}
+                  <span>{st.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Se turma: Busca rápida de aluno dentro da lista */}
+          {filterTarget === 'class' && (
+            <div className="relative w-56">
+              <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Filtrar aluno na tabela..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-8 pl-8 pr-7 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Resumo ao vivo & Modo de Visualização */}
+        <div className="flex items-center gap-3">
+          {isFilterReady && (
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500">
+              <span>{reportData.length} aluno(s) listado(s)</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-emerald-700 font-bold">{totals.taxaArrecadacao}% arrecadado</span>
+            </div>
+          )}
+
+          {filterTarget === 'class' && isFilterReady && (
+            <div className="flex items-center gap-1 bg-slate-200/60 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setViewMode('detailed')}
+                className={cn(
+                  "px-2 py-0.5 text-[11px] font-bold rounded transition-all cursor-pointer",
+                  viewMode === 'detailed' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                )}
+                title="Exibir colunas completas com detalhamento mês a mês"
+              >
+                Detalhado
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('compact')}
+                className={cn(
+                  "px-2 py-0.5 text-[11px] font-bold rounded transition-all cursor-pointer",
+                  viewMode === 'compact' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                )}
+                title="Visualização compacta para maior densidade"
+              >
+                Compacto
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
 
+    {/* Estado Vazio Elegante e Proativo (Quando filtros ainda não foram preenchidos) */}
     {!isFilterReady ? (
-      <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 sm:p-12 text-center shadow-2xs space-y-4 print:hidden">
-        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto border border-blue-100">
-          <Filter size={26} />
+      <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center shadow-2xs space-y-6 print:hidden">
+        <div className="w-16 h-16 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto border border-blue-100 shadow-2xs">
+          <ShieldCheck size={32} />
         </div>
-        <div className="max-w-md mx-auto">
-          <h3 className="text-base font-bold text-slate-800">
-            Campos Limpos — Selecione os Parâmetros
+
+        <div className="max-w-md mx-auto space-y-1.5">
+          <h3 className="text-base font-bold text-slate-900">
+            Painel Financeiro Aguardando Parâmetros
           </h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Para gerar o demonstrativo financeiro de contribuições (previsto vs. efetuado), selecione a <strong>Turma</strong>, o <strong>Ano de Referência</strong> e o <strong>Período</strong> nos campos acima.
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Selecione uma <strong>Turma</strong> cadastrada ou busque um <strong>Aluno</strong> individual, junto com o ano e período de referência para gerar a prestação de contas.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs font-semibold">
-          <span className={cn(
-            "px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all",
-            selectedClassId 
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-              : "bg-slate-50 text-slate-400 border-slate-200"
-          )}>
-            {selectedClassId ? <Check size={13} className="text-emerald-600" /> : <Clock size={13} className="text-slate-400" />}
-            1. Turma: {selectedClassId ? (selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Selecionada') : 'Pendente'}
-          </span>
+        {/* 3 Cartões Proativos de Ação Rápida */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto pt-2 text-left">
+          <button
+            type="button"
+            onClick={() => {
+              setFilterTarget('class');
+              if (scopedClasses.length > 0 && !selectedClassId) {
+                setSelectedClassId(scopedClasses[0].id);
+              }
+              if (!selectedYear) {
+                const nowYr = new Date().getFullYear();
+                setSelectedYear(String(nowYr));
+              }
+              if (!periodType) {
+                setPeriodType('anual');
+              }
+            }}
+            className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center mb-2.5">
+                <Users size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-900">
+                Consultar Turma
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Visualizar arrecadação consolidada da primeira turma ativa.
+              </p>
+            </div>
+            <span className="text-[11px] font-bold text-blue-700 mt-3 inline-flex items-center gap-1">
+              Carregar Turma <ChevronRight size={13} />
+            </span>
+          </button>
 
-          <span className={cn(
-            "px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all",
-            selectedYear 
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-              : "bg-slate-50 text-slate-400 border-slate-200"
-          )}>
-            {selectedYear ? <Check size={13} className="text-emerald-600" /> : <Clock size={13} className="text-slate-400" />}
-            2. Ano: {selectedYear || 'Pendente'}
-          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterTarget('student');
+              setIsStudentDropdownOpen(true);
+              if (!selectedYear) setSelectedYear(String(new Date().getFullYear()));
+              if (!periodType) setPeriodType('anual');
+            }}
+            className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center mb-2.5">
+                <User size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-900">
+                Extrato por Aluno
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Localizar estudante por nome, matrícula ou CPF para extrato individual.
+              </p>
+            </div>
+            <span className="text-[11px] font-bold text-indigo-700 mt-3 inline-flex items-center gap-1">
+              Buscar Aluno <ChevronRight size={13} />
+            </span>
+          </button>
 
-          <span className={cn(
-            "px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all",
-            periodType && (periodType === 'anual' || (periodType === 'mensal' && selectedMonth) || (periodType === 'trimestral' && selectedQuarter) || (periodType === 'semestral' && selectedSemester))
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-              : "bg-slate-50 text-slate-400 border-slate-200"
-          )}>
-            {periodType && (periodType === 'anual' || (periodType === 'mensal' && selectedMonth) || (periodType === 'trimestral' && selectedQuarter) || (periodType === 'semestral' && selectedSemester))
-              ? <Check size={13} className="text-emerald-600" /> 
-              : <Clock size={13} className="text-slate-400" />}
-            3. Período: {periodType ? periodLabel : 'Pendente'}
-          </span>
+          <button
+            type="button"
+            onClick={() => {
+              handleSetCurrentMonth();
+              if (scopedClasses.length > 0 && !selectedClassId) {
+                setSelectedClassId('all');
+              }
+            }}
+            className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center mb-2.5">
+                <Zap size={16} />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-900">
+                Mês em Exercício
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Carregar imediatamente o mês corrente ({format(new Date(), 'MMMM/yyyy', { locale: ptBR })}).
+              </p>
+            </div>
+            <span className="text-[11px] font-bold text-emerald-700 mt-3 inline-flex items-center gap-1">
+              Ver Mês Atual <ChevronRight size={13} />
+            </span>
+          </button>
         </div>
       </div>
     ) : (
       <>
+        {/* NOVA FUNCIONALIDADE: Barra de Diagnóstico Visual da Arrecadação */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:p-5 space-y-3 print:hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <BarChart3 size={15} className="text-blue-800" />
+                <span>Diagnóstico Consolidado da Arrecadação</span>
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Referência: <strong className="text-slate-800">{periodLabel}</strong> ({totals.totalAlunos} alunos no escopo)
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <span className="text-slate-500">
+                Total Previsto: <strong className="text-slate-900 font-mono">{formatCurrency(totals.totalPrevisto)}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Barra Multissegmentada com Proporções Exatas */}
+          <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+            {/* Arrecadado / Efetuado (Verde) */}
+            <div 
+              className="bg-emerald-600 transition-all duration-500 relative group cursor-pointer"
+              style={{ width: `${totals.totalPrevisto > 0 ? (totals.totalEfetuado / totals.totalPrevisto) * 100 : 0}%` }}
+              title={`Arrecadado: ${formatCurrency(totals.totalEfetuado)} (${totals.taxaArrecadacao}%)`}
+            />
+            {/* A Vencer / Meses Futuros (Âmbar suave) */}
+            <div 
+              className="bg-amber-400 transition-all duration-500 relative group cursor-pointer"
+              style={{ width: `${totals.totalPrevisto > 0 ? (totals.totalAVencer / totals.totalPrevisto) * 100 : 0}%` }}
+              title={`A Vencer (Previsto): ${formatCurrency(totals.totalAVencer)}`}
+            />
+            {/* Inadimplente / Vencido (Vermelho) */}
+            <div 
+              className="bg-red-500 transition-all duration-500 relative group cursor-pointer"
+              style={{ width: `${totals.totalPrevisto > 0 ? (totals.totalPendente / totals.totalPrevisto) * 100 : 0}%` }}
+              title={`Inadimplente (Vencido): ${formatCurrency(totals.totalPendente)}`}
+            />
+          </div>
+
+          {/* Legenda Informativa */}
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-0.5">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0"></span>
+                <span className="text-slate-600">Arrecadado:</span>
+                <strong className="text-emerald-700 font-mono">{formatCurrency(totals.totalEfetuado)}</strong>
+                <span className="text-[10px] text-emerald-800 bg-emerald-100 px-1 rounded font-bold font-mono">
+                  {totals.taxaArrecadacao}%
+                </span>
+              </div>
+
+              {totals.totalAVencer > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0"></span>
+                  <span className="text-slate-600">A Vencer:</span>
+                  <strong className="text-amber-800 font-mono">{formatCurrency(totals.totalAVencer)}</strong>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0"></span>
+                <span className="text-slate-600">Inadimplente:</span>
+                <strong className="text-red-700 font-mono">{formatCurrency(totals.totalPendente)}</strong>
+                <span className="text-[10px] text-slate-500">
+                  ({totals.pendentesCount} {totals.pendentesCount === 1 ? 'aluno' : 'alunos'})
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-400 hidden lg:block">
+              * Mês corrente é classificado como previsto em conformidade com as regras financeiras
+            </div>
+          </div>
+        </div>
+
         {/* Cards de Métricas e Indicadores Consolidados */}
         <div className={cn(
           "grid gap-3.5 print:grid-cols-4 print:gap-2",
@@ -1072,48 +1600,48 @@ return (
             ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" 
             : "grid-cols-1 sm:grid-cols-3"
         )}>
-          {/* Card 1: Previsto (Amarelo) */}
-          <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-200 shadow-2xs flex flex-col justify-between">
+          {/* Card 1: Previsto */}
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
                   Total Previsto
                 </span>
-                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-200/80 max-w-full truncate" title={periodLabel}>
-                  <Calendar size={11} className="text-amber-700 shrink-0" />
+                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 max-w-full truncate" title={periodLabel}>
+                  <Calendar size={11} className="text-slate-500 shrink-0" />
                   <span className="truncate">{periodLabel}</span>
                 </span>
               </div>
-              <div className="p-2 bg-amber-100 text-amber-800 rounded-xl shrink-0">
-                <Calendar size={18} />
+              <div className="p-2 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-100">
+                <Calendar size={17} />
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-black text-amber-700 tabular-nums">
+              <span className="text-2xl font-black text-slate-900 tabular-nums">
                 {formatCurrency(totals.totalPrevisto)}
               </span>
-              <p className="text-[10px] text-amber-800/80 font-medium mt-1">
-                Arrecadação total prevista ({totals.totalAlunos} alunos)
+              <p className="text-[10px] text-slate-500 font-medium mt-1">
+                Base calculada para {totals.totalAlunos} aluno(s)
               </p>
             </div>
           </div>
 
-          {/* Card 2: Efetuado / Arrecadado (Verde) */}
-          <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-200 shadow-2xs flex flex-col justify-between">
+          {/* Card 2: Efetuado / Arrecadado */}
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                   Total Efetuado (Arrecadado)
                 </span>
-                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-200/80 max-w-full truncate" title={periodLabel}>
-                  <Calendar size={11} className="text-emerald-700 shrink-0" />
-                  <span className="truncate">{periodLabel}</span>
+                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 max-w-full truncate" title={periodLabel}>
+                  <CheckCircle2 size={11} className="text-emerald-700 shrink-0" />
+                  <span className="truncate">{totals.adimplentesCount} quitado(s)</span>
                 </span>
               </div>
-              <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl shrink-0">
-                <CheckCircle2 size={18} />
+              <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl shrink-0 border border-emerald-100">
+                <CheckCircle2 size={17} />
               </div>
             </div>
             <div className="mt-3">
@@ -1122,64 +1650,58 @@ return (
                   {formatCurrency(totals.totalEfetuado)}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[10px] text-emerald-800 font-medium mt-1">
-                <span>{totals.adimplentesCount} quitados</span>
-                <span className="font-bold bg-emerald-100/90 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200/80">
-                  {totals.taxaArrecadacao}% arrecadado
+              <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium mt-1">
+                <span>{totals.adimplentesCount} alunos em dia</span>
+                <span className="font-bold text-emerald-700 font-mono">
+                  {totals.taxaArrecadacao}% da meta
                 </span>
-              </div>
-              <div className="mt-2 h-1.5 w-full bg-emerald-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-full rounded-full bg-emerald-600 transition-all duration-500"
-                  style={{ width: `${totals.taxaArrecadacao}%` }}
-                />
               </div>
             </div>
           </div>
 
-          {/* Card 3: Saldo Pendente (Vermelho) */}
-          <div className="p-4 bg-red-50/50 rounded-2xl border border-red-200 shadow-2xs flex flex-col justify-between">
+          {/* Card 3: Saldo Pendente (Vencido) */}
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-red-900 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
-                  Saldo Pendente (Vencido)
+                  Saldo Inadimplente (Vencido)
                 </span>
-                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-red-800 bg-red-100/90 px-2 py-0.5 rounded-md border border-red-200/80 max-w-full truncate" title={periodLabel}>
-                  <Calendar size={11} className="text-red-700 shrink-0" />
-                  <span className="truncate">{periodLabel}</span>
+                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded-md border border-red-200 max-w-full truncate" title={periodLabel}>
+                  <AlertCircle size={11} className="text-red-700 shrink-0" />
+                  <span className="truncate">{totals.pendentesCount} em atraso</span>
                 </span>
               </div>
-              <div className="p-2 bg-red-100 text-red-800 rounded-xl shrink-0">
-                <AlertCircle size={18} />
+              <div className="p-2 bg-red-50 text-red-700 rounded-xl shrink-0 border border-red-100">
+                <AlertCircle size={17} />
               </div>
             </div>
             <div className="mt-3">
               <span className="text-2xl font-black text-red-600 tabular-nums">
                 {formatCurrency(totals.totalPendente)}
               </span>
-              <p className="text-[10px] text-red-800/80 font-medium mt-1">
+              <p className="text-[10px] text-slate-500 font-medium mt-1">
                 {totals.pendentesCount} aluno(s) com parcelas vencidas
               </p>
             </div>
           </div>
 
-          {/* Card 4: A Vencer / Período Restante (Exibido somente no mês atual e no período ano) */}
+          {/* Card 4: A Vencer / Restante */}
           {showAVencerCard && (
             <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                     <Clock size={13} className="text-slate-500 shrink-0" />
                     A Vencer (Restante)
                   </span>
                   <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 max-w-full truncate" title={periodLabel}>
                     <Calendar size={11} className="text-slate-500 shrink-0" />
-                    <span className="truncate">{isCurrentMonthPeriod ? 'Mês Atual' : 'Meses Restantes do Ano'}</span>
+                    <span className="truncate">{isCurrentMonthPeriod ? 'Mês Atual' : 'Período Restante'}</span>
                   </span>
                 </div>
                 <div className="p-2 bg-slate-100 text-slate-700 rounded-xl shrink-0">
-                  <Clock size={18} />
+                  <Clock size={17} />
                 </div>
               </div>
               <div className="mt-3">
@@ -1188,30 +1710,145 @@ return (
                     {formatCurrency(isCurrentMonthPeriod ? Math.max(0, totals.totalPrevisto - totals.totalEfetuado) : totals.totalAVencer)}
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                    A Arrecadar
+                    A Receber
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-500 font-medium mt-1">
-                  {isCurrentMonthPeriod ? 'Falta a ser arrecadado no mês atual' : 'Falta a ser arrecadado no período restante'}
+                  {isCurrentMonthPeriod ? 'Saldo previsto para este mês' : 'Saldo programado para meses futuros'}
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Tabela Analítica de Contribuições por Aluno */}
+        {/* NOVA FUNCIONALIDADE: Dossiê Individual do Aluno (quando 'Por Aluno' e aluno selecionado) */}
+        {filterTarget === 'student' && selectedStudent && reportData.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-5 space-y-4 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#00174b] text-white font-bold text-sm flex items-center justify-center shadow-xs">
+                  {selectedStudent.name ? selectedStudent.name.charAt(0).toUpperCase() : 'A'}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>{selectedStudent.name}</span>
+                    <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                      Matrícula: {selectedStudent.registration_number || '---'}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Turma: <strong className="text-slate-800">{classes.find(c => c.id === selectedStudent.class_id)?.name || 'Sem turma definida'}</strong>
+                    {selectedStudent.cpf && ` • CPF: ${selectedStudent.cpf}`}
+                    {selectedStudent.status && ` • Situação: ${selectedStudent.status}`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-500">Contribuição Prevista (Mês):</span>
+                <span className="font-bold text-slate-900 font-mono bg-slate-100 px-2 py-1 rounded">
+                  {formatCurrency(reportData[0].fee)}
+                </span>
+              </div>
+            </div>
+
+            {/* Grade Detalhada Mês a Mês do Aluno */}
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Calendar size={14} className="text-blue-700" />
+                  <span>Demonstrativo Mês a Mês ({periodLabel})</span>
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {reportData[0].monthsStatus.length} parcelas analisadas
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+                {reportData[0].monthsStatus.map((m) => (
+                  <div 
+                    key={m.month}
+                    className={cn(
+                      "p-3 rounded-xl border flex flex-col justify-between transition-all",
+                      m.isPaid 
+                        ? "bg-emerald-50/50 border-emerald-200" 
+                        : m.isOverdue
+                        ? "bg-red-50/50 border-red-200"
+                        : m.isExpected
+                        ? "bg-amber-50/30 border-amber-200/80"
+                        : "bg-slate-50 border-slate-200 opacity-60"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">
+                        {m.monthName}
+                      </span>
+                      {m.isPaid ? (
+                        <CheckCircle2 size={14} className="text-emerald-600" />
+                      ) : m.isOverdue ? (
+                        <AlertCircle size={14} className="text-red-600" />
+                      ) : (
+                        <Clock size={14} className="text-amber-500" />
+                      )}
+                    </div>
+
+                    <div className="mt-2.5 space-y-1">
+                      <div className="text-[11px] text-slate-600 flex justify-between">
+                        <span>Previsto:</span>
+                        <span className="font-mono font-semibold">{formatCurrency(m.fee)}</span>
+                      </div>
+                      <div className="text-[11px] flex justify-between">
+                        <span>Pago:</span>
+                        <span className={cn("font-mono font-bold", m.isPaid ? "text-emerald-700" : "text-slate-400")}>
+                          {formatCurrency(m.amountPaid)}
+                        </span>
+                      </div>
+
+                      {m.isPaid && m.paymentDate && (
+                        <div className="text-[10px] text-emerald-800 pt-1 border-t border-emerald-200/60 truncate">
+                          Pago em {formatDateForDisplay(m.paymentDate)}
+                        </div>
+                      )}
+
+                      {m.isOverdue && (
+                        <div className="text-[10px] text-red-700 font-bold pt-1 border-t border-red-200/60">
+                          Parcela Vencida
+                        </div>
+                      )}
+
+                      {!m.isPaid && !m.isOverdue && m.isExpected && (
+                        <div className="text-[10px] text-amber-700 font-medium pt-1 border-t border-amber-200/60">
+                          {m.isCurrent ? 'Mês Corrente' : 'A Vencer'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tabela Analítica Oficial de Contribuições */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border-none print:shadow-none">
           <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between print:hidden">
             <div className="flex items-center gap-2">
-              <Users size={16} className="text-slate-600" />
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Demonstrativo por Aluno ({reportData.length})
+              {filterTarget === 'student' ? (
+                <User size={16} className="text-blue-900" />
+              ) : (
+                <Users size={16} className="text-blue-900" />
+              )}
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                {filterTarget === 'student' && selectedStudent 
+                  ? `Extrato Oficial do Aluno: ${selectedStudent.name}`
+                  : `Tabela Analítica por Aluno (${reportData.length})`}
               </h4>
             </div>
+
             <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"></span>Previsto</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Efetuado</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span>Pendente (Vencido)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400"></span>Previsto</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Efetuado</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500"></span>Inadimplente (Vencido)</span>
             </div>
           </div>
 
@@ -1220,28 +1857,62 @@ return (
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-600 print:bg-slate-100">
                   <th className="py-3 px-3.5 text-center w-12">#</th>
-                  <th className="py-3 px-3.5">Aluno / Matrícula</th>
+                  
+                  <th 
+                    className="py-3 px-3.5 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    onClick={() => handleToggleSort('name')}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Aluno / Matrícula</span>
+                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'name' && "text-blue-900 font-bold")} />
+                    </div>
+                  </th>
+
                   <th className="py-3 px-3.5">Turma</th>
-                  <th className="py-3 px-3.5 text-center">Meses do Período</th>
-                  <th className="py-3 px-3.5 text-right text-amber-800">
-                    <span className="inline-flex items-center gap-1 justify-end">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                      Previsto
-                    </span>
+
+                  {viewMode === 'detailed' && (
+                    <th className="py-3 px-3.5 text-center">Meses do Período</th>
+                  )}
+
+                  <th 
+                    className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    onClick={() => handleToggleSort('previsto')}
+                  >
+                    <div className="inline-flex items-center gap-1 text-amber-800">
+                      <span>Previsto</span>
+                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'previsto' && "text-amber-800 font-bold")} />
+                    </div>
                   </th>
-                  <th className="py-3 px-3.5 text-right text-emerald-800">
-                    <span className="inline-flex items-center gap-1 justify-end">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      Efetuado
-                    </span>
+
+                  <th 
+                    className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    onClick={() => handleToggleSort('efetuado')}
+                  >
+                    <div className="inline-flex items-center gap-1 text-emerald-800">
+                      <span>Efetuado</span>
+                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'efetuado' && "text-emerald-800 font-bold")} />
+                    </div>
                   </th>
-                  <th className="py-3 px-3.5 text-right text-red-800">
-                    <span className="inline-flex items-center gap-1 justify-end">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                      Pendente (Vencido)
-                    </span>
+
+                  <th 
+                    className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    onClick={() => handleToggleSort('pendente')}
+                  >
+                    <div className="inline-flex items-center gap-1 text-red-800">
+                      <span>Pendente (Vencido)</span>
+                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'pendente' && "text-red-800 font-bold")} />
+                    </div>
                   </th>
-                  <th className="py-3 px-3.5 text-center">Situação</th>
+
+                  <th 
+                    className="py-3 px-3.5 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    onClick={() => handleToggleSort('status')}
+                  >
+                    <div className="inline-flex items-center gap-1 justify-center">
+                      <span>Situação</span>
+                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'status' && "text-blue-900 font-bold")} />
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -1249,7 +1920,7 @@ return (
                   reportData.map((item, idx) => (
                     <tr 
                       key={item.student.id}
-                      className="hover:bg-slate-50/60 transition-colors"
+                      className="hover:bg-slate-50/70 transition-colors"
                     >
                       {/* Número sequencial */}
                       <td className="py-3 px-3.5 text-center font-mono text-[10px] text-slate-400">
@@ -1280,51 +1951,53 @@ return (
                         </span>
                       </td>
 
-                      {/* Meses do período com badges interativos: Verde (Pago), Vermelho (Vencido), Amarelo (Previsto) */}
-                      <td className="py-3 px-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1 flex-wrap max-w-xs mx-auto">
-                          {item.monthsStatus.map((m) => (
-                            <span
-                              key={m.month}
-                              title={
-                                m.isPaid 
-                                  ? `${m.monthName}: Pago ${formatCurrency(m.amountPaid)} em ${m.paymentDate ? formatDateForDisplay(m.paymentDate) : 'data n/d'} (${m.paymentMethod || 'PIX'})` 
-                                  : m.isOverdue
-                                  ? `${m.monthName}: Vencido e não quitado (${formatCurrency(m.fee)})` 
-                                  : m.isCurrent
-                                  ? `${m.monthName}: Mês atual (Previsto a vencer)` 
-                                  : m.isFuture
-                                  ? `${m.monthName}: Mês futuro (Previsto a vencer)`
-                                  : `${m.monthName}: Fora do calendário letivo`
-                              }
-                              className={cn(
-                                "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all",
-                                m.isPaid 
-                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
-                                  : m.isOverdue 
-                                  ? "bg-red-100 text-red-800 border border-red-300" 
-                                  : m.isExpected
-                                  ? "bg-amber-100 text-amber-800 border border-amber-300"
-                                  : "bg-slate-100 text-slate-400 border border-slate-200 opacity-50"
-                              )}
-                            >
-                              {m.monthShort}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
+                      {/* Meses do período com micro-badges interativos */}
+                      {viewMode === 'detailed' && (
+                        <td className="py-3 px-3.5 text-center">
+                          <div className="flex items-center justify-center gap-1 flex-wrap max-w-xs mx-auto">
+                            {item.monthsStatus.map((m) => (
+                              <span
+                                key={m.month}
+                                title={
+                                  m.isPaid 
+                                    ? `${m.monthName}: Pago ${formatCurrency(m.amountPaid)} em ${m.paymentDate ? formatDateForDisplay(m.paymentDate) : 'data n/d'} (${m.paymentMethod || 'PIX'})` 
+                                    : m.isOverdue
+                                    ? `${m.monthName}: Vencido e não quitado (${formatCurrency(m.fee)})` 
+                                    : m.isCurrent
+                                    ? `${m.monthName}: Mês atual (Previsto a vencer)` 
+                                    : m.isFuture
+                                    ? `${m.monthName}: Mês futuro (Previsto a vencer)`
+                                    : `${m.monthName}: Fora do calendário letivo`
+                                }
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all",
+                                  m.isPaid 
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
+                                    : m.isOverdue 
+                                    ? "bg-red-100 text-red-800 border border-red-300" 
+                                    : m.isExpected
+                                    ? "bg-amber-100 text-amber-800 border border-amber-300"
+                                    : "bg-slate-100 text-slate-400 border border-slate-200 opacity-50"
+                                )}
+                              >
+                                {m.monthShort}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      )}
 
-                      {/* Valor Previsto (Amarelo) */}
+                      {/* Valor Previsto */}
                       <td className="py-3 px-3.5 text-right font-bold text-amber-700 tabular-nums">
                         {formatCurrency(item.valorPrevisto)}
                       </td>
 
-                      {/* Valor Efetuado (Verde) */}
+                      {/* Valor Efetuado */}
                       <td className="py-3 px-3.5 text-right font-bold text-emerald-700 tabular-nums">
                         {formatCurrency(item.valorEfetuado)}
                       </td>
 
-                      {/* Saldo Pendente (Vermelho) */}
+                      {/* Saldo Pendente */}
                       <td className="py-3 px-3.5 text-right font-bold tabular-nums">
                         {item.saldoPendente > 0 ? (
                           <span className="text-red-600 font-black">
@@ -1364,7 +2037,7 @@ return (
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                    <td colSpan={viewMode === 'detailed' ? 8 : 7} className="py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <DollarSign size={32} className="text-slate-300" />
                         <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
@@ -1379,7 +2052,7 @@ return (
               {reportData.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
-                    <td colSpan={4} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
+                    <td colSpan={viewMode === 'detailed' ? 4 : 3} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
                       Total Consolidado ({reportData.length} alunos):
                     </td>
                     <td className="py-3 px-3.5 text-right font-black text-amber-700 tabular-nums">
