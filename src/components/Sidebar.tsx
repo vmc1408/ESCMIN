@@ -34,7 +34,8 @@ import {
   Tag,
   Archive as ArchiveIcon,
   Sparkles,
-  DollarSign
+  DollarSign,
+  CalendarDays
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
@@ -88,6 +89,7 @@ const navItems = [
           { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month' },
           { icon: FileText, label: 'Grade Acadêmica', path: '/calendar?view=management' },
           { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters' },
+          { icon: CalendarDays, label: 'Calendário Anual', path: '/calendar?view=annual' },
           { icon: Sparkles, label: 'Habilitação', path: '/calendar?view=habilitation' },
         ]
       },

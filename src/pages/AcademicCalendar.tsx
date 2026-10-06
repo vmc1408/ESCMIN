@@ -60,6 +60,7 @@ import { HolidayListReport } from '../components/calendar/HolidayListReport';
 import { AcademicScheduleSplash } from '../components/calendar/AcademicScheduleSplash';
 import { DayMonthClassReport } from '../components/calendar/DayMonthClassReport';
 import { HabilitationModal } from '../components/HabilitationModal';
+import { AnnualCalendarManager } from '../components/calendar/AnnualCalendarManager';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit } from '../lib/unitService';
 
@@ -469,6 +470,12 @@ export function AcademicCalendar() {
     } else if (viewParam === 'parameters') {
       setViewMode('month');
       setActiveTab('calendar');
+      setParametersTab('annual');
+      setShowSettings(true);
+    } else if (viewParam === 'annual') {
+      setViewMode('month');
+      setActiveTab('calendar');
+      setParametersTab('annual');
       setShowSettings(true);
     } else if (viewParam === 'habilitation') {
       setViewMode('month');
@@ -481,6 +488,7 @@ export function AcademicCalendar() {
   }, [viewParam]);
   const [inspectingClassId, setInspectingClassId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [parametersTab, setParametersTab] = useState<'annual' | 'weekly'>('annual');
   const [showHabilitation, setShowHabilitation] = useState(false);
   const [editingDayIndex, setEditingDayIndex] = useState<number>(1);
   const [selectedWeekdayDetail, setSelectedWeekdayDetail] = useState<number | null>(null);
@@ -2301,9 +2309,23 @@ export function AcademicCalendar() {
                     <span className="inline sm:hidden">Novo</span>
                   </button>
                   <button 
-                    onClick={() => setShowSettings(true)}
-                    className="h-[36px] w-[36px] flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-200 shadow-xs active:scale-95"
-                    title="Ajuste do Calendário Anual"
+                    onClick={() => {
+                      setParametersTab('annual');
+                      setShowSettings(true);
+                    }}
+                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-[#00174b] text-white hover:bg-blue-900 transition-all rounded-none text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm cursor-pointer"
+                    title="Geração Automática do Calendário Anual de Aulas"
+                  >
+                    <CalendarDays size={14} className="text-amber-400" />
+                    <span className="hidden sm:inline">Calendário Anual</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setParametersTab('weekly');
+                      setShowSettings(true);
+                    }}
+                    className="h-[36px] w-[36px] flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-200 shadow-xs active:scale-95 cursor-pointer"
+                    title="Parâmetros Semanais e Ciclos"
                   >
                     <Settings size={14} />
                   </button>
@@ -4165,7 +4187,10 @@ export function AcademicCalendar() {
               initial={{ scale: 0.99, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.99, opacity: 0 }}
-              className="bg-white lg:max-w-4xl max-w-2xl w-full h-auto max-h-[96vh] rounded-none shadow-2xl overflow-hidden border border-slate-200 flex flex-col"
+              className={cn(
+                "bg-white w-full h-auto max-h-[96vh] rounded-none shadow-2xl overflow-hidden border border-slate-200 flex flex-col transition-all",
+                parametersTab === 'annual' ? "lg:max-w-6xl max-w-5xl" : "lg:max-w-4xl max-w-2xl"
+              )}
             >
               {/* Header */}
               <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 relative bg-white shrink-0">
@@ -4173,11 +4198,11 @@ export function AcademicCalendar() {
                   type="button"
                   onClick={() => {
                     setShowSettings(false);
-                    if (searchParams.get('view') === 'parameters') {
+                    if (searchParams.get('view') === 'parameters' || searchParams.get('view') === 'annual') {
                       setSearchParams({ view: 'month' });
                     }
                   }}
-                  className="absolute top-3 sm:top-4 right-4 sm:right-5 p-2 hover:bg-slate-50 rounded transition-all text-slate-400"
+                  className="absolute top-3 sm:top-4 right-4 sm:right-5 p-2 hover:bg-slate-50 rounded transition-all text-slate-400 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -4196,13 +4221,64 @@ export function AcademicCalendar() {
                       )}
                     </div>
                     <p className="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 whitespace-nowrap">
-                      {settingsTargetUnitId && settingsTargetUnitId !== 'matriz' ? 'Ciclos e Atividades Exclusivos Deste Polo' : 'Ajuste de Aulas Recorrentes Semanais e Semestres'}
+                      {parametersTab === 'annual'
+                        ? 'Geração Automática do Calendário Anual • Feriados, Recessos e Dias Letivos'
+                        : settingsTargetUnitId && settingsTargetUnitId !== 'matriz' ? 'Ciclos e Atividades Exclusivos Deste Polo' : 'Ajuste de Aulas Recorrentes Semanais e Semestres'}
                     </p>
                   </div>
                 </div>
+
+                {/* Abas do Módulo Cronograma > Parâmetros */}
+                <div className="flex items-center gap-1 mt-3 -mb-3 sm:-mb-4 border-b border-slate-200 overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => setParametersTab('annual')}
+                    className={cn(
+                      "px-3.5 py-2 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap",
+                      parametersTab === 'annual'
+                        ? "border-[#00174b] text-[#00174b] bg-slate-50/70"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    <CalendarDays size={14} className="text-blue-900" />
+                    <span>Calendário Anual de Aulas (Geração Automática)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setParametersTab('weekly')}
+                    className={cn(
+                      "px-3.5 py-2 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap",
+                      parametersTab === 'weekly'
+                        ? "border-[#00174b] text-[#00174b] bg-slate-50/70"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    <Settings size={14} className="text-slate-500" />
+                    <span>Parâmetros Semanais e Semestres (Por Turma)</span>
+                  </button>
+                </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 bg-slate-50/30">
+              {parametersTab === 'annual' ? (
+                <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 bg-slate-50/40">
+                  <AnnualCalendarManager
+                    onClose={() => {
+                      setShowSettings(false);
+                      if (searchParams.get('view') === 'parameters' || searchParams.get('view') === 'annual') {
+                        setSearchParams({ view: 'month' });
+                      }
+                    }}
+                    onCalendarPublished={async () => {
+                      await fetchData();
+                      setNotification({ type: 'success', message: 'Calendário anual publicado com sucesso! Eventos sincronizados com o sistema.' });
+                    }}
+                    initialYear={currentDate.getFullYear()}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 bg-slate-50/30">
                 {/* Seletor de Unidade / Polo e Gestão de Cronograma Integrado */}
                 <div className="mb-4 bg-white border border-slate-200/90 rounded-none p-3 shadow-xs space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -5164,6 +5240,8 @@ export function AcademicCalendar() {
                   </button>
                 </div>
               </div>
+                </>
+              )}
             </motion.div>
           </div>
         )}
