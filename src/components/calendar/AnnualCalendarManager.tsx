@@ -52,6 +52,8 @@ import {
   regeneratePeriodDays,
   getCalendarVersions,
   saveCalendarVersion,
+  saveCalendarDraft,
+  getCalendarDraft,
   isLeapYear,
   getDaysInMonth,
   MONTH_NAMES_BR,
@@ -61,6 +63,7 @@ import {
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitContext';
+import { getInstitutionSettings } from '../../lib/database';
 
 interface AnnualCalendarManagerProps {
   onClose?: () => void;
@@ -75,6 +78,13 @@ export function AnnualCalendarManager({
 }: AnnualCalendarManagerProps) {
   const { user: userAuth, profile } = useAuth();
   const { selectedUnitId, getUnitName, activeUnits } = useUnits();
+  const [institution, setInstitution] = useState<any>(null);
+
+  useEffect(() => {
+    getInstitutionSettings().then(inst => {
+      if (inst) setInstitution(inst);
+    }).catch(() => {});
+  }, []);
 
   // 1. Estado do Ano e Localidade
   const [targetYear, setTargetYear] = useState<number>(() => {
@@ -86,43 +96,35 @@ export function AnnualCalendarManager({
   const [stateUf, setStateUf] = useState<string>('SP');
   const [cityName, setCityName] = useState<string>('Guarulhos');
 
-  // 2. Parâmetros Gerais
-  const [startDate, setStartDate] = useState<string>(() => `${targetYear}-02-02`);
-  const [endDate, setEndDate] = useState<string>(() => `${targetYear}-12-11`);
-  const [classWeekdays, setClassWeekdays] = useState<number[]>([1, 2, 3, 4, 5]); // Seg a Sex
-  const [minClassDaysTarget, setMinClassDaysTarget] = useState<number>(200);
+  // 2. Parâmetros Gerais (Sem pré-seleção de datas nem de dias da semana, sem meta)
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [classWeekdays, setClassWeekdays] = useState<number[]>([]); // Não pré-selecionado
   const [preserveOverrides, setPreserveOverrides] = useState<boolean>(true);
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<string | null>(null);
 
-  // 3. Períodos Letivos
+  // 3. Períodos Letivos (Sem datas pré-selecionadas)
   const [periods, setPeriods] = useState<AcademicPeriod[]>(() => [
     {
       id: 'sem1',
       name: '1º Semestre',
-      start_date: `${targetYear}-02-02`,
-      end_date: `${targetYear}-06-30`,
+      start_date: '',
+      end_date: '',
       is_active: true,
       color: '#2563eb'
     },
     {
       id: 'sem2',
       name: '2º Semestre',
-      start_date: `${targetYear}-08-03`,
-      end_date: `${targetYear}-12-11`,
+      start_date: '',
+      end_date: '',
       is_active: true,
       color: '#059669'
     }
   ]);
 
-  // 4. Recessos e Férias
-  const [recesses, setRecesses] = useState<RecessInterval[]>(() => [
-    {
-      id: 'rec_julho',
-      name: 'Recesso Escolar de Julho',
-      start_date: `${targetYear}-07-01`,
-      end_date: `${targetYear}-08-02`,
-      type: 'recesso'
-    }
-  ]);
+  // 4. Recessos e Férias (Sem datas pré-selecionadas)
+  const [recesses, setRecesses] = useState<RecessInterval[]>(() => []);
 
   // 5. Feriados
   const [holidays, setHolidays] = useState<HolidayEntry[]>([]);
@@ -164,38 +166,30 @@ export function AnnualCalendarManager({
   // 9. Sub-abas do formulário
   const [activeConfigTab, setActiveConfigTab] = useState<'general' | 'periods' | 'recesses' | 'holidays'>('general');
 
-  // Atualiza datas padrão quando o ano letivo muda
+  // Atualiza datas padrão quando o ano letivo muda (sem pré-seleção de datas)
   const handleYearChange = (newYear: number) => {
     setTargetYear(newYear);
-    setStartDate(`${newYear}-02-02`);
-    setEndDate(`${newYear}-12-11`);
+    setStartDate('');
+    setEndDate('');
     setPeriods([
       {
         id: `sem1_${newYear}`,
         name: '1º Semestre',
-        start_date: `${newYear}-02-02`,
-        end_date: `${newYear}-06-30`,
+        start_date: '',
+        end_date: '',
         is_active: true,
         color: '#2563eb'
       },
       {
         id: `sem2_${newYear}`,
         name: '2º Semestre',
-        start_date: `${newYear}-08-03`,
-        end_date: `${newYear}-12-11`,
+        start_date: '',
+        end_date: '',
         is_active: true,
         color: '#059669'
       }
     ]);
-    setRecesses([
-      {
-        id: `rec_julho_${newYear}`,
-        name: 'Recesso Escolar de Julho',
-        start_date: `${newYear}-07-01`,
-        end_date: `${newYear}-08-02`,
-        type: 'recesso'
-      }
-    ]);
+    setRecesses([]);
     setCalendarDays(null);
   };
 
@@ -221,21 +215,36 @@ export function AnnualCalendarManager({
     loadHolidays(targetYear, stateUf, cityName);
   }, [targetYear, stateUf, cityName, loadHolidays]);
 
-  // Carrega versões salvas do ano
+  // Carrega versões salvas ou rascunho anterior do ano
   const loadVersions = useCallback(async () => {
+    // 1. Tenta recuperar rascunho salvo anteriormente
+    const draft = getCalendarDraft(targetYear, targetUnitId);
+    if (draft && draft.params) {
+      if (draft.params.start_date) setStartDate(draft.params.start_date);
+      if (draft.params.end_date) setEndDate(draft.params.end_date);
+      if (Array.isArray(draft.params.weekdays)) setClassWeekdays(draft.params.weekdays);
+      if (draft.params.periods && draft.params.periods.length > 0) setPeriods(draft.params.periods);
+      if (draft.params.recesses) setRecesses(draft.params.recesses);
+      if (draft.params.holidays && draft.params.holidays.length > 0) setHolidays(draft.params.holidays);
+      if (draft.days && Object.keys(draft.days).length > 0) setCalendarDays(draft.days);
+      if (draft.saved_at) {
+        setLastDraftSavedAt(new Date(draft.saved_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      }
+    }
+
+    // 2. Busca histórico de versões oficiais / homologadas
     const list = await getCalendarVersions(targetYear, targetUnitId);
     setVersions(list);
     if (list.length > 0 && !selectedVersionId) {
-      const activeVer = list.find(v => v.status === 'published') || list[0];
+      const activeVer = list.find(v => v.status === 'published') || list.find(v => v.status === 'approved') || list[0];
       setSelectedVersionId(activeVer.id);
       setCalendarDays(activeVer.days);
-      setStartDate(activeVer.start_date);
-      setEndDate(activeVer.end_date);
-      setClassWeekdays(activeVer.weekdays);
-      setMinClassDaysTarget(activeVer.minimum_class_days_target);
-      setPeriods(activeVer.periods);
-      setRecesses(activeVer.recesses);
-      setHolidays(activeVer.holidays);
+      if (activeVer.start_date) setStartDate(activeVer.start_date);
+      if (activeVer.end_date) setEndDate(activeVer.end_date);
+      if (Array.isArray(activeVer.weekdays)) setClassWeekdays(activeVer.weekdays);
+      if (activeVer.periods) setPeriods(activeVer.periods);
+      if (activeVer.recesses) setRecesses(activeVer.recesses);
+      if (activeVer.holidays) setHolidays(activeVer.holidays);
     }
   }, [targetYear, targetUnitId, selectedVersionId]);
 
@@ -243,7 +252,7 @@ export function AnnualCalendarManager({
     loadVersions();
   }, [loadVersions]);
 
-  // Parâmetros prontos para a geração
+  // Parâmetros prontos para a geração (sem metas mínimas)
   const currentParams: CalendarGenerationParameters = useMemo(() => ({
     year: targetYear,
     state: stateUf,
@@ -251,7 +260,6 @@ export function AnnualCalendarManager({
     start_date: startDate,
     end_date: endDate,
     weekdays: classWeekdays,
-    minimum_class_days_target: minClassDaysTarget,
     periods,
     recesses,
     holidays,
@@ -259,7 +267,7 @@ export function AnnualCalendarManager({
     preserve_manual_overrides: preserveOverrides
   }), [
     targetYear, stateUf, cityName, startDate, endDate, classWeekdays,
-    minClassDaysTarget, periods, recesses, holidays, targetUnitId, preserveOverrides
+    periods, recesses, holidays, targetUnitId, preserveOverrides
   ]);
 
   // Validação dos parâmetros
@@ -267,11 +275,11 @@ export function AnnualCalendarManager({
     return validateCalendarParameters(currentParams);
   }, [currentParams]);
 
-  // Sumário calculado com base nos dias ativos
+  // Sumário calculado com base nos dias ativos (sem meta de dias letivos)
   const summary = useMemo(() => {
     if (!calendarDays) return null;
-    return calculateCalendarSummary(targetYear, calendarDays, minClassDaysTarget, periods);
-  }, [targetYear, calendarDays, minClassDaysTarget, periods]);
+    return calculateCalendarSummary(targetYear, calendarDays, undefined, periods);
+  }, [targetYear, calendarDays, periods]);
 
   // Geração Automática do Calendário
   const handleGenerate = () => {
@@ -470,9 +478,58 @@ export function AnnualCalendarManager({
     setOverrideModalDate(null);
   };
 
+  // Salvar Rascunho (pode ser acionado a qualquer momento, antes ou depois de gerar)
+  const handleSaveDraft = async () => {
+    setIsSaving(true);
+    try {
+      const res = await saveCalendarDraft(
+        currentParams,
+        calendarDays,
+        profile?.name || userAuth?.email || 'Administrador'
+      );
+
+      // Se os dias já foram calculados, salva também como versão de rascunho
+      if (calendarDays) {
+        const savedVer = await saveCalendarVersion(
+          currentParams,
+          calendarDays,
+          'draft',
+          profile?.name || userAuth?.email || 'Administrador'
+        );
+        setVersions(prev => [savedVer, ...prev.filter(v => v.id !== savedVer.id)]);
+        setSelectedVersionId(savedVer.id);
+      }
+
+      const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      setLastDraftSavedAt(timeStr);
+      setSaveSuccessMsg(`Rascunho salvo com sucesso às ${timeStr}! Os parâmetros e dados configurados foram gravados.`);
+      setTimeout(() => setSaveSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.error('Erro ao salvar rascunho:', err);
+      setSaveSuccessMsg('Rascunho gravado no navegador.');
+      setTimeout(() => setSaveSuccessMsg(null), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Impressão Oficial do Calendário conforme visualizado em tela
+  const handlePrintCalendar = () => {
+    try {
+      window.print();
+    } catch (err) {
+      console.error('Erro ao acionar impressão:', err);
+    }
+  };
+
   // Salvar / Versionar Calendário
   const handleSaveVersion = async (status: 'draft' | 'approved' | 'published') => {
-    if (!calendarDays) return;
+    if (!calendarDays) {
+      // Se não gerou ainda, salva como rascunho de parâmetros
+      await handleSaveDraft();
+      return;
+    }
+
     setIsSaving(true);
     try {
       const saved = await saveCalendarVersion(
@@ -505,13 +562,12 @@ export function AnnualCalendarManager({
     setTargetYear(ver.year);
     setStateUf(ver.state);
     setCityName(ver.city);
-    setStartDate(ver.start_date);
-    setEndDate(ver.end_date);
-    setClassWeekdays(ver.weekdays);
-    setMinClassDaysTarget(ver.minimum_class_days_target);
-    setPeriods(ver.periods);
-    setRecesses(ver.recesses);
-    setHolidays(ver.holidays);
+    setStartDate(ver.start_date || '');
+    setEndDate(ver.end_date || '');
+    setClassWeekdays(ver.weekdays || []);
+    setPeriods(ver.periods || []);
+    setRecesses(ver.recesses || []);
+    setHolidays(ver.holidays || []);
     setShowVersionsHistory(false);
   };
 
@@ -547,8 +603,10 @@ export function AnnualCalendarManager({
   };
 
   return (
-    <div className="space-y-5 text-slate-900">
-      {/* 1. TOPO: Identificação e Seletor de Ano Letivo & Unidade */}
+    <div className="w-full">
+      {/* 1. Interface Interativa em Tela */}
+      <div className="space-y-5 text-slate-900 print:hidden">
+        {/* 1. TOPO: Identificação e Seletor de Ano Letivo & Unidade */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-11 h-11 bg-[#00174b] text-white rounded-xl flex items-center justify-center shadow-xs shrink-0">
@@ -617,6 +675,21 @@ export function AnnualCalendarManager({
               <ChevronRight size={16} />
             </button>
           </div>
+
+          {/* Botão Salvar Rascunho */}
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={isSaving}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+            title="Salvar alterações atuais como rascunho"
+          >
+            <Save size={14} className="text-blue-600" />
+            <span>Salvar Rascunho</span>
+            {lastDraftSavedAt && (
+              <span className="text-[10px] text-slate-400 font-mono">({lastDraftSavedAt})</span>
+            )}
+          </button>
 
           {/* Botão de Histórico de Versões */}
           <button
@@ -838,10 +911,9 @@ export function AnnualCalendarManager({
               </div>
             </div>
 
-            {/* Dias da Semana de Aula e Meta Mínima */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-2 border-t border-slate-100">
-              {/* Dias da semana (8 cols) */}
-              <div className="md:col-span-8 space-y-1.5">
+            {/* Dias da Semana de Aula */}
+            <div className="pt-2 border-t border-slate-100">
+              <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                   Dias da Semana em que Há Aulas
                 </label>
@@ -862,35 +934,17 @@ export function AnnualCalendarManager({
                         type="button"
                         onClick={() => toggleWeekday(w.day)}
                         className={cn(
-                          "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5",
+                          "px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5",
                           isSelected
                             ? "bg-[#00174b] text-white border-[#00174b] shadow-2xs"
                             : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                         )}
                       >
                         {isSelected && <Check size={12} />}
-                        <span>{w.short}</span>
+                        <span>{w.short} ({w.label})</span>
                       </button>
                     );
                   })}
-                </div>
-              </div>
-
-              {/* Meta Mínima (4 cols) */}
-              <div className="md:col-span-4 space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                  Meta Mínima de Dias Letivos
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="365"
-                    value={minClassDaysTarget}
-                    onChange={(e) => setMinClassDaysTarget(parseInt(e.target.value, 10) || 200)}
-                    className="w-28 h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                  <span className="text-xs text-slate-500">dias previstos na legislação</span>
                 </div>
               </div>
             </div>
@@ -1257,15 +1311,28 @@ export function AnnualCalendarManager({
           </label>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={!validation.isValid}
-          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
-        >
-          <Sparkles size={15} />
-          <span>Gerar Calendário Anual</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={isSaving}
+            className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 border border-white/15"
+            title="Salvar os parâmetros e dados atuais como rascunho"
+          >
+            <Save size={15} />
+            <span>Salvar Rascunho</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!validation.isValid}
+            className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
+          >
+            <Sparkles size={15} />
+            <span>Gerar Calendário Anual</span>
+          </button>
+        </div>
       </div>
 
       {/* 4. PRÉ-VISUALIZAÇÃO INTERATIVA & DIAGNÓSTICO (Aparece após a geração) */}
@@ -1284,15 +1351,26 @@ export function AnnualCalendarManager({
                 </p>
               </div>
 
-              {/* Botões de Ação para Salvar/Publicar */}
-              <div className="flex items-center gap-2">
+              {/* Botões de Ação para Salvar/Publicar/Imprimir */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => handleSaveVersion('draft')}
+                  onClick={handleSaveDraft}
                   disabled={isSaving}
-                  className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                  className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  Salvar Rascunho
+                  <Save size={14} className="text-blue-600" />
+                  <span>Salvar Rascunho</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrintCalendar}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Imprimir calendário conforme visualizado em tela"
+                >
+                  <Printer size={14} className="text-slate-600" />
+                  <span>Imprimir Calendário</span>
                 </button>
 
                 <button
@@ -1316,33 +1394,23 @@ export function AnnualCalendarManager({
               </div>
             </div>
 
-            {/* Cards de Métricas em Grid */}
+            {/* Cards de Métricas em Grid (Sem Metas) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {/* Total de Dias Letivos */}
-              <div className={cn(
-                "p-3.5 rounded-xl border flex flex-col justify-between",
-                summary.is_below_target ? "bg-red-50/70 border-red-200" : "bg-emerald-50/70 border-emerald-200"
-              )}>
+              <div className="p-3.5 rounded-xl border bg-emerald-50/70 border-emerald-200 flex flex-col justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
                   Dias Letivos Gerados
                 </span>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className={cn(
-                    "text-2xl font-black font-mono",
-                    summary.is_below_target ? "text-red-700" : "text-emerald-700"
-                  )}>
+                  <span className="text-2xl font-black font-mono text-emerald-700">
                     {summary.total_class_days}
                   </span>
                   <span className="text-xs font-bold text-slate-500">
-                    / meta {minClassDaysTarget}
+                    dias de aula
                   </span>
                 </div>
-                <p className="text-[10px] font-semibold mt-1">
-                  {summary.difference_from_target >= 0 ? (
-                    <span className="text-emerald-700">+{summary.difference_from_target} dias acima da meta</span>
-                  ) : (
-                    <span className="text-red-700 font-bold">{summary.difference_from_target} dias abaixo da meta!</span>
-                  )}
+                <p className="text-[10px] font-semibold text-slate-500 mt-1">
+                  Total apurado nos períodos letivos
                 </p>
               </div>
 
@@ -1385,20 +1453,6 @@ export function AnnualCalendarManager({
                 </p>
               </div>
             </div>
-
-            {/* Alerta se estiver abaixo da meta */}
-            {summary.is_below_target && (
-              <div className="p-3.5 bg-red-100/80 border border-red-300 rounded-xl text-xs text-red-900 flex items-start gap-2.5">
-                <AlertCircle size={18} className="text-red-700 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold">Atenção: Quantidade de dias letivos inferior à meta mínima!</p>
-                  <p className="text-[11px] text-red-800 mt-0.5">
-                    O total gerado ({summary.total_class_days} dias) não atinge a meta mínima de {minClassDaysTarget} dias letivos (diferença de {summary.difference_from_target} dias).
-                    Considere ampliar as datas dos períodos, adicionar sábados letivos por ajuste manual ou reduzir períodos de recesso.
-                  </p>
-                </div>
-              </div>
-            )}
 
             {/* Resumo por Período */}
             <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3 text-xs font-semibold">
@@ -1459,6 +1513,16 @@ export function AnnualCalendarManager({
                     Tabela Detalhada
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handlePrintCalendar}
+                  className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer ml-1"
+                  title="Imprimir calendário conforme visualizado em tela"
+                >
+                  <Printer size={13} className="text-slate-600" />
+                  <span>Imprimir Esta Visão</span>
+                </button>
               </div>
 
               {/* Legenda Visual */}
@@ -2205,6 +2269,318 @@ export function AnnualCalendarManager({
                 <Sparkles size={14} />
                 <span>Confirmar Regeneração</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* 2. ÁREA EXCLUSIVA DE IMPRESSÃO (Conforme visualizado em tela) */}
+      {calendarDays && summary && (
+        <div id="annual-calendar-printable" className="hidden print:block w-full bg-white text-slate-900 p-0 m-0">
+          <style>{`
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 8mm 10mm 10mm 10mm;
+              }
+              body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              #annual-calendar-printable {
+                display: block !important;
+                width: 100% !important;
+                visibility: visible !important;
+              }
+              .print-break-inside-avoid {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+            }
+          `}</style>
+
+          {/* Cabeçalho do Documento Impresso */}
+          <div className="border-b-2 border-slate-900 pb-3 mb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {institution?.logo_url ? (
+                  <img src={institution.logo_url} alt="Logo" className="h-12 w-auto object-contain" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-10 h-10 bg-slate-900 text-white flex items-center justify-center font-bold text-lg">
+                    {institution?.name?.charAt(0) || 'E'}
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-base font-black uppercase tracking-tight text-slate-950">
+                    {institution?.name || 'Sistema de Gestão Escolar'}
+                  </h1>
+                  <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">
+                    {institution?.city_uf || `${cityName} - ${stateUf}`} {institution?.cnpj ? `• CNPJ: ${institution.cnpj}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-900 bg-slate-100 border border-slate-300 px-2 py-0.5">
+                  Ano Letivo {targetYear}
+                </span>
+                <p className="text-[9px] text-slate-500 font-mono mt-0.5">
+                  Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div>
+                <strong className="text-slate-900">CALENDÁRIO ESCOLAR OFICIAL</strong>
+                <span className="text-slate-600 ml-2">• Polo/Unidade: <strong>{getUnitName(targetUnitId)}</strong></span>
+                <span className="text-slate-600 ml-2">• Local: <strong>{cityName} - {stateUf}</strong></span>
+              </div>
+              <div className="text-slate-700 font-semibold">
+                Visualização: <strong className="uppercase">{previewMode === 'months' ? 'Grade Anual (12 Meses)' : previewMode === 'single_month' ? `Visão Mensal (${MONTH_NAMES_BR[singleMonthIdx]})` : 'Tabela Detalhada'}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Barra de Totais / Métricas do Calendário (Sem Metas) */}
+          <div className="grid grid-cols-4 gap-2 mb-3 bg-slate-50 border border-slate-300 p-2 text-center text-xs">
+            <div className="border-r border-slate-200 pr-1">
+              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Total Dias Letivos</span>
+              <strong className="text-base font-black text-emerald-800 font-mono">{summary.total_class_days}</strong>
+            </div>
+            <div className="border-r border-slate-200 pr-1">
+              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Feriados</span>
+              <strong className="text-base font-black text-slate-900 font-mono">{summary.total_holidays}</strong>
+            </div>
+            <div className="border-r border-slate-200 pr-1">
+              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Recessos / Férias</span>
+              <strong className="text-base font-black text-slate-900 font-mono">{summary.total_recess_days}</strong>
+            </div>
+            <div>
+              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Ajustes Manuais</span>
+              <strong className="text-base font-black text-purple-900 font-mono">{summary.total_manual_overrides}</strong>
+            </div>
+          </div>
+
+          {/* Períodos Letivos */}
+          <div className="mb-3 p-2 bg-white border border-slate-300 text-[10px]">
+            <strong className="text-slate-800 uppercase block mb-1">Períodos Letivos:</strong>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {summary.by_period.map(p => (
+                <div key={p.period_id} className="flex items-center gap-1.5">
+                  <span className="font-bold text-slate-900">{p.period_name}:</span>
+                  <span className="font-mono text-slate-700">
+                    {p.start_date ? p.start_date.split('-').reverse().join('/') : '-'} a {p.end_date ? p.end_date.split('-').reverse().join('/') : '-'}
+                  </span>
+                  <span className="font-bold text-emerald-800 font-mono bg-emerald-50 px-1 border border-emerald-200">
+                    ({p.class_days} letivos)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Legenda Visual Completa */}
+          <div className="mb-3 flex items-center justify-between p-2 bg-slate-50 border border-slate-300 text-[9px] font-bold">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-emerald-100 border border-emerald-400"></span>Dia Letivo</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-red-100 border border-red-400"></span>Feriado Nacional</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-amber-100 border border-amber-400"></span>Feriado Estadual</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-purple-100 border border-purple-400"></span>Feriado Municipal</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-yellow-100 border border-yellow-400"></span>Recesso</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-cyan-100 border border-cyan-400"></span>Férias</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-purple-200 border-2 border-purple-600"></span>Ajuste Manual</span>
+          </div>
+
+          {/* CONTEÚDO CONFORME VISUALIZAÇÃO EM TELA */}
+          
+          {/* MODO 1 IMPRESSÃO: GRADE ANUAL (12 MESES) */}
+          {previewMode === 'months' && (
+            <div className="grid grid-cols-3 gap-2.5 mb-4">
+              {MONTH_NAMES_BR.map((monthName, mIdx) => {
+                const daysInMonth = getDaysInMonth(targetYear, mIdx);
+                const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
+                const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
+                const mSummary = summary.by_month[mIdx];
+
+                return (
+                  <div key={monthName} className="border border-slate-300 p-1.5 bg-white print-break-inside-avoid text-[9px]">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <strong className="font-black text-[10px] text-slate-900 uppercase">{monthName}</strong>
+                      <span className="font-mono font-bold text-emerald-900 bg-emerald-50 px-1 border border-emerald-300">
+                        {mSummary.class_days} letivos
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-0.5 text-center font-bold text-slate-500 mb-0.5 text-[8px]">
+                      {WEEKDAY_SHORT_BR.map(w => (
+                        <span key={w}>{w[0]}</span>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-0.5 text-center">
+                      {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                        <div key={`print_blank_${i}`} className="h-5" />
+                      ))}
+
+                      {Array.from({ length: daysInMonth }).map((_, i) => {
+                        const dayNum = i + 1;
+                        const dateKey = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                        const dayRecord = calendarDays[dateKey];
+                        if (!dayRecord) return null;
+
+                        const isManual = dayRecord.is_manual_override;
+                        const badgeCls = getBadgeStyleForClassification(dayRecord.classification, isManual);
+
+                        return (
+                          <div
+                            key={`print_${dateKey}`}
+                            className={cn(
+                              "h-5 flex items-center justify-center font-bold border text-[8.5px]",
+                              badgeCls
+                            )}
+                          >
+                            <span>{dayNum}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* MODO 2 IMPRESSÃO: VISÃO MENSAL AMPLA */}
+          {previewMode === 'single_month' && (() => {
+            const mIdx = singleMonthIdx;
+            const monthName = MONTH_NAMES_BR[mIdx];
+            const daysInMonth = getDaysInMonth(targetYear, mIdx);
+            const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
+            const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
+            const mSummary = summary.by_month[mIdx];
+
+            return (
+              <div className="mb-4 space-y-2 print-break-inside-avoid">
+                <div className="flex items-center justify-between bg-slate-100 p-2 border border-slate-300 text-xs">
+                  <h3 className="font-black text-sm uppercase text-slate-900">{monthName} de {targetYear}</h3>
+                  <div className="flex items-center gap-3 font-semibold">
+                    <span>{mSummary.class_days} Dias Letivos</span>
+                    <span>•</span>
+                    <span>{mSummary.holidays} Feriados</span>
+                    <span>•</span>
+                    <span>{mSummary.recess_days} Recessos/Férias</span>
+                  </div>
+                </div>
+
+                <div className="border border-slate-300">
+                  <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-300 text-center py-1.5 text-[10px] font-bold uppercase">
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                      <div key={d}>{d}</div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-px bg-slate-300">
+                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                      <div key={`print_m_blank_${i}`} className="bg-slate-50 min-h-[70px] p-1.5" />
+                    ))}
+
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const dayNum = i + 1;
+                      const dateKey = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                      const dayRecord = calendarDays[dateKey];
+                      if (!dayRecord) return null;
+
+                      const isManual = dayRecord.is_manual_override;
+                      const badgeCls = getBadgeStyleForClassification(dayRecord.classification, isManual);
+
+                      return (
+                        <div key={`print_m_${dateKey}`} className={cn("bg-white min-h-[70px] p-1.5 flex flex-col justify-between text-[10px]", dayRecord.is_class_day && "bg-emerald-50/20")}>
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-xs font-mono">{dayNum}</span>
+                            <span className={cn("px-1 py-0.2 rounded text-[7.5px] font-bold border", badgeCls)}>
+                              {dayRecord.is_class_day ? 'Aula' : 'Sem Aula'}
+                            </span>
+                          </div>
+                          <p className="text-[8.5px] font-medium text-slate-800 line-clamp-2 mt-1">
+                            {dayRecord.event_name || (dayRecord.is_class_day ? 'Dia Letivo' : '')}
+                          </p>
+                          {isManual && (
+                            <p className="text-[7.5px] text-purple-800 font-bold">★ {dayRecord.override_reason}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* MODO 3 IMPRESSÃO: TABELA DETALHADA */}
+          {previewMode === 'table' && (
+            <div className="mb-4">
+              <table className="w-full text-left text-[9px] border-collapse border border-slate-300">
+                <thead className="bg-slate-100 text-[9px] font-bold text-slate-900 uppercase">
+                  <tr className="border-b border-slate-300">
+                    <th className="p-1.5 border-r border-slate-300">Data</th>
+                    <th className="p-1.5 border-r border-slate-300">Semana</th>
+                    <th className="p-1.5 border-r border-slate-300 text-center">Classificação</th>
+                    <th className="p-1.5 border-r border-slate-300 text-center">Letivo?</th>
+                    <th className="p-1.5">Evento / Ajuste Manual</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {Object.values(calendarDays)
+                    .filter(d => {
+                      if (selectedMonthFilter === 'all') return true;
+                      const mNum = parseInt(d.date.split('-')[1], 10);
+                      return mNum === selectedMonthFilter;
+                    })
+                    .map(d => (
+                      <tr key={`print_t_${d.date}`} className="print-break-inside-avoid">
+                        <td className="p-1 font-mono font-bold border-r border-slate-200">
+                          {d.date.split('-').reverse().join('/')}
+                        </td>
+                        <td className="p-1 border-r border-slate-200">
+                          {WEEKDAY_SHORT_BR[d.day_of_week]}
+                        </td>
+                        <td className="p-1 text-center border-r border-slate-200">
+                          <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-bold border", getBadgeStyleForClassification(d.classification, d.is_manual_override))}>
+                            {d.classification}
+                          </span>
+                        </td>
+                        <td className="p-1 text-center font-bold font-mono border-r border-slate-200">
+                          {d.is_class_day ? <span className="text-emerald-700">SIM</span> : <span className="text-slate-400">NÃO</span>}
+                        </td>
+                        <td className="p-1 text-slate-800">
+                          {d.event_name || (d.is_class_day ? 'Dia Letivo Regular' : '')}
+                          {d.is_manual_override && (
+                            <span className="text-purple-800 font-bold ml-1">• Ajuste: {d.override_reason}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Rodapé e Assinaturas */}
+          <div className="pt-4 border-t-2 border-slate-900 grid grid-cols-2 gap-8 text-center text-xs print-break-inside-avoid">
+            <div>
+              <div className="border-t border-slate-400 mt-8 pt-1">
+                <p className="font-bold text-slate-900">Coordenação Pedagógica</p>
+                <p className="text-[9px] text-slate-500">Visto e Homologação</p>
+              </div>
+            </div>
+            <div>
+              <div className="border-t border-slate-400 mt-8 pt-1">
+                <p className="font-bold text-slate-900">Direção Escolar</p>
+                <p className="text-[9px] text-slate-500">Aprovação e Publicação</p>
+              </div>
             </div>
           </div>
         </div>

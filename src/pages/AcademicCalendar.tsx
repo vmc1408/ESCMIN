@@ -4182,18 +4182,18 @@ export function AcademicCalendar() {
 
       <AnimatePresence>
         {showSettings && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 print:static print:p-0 print:bg-transparent print:z-auto print:inset-auto print:block">
             <motion.div 
               initial={{ scale: 0.99, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.99, opacity: 0 }}
               className={cn(
-                "bg-white w-full h-auto max-h-[96vh] rounded-none shadow-2xl overflow-hidden border border-slate-200 flex flex-col transition-all",
+                "bg-white w-full h-auto max-h-[96vh] rounded-none shadow-2xl overflow-hidden border border-slate-200 flex flex-col transition-all print:max-h-none print:h-auto print:overflow-visible print:border-none print:shadow-none print:max-w-none print:w-full print:p-0",
                 parametersTab === 'annual' ? "lg:max-w-6xl max-w-5xl" : "lg:max-w-4xl max-w-2xl"
               )}
             >
               {/* Header */}
-              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 relative bg-white shrink-0">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 relative bg-white shrink-0 print:hidden">
                 <button 
                   type="button"
                   onClick={() => {
@@ -4261,7 +4261,7 @@ export function AcademicCalendar() {
               </div>
               
               {parametersTab === 'annual' ? (
-                <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 bg-slate-50/40">
+                <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 bg-slate-50/40 print:p-0 print:bg-white print:overflow-visible">
                   <AnnualCalendarManager
                     onClose={() => {
                       setShowSettings(false);
@@ -5527,7 +5527,7 @@ export function AcademicCalendar() {
       </div>
 
       {/* Relatórios para Impressão (Apenas via @media print) */}
-      <div id="printable-calendar" className="hidden print:block bg-white p-0 m-0 w-full">
+      <div id="printable-calendar" className={cn("bg-white p-0 m-0 w-full", (showSettings && parametersTab === 'annual') ? "hidden" : "hidden print:block")}>
         <div className="print-container font-sans text-slate-800">
           <table className="w-full">
             <thead>

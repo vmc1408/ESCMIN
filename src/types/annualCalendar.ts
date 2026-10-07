@@ -76,7 +76,7 @@ export interface CalendarGenerationParameters {
   start_date: string;     // YYYY-MM-DD
   end_date: string;       // YYYY-MM-DD
   weekdays: number[];     // Dias de aula: [1, 2, 3, 4, 5] (Seg a Sex), [3, 6], etc.
-  minimum_class_days_target: number; // Ex: 200
+  minimum_class_days_target?: number; // Opcional (quando aplicável)
   periods: AcademicPeriod[];
   recesses: RecessInterval[];
   holidays: HolidayEntry[];
@@ -95,7 +95,7 @@ export interface CalendarVersion {
   start_date: string;
   end_date: string;
   weekdays: number[];
-  minimum_class_days_target: number;
+  minimum_class_days_target?: number;
   periods: AcademicPeriod[];
   recesses: RecessInterval[];
   holidays: HolidayEntry[];
@@ -117,9 +117,9 @@ export interface CalendarVersion {
 export interface CalendarSummary {
   year: number;
   total_class_days: number;
-  target_minimum: number;
-  difference_from_target: number;
-  is_below_target: boolean;
+  target_minimum?: number;
+  difference_from_target?: number;
+  is_below_target?: boolean;
   total_holidays: number;
   total_recess_days: number;
   total_manual_overrides: number;

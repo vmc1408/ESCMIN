@@ -304,8 +304,8 @@ export function generateAnnualCalendarDays(
 export function calculateCalendarSummary(
   year: number,
   days: Record<string, CalendarDayRecord>,
-  targetMinimum: number,
-  periods: AcademicPeriod[]
+  targetMinimum?: number,
+  periods: AcademicPeriod[] = []
 ): CalendarSummary {
   const monthMap = new Map<number, { class_days: number; holidays: number; recess_days: number }>();
   for (let m = 1; m <= 12; m++) {
@@ -346,7 +346,8 @@ export function calculateCalendarSummary(
     }
   });
 
-  const diff = totalClassDays - targetMinimum;
+  const hasTarget = typeof targetMinimum === 'number' && targetMinimum > 0;
+  const diff = hasTarget ? totalClassDays - targetMinimum : 0;
 
   const byMonth = Array.from(monthMap.entries()).map(([month, data]) => ({
     month,
@@ -368,9 +369,9 @@ export function calculateCalendarSummary(
   return {
     year,
     total_class_days: totalClassDays,
-    target_minimum: targetMinimum,
-    difference_from_target: diff,
-    is_below_target: totalClassDays < targetMinimum,
+    target_minimum: hasTarget ? targetMinimum : undefined,
+    difference_from_target: hasTarget ? diff : undefined,
+    is_below_target: hasTarget ? totalClassDays < targetMinimum : false,
     total_holidays: totalHolidays,
     total_recess_days: totalRecessDays,
     total_manual_overrides: totalManualOverrides,
@@ -484,11 +485,95 @@ export function regeneratePeriodDays(
 // ==========================================
 
 const STORAGE_KEY_PREFIX = 'academic_calendar_versions_';
+const DRAFT_STORAGE_PREFIX = 'academic_calendar_draft_';
+
+export interface CalendarDraftPayload {
+  params: CalendarGenerationParameters;
+  days: Record<string, CalendarDayRecord> | null;
+  saved_at: string;
+  saved_by: string;
+}
+
+/**
+ * Salva o rascunho atual de parâmetros e/ou dias calculados.
+ * Funciona mesmo se os dias de aula ainda não foram gerados, garantindo que o usuário
+ * nunca perca os períodos, recessos, feriados ou parâmetros configurados.
+ */
+export async function saveCalendarDraft(
+  params: CalendarGenerationParameters,
+  days: Record<string, CalendarDayRecord> | null = null,
+  userName?: string
+): Promise<{ success: boolean; saved_at: string }> {
+  const year = params.year;
+  const unitId = params.unit_id || 'matriz';
+  const now = new Date().toISOString();
+
+  const draftData: CalendarDraftPayload = {
+    params,
+    days,
+    saved_at: now,
+    saved_by: userName || 'Administrador'
+  };
+
+  // 1. Salva no localStorage imediatamente
+  try {
+    localStorage.setItem(`${DRAFT_STORAGE_PREFIX}${year}_${unitId}`, JSON.stringify(draftData));
+  } catch (err) {
+    console.warn('[CalendarEngine] Erro ao salvar rascunho no localStorage:', err);
+    // Se estourar cota com os dias, salva ao menos os parâmetros essenciais
+    try {
+      localStorage.setItem(`${DRAFT_STORAGE_PREFIX}${year}_${unitId}`, JSON.stringify({
+        ...draftData,
+        days: null
+      }));
+    } catch (e) {}
+  }
+
+  // 2. Persistência de backup em academic_parameters se disponível
+  try {
+    const draftRecordId = `draft_cal_${year}_${unitId}`;
+    await saveData('academic_parameters', draftRecordId, {
+      id: draftRecordId,
+      unit_id: unitId,
+      notes: JSON.stringify({
+        draft_year: year,
+        start_date: params.start_date,
+        end_date: params.end_date,
+        weekdays: params.weekdays,
+        periods: params.periods,
+        recesses: params.recesses,
+        holidays_count: params.holidays?.length || 0,
+        saved_at: now
+      }),
+      updated_at: now
+    }).catch(() => {});
+  } catch (e) {
+    // Falha silenciosa de rede não bloqueia o rascunho local
+  }
+
+  return { success: true, saved_at: now };
+}
+
+/**
+ * Obtém o rascunho salvo para o ano e unidade especificados
+ */
+export function getCalendarDraft(year: number, unitId = 'matriz'): CalendarDraftPayload | null {
+  try {
+    const raw = localStorage.getItem(`${DRAFT_STORAGE_PREFIX}${year}_${unitId}`);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (err) {
+    console.warn('[CalendarEngine] Erro ao carregar rascunho do localStorage:', err);
+  }
+  return null;
+}
 
 /**
  * Carrega todas as versões de calendário para um determinado ano e unidade
  */
 export async function getCalendarVersions(year: number, unitId = 'matriz'): Promise<CalendarVersion[]> {
+  // 1. Tenta carregar do Supabase se a tabela existir
   try {
     const list = await fetchAll('academic_calendar_versions', '*', 'version', false);
     const filtered = (list || []).filter((v: any) => 
@@ -503,7 +588,7 @@ export async function getCalendarVersions(year: number, unitId = 'matriz'): Prom
     console.warn('[CalendarEngine] Erro ao buscar versões no banco remoto, verificando cache local:', err);
   }
 
-  // Fallback para localStorage
+  // 2. Fallback para localStorage
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${year}_${unitId}`);
     if (raw) {
@@ -549,7 +634,7 @@ export async function saveCalendarVersion(
     year,
     version: nextVersionNum,
     status,
-    title: `Calendário Letivo ${year} - Versão ${nextVersionNum}`,
+    title: `Calendário Letivo ${year} - Versão ${nextVersionNum} (${status === 'published' ? 'Oficial' : status === 'approved' ? 'Aprovado' : 'Rascunho'})`,
     state: params.state,
     city: params.city,
     start_date: params.start_date,
@@ -573,22 +658,32 @@ export async function saveCalendarVersion(
     notes
   };
 
-  // 1. Salvar no localStorage de forma resiliente
+  // 1. Salvar no localStorage de forma resiliente (mantém até 5 versões mais recentes para evitar QuotaExceeded)
   try {
-    const updated = [newVersion, ...existingVersions];
+    const updated = [newVersion, ...existingVersions.filter(v => v.id !== newVersion.id)].slice(0, 5);
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${year}_${unitId}`, JSON.stringify(updated));
   } catch (e) {
-    console.warn('[CalendarEngine] Aviso ao salvar versão no localStorage:', e);
+    console.warn('[CalendarEngine] Aviso ao salvar versão no localStorage, tentando salvar apenas versão atual:', e);
+    try {
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${year}_${unitId}`, JSON.stringify([newVersion]));
+    } catch (innerE) {
+      console.error('[CalendarEngine] Falha ao gravar no localStorage:', innerE);
+    }
   }
 
-  // 2. Persistir no Supabase
+  // 2. Atualizar também o rascunho persistente caso seja status draft
+  if (status === 'draft') {
+    await saveCalendarDraft(params, days, userName);
+  }
+
+  // 3. Persistir no Supabase se configurado
   try {
-    await saveData('academic_calendar_versions', newVersion.id, newVersion);
+    await saveData('academic_calendar_versions', newVersion.id, newVersion).catch(() => {});
   } catch (err) {
     console.warn('[CalendarEngine] Aviso ao salvar versão no banco remoto:', err);
   }
 
-  // 3. Se o status for 'published', sincroniza também com 'calendar_events'
+  // 4. Se o status for 'published', sincroniza também com 'calendar_events'
   if (status === 'published') {
     await syncCalendarEventsWithPublishedDays(newVersion);
   }
