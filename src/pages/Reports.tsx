@@ -63,7 +63,7 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, isStudentActive, isStudentInClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
@@ -525,15 +525,14 @@ export function Reports() {
     const cData = scopedClasses;
     const tData = scopedTeachers;
 
-    const activeTotal = sData.filter(s => s.status === 'Ativo' || !s.status).length;
+    const activeTotal = sData.filter(s => isStudentActive(s)).length;
     const totalAmount = pData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     const matchedCount = pData.filter(p => p.status === 'matched').length;
 
     const activeClasses = cData.filter(c => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo');
     const studentsInActiveClasses = sData.filter(s => 
-      (s.status === 'Ativo' || !s.status) && 
-      s.class_id && 
-      activeClasses.some(ac => ac.id === s.class_id)
+      isStudentActive(s) && 
+      activeClasses.some(ac => isStudentInClass(s, ac.id, enrollments))
     ).length;
 
     const occupancyRate = activeClasses.length > 0 ? Math.round((studentsInActiveClasses / (activeClasses.length * 30)) * 100) : 0;
@@ -542,8 +541,8 @@ export function Reports() {
       ...prev,
       totalStudents: sData.length,
       activeStudents: activeTotal,
-      inactiveStudents: sData.filter(s => s.status === 'Inativo').length,
-      concludedStudents: sData.filter(s => s.status === 'Concluído').length,
+      inactiveStudents: sData.filter(s => !isStudentActive(s)).length,
+      concludedStudents: sData.filter(s => String(s.status).toLowerCase().includes('conclu')).length,
       totalTeachers: tData.length,
       activeTeachers: tData.filter(t => t.status !== 'Inativo').length,
       totalClasses: activeClasses.length,
@@ -620,7 +619,7 @@ export function Reports() {
       return assessments.some(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
     });
 
-    const enrolledStudents = filterStudentsForClass(students, selectedDiarioClass, enrollments, true);
+    const enrolledStudents = filterStudentsForClass(scopedStudents, selectedDiarioClass, enrollments, true);
 
     // Calculations per student
     return enrolledStudents
@@ -1414,7 +1413,7 @@ export function Reports() {
         const filteredClassesReport = filteredClasses;
 
         filteredClassesReport.forEach(c => {
-          const classStudents = filterStudentsForClass(students, c.id, enrollments, true);
+          const classStudents = filterStudentsForClass(scopedStudents, c.id, enrollments, true);
           classStudents.forEach((s, idx) => {
             rows.push([
               idx === 0 ? `${c.name} (${c.code})` : '',
@@ -1424,7 +1423,7 @@ export function Reports() {
             ]);
           });
           if (classStudents.length === 0) {
-            rows.push([`${c.name} (${c.code})`, '-', 'Nenhum aluno matriculado', '-']);
+            rows.push([`${c.name} (${c.code})`, '-', 'Nenhum aluno ativo matriculado', '-']);
           }
         });
 
@@ -1443,7 +1442,7 @@ export function Reports() {
         doc.setFontSize(12);
         doc.text('1. MONITORAMENTO DE FREQUÊNCIA ESCOLAR', margin, y);
         
-        const attendanceRows = students.filter(s => s.status === 'Ativo' || !s.status).map(student => {
+        const attendanceRows = scopedStudents.filter(s => isStudentActive(s)).map(student => {
           const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
           const studentPresences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'P')).length;
           const studentPresence = totalClassDays > 0 ? (studentPresences / totalClassDays) * 100 : 0;
@@ -1716,10 +1715,11 @@ export function Reports() {
 
   const studentsByClass = useMemo(() => {
     const activeClasses = scopedClasses.filter(c => c.status === 'Ativo');
-    const activeStudents = scopedStudents.filter(s => s.status === 'Ativo' || !s.status);
+    const activeStudents = scopedStudents.filter(s => isStudentActive(s));
     
     const classStats = activeClasses.map(c => {
-      const count = activeStudents.filter(s => s.class_id === c.id).length;
+      const classActiveStudents = filterStudentsForClass(scopedStudents, c.id, enrollments, true);
+      const count = classActiveStudents.length;
       return {
         id: c.id,
         code: c.code,
@@ -2196,11 +2196,11 @@ export function Reports() {
                       <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">{c.code}</div>
                       <div>
                         <h4 className="font-black text-[#00174b] uppercase tracking-tight">{c.name}</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">{c.period} • {scopedStudents.filter(s => s.class_id === c.id).length} ALUNOS</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">{c.period} • {filterStudentsForClass(scopedStudents, c.id, enrollments, true).length} ALUNOS ATIVOS</p>
                       </div>
                    </div>
                    <div className="flex flex-wrap gap-2">
-                      {scopedStudents.filter(s => s.class_id === c.id).map((s, sIdx) => (
+                      {filterStudentsForClass(scopedStudents, c.id, enrollments, true).map((s, sIdx) => (
                         <div key={`rep-s-${s.id || sIdx}-${sIdx}`} className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase">
                            {s.name}
                         </div>
@@ -2238,7 +2238,7 @@ export function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {scopedStudents.filter(s => s.status === 'Ativo' || !s.status).map((student, i) => {
+                    {scopedStudents.filter(s => isStudentActive(s)).map((student, i) => {
                       const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
                       const studentPresences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'P')).length;
                       const studentPresence = totalClassDays > 0 ? (studentPresences / totalClassDays) * 100 : 0;
@@ -2540,7 +2540,7 @@ export function Reports() {
                          <span className="relative flex h-1.5 w-1.5">
                             <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                          </span>
-                         <span>{students.filter(s => s.class_id === selectedDiarioClass && (s.status === 'Ativo' || !s.status)).length} Alunos Ativos</span>
+                         <span>{filterStudentsForClass(scopedStudents, selectedDiarioClass, enrollments, true).length} Alunos Ativos</span>
                       </div>
                    </div>
                 )}
@@ -2610,7 +2610,7 @@ export function Reports() {
                 ) : (
                   (() => {
                     const classObj = classes.find(c => c.id === selectedDiarioClass);
-                    const classStudentIds = students.filter(s => s.class_id === selectedDiarioClass).map(s => s.id);
+                    const classStudentIds = filterStudentsForClass(scopedStudents, selectedDiarioClass, enrollments, true).map(s => s.id);
                     
                     // Normalize class subject_ids
                     let sIds: string[] = [];

@@ -451,17 +451,42 @@ export function formatSubjectDisplayName(subject: any, classItem?: any, uppercas
 }
 
 /**
- * Checks if a student is considered active (not explicitly Inactive, Canceled, or Truncated).
- * Blank, null, undefined, 'Ativo', 'Matriculado', 'Cursando', 'Concluído' are treated as active.
+ * Checks if a student is considered active.
+ * Only students with status 'Ativo', 'Matriculado', 'Cursando', 'Regular' or unspecified are treated as active.
+ * Inactive, Former (ex-aluno), Concluído, Suspenso, Trancado, Cancelado, Evadido, Desistente, Arquivado are treated as inactive.
  */
 export function isStudentActive(student: any): boolean {
   if (!student) return false;
-  if (!student.status) return true;
-  const st = String(student.status).trim().toLowerCase();
-  if (st === 'inativo' || st === 'trancado' || st === 'cancelado' || st === 'evadido' || st === 'desistente' || st === 'arquivado') {
+  
+  // Explicit former student or inactive flags
+  if (student.is_former_student === true || String(student.is_former_student).toLowerCase() === 'true') {
     return false;
   }
-  return true;
+  if (student.active === false || student.is_active === false) {
+    return false;
+  }
+  
+  if (!student.status) return true;
+  const st = String(student.status).trim().toLowerCase();
+  
+  if (
+    st === 'inativo' || 
+    st === 'concluído' || 
+    st === 'concluido' || 
+    st === 'suspenso' || 
+    st === 'trancado' || 
+    st === 'cancelado' || 
+    st === 'evadido' || 
+    st === 'desistente' || 
+    st === 'arquivado' ||
+    st === 'egresso' ||
+    st === 'ex-aluno' ||
+    st === 'transferido'
+  ) {
+    return false;
+  }
+  
+  return st === 'ativo' || st === 'matriculado' || st === 'cursando' || st === 'regular';
 }
 
 /**
@@ -469,9 +494,24 @@ export function isStudentActive(student: any): boolean {
  */
 export function isEnrollmentActive(enrollment: any): boolean {
   if (!enrollment) return false;
+  if (enrollment.active === false || enrollment.is_active === false) return false;
   if (!enrollment.status) return true;
   const st = String(enrollment.status).trim().toLowerCase();
-  return st !== 'inativo' && st !== 'cancelado' && st !== 'trancado' && st !== 'evadido';
+  if (
+    st === 'inativo' || 
+    st === 'cancelado' || 
+    st === 'trancado' || 
+    st === 'evadido' ||
+    st === 'desistente' ||
+    st === 'arquivado' ||
+    st === 'concluído' ||
+    st === 'concluido' ||
+    st === 'suspenso' ||
+    st === 'transferido'
+  ) {
+    return false;
+  }
+  return st === 'ativo' || st === 'matriculado' || st === 'cursando' || st === 'regular';
 }
 
 /**
@@ -480,26 +520,28 @@ export function isEnrollmentActive(enrollment: any): boolean {
 export function isStudentInClass(student: any, classId: string, enrollments?: any[]): boolean {
   if (!student || !classId) return false;
   
-  // 1. Direct class_id on student record
-  if (student.class_id === classId) return true;
-  
-  // 2. Lookup in enrollments collection
+  const sId = String(student.id || '');
+  const reg = student.registration_number ? String(student.registration_number) : '';
+
+  // 1. Check in enrollments collection if available
   if (Array.isArray(enrollments) && enrollments.length > 0) {
-    const sId = student.id;
-    const isEnrolled = enrollments.some((e: any) => 
+    const explicitEnrollment = enrollments.find((e: any) => 
       e && e.class_id === classId && 
-      (e.student_id === sId || e.student_id === student.registration_number) && 
-      isEnrollmentActive(e)
+      (String(e.student_id) === sId || (reg && String(e.student_id) === reg))
     );
-    if (isEnrolled) return true;
+    if (explicitEnrollment) {
+      return isEnrollmentActive(explicitEnrollment);
+    }
   }
   
-  return false;
+  // 2. Direct class_id on student record
+  return student.class_id === classId;
 }
 
 /**
  * Filters and sorts students belonging to a class.
  * Accounts for direct class_id association AND enrollments table entries.
+ * When onlyActive is true (default), strictly includes students who are active.
  */
 export function filterStudentsForClass(
   students: any[], 
@@ -509,14 +551,32 @@ export function filterStudentsForClass(
 ): any[] {
   if (!Array.isArray(students) || !classId) return [];
   
-  const classEnrollments = Array.isArray(enrollments) 
-    ? enrollments.filter((e: any) => e.class_id === classId && isEnrollmentActive(e))
-    : [];
+  const hasEnrollments = Array.isArray(enrollments) && enrollments.length > 0;
   
-  const enrolledStudentIds = new Set<string>();
-  classEnrollments.forEach((e: any) => {
-    if (e.student_id) enrolledStudentIds.add(String(e.student_id));
-  });
+  // Set of student IDs (and registration numbers) with active enrollment in this class
+  const activeEnrolledStudentIds = new Set<string>();
+  // Set of student IDs (and registration numbers) with explicit inactive enrollment in this class
+  const inactiveEnrolledStudentIds = new Set<string>();
+  // Set of student IDs with active enrollment in another class
+  const otherClassActiveStudentIds = new Set<string>();
+
+  if (hasEnrollments) {
+    enrollments.forEach((e: any) => {
+      if (!e) return;
+      const sId = e.student_id ? String(e.student_id) : '';
+      if (!sId) return;
+
+      if (e.class_id === classId) {
+        if (isEnrollmentActive(e)) {
+          activeEnrolledStudentIds.add(sId);
+        } else {
+          inactiveEnrolledStudentIds.add(sId);
+        }
+      } else if (isEnrollmentActive(e)) {
+        otherClassActiveStudentIds.add(sId);
+      }
+    });
+  }
 
   const matchedStudents: any[] = [];
   const seenIds = new Set<string>();
@@ -529,10 +589,28 @@ export function filterStudentsForClass(
       continue;
     }
 
-    const isDirect = s.class_id === classId;
-    const isEnrolled = enrolledStudentIds.has(String(s.id)) || (s.registration_number && enrolledStudentIds.has(String(s.registration_number)));
+    const sIdStr = String(s.id);
+    const regStr = s.registration_number ? String(s.registration_number) : '';
 
-    if (isDirect || isEnrolled) {
+    const hasActiveHere = activeEnrolledStudentIds.has(sIdStr) || (regStr && activeEnrolledStudentIds.has(regStr));
+    const hasInactiveHere = inactiveEnrolledStudentIds.has(sIdStr) || (regStr && inactiveEnrolledStudentIds.has(regStr));
+    const isDirectMatch = s.class_id === classId;
+
+    let belongs = false;
+
+    if (hasActiveHere) {
+      belongs = true;
+    } else if (hasInactiveHere) {
+      belongs = !onlyActive;
+    } else if (isDirectMatch) {
+      if (onlyActive && otherClassActiveStudentIds.has(sIdStr)) {
+        belongs = false;
+      } else {
+        belongs = true;
+      }
+    }
+
+    if (belongs) {
       matchedStudents.push(s);
       seenIds.add(s.id);
     }

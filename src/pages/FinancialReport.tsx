@@ -43,7 +43,7 @@ import { Student, Class, Contribution, FinancialSettings } from '../types';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
-import { formatCurrency, cn, parseSafeDate, matchesStudentSearch, formatDateForDisplay, normalizeClass, detectCourseFromClass } from '../lib/utils';
+import { formatCurrency, cn, parseSafeDate, matchesStudentSearch, formatDateForDisplay, normalizeClass, detectCourseFromClass, isStudentActive, isStudentInClass, filterStudentsForClass } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -74,6 +74,7 @@ export function FinancialReport() {
   const [institution, setInstitution] = useState<any>(null);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
   const [financialSettings, setFinancialSettings] = useState<FinancialSettings | null>(null);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
 
 // Filtros - Inicialmente limpos, sem dados pré-selecionados
   // 1º Filtro: Aluno ou Turma
@@ -218,13 +219,14 @@ export function FinancialReport() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [studentsData, classesData, contribsData, instData, acadData, finSettingsData] = await Promise.all([
+      const [studentsData, classesData, contribsData, instData, acadData, finSettingsData, enrollmentsData] = await Promise.all([
         fetchAll('students'),
         fetchAll('classes'),
         financialService.getContributions(),
         getInstitutionSettings(),
         fetchAll('academic_settings'),
-        financialConfigService.getSettings()
+        financialConfigService.getSettings(),
+        fetchAll('enrollments')
       ]);
 
       let loadedAcadSettings = acadData || [];
@@ -246,6 +248,7 @@ export function FinancialReport() {
       setInstitution(instData || null);
       setAcademicSettingsList(loadedAcadSettings);
       setFinancialSettings(finSettingsData || null);
+      setEnrollments(enrollmentsData || []);
     } catch (err) {
       console.error('Erro ao carregar dados do relatório financeiro:', err);
     } finally {
@@ -495,13 +498,16 @@ const reportData = useMemo(() => {
 
   const yearNum = Number(selectedYear);
 
-  // Filtragem de alunos por alvo (turma ou aluno individual) e busca
+  // Filtragem de alunos por alvo (turma ou aluno individual) e busca (considerando apenas alunos ativos)
   const filteredStudents = scopedStudents.filter(student => {
+    if (!isStudentActive(student)) {
+      return false;
+    }
     if (filterTarget === 'student') {
       return student.id === selectedStudentId;
     }
     // filterTarget === 'class'
-    if (selectedClassId !== 'all' && student.class_id !== selectedClassId) {
+    if (selectedClassId !== 'all' && !isStudentInClass(student, selectedClassId, enrollments)) {
       return false;
     }
     if (searchTerm.trim() && !matchesStudentSearch(student, searchTerm.trim())) {

@@ -85,7 +85,7 @@ import {
 import { fetchCount, fetchAll, fetchById, saveBatch, saveData, fetchQuery } from '../lib/database';
 import { supabase, isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails, formatCurrency } from '../lib/utils';
+import { cn, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails, formatCurrency, filterStudentsForClass, isStudentActive, isEnrollmentActive } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { HabilitationModal } from '../components/HabilitationModal';
 import { Student, Class, Subject, Teacher, Contribution } from '../types';
@@ -839,10 +839,10 @@ export function Dashboard() {
       return isClassActiveInAcademicYear(c, selectedAcademicYear);
     });
 
-    const activeStudents = scopedStudents.filter(s => s.status === 'Ativo' || !s.status || String(s.status).toLowerCase() === 'ativo');
+    const activeStudents = scopedStudents.filter(s => isStudentActive(s));
     
     // Active enrollments
-    const activeEnrollments = (enrollments || []).filter((e: any) => e.status === 'Ativo' || !e.status || String(e.status).toLowerCase() === 'ativo');
+    const activeEnrollments = (enrollments || []).filter((e: any) => isEnrollmentActive(e));
     const enrolledMap = new Map<string, Set<string>>(); // classId -> Set of studentIds
     activeEnrollments.forEach((e: any) => {
       if (e.class_id && e.student_id) {
@@ -1079,11 +1079,8 @@ export function Dashboard() {
             (Array.isArray(c.enabled_years) && c.enabled_years.includes(String(targetYrNum)))
           );
 
-        // Calculate student count for this class
-        const count = scopedStudents.filter(s => 
-          (s.status === 'Ativo' || !s.status) && 
-          (s.class_id === c.id || (s as any).current_class_id === c.id)
-        ).length;
+        // Calculate student count for this class (considering active students)
+        const count = filterStudentsForClass(scopedStudents, c.id, enrollments, true).length;
 
         return {
           ...c,
