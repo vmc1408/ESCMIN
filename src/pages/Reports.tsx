@@ -1317,340 +1317,7 @@ export function Reports() {
     }
   };
 
-  const generateReport = (type: ReportCategory, printOnly: boolean = false) => {
-    try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 15;
-      const centerX = pageWidth / 2;
-      let y = 15;
-
-      // Professional Header using Institution Data
-      let textStartX = margin;
-      let logoWidth = 0;
-
-      if (institution?.logo_url) {
-        try { 
-          doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
-          logoWidth = 26;
-        } catch (e) {}
-      }
-      
-      textStartX = margin + logoWidth;
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
-
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 13);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(80);
-      doc.text(institution?.subtitle?.toUpperCase() || '', textStartX, y + 18);
-
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.8);
-      doc.line(margin, y + 25, pageWidth - margin, y + 25);
-
-      y += 40;
-
-      const title = 
-        type === 'financial' ? 'RELATÓRIO DE CONTRIBUIÇÕES E CONCILIAÇÃO PIX' :
-        type === 'academic' ? 'RELATÓRIO DE MATRÍCULAS E ALOCAÇÃO DE TURMAS' :
-        type === 'operational' ? 'RELATÓRIO DOCENTE E GRADE DISCIPLINAR' :
-        'SUMÁRIO EXECUTIVO INSTITUCIONAL';
-
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(title, centerX, y, { align: 'center' });
-      
-      y += 10;
-
-      if (type === 'dashboard') {
-        doc.setFontSize(12);
-        doc.text('1. INDICADORES DE DESEMPENHO', margin, y);
-        autoTable(doc, {
-          startY: y + 5,
-          head: [['Sessão', 'Métrica', 'Valor']],
-          body: [
-            ['Acadêmico', 'Total de Alunos', stats.totalStudents.toString()],
-            ['Acadêmico', 'Alunos Ativos', stats.activeStudents.toString()],
-            ['Financeiro', 'Arrecadação Total', formatCurrency(stats.totalPixAmount)],
-            ['Financeiro', 'Crescimento Mensal', `${stats.revenueGrowth}%`],
-            ['Operacional', 'Total de Professores', stats.totalTeachers.toString()],
-            ['Operacional', 'Turmas Ativas', stats.totalClasses.toString()]
-          ],
-          headStyles: { fillColor: [0, 23, 75] },
-          theme: 'grid'
-        });
-      }
-
-      if (type === 'financial') {
-        doc.setFontSize(12);
-        doc.text('1. HISTÓRICO RECENTE DE CONTRIBUIÇÕES (PIX)', margin, y);
-        autoTable(doc, {
-          startY: y + 5,
-          head: [['Data', 'Doador/Pagador', 'Vínculo Aluno', 'Valor', 'Status']],
-          body: pixTransactions.slice(0, 30).map(p => [
-            format(parseISO(p.created_at || (p as any).date), 'dd/MM/yyyy'),
-            p.payer_name.toUpperCase(),
-            (p as any).student?.name || 'Não identificado',
-            formatCurrency(p.amount),
-            p.status === 'matched' ? 'CONCILIADO' : 'PENDENTE'
-          ]),
-          headStyles: { fillColor: [16, 185, 129] },
-          styles: { fontSize: 8 }
-        });
-      }
-
-      if (type === 'academic') {
-        // Group by class
-        const rows: any[] = [];
-        const filteredClassesReport = filteredClasses;
-
-        filteredClassesReport.forEach(c => {
-          const classStudents = filterStudentsForClass(scopedStudents, c.id, enrollments, true);
-          classStudents.forEach((s, idx) => {
-            rows.push([
-              idx === 0 ? `${c.name} (${c.code})` : '',
-              formatRegistrationNumber(s.registration_number),
-              s.name.toUpperCase(),
-              s.status || 'Ativo'
-            ]);
-          });
-          if (classStudents.length === 0) {
-            rows.push([`${c.name} (${c.code})`, '-', 'Nenhum aluno ativo matriculado', '-']);
-          }
-        });
-
-        doc.setFontSize(12);
-        doc.text('1. MAPA DE MATRÍCULAS POR TURMA', margin, y);
-        autoTable(doc, {
-          startY: y + 5,
-          head: [['Turma', 'Matrícula', 'Nome do Aluno', 'Status']],
-          body: rows,
-          headStyles: { fillColor: [59, 130, 246] },
-          styles: { fontSize: 8 }
-        });
-      }
-
-      if (type === 'attendance') {
-        doc.setFontSize(12);
-        doc.text('1. MONITORAMENTO DE FREQUÊNCIA ESCOLAR', margin, y);
-        
-        const attendanceRows = scopedStudents.filter(s => isStudentActive(s)).map(student => {
-          const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
-          const studentPresences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'P')).length;
-          const studentPresence = totalClassDays > 0 ? (studentPresences / totalClassDays) * 100 : 0;
-          const studentClass = classes.find(c => c.id === student.class_id);
-          const maxAllowed = Math.floor((totalClassDays || 33) * ((academicParams.absence_limit_percentage || 25) / 100));
-          const isApproved = studentAbsences <= maxAllowed;
-          
-          return [
-            student.name.toUpperCase(),
-            studentClass?.name || 'SEM TURMA',
-            studentAbsences,
-            `${studentPresence.toFixed(1)}%`,
-            isApproved ? 'REGULAR' : 'RISCO'
-          ];
-        });
-
-        autoTable(doc, {
-          startY: y + 5,
-          head: [['Estudante', 'Turma', 'Faltas', 'Freq. %', 'Status']],
-          body: attendanceRows,
-          headStyles: { fillColor: [245, 158, 11] },
-          styles: { fontSize: 8 }
-        });
-      }
-
-      if (type === 'operational') {
-        doc.setFontSize(12);
-        doc.text('1. RELATÓRIO DE CORPO DOCENTE', margin, y);
-
-        const filteredTeachersReport = filteredTeachers;
-
-        autoTable(doc, {
-          startY: y + 5,
-          head: [['Código', 'Nome do Professor', 'E-mail', 'Disciplinas', 'Status']],
-          body: filteredTeachersReport.map(t => {
-            const teacherSubjects = subjects
-              .filter(s => t.subject_ids?.includes(s.id))
-              .map(s => s.name)
-              .join(', ');
-
-            return [
-              t.code, 
-              t.name.toUpperCase(), 
-              t.email, 
-              teacherSubjects || '---',
-              (t as any).status || 'Ativo'
-            ];
-          }),
-          headStyles: { fillColor: [124, 58, 237] },
-          styles: { fontSize: 8 }
-        });
-
-        y = (doc as any).lastAutoTable.finalY + 15;
-        doc.text('2. GRADE DE DISCIPLINAS', margin, y);
-        
-        const filteredSubjectsReport = filteredSubjects;
-
-        autoTable(doc, {
-          startY: y + 5,
-          head: [['Código', 'Disciplina', 'Status']],
-          body: filteredSubjectsReport.map(s => [s.code, s.name.toUpperCase(), s.status || 'Ativo']),
-          headStyles: { fillColor: [124, 58, 237] },
-          styles: { fontSize: 9 }
-        });
-      }
-
-      // Observations / Receipt Message
-      if (institution?.receipt_message) {
-        y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 15 : y + 20;
-        
-        // Check for page overflow
-        if (y > doc.internal.pageSize.height - 60) {
-          doc.addPage();
-          y = 20;
-        }
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 23, 75);
-        doc.text('OBSERVAÇÕES:', margin, y);
-        
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
-        const splitObs = doc.splitTextToSize(institution.receipt_message, pageWidth - margin * 2);
-        doc.text(splitObs, margin, y + 5);
-      }
-
-      // Footer with Branding and Signature
-      const footerY = doc.internal.pageSize.height - 40;
-      doc.setDrawColor(200);
-      doc.line(margin + 10, footerY, margin + 70, footerY);
-      doc.line(pageWidth - margin - 70, footerY, pageWidth - margin - 10, footerY);
-      doc.setFontSize(7);
-      doc.text('ASSINATURA DA DIRETORIA', margin + 40, footerY + 5, { align: 'center' });
-      doc.text('ASSINATURA DA SECRETARIA', pageWidth - margin - 40, footerY + 5, { align: 'center' });
-
-      const pageCount = (doc as any).internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        
-        const footerY = doc.internal.pageSize.height - 25;
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
-        doc.line(margin, footerY, pageWidth - margin, footerY);
-
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0);
-        
-        const addressLine = [
-          institution?.address,
-          institution?.cep ? `CEP: ${institution.cep}` : '',
-          institution?.city_uf
-        ].filter(Boolean).join(' - ');
-        
-        doc.text(addressLine.toUpperCase(), margin, footerY + 5);
-
-        if (institution?.phone) {
-          doc.text(`Telefone: ${institution.phone}`, margin, footerY + 9);
-        }
-
-        if (institution?.secretary) {
-          doc.setFontSize(7);
-          doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, footerY + 4, { align: 'right' });
-          doc.setFont('helvetica', 'normal');
-          doc.text(institution.secretary.toLowerCase(), pageWidth - margin, footerY + 7.5, { align: 'right' });
-          if (institution?.email) {
-            doc.text(`email: ${institution.email.toLowerCase()}`, pageWidth - margin, footerY + 11, { align: 'right' });
-          }
-        } else if (institution?.email) {
-          doc.setFont('helvetica', 'normal');
-          doc.text(`email: ${institution.email.toLowerCase()}`, pageWidth - margin, footerY + 7, { align: 'right' });
-        }
-
-        doc.setFontSize(6);
-        doc.setTextColor(150);
-        doc.text(`Página ${i} de ${pageCount} | Intelligence ESCMIN`, centerX, doc.internal.pageSize.height - 8, { align: 'center' });
-      }
-
-      if (printOnly) {
-        doc.autoPrint();
-        const blob = doc.output('blob');
-        const url = URL.createObjectURL(blob);
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = url;
-        document.body.appendChild(iframe);
-        iframe.onload = () => {
-          setTimeout(() => {
-            try {
-              if (!iframe.contentWindow) {
-                throw new Error("No contentWindow available");
-              }
-
-              const cleanup = () => {
-                try {
-                  if (document.body.contains(iframe)) {
-                    document.body.removeChild(iframe);
-                  }
-                } catch (e) {}
-                URL.revokeObjectURL(url);
-              };
-
-              try {
-                iframe.contentWindow.addEventListener('afterprint', cleanup);
-              } catch (e) {
-                console.warn("Could not add afterprint listener on Reports iframe:", e);
-                setTimeout(cleanup, 15000);
-              }
-              try {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-              } catch (e) {
-                console.warn("Print call failed on Reports iframe, triggering fallback:", e);
-                throw e;
-              }
-
-              // Fallback to clean up iframe in case afterprint doesn't trigger
-              setTimeout(cleanup, 30000);
-            } catch (err) {
-              console.warn("Iframe printing blocked by sandbox or browser security policies, falling back to download:", err);
-              // Fallback to downloading the files
-              doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);
-              setNotification({ 
-                type: 'success', 
-                message: 'A visualização para impressão foi gerada. O arquivo PDF foi baixado caso queira imprimir manualmente.' 
-              });
-              try {
-                if (document.body.contains(iframe)) {
-                  document.body.removeChild(iframe);
-                }
-              } catch (e) {}
-              URL.revokeObjectURL(url);
-            }
-          }, 300);
-        };
-      } else {
-        doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);
-      }
-      setNotification({ type: 'success', message: printOnly ? 'Janela de impressão aberta.' : 'Expedição do relatório concluída.' });
-    } catch (e) {
-      console.error(e);
-      setNotification({ type: 'error', message: 'Erro ao processar o relatório PDF.' });
-    }
-  };
-
-  // Filtered Data Memos for Operational Report
+  // Filtered Data Memos for Reports
   const filteredTeachers = useMemo(() => {
     return scopedTeachers.filter(t => {
       const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
@@ -1715,7 +1382,7 @@ export function Reports() {
   ], [stats]);
 
   const studentsByClass = useMemo(() => {
-    const activeClasses = scopedClasses.filter(c => c.status === 'Ativo');
+    const activeClasses = scopedClasses.filter(c => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo');
     const activeStudents = scopedStudents.filter(s => isStudentActive(s));
     
     const classStats = activeClasses.map(c => {
@@ -1738,16 +1405,14 @@ export function Reports() {
       classStats.push({
         id: 'unallocated',
         code: 'S/T',
-        name: 'Sem Turma / Turma Inativa',
+        name: 'Sem Turma / Não Alocado',
         period: '---' as any,
         count: unallocatedCount,
         percentage: stats.activeStudents > 0 ? Math.round((unallocatedCount / stats.activeStudents) * 100) : 0
       });
     }
 
-    // Sort by Name (A-Z) and Year (Desc)
     return [...classStats].sort((a, b) => {
-      // First sort by unallocated status (move to end)
       const isUnallocatedA = a.id === 'unallocated';
       const isUnallocatedB = b.id === 'unallocated';
       if (isUnallocatedA && !isUnallocatedB) return 1;
@@ -1766,14 +1431,763 @@ export function Reports() {
       if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
       return infoB.yr - infoA.yr;
     });
-  }, [classes, students, stats.activeStudents]);
+  }, [scopedClasses, scopedStudents, enrollments, stats.activeStudents]);
 
   const recentPix = useMemo(() => {
-    return pixTransactions.map(p => ({
+    return scopedPixTransactions.map(p => ({
       ...p,
-      student: students.find(s => s.id === p.matched_student_id)
-    })).slice(0, 10);
-  }, [pixTransactions, students]);
+      student: scopedStudents.find(s => s.id === p.matched_student_id)
+    })).slice(0, 15);
+  }, [scopedPixTransactions, scopedStudents]);
+
+  const generateReport = (type: ReportCategory, printOnly: boolean = false) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 14;
+      const centerX = pageWidth / 2;
+      let y = 14;
+
+      // 1. Institutional Header
+      let textStartX = margin;
+      let logoWidth = 0;
+
+      if (institution?.logo_url) {
+        try { 
+          doc.addImage(institution.logo_url, 'auto', margin, y, 20, 20); 
+          logoWidth = 24;
+        } catch (e) {
+          // If logo fails, fallback smoothly
+        }
+      }
+      
+      textStartX = margin + logoWidth;
+
+      doc.setTextColor(0, 23, 75);
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'bold');
+      doc.text((institution?.diocese || 'DIOCESE DE GUARULHOS').toUpperCase(), textStartX, y + 4);
+
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 23, 75);
+      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 11);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(institution?.subtitle?.toUpperCase() || 'SISTEMA DE GESTÃO ACADÊMICA E PASTORAL', textStartX, y + 16);
+
+      // Top divider line
+      doc.setDrawColor(0, 23, 75);
+      doc.setLineWidth(0.6);
+      doc.line(margin, y + 22, pageWidth - margin, y + 22);
+
+      // Context Strip below Header Line (Unit & Emission Date)
+      y += 27;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      const activeUnitLabel = selectedUnitId && selectedUnitId !== 'all' 
+        ? `POLO / UNIDADE: ${selectedUnit?.name?.toUpperCase() || 'UNIDADE ATIVA'}`
+        : 'POLO / UNIDADE: TODAS AS UNIDADES (CONSOLIDADO GERAL)';
+      doc.text(activeUnitLabel, margin, y);
+
+      const emissionDateText = `EMISSÃO: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`;
+      doc.setFont('helvetica', 'normal');
+      doc.text(emissionDateText, pageWidth - margin, y, { align: 'right' });
+
+      y += 8;
+
+      // Document Title Box
+      const titlesMap: Record<ReportCategory, { main: string; sub: string }> = {
+        dashboard: {
+          main: 'RELATÓRIO ESTRATÉGICO INSTITUCIONAL',
+          sub: 'SUMÁRIO EXECUTIVO E INDICADORES CONSOLIDADOS DE DESEMPENHO'
+        },
+        financial: {
+          main: 'RELATÓRIO FINANCEIRO DE CONTRIBUIÇÕES E CONCILIAÇÃO PIX',
+          sub: 'AUDITORIA ANALÍTICA DE RECEBÍVEIS E TAXA DE CONCILIAÇÃO'
+        },
+        academic: {
+          main: 'RELATÓRIO GERAL DE MATRÍCULAS E ALOCAÇÃO DE TURMAS',
+          sub: 'MAPEAMENTO DE VAGAS, OCUPAÇÃO E RELAÇÃO NOMINAL DE ESTUDANTES'
+        },
+        attendance: {
+          main: 'RELATÓRIO CONSOLIDADO DE FREQUÊNCIA E ASSIDUIDADE ESCOLAR',
+          sub: 'ACOMPANHAMENTO DE DIAS LETIVOS, PRESENÇAS, FALTAS E ÍNDICES REGULAMENTARES'
+        },
+        operational: {
+          main: 'RELATÓRIO DO CORPO DOCENTE E MATRIZ CURRICULAR',
+          sub: 'ATRIBUIÇÃO DE AULAS, QUADRO DOCENTE E GRADE DE DISCIPLINAS'
+        }
+      };
+
+      const currentReportMeta = titlesMap[type] || titlesMap.dashboard;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 23, 75);
+      doc.text(currentReportMeta.main, centerX, y, { align: 'center' });
+
+      y += 4.5;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(currentReportMeta.sub, centerX, y, { align: 'center' });
+
+      y += 8;
+
+      // CATEGORY-SPECIFIC DETAILED REPORT GENERATION
+
+      // 1. DASHBOARD / ESTRATÉGICO
+      if (type === 'dashboard') {
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('1. INDICADORES EXECUTIVOS CONSOLIDADOS (KPIS)', margin, y);
+
+        const activeStudentPct = stats.totalStudents > 0 
+          ? Math.round((stats.activeStudents / stats.totalStudents) * 100) 
+          : 0;
+
+        const matchedPixPct = stats.pixCount > 0 
+          ? Math.round((stats.matchedPix / stats.pixCount) * 100) 
+          : 0;
+
+        const avgTicket = stats.pixCount > 0 ? stats.totalPixAmount / stats.pixCount : 0;
+        const avgStudentsPerClass = stats.totalClasses > 0 ? Math.round(stats.activeStudents / stats.totalClasses) : 0;
+        const studentTeacherRatio = stats.activeTeachers > 0 ? (stats.activeStudents / stats.activeTeachers).toFixed(1) : '0';
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['Dimensão de Gestão', 'Indicador Operacional', 'Valor / Métrica Apurada']],
+          body: [
+            ['Acadêmico', 'Total de Estudantes Cadastrados na Base', `${stats.totalStudents} alunos`],
+            ['Acadêmico', 'Matrículas Ativas Vigentes', `${stats.activeStudents} alunos (${activeStudentPct}%)`],
+            ['Acadêmico', 'Matrículas Inativas / Trancadas / Canceladas', `${stats.inactiveStudents} alunos`],
+            ['Acadêmico', 'Estudantes com Conclusão Registrada', `${stats.concludedStudents} alunos`],
+            ['Acadêmico', 'Turmas Ativas Ofertadas', `${stats.totalClasses} turmas`],
+            ['Acadêmico', 'Taxa Geral de Ocupação', `${stats.occupancyRate}% da capacidade`],
+            ['Financeiro', 'Arrecadação Total Pix (Acumulado)', formatCurrency(stats.totalPixAmount)],
+            ['Financeiro', 'Volume de Lançamentos Pix Processados', `${stats.pixCount} transações`],
+            ['Financeiro', 'Transações Conciliadas (Com Vínculo Aluno)', `${stats.matchedPix} (${matchedPixPct}%)`],
+            ['Financeiro', 'Transações Pendentes de Conciliação', `${stats.pixCount - stats.matchedPix} transações`],
+            ['Financeiro', 'Ticket Médio por Lançamento Pix', formatCurrency(avgTicket)],
+            ['Operacional', 'Corpo Docente Ativo', `${stats.activeTeachers} de ${stats.totalTeachers} professores`],
+            ['Operacional', 'Disciplinas Cadastradas na Matriz Curricular', `${subjects.length} disciplinas`],
+            ['Operacional', 'Média de Estudantes por Turma Ativa', `${avgStudentsPerClass} alunos / turma`],
+            ['Operacional', 'Relação Alunos Ativos por Docente Ativo', `${studentTeacherRatio} alunos / professor`]
+          ],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+
+        // Check page overflow
+        if (y > pageHeight - 65) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('2. OCUPAÇÃO E DISTRIBUIÇÃO POR TURMA', margin, y);
+
+        const classRows = studentsByClass.map(c => [
+          c.code,
+          c.name,
+          c.period ? c.period.toUpperCase() : 'GERAL',
+          c.count.toString(),
+          `${c.percentage}%`
+        ]);
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['Código', 'Turma / Unidade de Ensino', 'Período', 'Alunos Ativos', 'Representatividade %']],
+          body: [
+            ...classRows,
+            ['TOTAL', `${studentsByClass.length} turmas listadas`, '---', stats.activeStudents.toString(), '100%']
+          ],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+
+        if (y > pageHeight - 65) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('3. AUDITORIA RECENTE DE CONTRIBUIÇÕES (PIX)', margin, y);
+
+        const recentRows = recentPix.slice(0, 10).map((p, idx) => {
+          let dateStr = '---';
+          try {
+            dateStr = format(parseISO(p.created_at || (p as any).date), 'dd/MM/yyyy HH:mm');
+          } catch (e) {
+            dateStr = (p as any).date || '---';
+          }
+          return [
+            (idx + 1).toString(),
+            dateStr,
+            p.payer_name?.toUpperCase() || '---',
+            (p as any).student?.name?.toUpperCase() || 'NÃO IDENTIFICADO',
+            formatCurrency(p.amount),
+            p.status === 'matched' ? 'CONCILIADO' : 'PENDENTE'
+          ];
+        });
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['#', 'Data/Hora', 'Pagador / Doador', 'Vínculo Aluno', 'Valor (R$)', 'Status']],
+          body: recentRows.length > 0 ? recentRows : [['-', '-', 'Nenhuma contribuição registrada no escopo selecionado', '-', '-', '-']],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+      }
+
+      // 2. FINANCIAL / FINANCEIRO
+      if (type === 'financial') {
+        const totalAmount = scopedPixTransactions.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+        const matchedTransactions = scopedPixTransactions.filter(p => p.status === 'matched');
+        const pendingTransactions = scopedPixTransactions.filter(p => p.status !== 'matched');
+        const matchedAmount = matchedTransactions.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+        const pendingAmount = pendingTransactions.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+        const efficiencyPct = scopedPixTransactions.length > 0 
+          ? Math.round((matchedTransactions.length / scopedPixTransactions.length) * 100) 
+          : 0;
+        const avgTicket = scopedPixTransactions.length > 0 ? totalAmount / scopedPixTransactions.length : 0;
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('1. RESUMO EXECUTIVO DE ARRECADAÇÃO E CONCILIAÇÃO', margin, y);
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['Indicador Financeiro', 'Valor Consolidado', 'Detalhamento Operacional']],
+          body: [
+            ['Arrecadação Total Bruta (Pix)', formatCurrency(totalAmount), `100% da receita apurada no polo`],
+            ['Total Conciliado com Alunos', formatCurrency(matchedAmount), `${matchedTransactions.length} transações identificadas (${efficiencyPct}%)`],
+            ['Total Pendente de Conciliação', formatCurrency(pendingAmount), `${pendingTransactions.length} transações aguardando vínculo manual`],
+            ['Taxa de Eficiência de Conciliação', `${efficiencyPct}%`, `Percentual de lançamentos vinculados com sucesso`],
+            ['Volume Total de Transações Processadas', `${scopedPixTransactions.length} lançamentos`, `Histórico completo do período selecionado`],
+            ['Ticket Médio por Lançamento', formatCurrency(avgTicket), `Média aritmética de contribuição por operação`]
+          ],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+
+        if (y > pageHeight - 65) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('2. RELATÓRIO ANALÍTICO DE LANÇAMENTOS PIX', margin, y);
+
+        const transactionRows = scopedPixTransactions.map((p, idx) => {
+          let dateStr = '---';
+          try {
+            dateStr = format(parseISO(p.created_at || (p as any).date), 'dd/MM/yyyy HH:mm');
+          } catch (e) {
+            dateStr = (p as any).date || '---';
+          }
+          const linkedStudent = scopedStudents.find(s => s.id === p.matched_student_id);
+
+          return [
+            (idx + 1).toString(),
+            dateStr,
+            p.payer_name?.toUpperCase() || 'PAGADOR NÃO INFORMADO',
+            p.payer_document || '***.***.***-**',
+            linkedStudent?.name?.toUpperCase() || (p as any).student?.name?.toUpperCase() || 'NÃO IDENTIFICADO',
+            formatCurrency(p.amount),
+            p.status === 'matched' ? 'CONCILIADO' : 'PENDENTE'
+          ];
+        });
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['#', 'Data/Hora', 'Pagador / Doador', 'CPF/CNPJ', 'Aluno Vinculado', 'Valor (R$)', 'Status']],
+          body: transactionRows.length > 0 ? [
+            ...transactionRows,
+            ['TOTAL', `${transactionRows.length} lançamentos`, '---', '---', '---', formatCurrency(totalAmount), `${matchedTransactions.length} conc. / ${pendingTransactions.length} pend.`]
+          ] : [['-', '-', 'Nenhuma transação Pix encontrada para o escopo selecionado', '-', '-', '-', '-']],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7, cellPadding: 1.8, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+      }
+
+      // 3. ACADEMIC / MATRÍCULAS
+      if (type === 'academic') {
+        const avgStudentsPerClass = filteredClasses.length > 0 
+          ? Math.round(stats.activeStudents / filteredClasses.length) 
+          : 0;
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('1. RESUMO GERAL DE MATRÍCULAS E TURMAS', margin, y);
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['Métrica Acadêmica', 'Quantidade Apurada', 'Descrição Operacional']],
+          body: [
+            ['Total de Estudantes Cadastrados no Escopo', `${scopedStudents.length} alunos`, 'Base total de registros de estudantes'],
+            ['Matrículas Ativas Vigentes', `${stats.activeStudents} alunos`, 'Estudantes com matrícula regular e ativa'],
+            ['Matrículas Inativas / Canceladas / Trancadas', `${stats.inactiveStudents} alunos`, 'Estudantes sem frequência ou trancados'],
+            ['Estudantes com Conclusão Registrada', `${stats.concludedStudents} alunos`, 'Estudantes formados em cursos anteriores'],
+            ['Total de Turmas Ofertadas no Filtro', `${filteredClasses.length} turmas`, 'Turmas ativas no ano letivo'],
+            ['Média Geral de Estudantes por Turma', `${avgStudentsPerClass} alunos`, 'Distribuição média de alunos por sala']
+          ],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+
+        if (y > pageHeight - 65) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('2. RELAÇÃO NOMINAL DE ESTUDANTES POR TURMA', margin, y);
+
+        const academicTableRows: any[] = [];
+        let grandTotalListed = 0;
+
+        filteredClasses.forEach((c) => {
+          const classStudents = filterStudentsForClass(scopedStudents, c.id, enrollments, true);
+          grandTotalListed += classStudents.length;
+
+          if (classStudents.length === 0) {
+            academicTableRows.push([
+              c.name.toUpperCase(),
+              c.code,
+              '---',
+              'Nenhum aluno ativo matriculado nesta turma',
+              '---',
+              'Vazia'
+            ]);
+          } else {
+            classStudents.forEach((s, sIdx) => {
+              academicTableRows.push([
+                sIdx === 0 ? `${c.name.toUpperCase()}\n(${c.code} - ${c.period || 'Geral'})` : '',
+                (sIdx + 1).toString(),
+                formatRegistrationNumber(s.registration_number),
+                s.name.toUpperCase(),
+                (s as any).phone_mobile || (s as any).phone || (s as any).whatsapp || '---',
+                s.status || 'Ativo'
+              ]);
+            });
+          }
+        });
+
+        // Unallocated students
+        const activeClassIds = new Set(filteredClasses.map(c => c.id));
+        const unallocatedStudents = scopedStudents.filter(s => isStudentActive(s) && (!s.class_id || !activeClassIds.has(s.class_id)));
+        if (unallocatedStudents.length > 0) {
+          unallocatedStudents.forEach((s, sIdx) => {
+            academicTableRows.push([
+              sIdx === 0 ? `SEM TURMA VINCULADA\n(Não alocados: ${unallocatedStudents.length})` : '',
+              (sIdx + 1).toString(),
+              formatRegistrationNumber(s.registration_number),
+              s.name.toUpperCase(),
+              (s as any).phone_mobile || (s as any).phone || (s as any).whatsapp || '---',
+              s.status || 'Ativo'
+            ]);
+          });
+        }
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['Turma / Código', '#', 'Matrícula', 'Nome Completo do Estudante', 'Contato / Telefone', 'Situação']],
+          body: academicTableRows.length > 0 ? academicTableRows : [['-', '-', '-', 'Nenhum estudante encontrado', '-', '-']],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7, cellPadding: 1.8, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+      }
+
+      // 4. ATTENDANCE / FREQUÊNCIA
+      if (type === 'attendance') {
+        const totalDays = totalClassDays > 0 ? totalClassDays : 33;
+        const maxAllowedAbsences = Math.floor(totalDays * ((academicParams.absence_limit_percentage || 25) / 100));
+        const evaluatedStudents = scopedStudents.filter(s => isStudentActive(s));
+
+        let regularCount = 0;
+        let riskCount = 0;
+        let sumPresence = 0;
+
+        const attendanceRows = evaluatedStudents.map((student, idx) => {
+          const absences = attendanceData.filter(a => a.student_id === student.id && a.status === 'F').length;
+          const presences = attendanceData.filter(a => a.student_id === student.id && a.status === 'P').length;
+          const presencePct = totalDays > 0 ? Math.max(0, Math.min(100, Math.round((presences / totalDays) * 100))) : 0;
+          sumPresence += presencePct;
+
+          const isRisk = absences > maxAllowedAbsences;
+          if (isRisk) {
+            riskCount++;
+          } else {
+            regularCount++;
+          }
+
+          const studentClass = scopedClasses.find(c => c.id === student.class_id);
+
+          return [
+            (idx + 1).toString(),
+            formatRegistrationNumber(student.registration_number),
+            student.name.toUpperCase(),
+            studentClass?.name?.toUpperCase() || 'SEM TURMA',
+            totalDays.toString(),
+            presences.toString(),
+            absences.toString(),
+            `${presencePct}%`,
+            isRisk ? 'RISCO REPROVAÇÃO' : 'REGULAR'
+          ];
+        });
+
+        const avgPresenceGlobal = evaluatedStudents.length > 0 
+          ? (sumPresence / evaluatedStudents.length).toFixed(1) 
+          : '0.0';
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('1. PARÂMETROS E INDICADORES REGULAMENTARES DE FREQUÊNCIA', margin, y);
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['Parâmetro / Indicador Regulamentar', 'Valor Apurado', 'Norma / Descrição']],
+          body: [
+            ['Total de Dias Letivos Registrados no Calendário', `${totalDays} dias letivos`, 'Base oficial de apuração da carga horária'],
+            ['Limite Máximo Regulamentar de Faltas Permitidas', `${academicParams.absence_limit_percentage || 25}% (Máx. ${maxAllowedAbsences} faltas)`, 'Conforme Regimento Escolar Institucional'],
+            ['Total de Estudantes Avaliados no Período', `${evaluatedStudents.length} estudantes`, 'Apenas matrículas com status ativo'],
+            ['Estudantes em Situação Regular de Assiduidade', `${regularCount} estudantes`, `${evaluatedStudents.length > 0 ? Math.round((regularCount / evaluatedStudents.length) * 100) : 0}% do corpo discente`],
+            ['Estudantes em Situação de Risco de Reprovação por Faltas', `${riskCount} estudantes`, `${evaluatedStudents.length > 0 ? Math.round((riskCount / evaluatedStudents.length) * 100) : 0}% excederam o limite regulamentar`],
+            ['Taxa Média Global de Assiduidade Institucional', `${avgPresenceGlobal}%`, 'Média percentual de presenças dos alunos']
+          ],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+
+        if (y > pageHeight - 65) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('2. MAPA CONSOLIDADO DE FREQUÊNCIA INDIVIDUAL', margin, y);
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['#', 'Matrícula', 'Estudante', 'Turma', 'Aulas', 'Pres.', 'Faltas', 'Freq. %', 'Situação']],
+          body: attendanceRows.length > 0 ? attendanceRows : [['-', '-', 'Nenhum estudante avaliado no momento', '-', '-', '-', '-', '-', '-']],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7, cellPadding: 1.8, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+      }
+
+      // 5. OPERATIONAL / PROFESSORES E GRADE
+      if (type === 'operational') {
+        const studentTeacherRatio = stats.activeTeachers > 0 
+          ? (stats.activeStudents / stats.activeTeachers).toFixed(1) 
+          : '0';
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('1. INDICADORES DO CORPO DOCENTE E GRADE DISCIPLINAR', margin, y);
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['Indicador Operacional', 'Valor Apurado', 'Observações']],
+          body: [
+            ['Total de Professores Cadastrados', `${scopedTeachers.length} professores`, 'Registros no cadastro geral de docentes'],
+            ['Professores com Status Ativo', `${stats.activeTeachers} professores`, 'Docentes disponíveis para lecionar no período'],
+            ['Professores com Status Inativo', `${scopedTeachers.length - stats.activeTeachers} professores`, 'Docentes afastados ou em licença'],
+            ['Total de Disciplinas na Matriz Curricular', `${subjects.length} disciplinas`, 'Grade disciplinar da instituição'],
+            ['Disciplinas com Docente Atribuído', `${subjects.filter(s => scopedTeachers.some(t => t.subject_ids?.includes(s.id))).length} disciplinas`, 'Disciplinas com professor titular vinculado'],
+            ['Proporção Alunos Ativos por Docente Ativo', `${studentTeacherRatio} alunos / professor`, 'Média de atendimento por professor']
+          ],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7.5, cellPadding: 2, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+
+        if (y > pageHeight - 65) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('2. QUADRO NOMINAL DO CORPO DOCENTE', margin, y);
+
+        const teacherRows = filteredTeachers.map((t, idx) => {
+          const teacherSubjects = subjects
+            .filter(s => t.subject_ids?.includes(s.id))
+            .map(s => s.name)
+            .join(', ');
+
+          return [
+            (idx + 1).toString(),
+            t.code || '---',
+            t.name.toUpperCase(),
+            t.email || '---',
+            t.phone || (t as any).whatsapp || '---',
+            teacherSubjects || 'NENHUMA DISCIPLINA ATRIBUÍDA',
+            (t as any).status || 'Ativo'
+          ];
+        });
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['#', 'Código', 'Nome do Professor', 'E-mail', 'Telefone', 'Disciplinas Atribuídas', 'Status']],
+          body: teacherRows.length > 0 ? teacherRows : [['-', '-', 'Nenhum professor encontrado com os filtros atuais', '-', '-', '-', '-']],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7, cellPadding: 1.8, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+
+        if (y > pageHeight - 65) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('3. MATRIZ CURRICULAR DE DISCIPLINAS', margin, y);
+
+        const subjectRows = filteredSubjects.map((s, idx) => {
+          const assignedTeachers = scopedTeachers
+            .filter(t => t.subject_ids?.includes(s.id))
+            .map(t => t.name)
+            .join(', ');
+
+          return [
+            (idx + 1).toString(),
+            s.code || '---',
+            s.name.toUpperCase(),
+            s.semester || 'GERAL',
+            assignedTeachers || 'SEM PROFESSOR ATRIBUÍDO',
+            s.status || 'Ativo'
+          ];
+        });
+
+        autoTable(doc, {
+          startY: y + 3,
+          head: [['#', 'Código', 'Nome da Disciplina', 'Semestre / Turno', 'Docentes Responsáveis', 'Status']],
+          body: subjectRows.length > 0 ? subjectRows : [['-', '-', 'Nenhuma disciplina encontrada', '-', '-', '-']],
+          headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+          styles: { fontSize: 7, cellPadding: 1.8, font: 'helvetica' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          theme: 'grid'
+        });
+      }
+
+      // Institutional Notes / Observações
+      if (institution?.receipt_message) {
+        y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 10 : y + 15;
+        
+        if (y > pageHeight - 50) {
+          doc.addPage();
+          y = margin + 10;
+        }
+
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text('OBSERVAÇÕES E NOTAS INSTITUCIONAIS:', margin, y);
+        
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(71, 85, 105);
+        const splitObs = doc.splitTextToSize(institution.receipt_message, pageWidth - margin * 2);
+        doc.text(splitObs, margin, y + 4.5);
+      }
+
+      // Final Signatures Section (Last Page)
+      const lastTableY = (doc as any).lastAutoTable?.finalY || y;
+      let signatureY = lastTableY + 24;
+
+      if (signatureY > pageHeight - 40) {
+        doc.addPage();
+        signatureY = margin + 35;
+      }
+
+      doc.setDrawColor(0, 23, 75);
+      doc.setLineWidth(0.4);
+      doc.line(margin + 12, signatureY, margin + 78, signatureY);
+      doc.line(pageWidth - margin - 78, signatureY, pageWidth - margin - 12, signatureY);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 23, 75);
+      doc.text('DIRETORIA EXECUTIVA / COORDENAÇÃO', margin + 45, signatureY + 4, { align: 'center' });
+      doc.text('SECRETARIA ACADÊMICA / REGISTRO', pageWidth - margin - 45, signatureY + 4, { align: 'center' });
+
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Assinatura e Carimbo Oficial', margin + 45, signatureY + 7.5, { align: 'center' });
+      doc.text('Validação de Dados e Arquivo', pageWidth - margin - 45, signatureY + 7.5, { align: 'center' });
+
+      // Institutional Multi-page Footer on all pages
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        
+        const footerY = pageHeight - 16;
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.4);
+        doc.line(margin, footerY, pageWidth - margin, footerY);
+
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(71, 85, 105);
+        
+        const addressLine = [
+          institution?.address,
+          institution?.cep ? `CEP: ${institution.cep}` : '',
+          institution?.city_uf
+        ].filter(Boolean).join(' • ');
+        
+        doc.text(addressLine.toUpperCase() || 'ESCMIN - GESTÃO ACADÊMICA E PASTORAL', margin, footerY + 4);
+
+        if (institution?.phone || institution?.email) {
+          const contactLine = [
+            institution?.phone ? `Tel: ${institution.phone}` : '',
+            institution?.email ? `E-mail: ${institution.email}` : ''
+          ].filter(Boolean).join(' • ');
+          doc.setFont('helvetica', 'normal');
+          doc.text(contactLine, margin, footerY + 7.5);
+        }
+
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 23, 75);
+        doc.text(`Página ${i} de ${pageCount} • Sistema ESCMIN`, pageWidth - margin, footerY + 5, { align: 'right' });
+      }
+
+      if (printOnly) {
+        doc.autoPrint();
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          setTimeout(() => {
+            try {
+              if (!iframe.contentWindow) {
+                throw new Error("No contentWindow available");
+              }
+
+              const cleanup = () => {
+                try {
+                  if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                  }
+                } catch (e) {}
+                URL.revokeObjectURL(url);
+              };
+
+              try {
+                iframe.contentWindow.addEventListener('afterprint', cleanup);
+              } catch (e) {
+                setTimeout(cleanup, 15000);
+              }
+              try {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+              } catch (e) {
+                throw e;
+              }
+
+              setTimeout(cleanup, 30000);
+            } catch (err) {
+              console.warn("Iframe printing blocked by browser policy, downloading PDF:", err);
+              doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+              setNotification({ 
+                type: 'success', 
+                message: 'O relatório em PDF oficial foi gerado e baixado com sucesso.' 
+              });
+              try {
+                if (document.body.contains(iframe)) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (e) {}
+              URL.revokeObjectURL(url);
+            }
+          }, 300);
+        };
+      } else {
+        doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+      }
+      setNotification({ type: 'success', message: printOnly ? 'Janela de impressão gerada com sucesso.' : 'Relatório PDF expedido com sucesso.' });
+    } catch (e) {
+      console.error('Error generating report PDF:', e);
+      setNotification({ type: 'error', message: 'Erro ao processar o relatório PDF.' });
+    }
+  };
 
   if (loading) {
     return (
@@ -1785,7 +2199,7 @@ export function Reports() {
   }
 
   const handlePrint = () => {
-    generateReport(activeCategory, true);
+    window.print();
   };
 
   return (
@@ -3357,100 +3771,530 @@ export function Reports() {
         );
       })(), document.body)}
 
-      {/* Professional Print Layout (Figma Style) */}
-      <div id={viewingCertificate ? "non-printable-report" : "printable-report"} className={cn("hidden p-12 bg-white text-black font-sans", viewingCertificate ? "print:hidden" : "print:block")}>
-        <div className="flex flex-col items-center text-center relative mb-10">
+      {/* Professional Print Layout (Dynamic by Category, Figma/Paper Style) */}
+      <div id={viewingCertificate ? "non-printable-report" : "printable-report"} className={cn("hidden p-8 bg-white text-black font-sans", viewingCertificate ? "print:hidden" : "print:block")}>
+        {/* Institutional Header */}
+        <div className="flex flex-col items-center text-center relative mb-6">
           {institution?.logo_url && (
             <div className="absolute left-0 top-0">
-              <img src={institution.logo_url} className="w-24 h-24 rounded-lg object-contain" referrerPolicy="no-referrer" />
+              <img src={institution.logo_url} className="w-20 h-20 rounded-lg object-contain" referrerPolicy="no-referrer" />
             </div>
           )}
           
-          <div className="space-y-1 mt-2">
-            <h1 className="text-3xl font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCMIN - GESTÃO ESCOLAR'}</h1>
-            <p className="text-xs text-slate-500 font-bold max-w-[600px] leading-relaxed mx-auto">{institution?.address}</p>
-            <div className="flex items-center justify-center gap-6 text-[11px] text-slate-400 font-black uppercase tracking-widest pt-1">
-              {institution?.cnpj && <span>CNPJ: {institution.cnpj}</span>}
-              {institution?.phone && <span>TEL: {institution.phone}</span>}
-              {institution?.email && <span>E-MAIL: {institution.email}</span>}
-            </div>
-            {institution?.website && (
-              <p className="text-[10px] text-blue-600 font-black uppercase tracking-[0.2em] pt-1">{institution.website}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="w-full h-[2px] bg-slate-900 mb-10"></div>
-
-        <div className="text-center mb-12">
-          <h2 className="text-2xl font-black uppercase tracking-[0.25em] text-[#00174b]">Relatório Estratégico de Gestão</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Emissão Oficial: {new Date().toLocaleString('pt-BR')}</p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-10 mb-16">
-          <div className="bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100">
-            <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Métricas Acadêmicas</h3>
-            <div className="space-y-4 font-sans">
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Total Matriculados:</span> <span className="text-lg font-black">{stats.totalStudents}</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Matrículas Ativas:</span> <span className="text-lg font-black text-emerald-600">{stats.activeStudents}</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Taxa de Ocupação:</span> <span className="text-lg font-black text-blue-600">{stats.occupancyRate}%</span></div>
-            </div>
-          </div>
-          <div className="bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100">
-            <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Métricas Financeiras</h3>
-            <div className="space-y-4 font-sans">
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Arrecadação Pix:</span> <span className="text-lg font-black">{formatCurrency(stats.totalPixAmount)}</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Crescimento:</span> <span className="text-lg font-black text-emerald-600">+{stats.revenueGrowth}%</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Ticket Médio:</span> <span className="text-lg font-black">{formatCurrency(stats.pixCount > 0 ? stats.totalPixAmount / stats.pixCount : 0)}</span></div>
-            </div>
-          </div>
-          <div className="bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100">
-            <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Métricas Operacionais</h3>
-            <div className="space-y-4 font-sans">
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Eficiência Match:</span> <span className="text-lg font-black">{stats.pixCount > 0 ? Math.round((stats.matchedPix / stats.pixCount) * 100) : 0}%</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Total Turmas:</span> <span className="text-lg font-black">{stats.totalClasses}</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Corpo Docente:</span> <span className="text-lg font-black">{stats.totalTeachers}</span></div>
+          <div className="space-y-1">
+            <p className="text-[11px] font-bold text-slate-600 tracking-wider uppercase">
+              {institution?.diocese || 'Diocese de Guarulhos'}
+            </p>
+            <h1 className="text-2xl font-black text-[#00174b] uppercase tracking-tight leading-tight">
+              {institution?.name || 'ESCMIN - GESTÃO ESCOLAR'}
+            </h1>
+            <p className="text-xs text-slate-500 font-semibold max-w-[650px] leading-relaxed mx-auto">
+              {institution?.subtitle || 'Sistema Integrado de Gestão Acadêmica e Pastoral'}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] text-slate-600 font-bold uppercase tracking-wider pt-1">
+              <span>UNIDADE: {selectedUnitId && selectedUnitId !== 'all' ? (selectedUnit?.name || 'Unidade Ativa') : 'Todas as Unidades (Geral)'}</span>
+              {institution?.cnpj && <span>• CNPJ: {institution.cnpj}</span>}
+              {institution?.phone && <span>• TEL: {institution.phone}</span>}
+              {institution?.email && <span>• E-MAIL: {institution.email}</span>}
             </div>
           </div>
         </div>
 
-        <h2 className="text-2xl font-black text-[#00174b] mb-8 border-l-[8px] border-[#00174b] pl-6 uppercase tracking-tight">Detalhamento de Unidades e Turmas</h2>
-        <table className="w-full border-collapse mb-20 font-sans">
-          <thead>
-            <tr className="bg-[#00174b] text-white">
-              <th className="p-5 text-left text-[10px] font-black uppercase tracking-widest">Código</th>
-              <th className="p-5 text-left text-[10px] font-black uppercase tracking-widest">Turma / Unidade de Ensino</th>
-              <th className="p-5 text-left text-[10px] font-black uppercase tracking-widest">Período</th>
-              <th className="p-5 text-right text-[10px] font-black uppercase tracking-widest">Alunos</th>
-              <th className="p-5 text-right text-[10px] font-black uppercase tracking-widest">Representatividade</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y-2 divide-slate-100">
-            {studentsByClass.map((c, i) => (
-              <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                <td className="p-5 text-sm font-bold text-slate-500">{c.code}</td>
-                <td className="p-5 text-sm font-black text-[#00174b]">{c.name}</td>
-                <td className="p-5 text-sm font-bold uppercase text-slate-600">{c.period}</td>
-                <td className="p-5 text-right text-sm font-black">{c.count}</td>
-                <td className="p-5 text-right text-sm font-black text-blue-600">{c.percentage}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="w-full h-[1.5px] bg-[#00174b] mb-6"></div>
 
-        <div className="mt-40 flex justify-between px-24 font-sans">
-          <div className="text-center border-t-4 border-[#00174b] pt-6 w-80">
-            <p className="font-black uppercase text-sm text-[#00174b]">Diretoria Executiva</p>
-            <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-widest uppercase">Assinatura e Carimbo</p>
+        {/* Dynamic Title and Emission Time */}
+        <div className="flex items-center justify-between mb-8 pb-3 border-b border-slate-200">
+          <div>
+            <h2 className="text-xl font-black uppercase tracking-tight text-[#00174b]">
+              {activeCategory === 'dashboard' && 'Relatório Estratégico Institucional'}
+              {activeCategory === 'financial' && 'Relatório Financeiro de Contribuições e Conciliação Pix'}
+              {activeCategory === 'academic' && 'Relatório Geral de Matrículas e Alocação de Turmas'}
+              {activeCategory === 'attendance' && 'Relatório Consolidado de Frequência e Assiduidade Escolar'}
+              {activeCategory === 'operational' && 'Relatório do Corpo Docente e Matriz Curricular'}
+            </h2>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+              {activeCategory === 'dashboard' && 'Sumário executivo e indicadores consolidados de desempenho institucional'}
+              {activeCategory === 'financial' && 'Auditoria analítica de arrecadação, lançamentos Pix e taxa de conciliação'}
+              {activeCategory === 'academic' && 'Mapeamento de vagas, ocupação de turmas e relação nominal de estudantes'}
+              {activeCategory === 'attendance' && 'Acompanhamento oficial de dias letivos, presenças, faltas e situação regulamentar'}
+              {activeCategory === 'operational' && 'Quadro de professores, atribuição disciplinar e grade curricular'}
+            </p>
           </div>
-          <div className="text-center border-t-4 border-[#00174b] pt-6 w-80">
-            <p className="font-black uppercase text-sm text-[#00174b]">Controladoria Geral</p>
-            <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-widest uppercase">Validação de Dados</p>
+          <div className="text-right">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Data de Emissão</span>
+            <span className="text-xs font-black text-slate-700">{format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</span>
           </div>
         </div>
 
-        <div className="mt-24 text-center text-[10px] text-slate-400 font-bold italic tracking-widest uppercase border-t border-slate-100 pt-10">
-          {institution?.footer_text || ''}
+        {/* 1. DASHBOARD VIEW IN PRINT */}
+        {activeCategory === 'dashboard' && (
+          <div className="space-y-8">
+            <div className="grid grid-cols-3 gap-6">
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-3">Métricas Acadêmicas</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-600">Total Cadastrados:</span> <span className="font-black">{stats.totalStudents}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Matrículas Ativas:</span> <span className="font-black text-emerald-700">{stats.activeStudents}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Inativos / Trancados:</span> <span className="font-black">{stats.inactiveStudents}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Turmas Ofertadas:</span> <span className="font-black">{stats.totalClasses}</span></div>
+                  <div className="flex justify-between border-t border-slate-200 pt-1.5"><span className="text-slate-600 font-bold">Taxa de Ocupação:</span> <span className="font-black text-blue-700">{stats.occupancyRate}%</span></div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-3">Métricas Financeiras</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-600">Arrecadação Total:</span> <span className="font-black text-emerald-700">{formatCurrency(stats.totalPixAmount)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Total Transações:</span> <span className="font-black">{stats.pixCount}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Conciliadas (Match):</span> <span className="font-black">{stats.matchedPix}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Pendentes:</span> <span className="font-black">{stats.pixCount - stats.matchedPix}</span></div>
+                  <div className="flex justify-between border-t border-slate-200 pt-1.5"><span className="text-slate-600 font-bold">Taxa de Conciliação:</span> <span className="font-black text-emerald-700">{stats.efficiency}%</span></div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-wider mb-3">Métricas Operacionais</h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-600">Corpo Docente Ativo:</span> <span className="font-black">{stats.activeTeachers} de {stats.totalTeachers}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Grade de Disciplinas:</span> <span className="font-black">{subjects.length} disciplinas</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Média Alunos / Turma:</span> <span className="font-black">{stats.totalClasses > 0 ? Math.round(stats.activeStudents / stats.totalClasses) : 0} alunos</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Relação Alunos / Docente:</span> <span className="font-black">{stats.activeTeachers > 0 ? (stats.activeStudents / stats.activeTeachers).toFixed(1) : '0'}</span></div>
+                  <div className="flex justify-between border-t border-slate-200 pt-1.5"><span className="text-slate-600 font-bold">Ticket Médio Pix:</span> <span className="font-black text-[#00174b]">{formatCurrency(stats.pixCount > 0 ? stats.totalPixAmount / stats.pixCount : 0)}</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">
+                Detalhamento de Ocupação por Turma
+              </h3>
+              <table className="w-full text-xs border border-slate-200">
+                <thead>
+                  <tr className="bg-[#00174b] text-white">
+                    <th className="p-2.5 text-left font-black uppercase">Código</th>
+                    <th className="p-2.5 text-left font-black uppercase">Turma / Unidade</th>
+                    <th className="p-2.5 text-left font-black uppercase">Período</th>
+                    <th className="p-2.5 text-right font-black uppercase">Alunos Ativos</th>
+                    <th className="p-2.5 text-right font-black uppercase">Representatividade %</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {studentsByClass.map((c, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                      <td className="p-2.5 font-bold text-slate-600">{c.code}</td>
+                      <td className="p-2.5 font-black text-[#00174b]">{c.name}</td>
+                      <td className="p-2.5 font-bold uppercase text-slate-500">{c.period || '---'}</td>
+                      <td className="p-2.5 text-right font-black">{c.count}</td>
+                      <td className="p-2.5 text-right font-bold text-blue-700">{c.percentage}%</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-slate-100 font-black">
+                    <td colSpan={3} className="p-2.5 text-left uppercase text-slate-700">Total Geral de Alunos Alocados</td>
+                    <td className="p-2.5 text-right text-[#00174b]">{stats.activeStudents}</td>
+                    <td className="p-2.5 text-right text-blue-700">100%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">
+                Últimas Contribuições Pix Registradas
+              </h3>
+              <table className="w-full text-xs border border-slate-200">
+                <thead>
+                  <tr className="bg-[#00174b] text-white">
+                    <th className="p-2 text-left font-black uppercase">Data</th>
+                    <th className="p-2 text-left font-black uppercase">Pagador / Doador</th>
+                    <th className="p-2 text-left font-black uppercase">Aluno Vinculado</th>
+                    <th className="p-2 text-right font-black uppercase">Valor (R$)</th>
+                    <th className="p-2 text-center font-black uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {recentPix.slice(0, 8).map((p, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                      <td className="p-2 font-medium text-slate-600">{p.date}</td>
+                      <td className="p-2 font-bold text-slate-800 uppercase">{p.payer_name}</td>
+                      <td className="p-2 text-slate-600 uppercase">{p.student?.name || 'Não identificado'}</td>
+                      <td className="p-2 text-right font-black text-[#00174b]">{formatCurrency(p.amount)}</td>
+                      <td className="p-2 text-center font-bold">
+                        <span className={p.status === 'matched' ? "text-emerald-700" : "text-amber-700"}>
+                          {p.status === 'matched' ? 'CONCILIADO' : 'PENDENTE'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 2. FINANCIAL VIEW IN PRINT */}
+        {activeCategory === 'financial' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Arrecadação Total</span>
+                <span className="text-lg font-black text-emerald-700">{formatCurrency(stats.totalPixAmount)}</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Conciliado</span>
+                <span className="text-lg font-black text-blue-700">
+                  {formatCurrency(scopedPixTransactions.filter(p => p.status === 'matched').reduce((acc, c) => acc + (Number(c.amount) || 0), 0))}
+                </span>
+                <span className="text-[10px] text-slate-500 block">{stats.matchedPix} transações</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Pendente</span>
+                <span className="text-lg font-black text-amber-700">
+                  {formatCurrency(scopedPixTransactions.filter(p => p.status !== 'matched').reduce((acc, c) => acc + (Number(c.amount) || 0), 0))}
+                </span>
+                <span className="text-[10px] text-slate-500 block">{scopedPixTransactions.length - stats.matchedPix} transações</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Eficiência de Match</span>
+                <span className="text-lg font-black text-emerald-700">{stats.efficiency}%</span>
+                <span className="text-[10px] text-slate-500 block">{scopedPixTransactions.length} lançamentos</span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">
+                Relação Analítica de Contribuições Pix ({scopedPixTransactions.length} Lançamentos)
+              </h3>
+              <table className="w-full text-xs border border-slate-200">
+                <thead>
+                  <tr className="bg-[#00174b] text-white">
+                    <th className="p-2 text-left font-black uppercase">#</th>
+                    <th className="p-2 text-left font-black uppercase">Data</th>
+                    <th className="p-2 text-left font-black uppercase">Pagador / Doador</th>
+                    <th className="p-2 text-left font-black uppercase">Documento</th>
+                    <th className="p-2 text-left font-black uppercase">Aluno Vinculado</th>
+                    <th className="p-2 text-right font-black uppercase">Valor (R$)</th>
+                    <th className="p-2 text-center font-black uppercase">Situação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {scopedPixTransactions.map((p, i) => {
+                    const linkedStudent = scopedStudents.find(s => s.id === p.matched_student_id);
+                    return (
+                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                        <td className="p-2 text-slate-500 font-bold">{i + 1}</td>
+                        <td className="p-2 text-slate-700">{p.date}</td>
+                        <td className="p-2 font-bold text-slate-900 uppercase">{p.payer_name}</td>
+                        <td className="p-2 text-slate-500 font-mono text-[10px]">{p.payer_document || '***.***.***-**'}</td>
+                        <td className="p-2 text-slate-700 uppercase font-medium">{linkedStudent?.name || (p as any).student?.name || 'Não identificado'}</td>
+                        <td className="p-2 text-right font-black text-[#00174b]">{formatCurrency(p.amount)}</td>
+                        <td className="p-2 text-center font-bold">
+                          <span className={p.status === 'matched' ? "text-emerald-700" : "text-amber-700"}>
+                            {p.status === 'matched' ? 'CONCILIADO' : 'PENDENTE'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="bg-slate-100 font-black">
+                    <td colSpan={5} className="p-2 text-left uppercase text-slate-700">Total Arrecadado no Período</td>
+                    <td className="p-2 text-right text-emerald-800 font-black">{formatCurrency(stats.totalPixAmount)}</td>
+                    <td className="p-2 text-center text-slate-600">{stats.matchedPix} Conc.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 3. ACADEMIC VIEW IN PRINT */}
+        {activeCategory === 'academic' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Estudantes</span>
+                <span className="text-lg font-black text-[#00174b]">{scopedStudents.length}</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Matrículas Ativas</span>
+                <span className="text-lg font-black text-emerald-700">{stats.activeStudents}</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Inativos / Trancados</span>
+                <span className="text-lg font-black text-slate-600">{stats.inactiveStudents}</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Turmas Ofertadas</span>
+                <span className="text-lg font-black text-blue-700">{filteredClasses.length}</span>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {filteredClasses.map((c, cIdx) => {
+                const classStudents = filterStudentsForClass(scopedStudents, c.id, enrollments, true);
+                return (
+                  <div key={cIdx} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="bg-slate-100 px-4 py-2.5 flex items-center justify-between border-b border-slate-200">
+                      <div>
+                        <span className="font-black text-[#00174b] uppercase text-xs">{c.name}</span>
+                        <span className="text-[10px] text-slate-500 font-bold ml-2">Código: {c.code} • Turno: {c.period || 'Geral'}</span>
+                      </div>
+                      <span className="text-xs font-black text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+                        {classStudents.length} Aluno(s) Matriculado(s)
+                      </span>
+                    </div>
+
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-600 text-[10px] uppercase border-b border-slate-200">
+                          <th className="p-2 text-left font-bold w-12">#</th>
+                          <th className="p-2 text-left font-bold w-36">Matrícula</th>
+                          <th className="p-2 text-left font-bold">Nome do Aluno</th>
+                          <th className="p-2 text-left font-bold w-40">Telefone / Contato</th>
+                          <th className="p-2 text-right font-bold w-28">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {classStudents.length > 0 ? (
+                          classStudents.map((s, sIdx) => (
+                            <tr key={sIdx} className={sIdx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                              <td className="p-2 text-slate-400 font-bold">{sIdx + 1}</td>
+                              <td className="p-2 font-mono font-bold text-slate-700 text-[11px]">{formatRegistrationNumber(s.registration_number)}</td>
+                              <td className="p-2 font-bold text-slate-900 uppercase">{s.name}</td>
+                              <td className="p-2 text-slate-600">{(s as any).phone_mobile || (s as any).phone || (s as any).whatsapp || '---'}</td>
+                              <td className="p-2 text-right font-bold text-emerald-700 uppercase text-[10px]">{s.status || 'Ativo'}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="p-3 text-center text-slate-400 font-semibold italic">Nenhum aluno ativo matriculado nesta turma.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 4. ATTENDANCE VIEW IN PRINT */}
+        {activeCategory === 'attendance' && (
+          <div className="space-y-6">
+            {(() => {
+              const totalDays = totalClassDays > 0 ? totalClassDays : 33;
+              const maxAllowedAbsences = Math.floor(totalDays * ((academicParams.absence_limit_percentage || 25) / 100));
+              const activeStudentsList = scopedStudents.filter(s => isStudentActive(s));
+              let regCount = 0;
+              let riskCount = 0;
+
+              activeStudentsList.forEach(s => {
+                const absences = attendanceData.filter(a => a.student_id === s.id && a.status === 'F').length;
+                if (absences > maxAllowedAbsences) riskCount++;
+                else regCount++;
+              });
+
+              return (
+                <>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Dias Letivos</span>
+                      <span className="text-lg font-black text-[#00174b]">{totalDays} dias</span>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Limite de Faltas</span>
+                      <span className="text-lg font-black text-amber-700">{academicParams.absence_limit_percentage || 25}% (Máx. {maxAllowedAbsences})</span>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Alunos Regulares</span>
+                      <span className="text-lg font-black text-emerald-700">{regCount} alunos</span>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Em Risco de Reprovação</span>
+                      <span className="text-lg font-black text-rose-700">{riskCount} alunos</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">
+                      Monitoramento Consolidado de Frequência Escolar ({activeStudentsList.length} Estudantes)
+                    </h3>
+                    <table className="w-full text-xs border border-slate-200">
+                      <thead>
+                        <tr className="bg-[#00174b] text-white">
+                          <th className="p-2 text-left font-black uppercase w-12">#</th>
+                          <th className="p-2 text-left font-black uppercase w-32">Matrícula</th>
+                          <th className="p-2 text-left font-black uppercase">Estudante</th>
+                          <th className="p-2 text-left font-black uppercase w-48">Turma</th>
+                          <th className="p-2 text-center font-black uppercase w-20">Pres.</th>
+                          <th className="p-2 text-center font-black uppercase w-20">Faltas</th>
+                          <th className="p-2 text-center font-black uppercase w-24">Freq. %</th>
+                          <th className="p-2 text-right font-black uppercase w-32">Situação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {activeStudentsList.map((student, i) => {
+                          const absences = attendanceData.filter(a => a.student_id === student.id && a.status === 'F').length;
+                          const presences = attendanceData.filter(a => a.student_id === student.id && a.status === 'P').length;
+                          const presencePct = totalDays > 0 ? (presences / totalDays) * 100 : 0;
+                          const isRisk = absences > maxAllowedAbsences;
+                          const studentClass = scopedClasses.find(c => c.id === student.class_id);
+
+                          return (
+                            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                              <td className="p-2 text-slate-400 font-bold">{i + 1}</td>
+                              <td className="p-2 font-mono font-bold text-slate-700">{formatRegistrationNumber(student.registration_number)}</td>
+                              <td className="p-2 font-black text-[#00174b] uppercase">{student.name}</td>
+                              <td className="p-2 text-slate-600 uppercase font-medium">{studentClass?.name || 'Sem turma'}</td>
+                              <td className="p-2 text-center font-bold text-slate-700">{presences}</td>
+                              <td className="p-2 text-center font-bold text-[#00174b]">{absences}</td>
+                              <td className="p-2 text-center font-black">
+                                <span className={isRisk ? "text-rose-600" : "text-emerald-700"}>
+                                  {presencePct.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="p-2 text-right font-black text-[10px]">
+                                <span className={isRisk ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200" : "text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200"}>
+                                  {isRisk ? 'RISCO REPROVAÇÃO' : 'REGULAR'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* 5. OPERATIONAL VIEW IN PRINT */}
+        {activeCategory === 'operational' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Docentes</span>
+                <span className="text-lg font-black text-[#00174b]">{scopedTeachers.length}</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Docentes Ativos</span>
+                <span className="text-lg font-black text-emerald-700">{stats.activeTeachers}</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Disciplinas</span>
+                <span className="text-lg font-black text-blue-700">{subjects.length}</span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Relação Aluno/Docente</span>
+                <span className="text-lg font-black text-indigo-700">
+                  {stats.activeTeachers > 0 ? (stats.activeStudents / stats.activeTeachers).toFixed(1) : '0'}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">
+                Quadro de Professores ({filteredTeachers.length} Docentes Listados)
+              </h3>
+              <table className="w-full text-xs border border-slate-200">
+                <thead>
+                  <tr className="bg-[#00174b] text-white">
+                    <th className="p-2 text-left font-black uppercase w-12">#</th>
+                    <th className="p-2 text-left font-black uppercase w-24">Código</th>
+                    <th className="p-2 text-left font-black uppercase">Nome do Professor</th>
+                    <th className="p-2 text-left font-black uppercase">E-mail</th>
+                    <th className="p-2 text-left font-black uppercase">Disciplinas Ministradas</th>
+                    <th className="p-2 text-right font-black uppercase w-24">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filteredTeachers.map((t, i) => {
+                    const teacherSubjects = subjects
+                      .filter(s => t.subject_ids?.includes(s.id))
+                      .map(s => s.name)
+                      .join(', ');
+                    return (
+                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                        <td className="p-2 text-slate-400 font-bold">{i + 1}</td>
+                        <td className="p-2 font-mono font-bold text-slate-700">{t.code}</td>
+                        <td className="p-2 font-bold text-slate-900 uppercase">{t.name}</td>
+                        <td className="p-2 text-slate-600">{t.email || '---'}</td>
+                        <td className="p-2 text-indigo-700 font-semibold">{teacherSubjects || 'Sem disciplina vinculada'}</td>
+                        <td className="p-2 text-right font-bold uppercase text-[10px]">
+                          <span className={(t as any).status === 'Inativo' ? "text-slate-500" : "text-emerald-700"}>
+                            {(t as any).status || 'Ativo'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">
+                Matriz Curricular de Disciplinas ({filteredSubjects.length} Disciplinas)
+              </h3>
+              <table className="w-full text-xs border border-slate-200">
+                <thead>
+                  <tr className="bg-[#00174b] text-white">
+                    <th className="p-2 text-left font-black uppercase w-12">#</th>
+                    <th className="p-2 text-left font-black uppercase w-24">Código</th>
+                    <th className="p-2 text-left font-black uppercase">Nome da Disciplina</th>
+                    <th className="p-2 text-left font-black uppercase w-36">Semestre / Turno</th>
+                    <th className="p-2 text-left font-black uppercase">Docentes Responsáveis</th>
+                    <th className="p-2 text-right font-black uppercase w-24">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filteredSubjects.map((s, i) => {
+                    const assignedTeachers = scopedTeachers
+                      .filter(t => t.subject_ids?.includes(s.id))
+                      .map(t => t.name)
+                      .join(', ');
+                    return (
+                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                        <td className="p-2 text-slate-400 font-bold">{i + 1}</td>
+                        <td className="p-2 font-mono font-bold text-slate-700">{s.code}</td>
+                        <td className="p-2 font-bold text-[#00174b] uppercase">{s.name}</td>
+                        <td className="p-2 text-slate-600">{s.semester || 'Geral'}</td>
+                        <td className="p-2 text-slate-700 font-medium">{assignedTeachers || 'Nenhum docente atribuído'}</td>
+                        <td className="p-2 text-right font-bold text-emerald-700 uppercase text-[10px]">{s.status || 'Ativo'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Observations if available */}
+        {institution?.receipt_message && (
+          <div className="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-[#00174b] mb-1">Observações Institucionais:</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">{institution.receipt_message}</p>
+          </div>
+        )}
+
+        {/* Official Signatures */}
+        <div className="mt-16 flex justify-between px-16 font-sans">
+          <div className="text-center border-t-2 border-[#00174b] pt-4 w-72">
+            <p className="font-black uppercase text-xs text-[#00174b]">Diretoria Executiva</p>
+            <p className="text-[9px] text-slate-500 font-bold mt-1 tracking-wider uppercase">Assinatura e Carimbo Oficial</p>
+          </div>
+          <div className="text-center border-t-2 border-[#00174b] pt-4 w-72">
+            <p className="font-black uppercase text-xs text-[#00174b]">Secretaria Acadêmica</p>
+            <p className="text-[9px] text-slate-500 font-bold mt-1 tracking-wider uppercase">Validação e Arquivo dos Dados</p>
+          </div>
+        </div>
+
+        {/* Footer text */}
+        <div className="mt-10 text-center text-[9px] text-slate-500 font-medium tracking-wider uppercase border-t border-slate-200 pt-4">
+          {institution?.footer_text || 'Sistema de Gestão Acadêmica e Administrativa ESCMIN • Documento emitido eletronicamente'}
         </div>
       </div>
     </div>
