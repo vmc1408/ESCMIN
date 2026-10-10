@@ -291,18 +291,19 @@ export function FinancialReport() {
     return students.find(s => s.id === selectedStudentId) || null;
   }, [students, selectedStudentId]);
 
-  // Lista de alunos correspondentes à busca de aluno no 1º filtro
+  // Lista de alunos correspondentes à busca de aluno no 1º filtro (apenas quando houver termo digitado)
   const searchedStudents = useMemo(() => {
-    if (!studentSearchQuery.trim()) {
-      return scopedStudents.slice(0, 10);
+    const query = studentSearchQuery.trim();
+    if (!query) {
+      return [];
     }
-    const q = studentSearchQuery.trim().toLowerCase();
+    const q = query.toLowerCase();
     const cleanDigits = q.replace(/\D/g, '');
     return scopedStudents.filter(s => {
       const name = (s.name || '').toLowerCase();
       const reg = (s.registration_number || '').toLowerCase();
       const cpf = (s.cpf || '').replace(/\D/g, '');
-      return name.includes(q) || reg.includes(q) || (cleanDigits && cpf.includes(cleanDigits));
+      return name.includes(q) || reg.includes(q) || (cleanDigits.length > 0 && cpf.includes(cleanDigits));
     }).slice(0, 15);
   }, [scopedStudents, studentSearchQuery]);
 
@@ -498,23 +499,25 @@ const reportData = useMemo(() => {
 
   const yearNum = Number(selectedYear);
 
-  // Filtragem de alunos por alvo (turma ou aluno individual) e busca (considerando apenas alunos ativos)
-  const filteredStudents = scopedStudents.filter(student => {
-    if (!isStudentActive(student)) {
-      return false;
-    }
-    if (filterTarget === 'student') {
-      return student.id === selectedStudentId;
-    }
-    // filterTarget === 'class'
-    if (selectedClassId !== 'all' && !isStudentInClass(student, selectedClassId, enrollments)) {
-      return false;
-    }
-    if (searchTerm.trim() && !matchesStudentSearch(student, searchTerm.trim())) {
-      return false;
-    }
-    return true;
-  });
+  // Filtragem de alunos por alvo (turma ou aluno individual correspondente)
+  const filteredStudents = filterTarget === 'student'
+    ? (() => {
+        if (!selectedStudentId) return [];
+        const found = scopedStudents.find(s => s.id === selectedStudentId) || students.find(s => s.id === selectedStudentId);
+        return found ? [found] : [];
+      })()
+    : scopedStudents.filter(student => {
+        if (!isStudentActive(student)) {
+          return false;
+        }
+        if (selectedClassId !== 'all' && !isStudentInClass(student, selectedClassId, enrollments)) {
+          return false;
+        }
+        if (searchTerm.trim() && !matchesStudentSearch(student, searchTerm.trim())) {
+          return false;
+        }
+        return true;
+      });
 
   return filteredStudents.map(student => {
     const studentClass = classes.find(c => c.id === student.class_id);
@@ -992,7 +995,7 @@ return (
               onClick={() => {
                 setFilterTarget('student');
                 setSelectedClassId('');
-                setIsStudentDropdownOpen(true);
+                setIsStudentDropdownOpen(false);
               }}
               className={cn(
                 "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
@@ -1105,7 +1108,15 @@ return (
                         <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">
                           #{selectedStudent.registration_number || '---'}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold hidden md:inline">
+                        {(() => {
+                          const stClass = classes.find(c => c.id === selectedStudent.class_id);
+                          return stClass ? (
+                            <span className="text-[10px] font-semibold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 hidden md:inline truncate max-w-[160px]">
+                              {stClass.name}
+                            </span>
+                          ) : null;
+                        })()}
+                        <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold hidden lg:inline">
                           {selectedStudent.status || 'Ativo'}
                         </span>
                       </div>
@@ -1115,7 +1126,7 @@ return (
                       onClick={() => {
                         setSelectedStudentId('');
                         setStudentSearchQuery('');
-                        setIsStudentDropdownOpen(true);
+                        setIsStudentDropdownOpen(false);
                       }}
                       className="text-[11px] font-bold text-blue-700 hover:text-blue-900 hover:underline shrink-0 cursor-pointer flex items-center gap-1"
                       title="Selecionar outro aluno"
@@ -1131,18 +1142,27 @@ return (
                       type="text"
                       placeholder="Buscar por nome, matrícula ou CPF..."
                       value={studentSearchQuery}
-                      onFocus={() => setIsStudentDropdownOpen(true)}
+                      onFocus={() => {
+                        if (studentSearchQuery.trim().length > 0) {
+                          setIsStudentDropdownOpen(true);
+                        }
+                      }}
                       onChange={(e) => {
-                        setStudentSearchQuery(e.target.value);
-                        setIsStudentDropdownOpen(true);
+                        const val = e.target.value;
+                        setStudentSearchQuery(val);
+                        setIsStudentDropdownOpen(val.trim().length > 0);
                       }}
                       className="w-full h-10 pl-9 pr-8 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition-all"
                     />
                     {studentSearchQuery && (
                       <button
                         type="button"
-                        onClick={() => setStudentSearchQuery('')}
+                        onClick={() => {
+                          setStudentSearchQuery('');
+                          setIsStudentDropdownOpen(false);
+                        }}
                         className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                        title="Limpar busca"
                       >
                         <X size={14} />
                       </button>
@@ -1150,14 +1170,14 @@ return (
                   </div>
                 )}
 
-                {/* Autocomplete Dropdown */}
-                {!selectedStudent && isStudentDropdownOpen && (
+                {/* Autocomplete Dropdown - Exibido somente quando o usuário digitar uma busca */}
+                {!selectedStudent && isStudentDropdownOpen && studentSearchQuery.trim().length > 0 && (
                   <>
                     <div 
                       className="fixed inset-0 z-20" 
                       onClick={() => setIsStudentDropdownOpen(false)} 
                     />
-                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-30 divide-y divide-slate-100">
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-30 divide-y divide-slate-100">
                       {searchedStudents.length > 0 ? (
                         searchedStudents.map(st => {
                           const stClass = classes.find(c => c.id === st.class_id);
@@ -1166,27 +1186,37 @@ return (
                               key={st.id}
                               type="button"
                               onClick={() => handleSelectStudent(st)}
-                              className="w-full text-left px-3.5 py-2 hover:bg-blue-50/70 transition-colors flex items-center justify-between cursor-pointer"
+                              className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50/70 transition-colors flex items-center justify-between cursor-pointer group"
                             >
                               <div className="min-w-0 pr-2">
-                                <p className="text-xs font-bold text-slate-900 truncate">
+                                <p className="text-xs font-bold text-slate-900 group-hover:text-blue-900 truncate">
                                   {st.name}
                                 </p>
                                 <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                                  Mat: <span className="font-mono font-medium">{st.registration_number || '---'}</span>
-                                  {stClass ? ` • ${stClass.name}` : ''}
+                                  Matrícula: <span className="font-mono font-bold text-slate-700">{st.registration_number || '---'}</span>
+                                  {stClass ? ` • Turma: ${stClass.name}` : ' • Sem Turma'}
                                   {st.cpf ? ` • CPF: ${st.cpf}` : ''}
                                 </p>
                               </div>
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0">
-                                {stClass?.code || 'Aluno'}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={cn(
+                                  "text-[9px] font-bold px-2 py-0.5 rounded-md",
+                                  st.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                )}>
+                                  {st.status || 'Ativo'}
+                                </span>
+                                {stClass?.code && (
+                                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                                    {stClass.code}
+                                  </span>
+                                )}
+                              </div>
                             </button>
                           );
                         })
                       ) : (
-                        <div className="p-4 text-center text-xs text-slate-400">
-                          Nenhum aluno encontrado para &quot;{studentSearchQuery}&quot;
+                        <div className="p-4 text-center text-xs text-slate-500">
+                          Nenhum aluno encontrado correspondente a &quot;<span className="font-bold text-slate-700">{studentSearchQuery}</span>&quot;
                         </div>
                       )}
                     </div>
@@ -1475,7 +1505,7 @@ return (
             type="button"
             onClick={() => {
               setFilterTarget('student');
-              setIsStudentDropdownOpen(true);
+              setIsStudentDropdownOpen(false);
               if (!selectedYear) setSelectedYear(String(new Date().getFullYear()));
               if (!periodType) setPeriodType('anual');
             }}
