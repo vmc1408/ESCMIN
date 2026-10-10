@@ -1614,21 +1614,22 @@ export function Reports() {
                 setTimeout(cleanup, 15000);
               }
               try {
+                iframe.contentWindow.focus();
                 iframe.contentWindow.print();
               } catch (e) {
                 console.warn("Print call failed on Reports iframe, triggering fallback:", e);
                 throw e;
               }
 
-              // Long fallback to clean up iframe in case afterprint doesn't trigger
-              setTimeout(cleanup, 300000);
+              // Fallback to clean up iframe in case afterprint doesn't trigger
+              setTimeout(cleanup, 30000);
             } catch (err) {
               console.warn("Iframe printing blocked by sandbox or browser security policies, falling back to download:", err);
               // Fallback to downloading the files
               doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);
               setNotification({ 
                 type: 'success', 
-                message: 'A impressão direta em iframe foi bloqueada pelo navegador. O arquivo PDF foi baixado para você imprimir manualmente.' 
+                message: 'A visualização para impressão foi gerada. O arquivo PDF foi baixado caso queira imprimir manualmente.' 
               });
               try {
                 if (document.body.contains(iframe)) {
@@ -1637,7 +1638,7 @@ export function Reports() {
               } catch (e) {}
               URL.revokeObjectURL(url);
             }
-          }, 500);
+          }, 300);
         };
       } else {
         doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);

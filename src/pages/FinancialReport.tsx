@@ -907,50 +907,54 @@ return (
     </PageHeader>
 
     {/* Cabeçalho Oficial de Impressão (visível apenas na impressão) */}
-    <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">
+    <div className="hidden print:block mb-4 border-b-2 border-slate-800 pb-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {institution?.logo_url && (
             <img 
               src={institution.logo_url} 
               alt="Logo" 
-              className="w-16 h-16 object-contain"
+              className="w-14 h-14 object-contain shrink-0"
             />
           )}
           <div>
-            <h1 className="text-lg font-black text-slate-900 uppercase">
+            <h1 className="text-base font-black text-slate-900 uppercase leading-tight">
               {institution?.name || 'Escola Diocesana de Ministério'}
             </h1>
-            <p className="text-xs text-slate-600 font-medium">
+            <p className="text-[10px] text-slate-600 font-medium leading-tight">
               {institution?.address || 'Diocese de Guarulhos'} {institution?.city && `- ${institution.city}`} {institution?.cnpj && `| CNPJ: ${institution.cnpj}`}
             </p>
-            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide mt-1">
+            <h2 className="text-xs font-black text-[#00174b] uppercase tracking-wide mt-0.5">
               Relatório Financeiro: Contribuições Previstas vs. Efetuadas
             </h2>
           </div>
         </div>
-        <div className="text-right text-xs text-slate-500">
-          <p className="font-bold text-slate-700">Emissão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+        <div className="text-right text-[10px] text-slate-600 shrink-0 leading-tight">
+          <p className="font-bold text-slate-900">Emissão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           <p>Unidade: {getUnitName(selectedUnitId) || 'Todas as Unidades'}</p>
           <p>Operador: {profile?.name || 'Administração'}</p>
         </div>
       </div>
       
       {/* Faixa de Parâmetros na Impressão */}
-      <div className="mt-3 p-2.5 bg-slate-100 rounded text-xs flex items-center justify-between font-medium text-slate-800">
+      <div className="mt-2.5 py-1.5 px-3 bg-slate-100 border border-slate-300 rounded-none text-[10.5px] flex items-center justify-between font-medium text-slate-800">
         <div>
           <span className="font-bold">{filterTarget === 'student' ? 'Aluno: ' : 'Turma: '}</span>
-          {filterTarget === 'student'
-            ? (selectedStudent ? `${selectedStudent.name} (${selectedStudent.registration_number || '---'})` : 'Pendente')
-            : (selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
+          <span className="font-semibold">
+            {filterTarget === 'student'
+              ? (selectedStudent ? `${selectedStudent.name} (${selectedStudent.registration_number || '---'})` : 'Pendente')
+              : (selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
+          </span>
         </div>
         <div>
           <span className="font-bold">Período: </span>
-          {periodLabel}
+          <span className="font-semibold">{periodLabel}</span>
         </div>
         <div>
           <span className="font-bold">Filtro de Situação: </span>
-          {!statusFilter || statusFilter === 'all' ? 'Todos' : statusFilter === 'paid' ? 'Adimplentes' : statusFilter === 'partial' ? 'Parciais' : 'Inadimplentes'}
+          <span className="font-semibold">
+            {!statusFilter || statusFilter === 'all' ? 'Todos' : statusFilter === 'paid' ? 'Adimplentes' : statusFilter === 'partial' ? 'Parciais' : 'Inadimplentes'}
+          </span>
         </div>
       </div>
     </div>
@@ -1601,64 +1605,64 @@ return (
 
         {/* Cards de Métricas e Indicadores Consolidados */}
         <div className={cn(
-          "grid gap-3.5 print:grid-cols-4 print:gap-2",
+          "grid gap-3.5 print:grid-cols-4 print:gap-2 print:mb-2.5",
           showAVencerCard 
             ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" 
             : "grid-cols-1 sm:grid-cols-3"
         )}>
           {/* Card 1: Previsto */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
                   Total Previsto
                 </span>
-                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 max-w-full truncate" title={periodLabel}>
+                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 max-w-full truncate print:hidden" title={periodLabel}>
                   <Calendar size={11} className="text-slate-500 shrink-0" />
                   <span className="truncate">{periodLabel}</span>
                 </span>
               </div>
-              <div className="p-2 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-100">
+              <div className="p-2 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-100 print:hidden">
                 <Calendar size={17} />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tabular-nums">
+            <div className="mt-3 print:mt-1">
+              <span className="text-2xl font-black text-slate-900 tabular-nums print:text-base">
                 {formatCurrency(totals.totalPrevisto)}
               </span>
-              <p className="text-[10px] text-slate-500 font-medium mt-1">
+              <p className="text-[10px] text-slate-500 font-medium mt-1 print:text-[8px] print:mt-0">
                 Base calculada para {totals.totalAlunos} aluno(s)
               </p>
             </div>
           </div>
 
           {/* Card 2: Efetuado / Arrecadado */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                   Total Efetuado (Arrecadado)
                 </span>
-                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 max-w-full truncate" title={periodLabel}>
+                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 max-w-full truncate print:hidden" title={periodLabel}>
                   <CheckCircle2 size={11} className="text-emerald-700 shrink-0" />
                   <span className="truncate">{totals.adimplentesCount} quitado(s)</span>
                 </span>
               </div>
-              <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl shrink-0 border border-emerald-100">
+              <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl shrink-0 border border-emerald-100 print:hidden">
                 <CheckCircle2 size={17} />
               </div>
             </div>
-            <div className="mt-3">
+            <div className="mt-3 print:mt-1">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums">
+                <span className="text-2xl font-black text-emerald-700 tabular-nums print:text-base">
                   {formatCurrency(totals.totalEfetuado)}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium mt-1">
+              <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium mt-1 print:text-[8px] print:mt-0">
                 <span>{totals.adimplentesCount} alunos em dia</span>
-                <span className="font-bold text-emerald-700 font-mono">
+                <span className="font-bold text-emerald-700 font-mono print:text-[8px]">
                   {totals.taxaArrecadacao}% da meta
                 </span>
               </div>
@@ -1666,27 +1670,27 @@ return (
           </div>
 
           {/* Card 3: Saldo Pendente (Vencido) */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
                   <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
                   Saldo Inadimplente (Vencido)
                 </span>
-                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded-md border border-red-200 max-w-full truncate" title={periodLabel}>
+                <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded-md border border-red-200 max-w-full truncate print:hidden" title={periodLabel}>
                   <AlertCircle size={11} className="text-red-700 shrink-0" />
                   <span className="truncate">{totals.pendentesCount} em atraso</span>
                 </span>
               </div>
-              <div className="p-2 bg-red-50 text-red-700 rounded-xl shrink-0 border border-red-100">
+              <div className="p-2 bg-red-50 text-red-700 rounded-xl shrink-0 border border-red-100 print:hidden">
                 <AlertCircle size={17} />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-2xl font-black text-red-600 tabular-nums">
+            <div className="mt-3 print:mt-1">
+              <span className="text-2xl font-black text-red-600 tabular-nums print:text-base">
                 {formatCurrency(totals.totalPendente)}
               </span>
-              <p className="text-[10px] text-slate-500 font-medium mt-1">
+              <p className="text-[10px] text-slate-500 font-medium mt-1 print:text-[8px] print:mt-0">
                 {totals.pendentesCount} aluno(s) com parcelas vencidas
               </p>
             </div>
@@ -1694,32 +1698,32 @@ return (
 
           {/* Card 4: A Vencer / Restante */}
           {showAVencerCard && (
-            <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+            <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock size={13} className="text-slate-500 shrink-0" />
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
+                    <Clock size={13} className="text-slate-500 shrink-0 print:hidden" />
                     A Vencer (Restante)
                   </span>
-                  <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 max-w-full truncate" title={periodLabel}>
+                  <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 max-w-full truncate print:hidden" title={periodLabel}>
                     <Calendar size={11} className="text-slate-500 shrink-0" />
                     <span className="truncate">{isCurrentMonthPeriod ? 'Mês Atual' : 'Período Restante'}</span>
                   </span>
                 </div>
-                <div className="p-2 bg-slate-100 text-slate-700 rounded-xl shrink-0">
+                <div className="p-2 bg-slate-100 text-slate-700 rounded-xl shrink-0 print:hidden">
                   <Clock size={17} />
                 </div>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 print:mt-1">
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-slate-800 tabular-nums">
+                  <span className="text-2xl font-black text-slate-800 tabular-nums print:text-base">
                     {formatCurrency(isCurrentMonthPeriod ? Math.max(0, totals.totalPrevisto - totals.totalEfetuado) : totals.totalAVencer)}
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 print:hidden">
                     A Receber
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 font-medium mt-1">
+                <p className="text-[10px] text-slate-500 font-medium mt-1 print:text-[8px] print:mt-0">
                   {isCurrentMonthPeriod ? 'Saldo previsto para este mês' : 'Saldo programado para meses futuros'}
                 </p>
               </div>

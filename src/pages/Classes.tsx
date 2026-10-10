@@ -50,7 +50,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, filterStudentsForClass, isStudentActive } from '../lib/utils';
 import { detectSubjectSemester, getClassStartDateFromSchedule, computeAvailableAcademicYears } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
@@ -1097,19 +1097,7 @@ export function Classes() {
       fetchAll('students').catch(() => [])
     ]).then(([enrollments, studentsData]) => {
       if (!isMounted) return;
-      const classId = selectedClass.id;
-      const classEnrollments = (enrollments || []).filter((e: any) => e.class_id === classId && (e.status || 'Ativo') === 'Ativo');
-      const enrolledIds = new Set<string>();
-      classEnrollments.forEach((e: any) => { if (e.student_id) enrolledIds.add(e.student_id); });
-
-      const matched = (studentsData || []).filter((s: any) => {
-        const isDirect = s.class_id === classId;
-        const isEnrolled = enrolledIds.has(s.id);
-        return isDirect || isEnrolled;
-      });
-
-      matched.sort((a: any, b: any) => (a.name || a.full_name || '').localeCompare(b.name || b.full_name || ''));
-
+      const matched = filterStudentsForClass(studentsData || [], selectedClass.id, enrollments || [], true);
       setModalStudents(matched);
       setSelectedClassStudentCount(matched.length);
     });
@@ -1131,18 +1119,7 @@ export function Classes() {
         fetchAll('students').catch(() => [])
       ]);
 
-      const classId = clsToUse.id;
-      const classEnrollments = (enrollments || []).filter((e: any) => e.class_id === classId && (e.status || 'Ativo') === 'Ativo');
-      const enrolledIds = new Set<string>();
-      classEnrollments.forEach((e: any) => { if (e.student_id) enrolledIds.add(e.student_id); });
-
-      const matched = (studentsData || []).filter((s: any) => {
-        const isDirect = s.class_id === classId;
-        const isEnrolled = enrolledIds.has(s.id);
-        return isDirect || isEnrolled;
-      });
-
-      matched.sort((a: any, b: any) => (a.name || a.full_name || '').localeCompare(b.name || b.full_name || ''));
+      const matched = filterStudentsForClass(studentsData || [], clsToUse.id, enrollments || [], true);
 
       setModalStudents(matched);
       setSelectedClassStudentCount(matched.length);
