@@ -783,8 +783,8 @@ const handleExportPDF = () => {
 
     // Tabela detalhada de alunos
     const tableBody = reportData.map((item, index) => {
-      const classIdStr = item.studentClass?.id || item.student.class_id || item.studentClass?.code || '---';
-      const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • ID Turma: ${classIdStr}`;
+      const classCodeStr = item.studentClass?.code || '---';
+      const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: ${classCodeStr}`;
 
       return [
         (index + 1).toString(),
@@ -847,11 +847,11 @@ const handleExportPDF = () => {
 // Exportar CSV para planilhas
 const handleExportCSV = () => {
   if (!isFilterReady) return;
-  const headers = ['Matrícula', 'Aluno', 'ID Turma', 'Período', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)'];
+  const headers = ['Matrícula', 'Aluno', 'Cód. Turma', 'Período', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)'];
   const rows = reportData.map(item => [
     item.student.registration_number || '',
     `"${item.student.name || ''}"`,
-    `"${item.studentClass?.id || item.student.class_id || item.studentClass?.code || ''}"`,
+    `"${item.studentClass?.code || ''}"`,
     `"${periodLabel}"`,
     `"${item.periodSummary}"`,
     item.valorPrevisto.toFixed(2),
@@ -873,15 +873,15 @@ const handleExportCSV = () => {
 
 return (
   <div id="financial-report-main-container" className="space-y-6 print:space-y-3 print:m-0 print:p-0">
-    {/* Regras Estritas de Impressão Multi-página e Repressão de Cabeçalhos/Rodapés da Impressora */}
+    {/* Regras Estritas de Impressão Multi-página, Margens A4 e Repressão de Cabeçalhos/Rodapés Nativos */}
     <style>{`
       @media print {
         @page {
           size: A4 portrait;
-          margin: 0 !important;
+          margin: 12mm 14mm !important;
         }
 
-        html, body, #root, main, [class*="min-h-screen"], [class*="h-screen"], #financial-report-main-container {
+        html, body, #root, main, [class*="min-h-screen"], [class*="h-screen"] {
           margin: 0 !important;
           padding: 0 !important;
           background: #ffffff !important;
@@ -897,7 +897,7 @@ return (
         }
 
         #financial-report-main-container {
-          padding: 8mm 10mm 10mm 10mm !important;
+          padding: 0 !important;
           margin: 0 auto !important;
           width: 100% !important;
           max-width: 100% !important;
@@ -920,6 +920,8 @@ return (
 
         thead {
           display: table-header-group !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
         }
 
         tbody {
@@ -927,7 +929,7 @@ return (
         }
 
         tfoot {
-          display: table-footer-group !important;
+          display: table-row-group !important;
           break-inside: avoid !important;
           page-break-inside: avoid !important;
         }
@@ -995,38 +997,38 @@ return (
     </PageHeader>
 
     {/* Cabeçalho Oficial de Impressão (visível apenas na impressão) */}
-    <div className="hidden print:block mb-5 border-b-2 border-slate-900 pb-4 print-avoid-break">
-      <div className="flex items-center justify-between gap-6">
-        <div className="flex items-center gap-5">
+    <div className="hidden print:block mb-3.5 border-b-2 border-slate-800 pb-2.5 print-avoid-break">
+      <div className="flex items-center justify-between gap-5">
+        <div className="flex items-center gap-4">
           {institution?.logo_url ? (
             <img 
               src={institution.logo_url} 
               alt="Logo" 
-              className="w-24 h-24 max-h-24 object-contain shrink-0"
+              className="w-16 h-16 max-h-16 object-contain shrink-0"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-24 h-24 border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[10px] text-slate-400 font-bold uppercase shrink-0">
+            <div className="w-16 h-16 border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[9px] text-slate-400 font-bold uppercase shrink-0">
               <span className="leading-none">SEM</span>
               <span className="leading-none">LOGO</span>
             </div>
           )}
           <div className="flex flex-col justify-center">
-            <p className="text-xs sm:text-[11pt] font-extrabold tracking-widest text-slate-700 uppercase leading-tight mb-1">
+            <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase leading-none mb-1">
               {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS')}
             </p>
-            <h1 className="text-2xl sm:text-[19pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+            <h1 className="text-base sm:text-lg font-black uppercase tracking-tight text-slate-900 leading-tight">
               {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
             </h1>
-            <p className="text-xs sm:text-[12pt] font-bold text-slate-600 tracking-wide uppercase mt-0.5 leading-tight">
+            <p className="text-[11px] font-semibold text-slate-600 tracking-wide uppercase mt-0.5 leading-tight">
               {institution?.subtitle || 'Pe. José Fernando de Brito'}
             </p>
-            <h2 className="text-sm sm:text-[13pt] font-black text-[#00174b] uppercase tracking-wider mt-2">
+            <h2 className="text-xs sm:text-[13px] font-black text-[#00174b] uppercase tracking-wider mt-1.5">
               Relatório Financeiro - Demonstrativo de Contribuições
             </h2>
           </div>
         </div>
-        <div className="text-right text-xs sm:text-[10pt] text-slate-700 shrink-0 leading-normal space-y-1">
+        <div className="text-right text-[10.5px] text-slate-600 shrink-0 leading-tight space-y-0.5">
           <p className="font-bold text-slate-900">Emissão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           <p>Unidade: {getUnitName(selectedUnitId) || 'Todas as Unidades'}</p>
           <p>Operador: {profile?.name || 'Administração'}</p>
@@ -1034,10 +1036,10 @@ return (
       </div>
       
       {/* Faixa de Parâmetros na Impressão */}
-      <div className="mt-3.5 py-2.5 px-4 bg-slate-100 border border-slate-300 text-xs sm:text-[12px] flex items-center justify-between font-medium text-slate-800">
+      <div className="mt-2.5 py-1.5 px-3 bg-slate-50 border border-slate-200 text-[10.5px] flex items-center justify-between font-medium text-slate-700">
         <div>
           <span className="font-bold">{filterTarget === 'student' ? 'Aluno: ' : 'Turma: '}</span>
-          <span className="font-semibold">
+          <span className="font-semibold text-slate-900">
             {filterTarget === 'student'
               ? (selectedStudent ? `${selectedStudent.name} (${formatRegistrationNumber(selectedStudent.registration_number, '---')})` : 'Pendente')
               : (classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
@@ -1045,11 +1047,11 @@ return (
         </div>
         <div>
           <span className="font-bold">Período: </span>
-          <span className="font-semibold">{periodLabel}</span>
+          <span className="font-semibold text-slate-900">{periodLabel}</span>
         </div>
         <div>
           <span className="font-bold">Filtro de Situação: </span>
-          <span className="font-semibold">
+          <span className="font-semibold text-slate-900">
             {!statusFilter || statusFilter === 'all' ? 'Todos' : statusFilter === 'paid' ? 'Adimplentes' : statusFilter === 'partial' ? 'Parciais' : 'Inadimplentes'}
           </span>
         </div>
@@ -1985,6 +1987,24 @@ return (
           <div className="overflow-x-auto print:overflow-visible print:overflow-x-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <table className="w-full text-left border-collapse">
               <thead>
+                {/* Cabeçalho de Continuação Institucional para Páginas Extras na Impressão */}
+                <tr className="hidden print:table-row bg-slate-100 border-b border-slate-300 text-slate-800">
+                  <th colSpan={6} className="py-1.5 px-3 text-[9.5px] font-bold uppercase tracking-wider">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-slate-900">{institution?.name || 'Escola Diocesana de Ministério'}</span>
+                        <span className="text-slate-400 font-normal">•</span>
+                        <span className="font-bold text-[#00174b]">Relatório Financeiro</span>
+                      </div>
+                      <div className="text-right text-[9px] text-slate-600 font-medium">
+                        <span>{periodLabel}</span>
+                        <span className="mx-1.5 text-slate-400">•</span>
+                        <span>{getUnitName(selectedUnitId) || 'Todas as Unidades'}</span>
+                      </div>
+                    </div>
+                  </th>
+                </tr>
+
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-700 print:bg-slate-100 print:text-slate-800 print:border-b-2 print:border-slate-300">
                   <th className="py-2.5 px-3 text-center w-10">#</th>
                   
@@ -2042,7 +2062,7 @@ return (
               <tbody className="divide-y divide-slate-100 text-xs">
                 {reportData.length > 0 ? (
                   reportData.map((item, idx) => {
-                    const classIdStr = item.studentClass?.id || item.student.class_id || item.studentClass?.code || '---';
+                    const classCodeStr = item.studentClass?.code || '---';
 
                     return (
                       <tr 
@@ -2054,7 +2074,7 @@ return (
                           {idx + 1}
                         </td>
 
-                        {/* Nome, Matrícula e ID da Turma */}
+                        {/* Nome, Matrícula e Cód. Turma */}
                         <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 print:hidden">
@@ -2071,8 +2091,8 @@ return (
                                 </span>
                                 <span className="text-slate-300">•</span>
                                 <span>
-                                  <span className="text-slate-400 font-normal">ID Turma: </span>
-                                  <span className="font-mono font-bold text-slate-700">{classIdStr}</span>
+                                  <span className="text-slate-400 font-normal">Cód. Turma: </span>
+                                  <span className="font-mono font-bold text-slate-700">{classCodeStr}</span>
                                 </span>
                               </div>
                             </div>

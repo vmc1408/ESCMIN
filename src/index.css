@@ -180,7 +180,7 @@
     }
 
     tfoot {
-      display: table-footer-group !important;
+      display: table-row-group !important;
     }
 
     /* Re-establish high-fidelity typography alignments consistently across engines */
