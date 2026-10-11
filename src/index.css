@@ -69,10 +69,11 @@
       transition: none !important;
     }
     
-    /* Reset page and body for consistent margins and high-fidelity paging */
+    /* Reset page and body for consistent margins and high-fidelity paging.
+       margin: 0 represses browser default header (date, title) and footer (URL, page number) */
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm 12mm 15mm;
+      margin: 0;
     }
     
     html, body {

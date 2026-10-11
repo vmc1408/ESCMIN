@@ -880,9 +880,77 @@ const handleExportCSV = () => {
 };
 
 return (
-  <div className="space-y-6">
+  <div id="financial-report-main-container" className="space-y-6 print:space-y-3 print:m-0 print:p-0">
+    {/* Regras Estritas de Impressão Multi-página e Repressão de Cabeçalhos/Rodapés da Impressora */}
+    <style>{`
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 0 !important;
+        }
+
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #ffffff !important;
+          color: #000000 !important;
+          font-size: 12px !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          overflow: visible !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        #financial-report-main-container {
+          padding: 12mm 15mm 12mm 15mm !important;
+          margin: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          background: #ffffff !important;
+          overflow: visible !important;
+        }
+
+        .print-avoid-break {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+
+        table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          table-layout: auto !important;
+        }
+
+        thead {
+          display: table-header-group !important;
+        }
+
+        tbody {
+          display: table-row-group !important;
+        }
+
+        tfoot {
+          display: table-footer-group !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+
+        tr {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+
+        .no-print, .print\\:hidden {
+          display: none !important;
+        }
+      }
+    `}</style>
+
     {/* PageHeader exclusivo na visualização em tela */}
     <PageHeader
+      className="print:hidden"
       title="Relatório Financeiro"
       description="Acompanhamento consolidado e individual de contribuições por turma ou aluno."
       icon={DollarSign}
@@ -932,7 +1000,7 @@ return (
     </PageHeader>
 
     {/* Cabeçalho Oficial de Impressão (visível apenas na impressão) */}
-    <div className="hidden print:block mb-4 border-b-2 border-slate-800 pb-3">
+    <div className="hidden print:block mb-4 border-b-2 border-slate-800 pb-3 print-avoid-break">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {institution?.logo_url && (
@@ -1653,16 +1721,16 @@ return (
 
         {/* Cards de Métricas e Indicadores Consolidados */}
         <div className={cn(
-          "grid gap-3.5 print:grid-cols-4 print:gap-2 print:mb-2.5",
+          "grid gap-3.5 print:grid-cols-4 print:gap-3 print:mb-4 print-avoid-break",
           showAVencerCard 
             ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" 
             : "grid-cols-1 sm:grid-cols-3"
         )}>
           {/* Card 1: Previsto */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
                   Total Previsto
                 </span>
@@ -1675,21 +1743,21 @@ return (
                 <Calendar size={17} />
               </div>
             </div>
-            <div className="mt-3 print:mt-1">
-              <span className="text-2xl font-black text-slate-900 tabular-nums print:text-base">
+            <div className="mt-2.5">
+              <span className="text-2xl font-black text-slate-900 tabular-nums print:text-xl">
                 {formatCurrency(totals.totalPrevisto)}
               </span>
-              <p className="text-[10px] text-slate-500 font-medium mt-1 print:text-[8px] print:mt-0">
+              <p className="text-[10px] text-slate-500 font-medium mt-1">
                 Base calculada para {totals.totalAlunos} aluno(s)
               </p>
             </div>
           </div>
 
           {/* Card 2: Efetuado / Arrecadado */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                   Total Efetuado (Arrecadado)
                 </span>
@@ -1702,15 +1770,15 @@ return (
                 <CheckCircle2 size={17} />
               </div>
             </div>
-            <div className="mt-3 print:mt-1">
+            <div className="mt-2.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums print:text-base">
+                <span className="text-2xl font-black text-emerald-700 tabular-nums print:text-xl">
                   {formatCurrency(totals.totalEfetuado)}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium mt-1 print:text-[8px] print:mt-0">
+              <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium mt-1">
                 <span>{totals.adimplentesCount} alunos em dia</span>
-                <span className="font-bold text-emerald-700 font-mono print:text-[8px]">
+                <span className="font-bold text-emerald-700 font-mono">
                   {totals.taxaArrecadacao}% da meta
                 </span>
               </div>
@@ -1718,10 +1786,10 @@ return (
           </div>
 
           {/* Card 3: Saldo Pendente (Vencido) */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
                   Saldo Inadimplente (Vencido)
                 </span>
@@ -1734,11 +1802,11 @@ return (
                 <AlertCircle size={17} />
               </div>
             </div>
-            <div className="mt-3 print:mt-1">
-              <span className="text-2xl font-black text-red-600 tabular-nums print:text-base">
+            <div className="mt-2.5">
+              <span className="text-2xl font-black text-red-600 tabular-nums print:text-xl">
                 {formatCurrency(totals.totalPendente)}
               </span>
-              <p className="text-[10px] text-slate-500 font-medium mt-1 print:text-[8px] print:mt-0">
+              <p className="text-[10px] text-slate-500 font-medium mt-1">
                 {totals.pendentesCount} aluno(s) com parcelas vencidas
               </p>
             </div>
@@ -1746,10 +1814,10 @@ return (
 
           {/* Card 4: A Vencer / Restante */}
           {showAVencerCard && (
-            <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-2 print:rounded-none print:border-slate-300 print:shadow-none">
+            <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 print:text-[9.5px]">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                     <Clock size={13} className="text-slate-500 shrink-0 print:hidden" />
                     A Vencer (Restante)
                   </span>
@@ -1762,16 +1830,16 @@ return (
                   <Clock size={17} />
                 </div>
               </div>
-              <div className="mt-3 print:mt-1">
+              <div className="mt-2.5">
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-slate-800 tabular-nums print:text-base">
+                  <span className="text-2xl font-black text-slate-800 tabular-nums print:text-xl">
                     {formatCurrency(isCurrentMonthPeriod ? Math.max(0, totals.totalPrevisto - totals.totalEfetuado) : totals.totalAVencer)}
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 print:hidden">
                     A Receber
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 font-medium mt-1 print:text-[8px] print:mt-0">
+                <p className="text-[10px] text-slate-500 font-medium mt-1">
                   {isCurrentMonthPeriod ? 'Saldo previsto para este mês' : 'Saldo programado para meses futuros'}
                 </p>
               </div>
@@ -1888,7 +1956,7 @@ return (
         )}
 
         {/* Tabela Analítica Oficial de Contribuições */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border-none print:shadow-none print:overflow-visible">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border print:border-slate-300 print:rounded-none print:shadow-none print:overflow-visible">
           <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between print:hidden">
             <div className="flex items-center gap-2">
               {filterTarget === 'student' ? (
@@ -1913,7 +1981,7 @@ return (
           <div className="overflow-x-auto print:overflow-visible print:overflow-x-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-600 print:bg-slate-100">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-700 print:bg-slate-100 print:text-slate-800 print:border-b-2 print:border-slate-300">
                   <th className="py-3 px-3.5 text-center w-12">#</th>
                   
                   <th 
@@ -1979,7 +2047,7 @@ return (
                     return (
                       <tr 
                         key={item.student.id}
-                        className="hover:bg-slate-50/70 transition-colors"
+                        className="hover:bg-slate-50/70 transition-colors border-b border-slate-100 print:border-slate-200 print-avoid-break"
                       >
                         {/* Número sequencial */}
                         <td className="py-3.5 px-3.5 text-center font-mono text-[10px] text-slate-400">
@@ -2130,8 +2198,8 @@ return (
 
               {/* Rodapé da Tabela com Totais */}
               {reportData.length > 0 && (
-                <tfoot>
-                  <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
+                <tfoot className="print-avoid-break">
+                  <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400">
                     <td colSpan={3} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
                       Total Consolidado ({reportData.length} alunos):
                     </td>
@@ -2155,11 +2223,6 @@ return (
         </div>
       </>
     )}
-
-    {/* Rodapé da Impressão */}
-    <div className="hidden print:block mt-8 pt-4 border-t border-slate-300 text-center text-[9px] text-slate-400">
-      Documento emitido eletronicamente pelo Sistema de Gestão Escolar ESCMIN em {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss")}.
-    </div>
   </div>
 );
 }
