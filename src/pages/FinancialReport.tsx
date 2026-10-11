@@ -785,11 +785,15 @@ const handleExportPDF = () => {
         ? 'Isento'
         : `Pendente (${item.overdueMonthsCount} venc.)`;
 
+      const turmaDesc = item.studentClass
+        ? (item.studentClass.code ? `${item.studentClass.code} - ${item.studentClass.name}` : item.studentClass.name)
+        : 'Sem Turma';
+
+      const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${item.student.registration_number || '---'} | Turma: ${turmaDesc}`;
+
       return [
         (index + 1).toString(),
-        item.student.registration_number || '---',
-        item.student.name || '---',
-        item.studentClass?.code || item.studentClass?.name || '---',
+        alunoEIdentificacao,
         item.periodSummary,
         formatCurrency(item.valorPrevisto),
         formatCurrency(item.valorEfetuado),
@@ -800,7 +804,7 @@ const handleExportPDF = () => {
 
     autoTable(doc, {
       startY: 48,
-      head: [['#', 'Matrícula', 'Nome do Aluno', 'Turma', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação']],
+      head: [['#', 'Aluno / Turma', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação']],
       body: tableBody,
       theme: 'grid',
       headStyles: {
@@ -812,14 +816,12 @@ const handleExportPDF = () => {
       },
       columnStyles: {
         0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 24, halign: 'center' },
-        2: { cellWidth: 58, halign: 'left' },
-        3: { cellWidth: 26, halign: 'center' },
-        4: { cellWidth: 54, halign: 'center', fontSize: 7.5 },
-        5: { cellWidth: 26, halign: 'right', textColor: [180, 100, 0] },
-        6: { cellWidth: 26, halign: 'right', textColor: [16, 120, 60] },
-        7: { cellWidth: 26, halign: 'right', textColor: [200, 30, 30] },
-        8: { cellWidth: 24, halign: 'center' }
+        1: { cellWidth: 70, halign: 'left' },
+        2: { cellWidth: 62, halign: 'center', fontSize: 7.5 },
+        3: { cellWidth: 26, halign: 'right', textColor: [180, 100, 0] },
+        4: { cellWidth: 26, halign: 'right', textColor: [16, 120, 60] },
+        5: { cellWidth: 26, halign: 'right', textColor: [200, 30, 30] },
+        6: { cellWidth: 24, halign: 'center' }
       },
       styles: {
         fontSize: 8,
@@ -852,12 +854,11 @@ const handleExportPDF = () => {
 // Exportar CSV para planilhas
 const handleExportCSV = () => {
   if (!isFilterReady) return;
-  const headers = ['Matrícula', 'Aluno', 'CPF', 'Turma', 'Período', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação'];
+  const headers = ['Matrícula', 'Aluno', 'Turma', 'Período', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação'];
   const rows = reportData.map(item => [
     item.student.registration_number || '',
     `"${item.student.name || ''}"`,
-    item.student.cpf || '',
-    `"${item.studentClass?.name || ''}"`,
+    `"${item.studentClass?.code ? `${item.studentClass.code} - ${item.studentClass.name}` : item.studentClass?.name || ''}"`,
     `"${periodLabel}"`,
     `"${item.periodSummary}"`,
     item.valorPrevisto.toFixed(2),
@@ -1887,7 +1888,7 @@ return (
         )}
 
         {/* Tabela Analítica Oficial de Contribuições */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border-none print:shadow-none">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border-none print:shadow-none print:overflow-visible">
           <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between print:hidden">
             <div className="flex items-center gap-2">
               {filterTarget === 'student' ? (
@@ -1909,7 +1910,7 @@ return (
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto print:overflow-visible print:overflow-x-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-600 print:bg-slate-100">
@@ -1920,14 +1921,12 @@ return (
                     onClick={() => handleToggleSort('name')}
                   >
                     <div className="flex items-center gap-1.5">
-                      <span>Aluno / Matrícula</span>
+                      <span>Aluno / Turma</span>
                       <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'name' && "text-blue-900 font-bold")} />
                     </div>
                   </th>
 
-                  <th className="py-3 px-3.5">Turma</th>
-
-                  <th className="py-3 px-3.5 text-center">Parcelas / Período</th>
+                  <th className="py-3 px-4 text-center">Parcelas / Período</th>
 
                   <th 
                     className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
@@ -1972,131 +1971,153 @@ return (
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {reportData.length > 0 ? (
-                  reportData.map((item, idx) => (
-                    <tr 
-                      key={item.student.id}
-                      className="hover:bg-slate-50/70 transition-colors"
-                    >
-                      {/* Número sequencial */}
-                      <td className="py-3 px-3.5 text-center font-mono text-[10px] text-slate-400">
-                        {idx + 1}
-                      </td>
+                  reportData.map((item, idx) => {
+                    const studentClassLabel = item.studentClass
+                      ? (item.studentClass.code ? `${item.studentClass.code} - ${item.studentClass.name}` : item.studentClass.name)
+                      : 'Sem Turma';
 
-                      {/* Nome e Matrícula */}
-                      <td className="py-3 px-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 print:hidden">
-                            {item.student.name ? item.student.name.charAt(0).toUpperCase() : '?'}
+                    return (
+                      <tr 
+                        key={item.student.id}
+                        className="hover:bg-slate-50/70 transition-colors"
+                      >
+                        {/* Número sequencial */}
+                        <td className="py-3.5 px-3.5 text-center font-mono text-[10px] text-slate-400">
+                          {idx + 1}
+                        </td>
+
+                        {/* Nome, Matrícula e Turma */}
+                        <td className="py-3.5 px-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 print:hidden">
+                              {item.student.name ? item.student.name.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
+                                {item.student.name}
+                              </span>
+                              <div className="text-[10px] text-slate-600 flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+                                <span className="font-mono text-slate-500">
+                                  Matrícula: {item.student.registration_number || '---'}
+                                </span>
+                                <span className="text-slate-300">|</span>
+                                <span className="font-semibold text-slate-700">
+                                  Turma: {studentClassLabel}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <span className="font-bold text-slate-900 block truncate leading-tight">
-                              {item.student.name}
+                        </td>
+
+                        {/* Parcelas do Período */}
+                        <td className="py-3.5 px-4 text-center">
+                          {periodType === 'mensal' ? (
+                            <div className="inline-flex items-center justify-center">
+                              {item.monthsStatus[0]?.isPaid ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <Check size={12} /> Pago ({item.monthsStatus[0]?.monthShort})
+                                </span>
+                              ) : item.monthsStatus[0]?.isOverdue ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                                  <AlertCircle size={12} /> Vencido ({item.monthsStatus[0]?.monthShort})
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                  <Clock size={12} /> A Vencer ({item.monthsStatus[0]?.monthShort})
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-1 text-center py-0.5">
+                              <div className="inline-flex items-center gap-2 justify-center flex-wrap">
+                                <span className="font-bold text-slate-800 text-xs whitespace-nowrap">
+                                  {item.paidMonthsCount} de {item.expectedMonthsCount} {item.expectedMonthsCount === 1 ? 'parcela paga' : 'parcelas pagas'}
+                                </span>
+                                {item.expectedMonthsCount > 0 && (
+                                  <span className={cn(
+                                    "text-[10px] font-mono font-bold px-1.5 py-0.2 rounded border whitespace-nowrap",
+                                    item.paidMonthsCount >= item.expectedMonthsCount 
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                                      : item.overdueMonthsNames.length > 0
+                                      ? "bg-red-50 text-red-700 border-red-200"
+                                      : "bg-slate-100 text-slate-600 border-slate-200"
+                                  )}>
+                                    {Math.round((item.paidMonthsCount / item.expectedMonthsCount) * 100)}%
+                                  </span>
+                                )}
+                              </div>
+                              {item.overdueMonthsNames.length > 0 ? (
+                                <div className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-50/90 px-2.5 py-0.5 rounded-md border border-red-200">
+                                  <AlertCircle size={11} className="shrink-0" />
+                                  <span className="whitespace-nowrap">Vencido: {item.overdueMonthsNames.join(', ')}</span>
+                                </div>
+                              ) : item.futureMonthsNames.length > 0 ? (
+                                <div className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-50 px-2.5 py-0.5 rounded-md border border-slate-200">
+                                  <Clock size={11} className="shrink-0 text-slate-400" />
+                                  <span className="whitespace-nowrap">A vencer: {item.futureMonthsNames.join(', ')}</span>
+                                </div>
+                              ) : (
+                                <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/90 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                                  <Check size={11} className="shrink-0" />
+                                  <span className="whitespace-nowrap">100% quitado</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Valor Previsto */}
+                        <td className="py-3.5 px-3.5 text-right font-bold text-amber-700 tabular-nums">
+                          {formatCurrency(item.valorPrevisto)}
+                        </td>
+
+                        {/* Valor Efetuado */}
+                        <td className="py-3.5 px-3.5 text-right font-bold text-emerald-700 tabular-nums">
+                          {formatCurrency(item.valorEfetuado)}
+                        </td>
+
+                        {/* Saldo Pendente */}
+                        <td className="py-3.5 px-3.5 text-right font-bold tabular-nums">
+                          {item.saldoPendente > 0 ? (
+                            <span className="text-red-600 font-black">
+                              {formatCurrency(item.saldoPendente)}
                             </span>
-                            <span className="text-[10px] font-mono text-slate-500 block mt-0.5">
-                              Matrícula: {item.student.registration_number || '---'} {item.student.cpf ? `| CPF: ${item.student.cpf}` : ''}
+                          ) : (
+                            <span className="text-slate-400 font-normal">
+                              R$ 0,00
                             </span>
-                          </div>
-                        </div>
-                      </td>
+                          )}
+                        </td>
 
-                      {/* Turma */}
-                      <td className="py-3 px-3.5">
-                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-800 rounded-md text-[10px] font-bold border border-slate-200">
-                          {item.studentClass ? (item.studentClass.code || item.studentClass.name) : 'Sem Turma'}
-                        </span>
-                      </td>
-
-                      {/* Parcelas do Período */}
-                      <td className="py-3 px-3.5 text-center">
-                        {periodType === 'mensal' ? (
-                          <div>
-                            {item.monthsStatus[0]?.isPaid ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <Check size={11} /> Pago
-                              </span>
-                            ) : item.monthsStatus[0]?.isOverdue ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">
-                                <AlertCircle size={11} /> Vencido
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                <Clock size={11} /> A Vencer
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center">
-                            <span className="font-bold text-slate-800 text-[11px]">
-                              {item.paidMonthsCount} de {item.expectedMonthsCount} {item.expectedMonthsCount === 1 ? 'parcela paga' : 'parcelas pagas'}
+                        {/* Situação */}
+                        <td className="py-3.5 px-3.5 text-center">
+                          {item.status === 'paid' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <Check size={11} /> Quitado
                             </span>
-                            {item.overdueMonthsNames.length > 0 ? (
-                              <span className="text-[10px] font-bold text-red-600 mt-0.5">
-                                Vencido: {item.overdueMonthsNames.join(', ')}
-                              </span>
-                            ) : item.futureMonthsNames.length > 0 ? (
-                              <span className="text-[10px] text-slate-500 mt-0.5">
-                                A vencer: {item.futureMonthsNames.join(', ')}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-bold text-emerald-600 mt-0.5">
-                                100% quitado
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Valor Previsto */}
-                      <td className="py-3 px-3.5 text-right font-bold text-amber-700 tabular-nums">
-                        {formatCurrency(item.valorPrevisto)}
-                      </td>
-
-                      {/* Valor Efetuado */}
-                      <td className="py-3 px-3.5 text-right font-bold text-emerald-700 tabular-nums">
-                        {formatCurrency(item.valorEfetuado)}
-                      </td>
-
-                      {/* Saldo Pendente */}
-                      <td className="py-3 px-3.5 text-right font-bold tabular-nums">
-                        {item.saldoPendente > 0 ? (
-                          <span className="text-red-600 font-black">
-                            {formatCurrency(item.saldoPendente)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 font-normal">
-                            R$ 0,00
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Situação */}
-                      <td className="py-3 px-3.5 text-center">
-                        {item.status === 'paid' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <Check size={11} /> Quitado
-                          </span>
-                        )}
-                        {item.status === 'regular' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                            <Clock size={11} /> Em Dia (Previsto)
-                          </span>
-                        )}
-                        {item.status === 'pending' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
-                            <AlertCircle size={11} /> Pendente ({item.overdueMonthsCount} venc.{item.overdueMonthsCount > 1 ? 's' : ''})
-                          </span>
-                        )}
-                        {item.status === 'exempt' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                            Isento
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                          )}
+                          {item.status === 'regular' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                              <Clock size={11} /> Em Dia (Previsto)
+                            </span>
+                          )}
+                          {item.status === 'pending' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
+                              <AlertCircle size={11} /> Pendente ({item.overdueMonthsCount} venc.{item.overdueMonthsCount > 1 ? 's' : ''})
+                            </span>
+                          )}
+                          {item.status === 'exempt' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                              Isento
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <DollarSign size={32} className="text-slate-300" />
                         <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
@@ -2111,7 +2132,7 @@ return (
               {reportData.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
-                    <td colSpan={4} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
+                    <td colSpan={3} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
                       Total Consolidado ({reportData.length} alunos):
                     </td>
                     <td className="py-3 px-3.5 text-right font-black text-amber-700 tabular-nums">

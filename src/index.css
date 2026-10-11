@@ -111,6 +111,17 @@
       visibility: hidden !important;
     }
 
+    /* Hide all browser scrollbars completely on print media */
+    * {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    *::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
     /* Standardized single-page printable documents across Firefox, Chrome, Safari (Exact A4 210x297mm minus 12mm top/bottom margins = 273mm) */
     #printable-student-record,
     #printable-student-dossier,
