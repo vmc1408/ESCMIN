@@ -43,7 +43,7 @@ import { Student, Class, Contribution, FinancialSettings } from '../types';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
-import { formatCurrency, cn, parseSafeDate, matchesStudentSearch, formatDateForDisplay, normalizeClass, detectCourseFromClass, isStudentActive, isStudentInClass, filterStudentsForClass } from '../lib/utils';
+import { formatCurrency, cn, parseSafeDate, matchesStudentSearch, formatDateForDisplay, normalizeClass, detectCourseFromClass, isStudentActive, isStudentInClass, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -623,7 +623,7 @@ const reportData = useMemo(() => {
       if (totalExpected === 0) {
         periodSummary = 'Sem parcelas';
       } else if (overdueMonthsNames.length > 0) {
-        periodSummary = `${paidCount}/${totalExpected} pagas (Venc.: ${overdueMonthsNames.join(', ')})`;
+        periodSummary = `${paidCount}/${totalExpected} pagas (${overdueMonthsCount} em atraso)`;
       } else if (paidCount >= totalExpected) {
         periodSummary = `${paidCount}/${totalExpected} pagas (Quitado)`;
       } else {
@@ -738,58 +738,53 @@ const handleExportPDF = () => {
     const pageWidth = doc.internal.pageSize.width;
 
     // Cabeçalho da Instituição
-    doc.setFontSize(14);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text(institution?.name || 'Escola Diocesana de Ministério', 14, 15);
+    doc.setTextColor(80, 80, 80);
+    const dioceseHeader = institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS');
+    doc.text(dioceseHeader, 14, 13);
 
-    doc.setFontSize(9);
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO', 14, 19);
+
+    doc.setFontSize(9.5);
     doc.setFont('helvetica', 'normal');
-    const subheader = [
-      institution?.address || 'Diocese de Guarulhos',
-      institution?.city ? `${institution.city} - SP` : '',
-      institution?.cnpj ? `CNPJ: ${institution.cnpj}` : ''
-    ].filter(Boolean).join(' | ');
-    doc.text(subheader, 14, 21);
+    doc.setTextColor(70, 70, 70);
+    doc.text(institution?.subtitle || 'Pe. José Fernando de Brito', 14, 25);
 
     // Título do Relatório
-    doc.setFontSize(12);
+    doc.setFontSize(11.5);
     doc.setFont('helvetica', 'bold');
-    doc.text(`RELATÓRIO FINANCEIRO - DEMONSTRATIVO DE CONTRIBUIÇÕES`, 14, 29);
+    doc.setTextColor(0, 23, 75); // #00174b
+    doc.text(`RELATÓRIO FINANCEIRO - DEMONSTRATIVO DE CONTRIBUIÇÕES`, 14, 32);
 
     // Parâmetros do Relatório
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
     const targetDesc = filterTarget === 'student'
-      ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${selectedStudent?.registration_number || '---'})`
+      ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${formatRegistrationNumber(selectedStudent?.registration_number, '---')})`
       : `Turma: ${classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
     
     const paramsText = `${targetDesc}  |  Período: ${periodLabel}  |  Unidade: ${getUnitName(selectedUnitId) || 'Todas'}  |  Obs: Mês atual classificado como previsto`;
-    doc.text(paramsText, 14, 35);
+    doc.text(paramsText, 14, 38);
 
     // Linha divisória
     doc.setDrawColor(200, 200, 200);
-    doc.line(14, 38, pageWidth - 14, 38);
+    doc.line(14, 41, pageWidth - 14, 41);
 
     // Quadro de Totais Sintéticos
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Alunos: ${totals.totalAlunos}  |  Previsto: ${formatCurrency(totals.totalPrevisto)}  |  Efetuado: ${formatCurrency(totals.totalEfetuado)}  |  Pendente Vencido: ${formatCurrency(totals.totalPendente)}  |  Arrecadação: ${totals.taxaArrecadacao}%`, 14, 44);
+    doc.setTextColor(20, 20, 20);
+    doc.text(`Alunos: ${totals.totalAlunos}  |  Previsto: ${formatCurrency(totals.totalPrevisto)}  |  Efetuado: ${formatCurrency(totals.totalEfetuado)}  |  Pendente Vencido: ${formatCurrency(totals.totalPendente)}  |  Arrecadação: ${totals.taxaArrecadacao}%`, 14, 47);
 
     // Tabela detalhada de alunos
     const tableBody = reportData.map((item, index) => {
-      const statusLabel = item.status === 'paid' 
-        ? 'Quitado' 
-        : item.status === 'regular' 
-        ? 'Em Dia (Previsto)' 
-        : item.status === 'exempt'
-        ? 'Isento'
-        : `Pendente (${item.overdueMonthsCount} venc.)`;
-
-      const turmaDesc = item.studentClass
-        ? (item.studentClass.code ? `${item.studentClass.code} - ${item.studentClass.name}` : item.studentClass.name)
-        : 'Sem Turma';
-
-      const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${item.student.registration_number || '---'} | Turma: ${turmaDesc}`;
+      const classIdStr = item.studentClass?.id || item.student.class_id || item.studentClass?.code || '---';
+      const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • ID Turma: ${classIdStr}`;
 
       return [
         (index + 1).toString(),
@@ -797,14 +792,13 @@ const handleExportPDF = () => {
         item.periodSummary,
         formatCurrency(item.valorPrevisto),
         formatCurrency(item.valorEfetuado),
-        formatCurrency(item.saldoPendente),
-        statusLabel
+        formatCurrency(item.saldoPendente)
       ];
     });
 
     autoTable(doc, {
-      startY: 48,
-      head: [['#', 'Aluno / Turma', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação']],
+      startY: 51,
+      head: [['#', 'Aluno', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)']],
       body: tableBody,
       theme: 'grid',
       headStyles: {
@@ -816,12 +810,11 @@ const handleExportPDF = () => {
       },
       columnStyles: {
         0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 70, halign: 'left' },
-        2: { cellWidth: 62, halign: 'center', fontSize: 7.5 },
-        3: { cellWidth: 26, halign: 'right', textColor: [180, 100, 0] },
-        4: { cellWidth: 26, halign: 'right', textColor: [16, 120, 60] },
-        5: { cellWidth: 26, halign: 'right', textColor: [200, 30, 30] },
-        6: { cellWidth: 24, halign: 'center' }
+        1: { cellWidth: 80, halign: 'left' },
+        2: { cellWidth: 68, halign: 'center', fontSize: 7.5 },
+        3: { cellWidth: 32, halign: 'right', textColor: [180, 100, 0] },
+        4: { cellWidth: 32, halign: 'right', textColor: [16, 120, 60] },
+        5: { cellWidth: 32, halign: 'right', textColor: [200, 30, 30] }
       },
       styles: {
         fontSize: 8,
@@ -854,17 +847,16 @@ const handleExportPDF = () => {
 // Exportar CSV para planilhas
 const handleExportCSV = () => {
   if (!isFilterReady) return;
-  const headers = ['Matrícula', 'Aluno', 'Turma', 'Período', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação'];
+  const headers = ['Matrícula', 'Aluno', 'ID Turma', 'Período', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)'];
   const rows = reportData.map(item => [
     item.student.registration_number || '',
     `"${item.student.name || ''}"`,
-    `"${item.studentClass?.code ? `${item.studentClass.code} - ${item.studentClass.name}` : item.studentClass?.name || ''}"`,
+    `"${item.studentClass?.id || item.student.class_id || item.studentClass?.code || ''}"`,
     `"${periodLabel}"`,
     `"${item.periodSummary}"`,
     item.valorPrevisto.toFixed(2),
     item.valorEfetuado.toFixed(2),
-    item.saldoPendente.toFixed(2),
-    item.status === 'paid' ? 'Quitado' : item.status === 'regular' ? 'Em Dia' : item.status === 'exempt' ? 'Isento' : 'Pendente (Vencido)'
+    item.saldoPendente.toFixed(2)
   ]);
 
   const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
@@ -894,7 +886,6 @@ return (
           padding: 0 !important;
           background: #ffffff !important;
           color: #000000 !important;
-          font-size: 11px !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
           overflow: visible !important;
@@ -1004,29 +995,38 @@ return (
     </PageHeader>
 
     {/* Cabeçalho Oficial de Impressão (visível apenas na impressão) */}
-    <div className="hidden print:block mb-4 border-b-2 border-slate-800 pb-3 print-avoid-break">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {institution?.logo_url && (
+    <div className="hidden print:block mb-5 border-b-2 border-slate-900 pb-4 print-avoid-break">
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex items-center gap-5">
+          {institution?.logo_url ? (
             <img 
               src={institution.logo_url} 
               alt="Logo" 
-              className="w-14 h-14 object-contain shrink-0"
+              className="w-24 h-24 max-h-24 object-contain shrink-0"
+              referrerPolicy="no-referrer"
             />
+          ) : (
+            <div className="w-24 h-24 border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[10px] text-slate-400 font-bold uppercase shrink-0">
+              <span className="leading-none">SEM</span>
+              <span className="leading-none">LOGO</span>
+            </div>
           )}
-          <div>
-            <h1 className="text-base font-black text-slate-900 uppercase leading-tight">
-              {institution?.name || 'Escola Diocesana de Ministério'}
-            </h1>
-            <p className="text-[10px] text-slate-600 font-medium leading-tight">
-              {institution?.address || 'Diocese de Guarulhos'} {institution?.city && `- ${institution.city}`} {institution?.cnpj && `| CNPJ: ${institution.cnpj}`}
+          <div className="flex flex-col justify-center">
+            <p className="text-xs sm:text-[11pt] font-extrabold tracking-widest text-slate-700 uppercase leading-tight mb-1">
+              {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS')}
             </p>
-            <h2 className="text-xs font-black text-[#00174b] uppercase tracking-wide mt-0.5">
+            <h1 className="text-2xl sm:text-[19pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+              {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
+            </h1>
+            <p className="text-xs sm:text-[12pt] font-bold text-slate-600 tracking-wide uppercase mt-0.5 leading-tight">
+              {institution?.subtitle || 'Pe. José Fernando de Brito'}
+            </p>
+            <h2 className="text-sm sm:text-[13pt] font-black text-[#00174b] uppercase tracking-wider mt-2">
               Relatório Financeiro - Demonstrativo de Contribuições
             </h2>
           </div>
         </div>
-        <div className="text-right text-[10px] text-slate-600 shrink-0 leading-tight">
+        <div className="text-right text-xs sm:text-[10pt] text-slate-700 shrink-0 leading-normal space-y-1">
           <p className="font-bold text-slate-900">Emissão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           <p>Unidade: {getUnitName(selectedUnitId) || 'Todas as Unidades'}</p>
           <p>Operador: {profile?.name || 'Administração'}</p>
@@ -1034,12 +1034,12 @@ return (
       </div>
       
       {/* Faixa de Parâmetros na Impressão */}
-      <div className="mt-2.5 py-1.5 px-3 bg-slate-100 border border-slate-300 rounded-none text-[10.5px] flex items-center justify-between font-medium text-slate-800">
+      <div className="mt-3.5 py-2.5 px-4 bg-slate-100 border border-slate-300 text-xs sm:text-[12px] flex items-center justify-between font-medium text-slate-800">
         <div>
           <span className="font-bold">{filterTarget === 'student' ? 'Aluno: ' : 'Turma: '}</span>
           <span className="font-semibold">
             {filterTarget === 'student'
-              ? (selectedStudent ? `${selectedStudent.name} (${selectedStudent.registration_number || '---'})` : 'Pendente')
+              ? (selectedStudent ? `${selectedStudent.name} (${formatRegistrationNumber(selectedStudent.registration_number, '---')})` : 'Pendente')
               : (classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
           </span>
         </div>
@@ -1993,12 +1993,20 @@ return (
                     onClick={() => handleToggleSort('name')}
                   >
                     <div className="flex items-center gap-1.5">
-                      <span>Aluno / Turma</span>
+                      <span>Aluno</span>
                       <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'name' && "text-blue-900 font-bold")} />
                     </div>
                   </th>
 
-                  <th className="py-2.5 px-3 text-center">Parcelas / Período</th>
+                  <th 
+                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    onClick={() => handleToggleSort('status')}
+                  >
+                    <div className="inline-flex items-center gap-1 justify-center">
+                      <span>Situação</span>
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'status' && "text-blue-900 font-bold")} />
+                    </div>
+                  </th>
 
                   <th 
                     className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
@@ -2029,24 +2037,12 @@ return (
                       <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'pendente' && "text-red-800 font-bold")} />
                     </div>
                   </th>
-
-                  <th 
-                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                    onClick={() => handleToggleSort('status')}
-                  >
-                    <div className="inline-flex items-center gap-1 justify-center text-slate-700">
-                      <span>Situação</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'status' && "text-blue-900 font-bold")} />
-                    </div>
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {reportData.length > 0 ? (
                   reportData.map((item, idx) => {
-                    const studentClassLabel = item.studentClass
-                      ? (item.studentClass.code ? `${item.studentClass.code} - ${item.studentClass.name}` : item.studentClass.name)
-                      : 'Sem Turma';
+                    const classIdStr = item.studentClass?.id || item.student.class_id || item.studentClass?.code || '---';
 
                     return (
                       <tr 
@@ -2058,7 +2054,7 @@ return (
                           {idx + 1}
                         </td>
 
-                        {/* Nome, Matrícula e Turma */}
+                        {/* Nome, Matrícula e ID da Turma */}
                         <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 print:hidden">
@@ -2068,19 +2064,22 @@ return (
                               <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
                                 {item.student.name}
                               </span>
-                              <div className="text-[10px] text-slate-600 mt-0.5 space-y-0.5">
-                                <div className="font-medium text-slate-700 truncate" title={studentClassLabel}>
-                                  <span className="text-slate-400">Turma: </span>{studentClassLabel}
-                                </div>
-                                <div className="font-mono text-slate-500 text-[9.5px]">
-                                  <span className="text-slate-400 font-sans font-normal">Matrícula: </span>{item.student.registration_number || '---'}
-                                </div>
+                              <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                <span>
+                                  <span className="text-slate-400 font-normal">Matrícula: </span>
+                                  <span className="font-mono font-bold text-slate-700">{formatRegistrationNumber(item.student.registration_number, '---')}</span>
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span>
+                                  <span className="text-slate-400 font-normal">ID Turma: </span>
+                                  <span className="font-mono font-bold text-slate-700">{classIdStr}</span>
+                                </span>
                               </div>
                             </div>
                           </div>
                         </td>
 
-                        {/* Parcelas do Período */}
+                        {/* Situação */}
                         <td className="py-2.5 px-3 text-center">
                           {periodType === 'mensal' ? (
                             <div className="inline-flex items-center justify-center">
@@ -2117,22 +2116,6 @@ return (
                                   {Math.max(0, item.expectedMonthsCount - item.paidMonthsCount - item.overdueMonthsCount)} a vencer
                                 </span>
                               </div>
-
-                              {item.overdueMonthsNames.length > 0 ? (
-                                <div className="text-[10px] text-red-600 font-medium mt-0.5">
-                                  <span className="font-bold text-red-700">Pendente: </span>
-                                  <span>{item.overdueMonthsNames.join(', ')}</span>
-                                </div>
-                              ) : item.futureMonthsNames.length > 0 ? (
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  <span className="font-semibold text-slate-600">A vencer: </span>
-                                  <span>{item.futureMonthsNames.join(', ')}</span>
-                                </div>
-                              ) : (
-                                <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
-                                  100% quitado no período
-                                </div>
-                              )}
                             </div>
                           )}
                         </td>
@@ -2147,7 +2130,7 @@ return (
                           {formatCurrency(item.valorEfetuado)}
                         </td>
 
-                        {/* Saldo Pendente */}
+                        {/* Saldo Pendente (Vencido) */}
                         <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs">
                           {item.saldoPendente > 0 ? (
                             <span className="text-red-600 font-bold">
@@ -2159,36 +2142,12 @@ return (
                             </span>
                           )}
                         </td>
-
-                        {/* Situação */}
-                        <td className="py-2.5 px-3 text-center">
-                          {item.status === 'paid' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <Check size={11} /> Quitado
-                            </span>
-                          )}
-                          {item.status === 'regular' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                              <Clock size={11} /> Em Dia (Previsto)
-                            </span>
-                          )}
-                          {item.status === 'pending' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
-                              <AlertCircle size={11} /> Pendente ({item.overdueMonthsCount} {item.overdueMonthsCount === 1 ? 'vencida' : 'vencidas'})
-                            </span>
-                          )}
-                          {item.status === 'exempt' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                              Isento
-                            </span>
-                          )}
-                        </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={6} className="py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <DollarSign size={32} className="text-slate-300" />
                         <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
@@ -2204,7 +2163,7 @@ return (
                 <tfoot className="print-avoid-break">
                   <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400">
                     <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
-                      Total Consolidado ({reportData.length} alunos):
+                      Total Consolidado ({reportData.length} alunos • {totals.taxaArrecadacao}% Arrecadado):
                     </td>
                     <td className="py-2.5 px-3 text-right font-black text-amber-700 tabular-nums">
                       {formatCurrency(totals.totalPrevisto)}
@@ -2214,9 +2173,6 @@ return (
                     </td>
                     <td className="py-2.5 px-3 text-right font-black text-red-700 tabular-nums">
                       {formatCurrency(totals.totalPendente)}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-[11px] font-black text-indigo-700">
-                      {totals.taxaArrecadacao}% Arrecadado
                     </td>
                   </tr>
                 </tfoot>
