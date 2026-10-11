@@ -24,7 +24,7 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="min-h-screen bg-slate-100 flex overflow-hidden print:overflow-visible print:h-auto font-sans">
+    <div className="min-h-screen bg-slate-100 flex overflow-hidden print:block print:w-full print:overflow-visible print:h-auto font-sans">
       {/* Botão de Menu Mobile */}
       <button
         onClick={() => setIsSidebarOpen(true)}
@@ -49,15 +49,15 @@ export function Layout() {
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:overflow-visible print:h-auto">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:block print:w-full print:overflow-visible print:h-auto">
         <div className="print:hidden sticky top-0 z-[60] bg-white border-b border-slate-200">
           <Navbar />
         </div>
         <main 
-          className="flex-1 overflow-y-auto px-2.5 sm:px-4 lg:px-6 pb-8 pt-0 custom-scrollbar print:overflow-visible print:p-0 [overflow-anchor:none]"
+          className="flex-1 overflow-y-auto px-2.5 sm:px-4 lg:px-6 pb-8 pt-0 custom-scrollbar print:block print:w-full print:overflow-visible print:p-0 [overflow-anchor:none]"
           style={{ overflowAnchor: 'none' }}
         >
-          <div className="max-w-[1440px] w-full mx-auto print:max-w-none">
+          <div className="max-w-[1440px] w-full mx-auto print:block print:w-full print:max-w-none">
             <Outlet />
           </div>
         </main>

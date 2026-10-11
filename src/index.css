@@ -99,6 +99,7 @@
       margin: 0 !important;
       padding: 0 !important;
       background: transparent !important;
+      display: block !important;
     }
 
     /* Hide screen-only interactive visual elements globally so they take 0 layout space */

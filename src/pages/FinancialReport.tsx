@@ -889,27 +889,31 @@ return (
           margin: 0 !important;
         }
 
-        html, body {
+        html, body, #root, main, [class*="min-h-screen"], [class*="h-screen"], #financial-report-main-container {
           margin: 0 !important;
           padding: 0 !important;
           background: #ffffff !important;
           color: #000000 !important;
-          font-size: 12px !important;
+          font-size: 11px !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
           overflow: visible !important;
           height: auto !important;
           min-height: 0 !important;
+          max-height: none !important;
+          display: block !important;
+          position: static !important;
         }
 
         #financial-report-main-container {
-          padding: 12mm 15mm 12mm 15mm !important;
-          margin: 0 !important;
+          padding: 8mm 10mm 10mm 10mm !important;
+          margin: 0 auto !important;
           width: 100% !important;
           max-width: 100% !important;
           box-sizing: border-box !important;
           background: #ffffff !important;
           overflow: visible !important;
+          display: block !important;
         }
 
         .print-avoid-break {
@@ -1776,9 +1780,9 @@ return (
                   {formatCurrency(totals.totalEfetuado)}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium mt-1">
-                <span>{totals.adimplentesCount} alunos em dia</span>
-                <span className="font-bold text-emerald-700 font-mono">
+              <div className="flex items-center justify-between gap-2 text-[10px] text-slate-600 font-medium mt-1">
+                <span className="truncate">{totals.adimplentesCount} alunos em dia</span>
+                <span className="font-bold text-emerald-700 whitespace-nowrap shrink-0">
                   {totals.taxaArrecadacao}% da meta
                 </span>
               </div>
@@ -1982,57 +1986,57 @@ return (
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-700 print:bg-slate-100 print:text-slate-800 print:border-b-2 print:border-slate-300">
-                  <th className="py-3 px-3.5 text-center w-12">#</th>
+                  <th className="py-2.5 px-3 text-center w-10">#</th>
                   
                   <th 
-                    className="py-3 px-3.5 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 transition-colors select-none text-left"
                     onClick={() => handleToggleSort('name')}
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Aluno / Turma</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'name' && "text-blue-900 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'name' && "text-blue-900 font-bold")} />
                     </div>
                   </th>
 
-                  <th className="py-3 px-4 text-center">Parcelas / Período</th>
+                  <th className="py-2.5 px-3 text-center">Parcelas / Período</th>
 
                   <th 
-                    className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                     onClick={() => handleToggleSort('previsto')}
                   >
-                    <div className="inline-flex items-center gap-1 text-amber-800">
+                    <div className="inline-flex items-center gap-1 text-amber-800 print:text-slate-700">
                       <span>Previsto</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'previsto' && "text-amber-800 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'previsto' && "text-amber-800 font-bold")} />
                     </div>
                   </th>
 
                   <th 
-                    className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                     onClick={() => handleToggleSort('efetuado')}
                   >
-                    <div className="inline-flex items-center gap-1 text-emerald-800">
+                    <div className="inline-flex items-center gap-1 text-emerald-800 print:text-slate-700">
                       <span>Efetuado</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'efetuado' && "text-emerald-800 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'efetuado' && "text-emerald-800 font-bold")} />
                     </div>
                   </th>
 
                   <th 
-                    className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
                     onClick={() => handleToggleSort('pendente')}
                   >
-                    <div className="inline-flex items-center gap-1 text-red-800">
+                    <div className="inline-flex items-center gap-1 text-red-800 print:text-slate-700">
                       <span>Pendente (Vencido)</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'pendente' && "text-red-800 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'pendente' && "text-red-800 font-bold")} />
                     </div>
                   </th>
 
                   <th 
-                    className="py-3 px-3.5 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
                     onClick={() => handleToggleSort('status')}
                   >
-                    <div className="inline-flex items-center gap-1 justify-center">
+                    <div className="inline-flex items-center gap-1 justify-center text-slate-700">
                       <span>Situação</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400", sortField === 'status' && "text-blue-900 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'status' && "text-blue-900 font-bold")} />
                     </div>
                   </th>
                 </tr>
@@ -2050,12 +2054,12 @@ return (
                         className="hover:bg-slate-50/70 transition-colors border-b border-slate-100 print:border-slate-200 print-avoid-break"
                       >
                         {/* Número sequencial */}
-                        <td className="py-3.5 px-3.5 text-center font-mono text-[10px] text-slate-400">
+                        <td className="py-2.5 px-3 text-center font-mono text-[10px] text-slate-400">
                           {idx + 1}
                         </td>
 
                         {/* Nome, Matrícula e Turma */}
-                        <td className="py-3.5 px-3.5">
+                        <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 print:hidden">
                               {item.student.name ? item.student.name.charAt(0).toUpperCase() : '?'}
@@ -2064,70 +2068,69 @@ return (
                               <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
                                 {item.student.name}
                               </span>
-                              <div className="text-[10px] text-slate-600 flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
-                                <span className="font-mono text-slate-500">
-                                  Matrícula: {item.student.registration_number || '---'}
-                                </span>
-                                <span className="text-slate-300">|</span>
-                                <span className="font-semibold text-slate-700">
-                                  Turma: {studentClassLabel}
-                                </span>
+                              <div className="text-[10px] text-slate-600 mt-0.5 space-y-0.5">
+                                <div className="font-medium text-slate-700 truncate" title={studentClassLabel}>
+                                  <span className="text-slate-400">Turma: </span>{studentClassLabel}
+                                </div>
+                                <div className="font-mono text-slate-500 text-[9.5px]">
+                                  <span className="text-slate-400 font-sans font-normal">Matrícula: </span>{item.student.registration_number || '---'}
+                                </div>
                               </div>
                             </div>
                           </div>
                         </td>
 
                         {/* Parcelas do Período */}
-                        <td className="py-3.5 px-4 text-center">
+                        <td className="py-2.5 px-3 text-center">
                           {periodType === 'mensal' ? (
                             <div className="inline-flex items-center justify-center">
                               {item.monthsStatus[0]?.isPaid ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                   <Check size={12} /> Pago ({item.monthsStatus[0]?.monthShort})
                                 </span>
                               ) : item.monthsStatus[0]?.isOverdue ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold bg-red-50 text-red-700 border border-red-200">
                                   <AlertCircle size={12} /> Vencido ({item.monthsStatus[0]?.monthShort})
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                   <Clock size={12} /> A Vencer ({item.monthsStatus[0]?.monthShort})
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <div className="flex flex-col items-center justify-center gap-1 text-center py-0.5">
-                              <div className="inline-flex items-center gap-2 justify-center flex-wrap">
-                                <span className="font-bold text-slate-800 text-xs whitespace-nowrap">
-                                  {item.paidMonthsCount} de {item.expectedMonthsCount} {item.expectedMonthsCount === 1 ? 'parcela paga' : 'parcelas pagas'}
+                            <div className="flex flex-col items-center justify-center gap-0.5 text-center">
+                              <div className="text-xs font-semibold text-slate-800 flex items-center justify-center gap-1.5 flex-wrap">
+                                <span className={cn("font-bold", item.paidMonthsCount > 0 ? "text-emerald-700" : "text-slate-500")}>
+                                  {item.paidMonthsCount} {item.paidMonthsCount === 1 ? 'paga' : 'pagas'}
                                 </span>
-                                {item.expectedMonthsCount > 0 && (
-                                  <span className={cn(
-                                    "text-[10px] font-mono font-bold px-1.5 py-0.2 rounded border whitespace-nowrap",
-                                    item.paidMonthsCount >= item.expectedMonthsCount 
-                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                                      : item.overdueMonthsNames.length > 0
-                                      ? "bg-red-50 text-red-700 border-red-200"
-                                      : "bg-slate-100 text-slate-600 border-slate-200"
-                                  )}>
-                                    {Math.round((item.paidMonthsCount / item.expectedMonthsCount) * 100)}%
+                                <span className="text-slate-300">•</span>
+                                {item.overdueMonthsCount > 0 ? (
+                                  <span className="text-red-600 font-bold">
+                                    {item.overdueMonthsCount} em atraso
                                   </span>
+                                ) : (
+                                  <span className="text-slate-400 font-normal">0 em atraso</span>
                                 )}
+                                <span className="text-slate-300">•</span>
+                                <span className="text-slate-500 font-medium">
+                                  {Math.max(0, item.expectedMonthsCount - item.paidMonthsCount - item.overdueMonthsCount)} a vencer
+                                </span>
                               </div>
+
                               {item.overdueMonthsNames.length > 0 ? (
-                                <div className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-50/90 px-2.5 py-0.5 rounded-md border border-red-200">
-                                  <AlertCircle size={11} className="shrink-0" />
-                                  <span className="whitespace-nowrap">Vencido: {item.overdueMonthsNames.join(', ')}</span>
+                                <div className="text-[10px] text-red-600 font-medium mt-0.5">
+                                  <span className="font-bold text-red-700">Pendente: </span>
+                                  <span>{item.overdueMonthsNames.join(', ')}</span>
                                 </div>
                               ) : item.futureMonthsNames.length > 0 ? (
-                                <div className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-50 px-2.5 py-0.5 rounded-md border border-slate-200">
-                                  <Clock size={11} className="shrink-0 text-slate-400" />
-                                  <span className="whitespace-nowrap">A vencer: {item.futureMonthsNames.join(', ')}</span>
+                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                  <span className="font-semibold text-slate-600">A vencer: </span>
+                                  <span>{item.futureMonthsNames.join(', ')}</span>
                                 </div>
                               ) : (
-                                <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50/90 px-2.5 py-0.5 rounded-md border border-emerald-200">
-                                  <Check size={11} className="shrink-0" />
-                                  <span className="whitespace-nowrap">100% quitado</span>
+                                <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                                  100% quitado no período
                                 </div>
                               )}
                             </div>
@@ -2135,19 +2138,19 @@ return (
                         </td>
 
                         {/* Valor Previsto */}
-                        <td className="py-3.5 px-3.5 text-right font-bold text-amber-700 tabular-nums">
+                        <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs">
                           {formatCurrency(item.valorPrevisto)}
                         </td>
 
                         {/* Valor Efetuado */}
-                        <td className="py-3.5 px-3.5 text-right font-bold text-emerald-700 tabular-nums">
+                        <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs">
                           {formatCurrency(item.valorEfetuado)}
                         </td>
 
                         {/* Saldo Pendente */}
-                        <td className="py-3.5 px-3.5 text-right font-bold tabular-nums">
+                        <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs">
                           {item.saldoPendente > 0 ? (
-                            <span className="text-red-600 font-black">
+                            <span className="text-red-600 font-bold">
                               {formatCurrency(item.saldoPendente)}
                             </span>
                           ) : (
@@ -2158,7 +2161,7 @@ return (
                         </td>
 
                         {/* Situação */}
-                        <td className="py-3.5 px-3.5 text-center">
+                        <td className="py-2.5 px-3 text-center">
                           {item.status === 'paid' && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <Check size={11} /> Quitado
@@ -2171,7 +2174,7 @@ return (
                           )}
                           {item.status === 'pending' && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
-                              <AlertCircle size={11} /> Pendente ({item.overdueMonthsCount} venc.{item.overdueMonthsCount > 1 ? 's' : ''})
+                              <AlertCircle size={11} /> Pendente ({item.overdueMonthsCount} {item.overdueMonthsCount === 1 ? 'vencida' : 'vencidas'})
                             </span>
                           )}
                           {item.status === 'exempt' && (
@@ -2200,19 +2203,19 @@ return (
               {reportData.length > 0 && (
                 <tfoot className="print-avoid-break">
                   <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400">
-                    <td colSpan={3} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
+                    <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
                       Total Consolidado ({reportData.length} alunos):
                     </td>
-                    <td className="py-3 px-3.5 text-right font-black text-amber-700 tabular-nums">
+                    <td className="py-2.5 px-3 text-right font-black text-amber-700 tabular-nums">
                       {formatCurrency(totals.totalPrevisto)}
                     </td>
-                    <td className="py-3 px-3.5 text-right font-black text-emerald-700 tabular-nums">
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 tabular-nums">
                       {formatCurrency(totals.totalEfetuado)}
                     </td>
-                    <td className="py-3 px-3.5 text-right font-black text-red-700 tabular-nums">
+                    <td className="py-2.5 px-3 text-right font-black text-red-700 tabular-nums">
                       {formatCurrency(totals.totalPendente)}
                     </td>
-                    <td className="py-3 px-3.5 text-center text-[11px] font-black text-indigo-700">
+                    <td className="py-2.5 px-3 text-center text-[11px] font-black text-indigo-700">
                       {totals.taxaArrecadacao}% Arrecadado
                     </td>
                   </tr>
