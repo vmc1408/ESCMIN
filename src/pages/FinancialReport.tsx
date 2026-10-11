@@ -506,18 +506,14 @@ const reportData = useMemo(() => {
         const found = scopedStudents.find(s => s.id === selectedStudentId) || students.find(s => s.id === selectedStudentId);
         return found ? [found] : [];
       })()
-    : scopedStudents.filter(student => {
-        if (!isStudentActive(student)) {
-          return false;
+    : (() => {
+        if (!selectedClassId) return [];
+        const classStudents = filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
+        if (searchTerm.trim()) {
+          return classStudents.filter(student => matchesStudentSearch(student, searchTerm.trim()));
         }
-        if (selectedClassId !== 'all' && !isStudentInClass(student, selectedClassId, enrollments)) {
-          return false;
-        }
-        if (searchTerm.trim() && !matchesStudentSearch(student, searchTerm.trim())) {
-          return false;
-        }
-        return true;
-      });
+        return classStudents;
+      })();
 
   return filteredStudents.map(student => {
     const studentClass = classes.find(c => c.id === student.class_id);
@@ -605,12 +601,46 @@ const reportData = useMemo(() => {
       status = 'regular'; // Em dia (mês atual/futuro previsto a vencer)
     }
 
+    const overdueMonthsNames = monthsStatus.filter(m => m.isOverdue).map(m => m.monthShort);
+    const futureMonthsNames = monthsStatus.filter(m => !m.isPaid && !m.isOverdue && m.isExpected).map(m => m.monthShort);
+    const paidMonthsNames = monthsStatus.filter(m => m.isPaid).map(m => m.monthShort);
+
+    let periodSummary = '';
+    if (periodType === 'mensal') {
+      const m = monthsStatus[0];
+      if (!m) {
+        periodSummary = '---';
+      } else if (m.isPaid) {
+        periodSummary = `${m.monthShort}: Pago`;
+      } else if (m.isOverdue) {
+        periodSummary = `${m.monthShort}: Vencido`;
+      } else {
+        periodSummary = `${m.monthShort}: A Vencer`;
+      }
+    } else {
+      const paidCount = monthsStatus.filter(m => m.isPaid).length;
+      const totalExpected = expectedInPeriod.length;
+      if (totalExpected === 0) {
+        periodSummary = 'Sem parcelas';
+      } else if (overdueMonthsNames.length > 0) {
+        periodSummary = `${paidCount}/${totalExpected} pagas (Venc.: ${overdueMonthsNames.join(', ')})`;
+      } else if (paidCount >= totalExpected) {
+        periodSummary = `${paidCount}/${totalExpected} pagas (Quitado)`;
+      } else {
+        periodSummary = `${paidCount}/${totalExpected} pagas (Em dia)`;
+      }
+    }
+
     return {
       student,
       studentClass,
       expectedMonthsCount: expectedInPeriod.length,
       paidMonthsCount: contribsInPeriod.length,
       overdueMonthsCount,
+      overdueMonthsNames,
+      futureMonthsNames,
+      paidMonthsNames,
+      periodSummary,
       fee,
       valorPrevisto,
       valorEfetuado,
@@ -660,7 +690,8 @@ const reportData = useMemo(() => {
   sortField,
   sortOrder,
   getExpectedMonthsForStudent,
-  getStudentFee
+  getStudentFee,
+  enrollments
 ]);
 
 // Totais e Indicadores Consolidados
@@ -723,14 +754,14 @@ const handleExportPDF = () => {
     // Título do Relatório
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`RELATÓRIO FINANCEIRO: DEMONSTRATIVO PREVISTO vs. EFETUADO`, 14, 29);
+    doc.text(`RELATÓRIO FINANCEIRO - DEMONSTRATIVO DE CONTRIBUIÇÕES`, 14, 29);
 
     // Parâmetros do Relatório
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     const targetDesc = filterTarget === 'student'
       ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${selectedStudent?.registration_number || '---'})`
-      : `Turma: ${selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
+      : `Turma: ${classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
     
     const paramsText = `${targetDesc}  |  Período: ${periodLabel}  |  Unidade: ${getUnitName(selectedUnitId) || 'Todas'}  |  Obs: Mês atual classificado como previsto`;
     doc.text(paramsText, 14, 35);
@@ -742,7 +773,7 @@ const handleExportPDF = () => {
     // Quadro de Totais Sintéticos
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Alunos: ${totals.totalAlunos}  |  Previsto (Amarelo): ${formatCurrency(totals.totalPrevisto)}  |  Efetuado (Verde): ${formatCurrency(totals.totalEfetuado)}  |  Pendente Vencido (Vermelho): ${formatCurrency(totals.totalPendente)}  |  Arrecadação: ${totals.taxaArrecadacao}%`, 14, 44);
+    doc.text(`Alunos: ${totals.totalAlunos}  |  Previsto: ${formatCurrency(totals.totalPrevisto)}  |  Efetuado: ${formatCurrency(totals.totalEfetuado)}  |  Pendente Vencido: ${formatCurrency(totals.totalPendente)}  |  Arrecadação: ${totals.taxaArrecadacao}%`, 14, 44);
 
     // Tabela detalhada de alunos
     const tableBody = reportData.map((item, index) => {
@@ -754,17 +785,12 @@ const handleExportPDF = () => {
         ? 'Isento'
         : `Pendente (${item.overdueMonthsCount} venc.)`;
 
-      // Resumo dos meses
-      const mesesResumo = item.monthsStatus
-        .map(m => `${m.monthShort}: ${m.isPaid ? 'OK' : m.isOverdue ? 'VENC' : m.isExpected ? 'PREV' : '-'}`)
-        .join(' ');
-
       return [
         (index + 1).toString(),
         item.student.registration_number || '---',
         item.student.name || '---',
         item.studentClass?.code || item.studentClass?.name || '---',
-        mesesResumo,
+        item.periodSummary,
         formatCurrency(item.valorPrevisto),
         formatCurrency(item.valorEfetuado),
         formatCurrency(item.saldoPendente),
@@ -774,7 +800,7 @@ const handleExportPDF = () => {
 
     autoTable(doc, {
       startY: 48,
-      head: [['#', 'Matrícula', 'Nome do Aluno', 'Turma', 'Meses do Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação']],
+      head: [['#', 'Matrícula', 'Nome do Aluno', 'Turma', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação']],
       body: tableBody,
       theme: 'grid',
       headStyles: {
@@ -787,9 +813,9 @@ const handleExportPDF = () => {
       columnStyles: {
         0: { cellWidth: 10, halign: 'center' },
         1: { cellWidth: 24, halign: 'center' },
-        2: { cellWidth: 60, halign: 'left' },
+        2: { cellWidth: 58, halign: 'left' },
         3: { cellWidth: 26, halign: 'center' },
-        4: { cellWidth: 55, halign: 'left', fontSize: 7 },
+        4: { cellWidth: 54, halign: 'center', fontSize: 7.5 },
         5: { cellWidth: 26, halign: 'right', textColor: [180, 100, 0] },
         6: { cellWidth: 26, halign: 'right', textColor: [16, 120, 60] },
         7: { cellWidth: 26, halign: 'right', textColor: [200, 30, 30] },
@@ -805,18 +831,12 @@ const handleExportPDF = () => {
       }
     });
 
-    // Rodapé com data de emissão e assinaturas
-    const finalY = (doc as any).lastAutoTable.finalY + 14;
-    if (finalY < doc.internal.pageSize.height - 35) {
+    // Rodapé com data de emissão eletrônica (sem campos de assinatura)
+    const finalY = (doc as any).lastAutoTable.finalY + 12;
+    if (finalY < doc.internal.pageSize.height - 15) {
       doc.setFontSize(8);
-      doc.text(`Relatório emitido em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} por ${profile?.name || 'Administração'}.`, 14, finalY);
-
-      const signY = finalY + 16;
-      doc.line(30, signY, 110, signY);
-      doc.text('Tesouraria / Gestão Financeira', 45, signY + 4);
-
-      doc.line(pageWidth - 110, signY, pageWidth - 30, signY);
-      doc.text('Secretaria Acadêmica / Direção', pageWidth - 100, signY + 4);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })} por ${profile?.name || 'Administração'}.`, 14, finalY);
     }
 
     const yearFileStr = selectedYear || 'geral';
@@ -832,13 +852,14 @@ const handleExportPDF = () => {
 // Exportar CSV para planilhas
 const handleExportCSV = () => {
   if (!isFilterReady) return;
-  const headers = ['Matrícula', 'Aluno', 'CPF', 'Turma', 'Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação'];
+  const headers = ['Matrícula', 'Aluno', 'CPF', 'Turma', 'Período', 'Parcelas / Período', 'Previsto', 'Efetuado', 'Pendente (Vencido)', 'Situação'];
   const rows = reportData.map(item => [
     item.student.registration_number || '',
     `"${item.student.name || ''}"`,
     item.student.cpf || '',
     `"${item.studentClass?.name || ''}"`,
     `"${periodLabel}"`,
+    `"${item.periodSummary}"`,
     item.valorPrevisto.toFixed(2),
     item.valorEfetuado.toFixed(2),
     item.saldoPendente.toFixed(2),
@@ -862,7 +883,7 @@ return (
     {/* PageHeader exclusivo na visualização em tela */}
     <PageHeader
       title="Relatório Financeiro"
-      description="Acompanhamento consolidado e individual de contribuições previstas e efetuadas por turma ou aluno."
+      description="Acompanhamento consolidado e individual de contribuições por turma ou aluno."
       icon={DollarSign}
       badge={getUnitName(selectedUnitId) || 'Geral'}
     >
@@ -928,7 +949,7 @@ return (
               {institution?.address || 'Diocese de Guarulhos'} {institution?.city && `- ${institution.city}`} {institution?.cnpj && `| CNPJ: ${institution.cnpj}`}
             </p>
             <h2 className="text-xs font-black text-[#00174b] uppercase tracking-wide mt-0.5">
-              Relatório Financeiro: Contribuições Previstas vs. Efetuadas
+              Relatório Financeiro - Demonstrativo de Contribuições
             </h2>
           </div>
         </div>
@@ -946,7 +967,7 @@ return (
           <span className="font-semibold">
             {filterTarget === 'student'
               ? (selectedStudent ? `${selectedStudent.name} (${selectedStudent.registration_number || '---'})` : 'Pendente')
-              : (selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
+              : (classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
           </span>
         </div>
         <div>
@@ -1075,7 +1096,7 @@ return (
                   onChange={(e) => {
                     const val = e.target.value;
                     setSelectedClassId(val);
-                    if (val && val !== 'all' && !selectedYear) {
+                    if (val && !selectedYear) {
                       const targetCls = classes.find(c => c.id === val);
                       if (targetCls?.start_year || targetCls?.academic_year) {
                         setSelectedYear(String(targetCls.start_year || targetCls.academic_year));
@@ -1084,8 +1105,7 @@ return (
                   }}
                   className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
                 >
-                  <option value="">Selecione uma turma cadastrada...</option>
-                  <option value="all">Todas as Turmas Cadastradas ({scopedClasses.length})</option>
+                  <option value="">Selecione uma turma para carregar os alunos...</option>
                   {scopedClasses.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.code ? `[${c.code}] ` : ''}{c.name} {c.period ? `(${c.period})` : ''}
@@ -1472,9 +1492,7 @@ return (
             type="button"
             onClick={() => {
               setFilterTarget('class');
-              if (scopedClasses.length > 0 && !selectedClassId) {
-                setSelectedClassId(scopedClasses[0].id);
-              }
+              setSelectedClassId('');
               if (!selectedYear) {
                 const nowYr = new Date().getFullYear();
                 setSelectedYear(String(nowYr));
@@ -1493,11 +1511,11 @@ return (
                 Consultar Turma
               </h4>
               <p className="text-[11px] text-slate-500 mt-1">
-                Visualizar arrecadação consolidada da primeira turma ativa.
+                Selecione uma turma específica para visualizar os alunos correspondentes.
               </p>
             </div>
             <span className="text-[11px] font-bold text-blue-700 mt-3 inline-flex items-center gap-1">
-              Carregar Turma <ChevronRight size={13} />
+              Escolher Turma <ChevronRight size={13} />
             </span>
           </button>
 
@@ -1505,6 +1523,8 @@ return (
             type="button"
             onClick={() => {
               setFilterTarget('student');
+              setSelectedStudentId('');
+              setStudentSearchQuery('');
               setIsStudentDropdownOpen(false);
               if (!selectedYear) setSelectedYear(String(new Date().getFullYear()));
               if (!periodType) setPeriodType('anual');
@@ -1531,9 +1551,6 @@ return (
             type="button"
             onClick={() => {
               handleSetCurrentMonth();
-              if (scopedClasses.length > 0 && !selectedClassId) {
-                setSelectedClassId('all');
-              }
             }}
             className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between"
           >
@@ -1545,11 +1562,11 @@ return (
                 Mês em Exercício
               </h4>
               <p className="text-[11px] text-slate-500 mt-1">
-                Carregar imediatamente o mês corrente ({format(new Date(), 'MMMM/yyyy', { locale: ptBR })}).
+                Definir o período de referência para o mês corrente ({format(new Date(), 'MMMM/yyyy', { locale: ptBR })}).
               </p>
             </div>
             <span className="text-[11px] font-bold text-emerald-700 mt-3 inline-flex items-center gap-1">
-              Ver Mês Atual <ChevronRight size={13} />
+              Mês Atual <ChevronRight size={13} />
             </span>
           </button>
         </div>
@@ -1910,9 +1927,7 @@ return (
 
                   <th className="py-3 px-3.5">Turma</th>
 
-                  {viewMode === 'detailed' && (
-                    <th className="py-3 px-3.5 text-center">Meses do Período</th>
-                  )}
+                  <th className="py-3 px-3.5 text-center">Parcelas / Período</th>
 
                   <th 
                     className="py-3 px-3.5 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
@@ -1991,41 +2006,45 @@ return (
                         </span>
                       </td>
 
-                      {/* Meses do período com micro-badges interativos */}
-                      {viewMode === 'detailed' && (
-                        <td className="py-3 px-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1 flex-wrap max-w-xs mx-auto">
-                            {item.monthsStatus.map((m) => (
-                              <span
-                                key={m.month}
-                                title={
-                                  m.isPaid 
-                                    ? `${m.monthName}: Pago ${formatCurrency(m.amountPaid)} em ${m.paymentDate ? formatDateForDisplay(m.paymentDate) : 'data n/d'} (${m.paymentMethod || 'PIX'})` 
-                                    : m.isOverdue
-                                    ? `${m.monthName}: Vencido e não quitado (${formatCurrency(m.fee)})` 
-                                    : m.isCurrent
-                                    ? `${m.monthName}: Mês atual (Previsto a vencer)` 
-                                    : m.isFuture
-                                    ? `${m.monthName}: Mês futuro (Previsto a vencer)`
-                                    : `${m.monthName}: Fora do calendário letivo`
-                                }
-                                className={cn(
-                                  "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all",
-                                  m.isPaid 
-                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
-                                    : m.isOverdue 
-                                    ? "bg-red-100 text-red-800 border border-red-300" 
-                                    : m.isExpected
-                                    ? "bg-amber-100 text-amber-800 border border-amber-300"
-                                    : "bg-slate-100 text-slate-400 border border-slate-200 opacity-50"
-                                )}
-                              >
-                                {m.monthShort}
+                      {/* Parcelas do Período */}
+                      <td className="py-3 px-3.5 text-center">
+                        {periodType === 'mensal' ? (
+                          <div>
+                            {item.monthsStatus[0]?.isPaid ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <Check size={11} /> Pago
                               </span>
-                            ))}
+                            ) : item.monthsStatus[0]?.isOverdue ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">
+                                <AlertCircle size={11} /> Vencido
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock size={11} /> A Vencer
+                              </span>
+                            )}
                           </div>
-                        </td>
-                      )}
+                        ) : (
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="font-bold text-slate-800 text-[11px]">
+                              {item.paidMonthsCount} de {item.expectedMonthsCount} {item.expectedMonthsCount === 1 ? 'parcela paga' : 'parcelas pagas'}
+                            </span>
+                            {item.overdueMonthsNames.length > 0 ? (
+                              <span className="text-[10px] font-bold text-red-600 mt-0.5">
+                                Vencido: {item.overdueMonthsNames.join(', ')}
+                              </span>
+                            ) : item.futureMonthsNames.length > 0 ? (
+                              <span className="text-[10px] text-slate-500 mt-0.5">
+                                A vencer: {item.futureMonthsNames.join(', ')}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-emerald-600 mt-0.5">
+                                100% quitado
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
 
                       {/* Valor Previsto */}
                       <td className="py-3 px-3.5 text-right font-bold text-amber-700 tabular-nums">
@@ -2077,7 +2096,7 @@ return (
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={viewMode === 'detailed' ? 8 : 7} className="py-12 text-center text-slate-400">
+                    <td colSpan={8} className="py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <DollarSign size={32} className="text-slate-300" />
                         <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
@@ -2092,7 +2111,7 @@ return (
               {reportData.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
-                    <td colSpan={viewMode === 'detailed' ? 4 : 3} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
+                    <td colSpan={4} className="py-3 px-3.5 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
                       Total Consolidado ({reportData.length} alunos):
                     </td>
                     <td className="py-3 px-3.5 text-right font-black text-amber-700 tabular-nums">
@@ -2116,25 +2135,9 @@ return (
       </>
     )}
 
-    {/* Seção de Assinaturas e Rodapé da Impressão */}
-    <div className="hidden print:block mt-12 pt-8 border-t border-slate-300">
-      <div className="grid grid-cols-2 gap-12 text-center text-xs text-slate-700">
-        <div>
-          <div className="border-t border-slate-400 w-3/4 mx-auto pt-2">
-            <p className="font-bold text-slate-900">Tesouraria / Gestão Financeira</p>
-            <p className="text-[10px] text-slate-500">Responsável pela Prestação de Contas</p>
-          </div>
-        </div>
-        <div>
-          <div className="border-t border-slate-400 w-3/4 mx-auto pt-2">
-            <p className="font-bold text-slate-900">Secretaria Acadêmica / Direção</p>
-            <p className="text-[10px] text-slate-500">Conferência e Arquivamento Oficial</p>
-          </div>
-        </div>
-      </div>
-      <div className="mt-8 text-center text-[9px] text-slate-400">
-        Documento emitido eletronicamente pelo Sistema de Gestão Escolar ESCMIN em {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss")}.
-      </div>
+    {/* Rodapé da Impressão */}
+    <div className="hidden print:block mt-8 pt-4 border-t border-slate-300 text-center text-[9px] text-slate-400">
+      Documento emitido eletronicamente pelo Sistema de Gestão Escolar ESCMIN em {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss")}.
     </div>
   </div>
 );
