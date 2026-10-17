@@ -725,67 +725,89 @@ const totals = useMemo(() => {
   };
 }, [reportData]);
 
-// Disparo da impressão padrão do navegador (Ctrl+P / Botão)
-const handlePrint = () => {
-  if (!isFilterReady) return;
-  window.print();
-};
-
-// Geração de PDF Oficial para Download
-const handleExportPDF = () => {
-  if (!isFilterReady) return;
-  try {
-    setIsExportingPDF(true);
+  // Construtor unificado do documento oficial em PDF (padrão institucional do sistema)
+  const buildReportPDF = () => {
     const doc = new jsPDF('landscape');
     const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 14;
+    const centerX = pageWidth / 2;
 
-    // Cabeçalho da Instituição
-    doc.setFontSize(10);
+    // 1. Logotipo Institucional
+    let textStartX = margin;
+    let logoWidth = 0;
+    if (institution?.logo_url) {
+      try {
+        doc.addImage(institution.logo_url, 'auto', margin, 10, 18, 18);
+        logoWidth = 22;
+      } catch (e) {
+        console.error('Erro ao adicionar logo no PDF:', e);
+      }
+    }
+    textStartX = margin + logoWidth;
+
+    // 2. Textos do Cabeçalho à Esquerda
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(80, 80, 80);
+    doc.setTextColor(100, 116, 139);
     const dioceseHeader = institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS');
-    doc.text(dioceseHeader, 14, 13);
+    doc.text(dioceseHeader, textStartX, 14);
 
-    doc.setFontSize(15);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text(institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO', 14, 19);
-
-    doc.setFontSize(9.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(70, 70, 70);
-    doc.text(institution?.subtitle || 'Pe. José Fernando de Brito', 14, 25);
-
-    // Título do Relatório
-    doc.setFontSize(11.5);
+    doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 23, 75); // #00174b
-    doc.text(`RELATÓRIO FINANCEIRO - DEMONSTRATIVO DE CONTRIBUIÇÕES`, 14, 32);
+    doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 20);
 
-    // Parâmetros do Relatório
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(100, 116, 139);
+    doc.text((institution?.subtitle || 'Pe. José Fernando de Brito').toUpperCase(), textStartX, 25);
+
+    // 3. Metadados de Emissão à Direita
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(`EMISSÃO: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth - margin, 14, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(`UNIDADE: ${(getUnitName(selectedUnitId) || 'TODAS AS UNIDADES').toUpperCase()}`, pageWidth - margin, 19, { align: 'right' });
+    doc.text(`OPERADOR: ${(profile?.name || 'ADMINISTRAÇÃO').toUpperCase()}`, pageWidth - margin, 24, { align: 'right' });
+
+    // 4. Linha Divisória em #00174b
+    doc.setDrawColor(0, 23, 75);
+    doc.setLineWidth(0.6);
+    doc.line(margin, 31, pageWidth - margin, 31);
+
+    // 5. Título Oficial Centralizado
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 23, 75);
+    doc.text('RELATÓRIO FINANCEIRO - DEMONSTRATIVO DE CONTRIBUIÇÕES', centerX, 37, { align: 'center' });
+
+    // 6. Faixa de Parâmetros
     const targetDesc = filterTarget === 'student'
       ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${formatRegistrationNumber(selectedStudent?.registration_number, '---')})`
       : `Turma: ${classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
-    
-    const paramsText = `${targetDesc}  |  Período: ${periodLabel}  |  Unidade: ${getUnitName(selectedUnitId) || 'Todas'}  |  Obs: Mês atual classificado como previsto`;
-    doc.text(paramsText, 14, 38);
+    const statusLabel = !statusFilter || statusFilter === 'all' ? 'Todos' : statusFilter === 'paid' ? 'Adimplentes' : statusFilter === 'partial' ? 'Parciais' : 'Inadimplentes';
 
-    // Linha divisória
-    doc.setDrawColor(200, 200, 200);
-    doc.line(14, 41, pageWidth - 14, 41);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(70, 70, 70);
+    doc.text(`${targetDesc}   •   Período: ${periodLabel}   •   Filtro de Situação: ${statusLabel}`, centerX, 42, { align: 'center' });
 
-    // Quadro de Totais Sintéticos
-    doc.setFontSize(8.5);
+    // 7. Quadro de Totais Sintéticos
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(margin, 45, pageWidth - (margin * 2), 6.5, 'FD');
+
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(20, 20, 20);
-    doc.text(`Alunos: ${totals.totalAlunos}  |  Previsto: ${formatCurrency(totals.totalPrevisto)}  |  Efetuado: ${formatCurrency(totals.totalEfetuado)}  |  Pendente Vencido: ${formatCurrency(totals.totalPendente)}  |  Arrecadação: ${totals.taxaArrecadacao}%`, 14, 47);
+    doc.setTextColor(0, 23, 75);
+    const totalsText = `Alunos: ${totals.totalAlunos}   •   Previsto: ${formatCurrency(totals.totalPrevisto)}   •   Efetuado: ${formatCurrency(totals.totalEfetuado)}   •   Pendente Vencido: ${formatCurrency(totals.totalPendente)}   •   Taxa de Arrecadação: ${totals.taxaArrecadacao}%`;
+    doc.text(totalsText, centerX, 49.3, { align: 'center' });
 
-    // Tabela detalhada de alunos
-    const tableBody = reportData.map((item, index) => {
-      const classCodeStr = item.studentClass?.code || '---';
+    // 8. Tabela de Alunos
+    const tableBody: any[] = reportData.map((item, index) => {
+      const classCodeStr = item.studentClass?.code || (item.studentClass?.name ? item.studentClass.name.split(' - ')[0] : '---');
       const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: ${classCodeStr}`;
 
       return [
@@ -798,53 +820,107 @@ const handleExportPDF = () => {
       ];
     });
 
+    // Linha de Total Consolidado
+    tableBody.push([
+      '',
+      `TOTAL CONSOLIDADO (${reportData.length} alunos • ${totals.taxaArrecadacao}% Arrecadado)`,
+      '',
+      formatCurrency(totals.totalPrevisto),
+      formatCurrency(totals.totalEfetuado),
+      formatCurrency(totals.totalPendente)
+    ]);
+
     autoTable(doc, {
-      startY: 51,
+      startY: 54,
       head: [['#', 'Aluno', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)']],
       body: tableBody,
       theme: 'grid',
       headStyles: {
-        fillColor: [30, 41, 59],
+        fillColor: [0, 23, 75],
         textColor: [255, 255, 255],
         fontSize: 8,
         fontStyle: 'bold',
         halign: 'center'
       },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 80, halign: 'left' },
-        2: { cellWidth: 68, halign: 'center', fontSize: 7.5 },
-        3: { cellWidth: 32, halign: 'right', textColor: [180, 100, 0] },
-        4: { cellWidth: 32, halign: 'right', textColor: [16, 120, 60] },
-        5: { cellWidth: 32, halign: 'right', textColor: [200, 30, 30] }
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 100, halign: 'left' },
+        2: { cellWidth: 63, halign: 'center', fontSize: 7.5 },
+        3: { cellWidth: 31, halign: 'right', textColor: [180, 83, 9] },
+        4: { cellWidth: 31, halign: 'right', textColor: [4, 120, 87] },
+        5: { cellWidth: 32, halign: 'right', textColor: [185, 28, 28] }
       },
       styles: {
         fontSize: 8,
-        cellPadding: 2,
-        overflow: 'linebreak'
+        cellPadding: 2.2,
+        overflow: 'linebreak',
+        font: 'helvetica'
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
+      },
+      didParseCell: (data) => {
+        if (data.row.index === tableBody.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+          if (data.column.index === 1) {
+            data.cell.styles.halign = 'right';
+          }
+        }
+      },
+      didDrawPage: (data) => {
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(120, 120, 120);
+        doc.text(`${dioceseHeader} • ${(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase()}`, margin, pageHeight - 7);
+        doc.text(`Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} por ${profile?.name || 'Administração'} • Pág. ${data.pageNumber}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
       }
     });
 
-    // Rodapé com data de emissão eletrônica (sem campos de assinatura)
-    const finalY = (doc as any).lastAutoTable.finalY + 12;
-    if (finalY < doc.internal.pageSize.height - 15) {
-      doc.setFontSize(8);
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })} por ${profile?.name || 'Administração'}.`, 14, finalY);
-    }
+    return doc;
+  };
 
-    const yearFileStr = selectedYear || 'geral';
-    const periodFileStr = periodType || 'periodo';
-    doc.save(`relatorio-financeiro-${yearFileStr}-${periodFileStr}.pdf`);
-  } catch (err) {
-    console.error('Erro ao gerar PDF:', err);
-  } finally {
-    setIsExportingPDF(false);
-  }
-};
+  // Disparo da impressão do relatório oficial (unificado com o PDF)
+  const handlePrint = () => {
+    if (!isFilterReady) return;
+    try {
+      const doc = buildReportPDF();
+      const blobUrl = doc.output('bloburl');
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = blobUrl.toString();
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.focus();
+          iframe.contentWindow?.print();
+        }, 300);
+      };
+      document.body.appendChild(iframe);
+    } catch {
+      window.print();
+    }
+  };
+
+  // Geração de PDF Oficial para Download
+  const handleExportPDF = () => {
+    if (!isFilterReady) return;
+    try {
+      setIsExportingPDF(true);
+      const doc = buildReportPDF();
+      const yearFileStr = selectedYear || 'geral';
+      const periodFileStr = periodType || 'periodo';
+      doc.save(`relatorio-financeiro-${yearFileStr}-${periodFileStr}.pdf`);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
 
 // Exportar CSV para planilhas
 const handleExportCSV = () => {
@@ -879,7 +955,7 @@ return (
     <style>{`
       @media print {
         @page {
-          size: A4 portrait;
+          size: A4 landscape;
           margin: 0 !important;
         }
 
@@ -2025,14 +2101,14 @@ return (
                   </th>
                 </tr>
 
-                {/* Linha de Títulos das Colunas - Padrão Navy #1e293b idêntico ao modelo PDF */}
-                <tr className="bg-[#1e293b] text-white print:bg-[#1e293b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
+                {/* Linha de Títulos das Colunas - Padrão Navy Institucional #00174b idêntico ao modelo PDF */}
+                <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
                   <th className="py-2.5 px-2 text-center w-12 text-white border border-slate-400">
                     #
                   </th>
                   
                   <th 
-                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-800 transition-colors select-none text-left text-white border border-slate-400"
+                    className="py-2.5 px-3 cursor-pointer hover:bg-blue-950 transition-colors select-none text-left text-white border border-slate-400"
                     onClick={() => handleToggleSort('name')}
                   >
                     <div className="flex items-center gap-1.5">
@@ -2042,7 +2118,7 @@ return (
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
+                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('status')}
                   >
                     <div className="inline-flex items-center gap-1 justify-center">
@@ -2052,7 +2128,7 @@ return (
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('previsto')}
                   >
                     <div className="inline-flex items-center gap-1 justify-end text-white">
@@ -2062,7 +2138,7 @@ return (
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('efetuado')}
                   >
                     <div className="inline-flex items-center gap-1 justify-end text-white">
@@ -2072,7 +2148,7 @@ return (
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('pendente')}
                   >
                     <div className="inline-flex items-center gap-1 justify-end text-white">
