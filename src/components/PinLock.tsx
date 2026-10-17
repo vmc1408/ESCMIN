@@ -94,7 +94,9 @@ export const PinLock: React.FC = () => {
             <Lock className="text-white" size={28} />
           </div>
           <h2 className="text-white text-xl font-bold mb-1">Sistema Bloqueado</h2>
-          <p className="text-slate-400 text-sm text-center">Olá, <span className="text-amber-400 font-medium">{profile?.name}</span>. Digite seu PIN para acessar.</p>
+          <p className="text-slate-400 text-sm text-center">
+            Olá, <span className="text-amber-400 font-medium">{profile?.name || 'Usuário'}</span>. Digite seu PIN para acessar{profile?.pin ? '.' : ' (PIN padrão: 1234).'}
+          </p>
         </div>
 
         {/* PIN Indicators */}

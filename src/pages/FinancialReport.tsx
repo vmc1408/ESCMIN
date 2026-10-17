@@ -16,7 +16,6 @@ import {
   ChevronRight, 
   ChevronLeft,
   Zap,
-  FileSpreadsheet, 
   FileText,
   Building2,
   TrendingUp,
@@ -922,33 +921,6 @@ const totals = useMemo(() => {
     }
   };
 
-// Exportar CSV para planilhas
-const handleExportCSV = () => {
-  if (!isFilterReady) return;
-  const headers = ['Matrícula', 'Aluno', 'Cód. Turma', 'Período', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)'];
-  const rows = reportData.map(item => [
-    item.student.registration_number || '',
-    `"${item.student.name || ''}"`,
-    `"${item.studentClass?.code || ''}"`,
-    `"${periodLabel}"`,
-    `"${item.periodSummary}"`,
-    item.valorPrevisto.toFixed(2),
-    item.valorEfetuado.toFixed(2),
-    item.saldoPendente.toFixed(2)
-  ]);
-
-  const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  const yearFileStr = selectedYear || 'geral';
-  const periodFileStr = periodType || 'periodo';
-  link.setAttribute('download', `relatorio-financeiro-${yearFileStr}-${periodFileStr}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
-
 return (
   <div id="financial-report-main-container" className="space-y-6 print:space-y-3 print:m-0 print:p-0">
     {/* Regras Estritas de Impressão Multi-página, Margens A4 e Repressão de Cabeçalhos/Rodapés Nativos */}
@@ -1045,16 +1017,6 @@ return (
         >
           <RefreshCw size={14} className={cn(loading && "animate-spin text-slate-500")} />
           <span className="hidden sm:inline">Atualizar</span>
-        </button>
-
-        <button
-          onClick={handleExportCSV}
-          disabled={!isFilterReady}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-95"
-          title={isFilterReady ? "Exportar dados para Excel/CSV" : "Selecione os parâmetros para exportar"}
-        >
-          <FileSpreadsheet size={15} className="text-emerald-600" />
-          <span className="hidden sm:inline">Exportar CSV</span>
         </button>
 
         <button

@@ -528,8 +528,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setShowInactivityWarning(false);
       }
 
-      // 3. Bloqueio rápido de tela por PIN (se configurado pelo usuário)
-      if (profile?.pin && isLockEnabled && !isLocked) {
+      // 3. Bloqueio automático de tela por inatividade (PIN / Segurança)
+      if (isLockEnabled && !isLocked) {
         if (elapsed >= lockTimeout) {
           setIsLocked(true);
           localStorage.setItem('app_locked', 'true');
@@ -549,6 +549,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (elapsed >= inactivityTimeout) {
             console.warn('[AuthContext] Retomada de atividade após inatividade expirada. Efetuando logoff...');
             logout('inactivity');
+            return;
+          }
+          if (isLockEnabled && !isLocked && elapsed >= lockTimeout) {
+            console.warn('[AuthContext] Retomada após tempo limite de bloqueio. Ativando tela de bloqueio...');
+            setIsLocked(true);
+            localStorage.setItem('app_locked', 'true');
           }
         }
       }
