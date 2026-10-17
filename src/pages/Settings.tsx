@@ -220,7 +220,7 @@ export function Settings() {
   const [selectedPersistMode, setSelectedPersistMode] = useState(authPersistMode);
 
   useEffect(() => {
-    if (isAdmin !== undefined && !isAdmin && (activeTab === 'maintenance' || activeTab === 'database')) {
+    if (isAdmin !== undefined && !isAdmin && (activeTab === 'security' || activeTab === 'maintenance' || activeTab === 'database')) {
       setActiveTab('institution');
     }
   }, [isAdmin, activeTab]);
@@ -1105,19 +1105,6 @@ export function Settings() {
             Financeiro
           </button>
 
-          <button 
-            onClick={() => setActiveTab('security')}
-            className={cn(
-              "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
-              activeTab === 'security' 
-                ? "bg-amber-600 text-white shadow-md font-extrabold" 
-                : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
-            )}
-          >
-            <ShieldCheck size={16} />
-            <span>Segurança & Bloqueio</span>
-          </button>
-
           {isAdmin && (
             <>
               <button 
@@ -1131,6 +1118,19 @@ export function Settings() {
               >
                 <Database size={16} />
                 <span>Base de Dados</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('security')}
+                className={cn(
+                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
+                  activeTab === 'security' 
+                    ? "bg-amber-600 text-white shadow-md font-extrabold" 
+                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                <ShieldCheck size={16} />
+                <span>Segurança</span>
               </button>
 
               <button 
