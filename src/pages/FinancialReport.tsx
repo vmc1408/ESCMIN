@@ -516,7 +516,9 @@ const reportData = useMemo(() => {
       })();
 
   return filteredStudents.map(student => {
-    const studentClass = classes.find(c => c.id === student.class_id);
+    const studentClass = classes.find(c => c.id === student.class_id) ||
+      classes.find(c => enrollments.some(e => e.student_id === student.id && e.class_id === c.id)) ||
+      (filterTarget === 'class' && selectedClassId ? classes.find(c => c.id === selectedClassId) : undefined);
     const fee = getStudentFee(student);
     
     // Contribuições deste aluno no ano selecionado
@@ -878,7 +880,7 @@ return (
       @media print {
         @page {
           size: A4 portrait;
-          margin: 12mm 14mm !important;
+          margin: 0 !important;
         }
 
         html, body, #root, main, [class*="min-h-screen"], [class*="h-screen"] {
@@ -897,7 +899,7 @@ return (
         }
 
         #financial-report-main-container {
-          padding: 0 !important;
+          padding: 8mm 10mm 10mm 10mm !important;
           margin: 0 auto !important;
           width: 100% !important;
           max-width: 100% !important;
@@ -929,12 +931,17 @@ return (
         }
 
         tfoot {
-          display: table-row-group !important;
+          display: table-footer-group !important;
           break-inside: avoid !important;
           page-break-inside: avoid !important;
         }
 
         tr {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+
+        td, th {
           break-inside: avoid !important;
           page-break-inside: avoid !important;
         }
@@ -997,38 +1004,38 @@ return (
     </PageHeader>
 
     {/* Cabeçalho Oficial de Impressão (visível apenas na impressão) */}
-    <div className="hidden print:block mb-3.5 border-b-2 border-slate-800 pb-2.5 print-avoid-break">
-      <div className="flex items-center justify-between gap-5">
-        <div className="flex items-center gap-4">
+    <div className="hidden print:block mb-2.5 border-b-2 border-slate-800 pb-2 print-avoid-break">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
           {institution?.logo_url ? (
             <img 
               src={institution.logo_url} 
               alt="Logo" 
-              className="w-16 h-16 max-h-16 object-contain shrink-0"
+              className="w-14 h-14 max-h-14 object-contain shrink-0"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-16 h-16 border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[9px] text-slate-400 font-bold uppercase shrink-0">
+            <div className="w-14 h-14 border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[8.5px] text-slate-400 font-bold uppercase shrink-0">
               <span className="leading-none">SEM</span>
               <span className="leading-none">LOGO</span>
             </div>
           )}
           <div className="flex flex-col justify-center">
-            <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase leading-none mb-1">
+            <p className="text-[9px] font-bold tracking-widest text-slate-500 uppercase leading-none mb-0.5">
               {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS')}
             </p>
-            <h1 className="text-base sm:text-lg font-black uppercase tracking-tight text-slate-900 leading-tight">
+            <h1 className="text-[13px] font-extrabold uppercase tracking-tight text-slate-900 leading-tight">
               {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
             </h1>
-            <p className="text-[11px] font-semibold text-slate-600 tracking-wide uppercase mt-0.5 leading-tight">
+            <p className="text-[9.5px] font-medium text-slate-600 uppercase mt-0.5 leading-tight">
               {institution?.subtitle || 'Pe. José Fernando de Brito'}
             </p>
-            <h2 className="text-xs sm:text-[13px] font-black text-[#00174b] uppercase tracking-wider mt-1.5">
+            <h2 className="text-[11px] font-black text-[#00174b] uppercase tracking-wider mt-1">
               Relatório Financeiro - Demonstrativo de Contribuições
             </h2>
           </div>
         </div>
-        <div className="text-right text-[10.5px] text-slate-600 shrink-0 leading-tight space-y-0.5">
+        <div className="text-right text-[9px] text-slate-600 shrink-0 leading-tight space-y-0.5">
           <p className="font-bold text-slate-900">Emissão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           <p>Unidade: {getUnitName(selectedUnitId) || 'Todas as Unidades'}</p>
           <p>Operador: {profile?.name || 'Administração'}</p>
@@ -1036,7 +1043,7 @@ return (
       </div>
       
       {/* Faixa de Parâmetros na Impressão */}
-      <div className="mt-2.5 py-1.5 px-3 bg-slate-50 border border-slate-200 text-[10.5px] flex items-center justify-between font-medium text-slate-700">
+      <div className="mt-2 py-1 px-2.5 bg-slate-50 border border-slate-200 text-[9px] flex items-center justify-between font-medium text-slate-700">
         <div>
           <span className="font-bold">{filterTarget === 'student' ? 'Aluno: ' : 'Turma: '}</span>
           <span className="font-semibold text-slate-900">
@@ -1055,6 +1062,19 @@ return (
             {!statusFilter || statusFilter === 'all' ? 'Todos' : statusFilter === 'paid' ? 'Adimplentes' : statusFilter === 'partial' ? 'Parciais' : 'Inadimplentes'}
           </span>
         </div>
+      </div>
+
+      {/* Quadro de Totais Sintéticos na Impressão (idêntico ao PDF) */}
+      <div className="mt-1.5 py-1 px-2.5 bg-slate-100/90 border border-slate-300 text-[9px] font-bold text-slate-800 flex items-center justify-between">
+        <span>Alunos: <strong className="text-slate-900">{totals.totalAlunos}</strong></span>
+        <span className="text-slate-300">•</span>
+        <span>Previsto: <strong className="text-amber-800">{formatCurrency(totals.totalPrevisto)}</strong></span>
+        <span className="text-slate-300">•</span>
+        <span>Efetuado: <strong className="text-emerald-800">{formatCurrency(totals.totalEfetuado)}</strong></span>
+        <span className="text-slate-300">•</span>
+        <span>Pendente Vencido: <strong className="text-red-700">{formatCurrency(totals.totalPendente)}</strong></span>
+        <span className="text-slate-300">•</span>
+        <span>Arrecadação: <strong className="text-blue-900">{totals.taxaArrecadacao}%</strong></span>
       </div>
     </div>
 
@@ -1985,189 +2005,135 @@ return (
           </div>
 
           <div className="overflow-x-auto print:overflow-visible print:overflow-x-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse border border-slate-300 print:border-slate-400">
               <thead>
                 {/* Cabeçalho de Continuação Institucional para Páginas Extras na Impressão */}
-                <tr className="hidden print:table-row bg-slate-100 border-b border-slate-300 text-slate-800">
-                  <th colSpan={6} className="py-1.5 px-3 text-[9.5px] font-bold uppercase tracking-wider">
+                <tr className="hidden print:table-row bg-slate-100 border border-slate-300 text-slate-800">
+                  <th colSpan={6} className="py-1 px-3 text-[9px] font-semibold tracking-wider border border-slate-300 bg-slate-100">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900">{institution?.name || 'Escola Diocesana de Ministério'}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-[#00174b] uppercase">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}</span>
                         <span className="text-slate-400 font-normal">•</span>
-                        <span className="font-bold text-[#00174b]">Relatório Financeiro</span>
+                        <span className="font-semibold text-slate-700">Relatório Financeiro</span>
                       </div>
-                      <div className="text-right text-[9px] text-slate-600 font-medium">
-                        <span>{periodLabel}</span>
+                      <div className="text-right text-[8.5px] text-slate-600 font-medium">
+                        <span>Período: <strong className="text-slate-800">{periodLabel}</strong></span>
                         <span className="mx-1.5 text-slate-400">•</span>
-                        <span>{getUnitName(selectedUnitId) || 'Todas as Unidades'}</span>
+                        <span>Unidade: <strong className="text-slate-800">{getUnitName(selectedUnitId) || 'Todas as Unidades'}</strong></span>
                       </div>
                     </div>
                   </th>
                 </tr>
 
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-700 print:bg-slate-100 print:text-slate-800 print:border-b-2 print:border-slate-300">
-                  <th className="py-2.5 px-3 text-center w-10">#</th>
+                {/* Linha de Títulos das Colunas - Padrão Navy #1e293b idêntico ao modelo PDF */}
+                <tr className="bg-[#1e293b] text-white print:bg-[#1e293b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
+                  <th className="py-2.5 px-2 text-center w-12 text-white border border-slate-400">
+                    #
+                  </th>
                   
                   <th 
-                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-100 transition-colors select-none text-left"
+                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-800 transition-colors select-none text-left text-white border border-slate-400"
                     onClick={() => handleToggleSort('name')}
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Aluno</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'name' && "text-blue-900 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'name' && "text-white font-bold")} />
                     </div>
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('status')}
                   >
                     <div className="inline-flex items-center gap-1 justify-center">
                       <span>Situação</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'status' && "text-blue-900 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'status' && "text-white font-bold")} />
                     </div>
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('previsto')}
                   >
-                    <div className="inline-flex items-center gap-1 text-amber-800 print:text-slate-700">
+                    <div className="inline-flex items-center gap-1 justify-end text-white">
                       <span>Previsto</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'previsto' && "text-amber-800 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'previsto' && "text-white font-bold")} />
                     </div>
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('efetuado')}
                   >
-                    <div className="inline-flex items-center gap-1 text-emerald-800 print:text-slate-700">
+                    <div className="inline-flex items-center gap-1 justify-end text-white">
                       <span>Efetuado</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'efetuado' && "text-emerald-800 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'efetuado' && "text-white font-bold")} />
                     </div>
                   </th>
 
                   <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-800 transition-colors select-none text-white border border-slate-400"
                     onClick={() => handleToggleSort('pendente')}
                   >
-                    <div className="inline-flex items-center gap-1 text-red-800 print:text-slate-700">
+                    <div className="inline-flex items-center gap-1 justify-end text-white">
                       <span>Pendente (Vencido)</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'pendente' && "text-red-800 font-bold")} />
+                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'pendente' && "text-white font-bold")} />
                     </div>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
+              <tbody className="text-xs">
                 {reportData.length > 0 ? (
                   reportData.map((item, idx) => {
-                    const classCodeStr = item.studentClass?.code || '---';
+                    const classCodeStr = item.studentClass?.code || (item.studentClass?.name ? item.studentClass.name.split(' - ')[0] : '---');
 
                     return (
                       <tr 
                         key={item.student.id}
-                        className="hover:bg-slate-50/70 transition-colors border-b border-slate-100 print:border-slate-200 print-avoid-break"
+                        className="hover:bg-blue-50/40 transition-colors border-b border-slate-300 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
                       >
                         {/* Número sequencial */}
-                        <td className="py-2.5 px-3 text-center font-mono text-[10px] text-slate-400">
+                        <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700 border border-slate-300">
                           {idx + 1}
                         </td>
 
                         {/* Nome, Matrícula e Cód. Turma */}
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 print:hidden">
-                              {item.student.name ? item.student.name.charAt(0).toUpperCase() : '?'}
-                            </div>
-                            <div className="min-w-0">
-                              <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
-                                {item.student.name}
-                              </span>
-                              <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                <span>
-                                  <span className="text-slate-400 font-normal">Matrícula: </span>
-                                  <span className="font-mono font-bold text-slate-700">{formatRegistrationNumber(item.student.registration_number, '---')}</span>
-                                </span>
-                                <span className="text-slate-300">•</span>
-                                <span>
-                                  <span className="text-slate-400 font-normal">Cód. Turma: </span>
-                                  <span className="font-mono font-bold text-slate-700">{classCodeStr}</span>
-                                </span>
-                              </div>
+                        <td className="py-2.5 px-3 text-left border border-slate-300">
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
+                              {item.student.name}
+                            </span>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                              Matrícula: {formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: {classCodeStr}
                             </div>
                           </div>
                         </td>
 
-                        {/* Situação */}
-                        <td className="py-2.5 px-3 text-center">
-                          {periodType === 'mensal' ? (
-                            <div className="inline-flex items-center justify-center">
-                              {item.monthsStatus[0]?.isPaid ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  <Check size={12} /> Pago ({item.monthsStatus[0]?.monthShort})
-                                </span>
-                              ) : item.monthsStatus[0]?.isOverdue ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                                  <AlertCircle size={12} /> Vencido ({item.monthsStatus[0]?.monthShort})
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                  <Clock size={12} /> A Vencer ({item.monthsStatus[0]?.monthShort})
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center gap-0.5 text-center">
-                              <div className="text-xs font-semibold text-slate-800 flex items-center justify-center gap-1.5 flex-wrap">
-                                <span className={cn("font-bold", item.paidMonthsCount > 0 ? "text-emerald-700" : "text-slate-500")}>
-                                  {item.paidMonthsCount} {item.paidMonthsCount === 1 ? 'paga' : 'pagas'}
-                                </span>
-                                <span className="text-slate-300">•</span>
-                                {item.overdueMonthsCount > 0 ? (
-                                  <span className="text-red-600 font-bold">
-                                    {item.overdueMonthsCount} em atraso
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-400 font-normal">0 em atraso</span>
-                                )}
-                                <span className="text-slate-300">•</span>
-                                <span className="text-slate-500 font-medium">
-                                  {Math.max(0, item.expectedMonthsCount - item.paidMonthsCount - item.overdueMonthsCount)} a vencer
-                                </span>
-                              </div>
-                            </div>
-                          )}
+                        {/* Situação - Texto limpo idêntico ao modelo PDF */}
+                        <td className="py-2.5 px-3 text-center border border-slate-300 text-[11px] text-slate-700 font-medium">
+                          {item.periodSummary}
                         </td>
 
                         {/* Valor Previsto */}
-                        <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs">
+                        <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs border border-slate-300">
                           {formatCurrency(item.valorPrevisto)}
                         </td>
 
                         {/* Valor Efetuado */}
-                        <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs">
+                        <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs border border-slate-300">
                           {formatCurrency(item.valorEfetuado)}
                         </td>
 
                         {/* Saldo Pendente (Vencido) */}
-                        <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs">
-                          {item.saldoPendente > 0 ? (
-                            <span className="text-red-600 font-bold">
-                              {formatCurrency(item.saldoPendente)}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 font-normal">
-                              R$ 0,00
-                            </span>
-                          )}
+                        <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300 text-red-700">
+                          {formatCurrency(item.saldoPendente)}
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <td colSpan={6} className="py-12 text-center text-slate-400 border border-slate-300">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <DollarSign size={32} className="text-slate-300" />
                         <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
@@ -2176,27 +2142,41 @@ return (
                     </td>
                   </tr>
                 )}
-              </tbody>
 
-              {/* Rodapé da Tabela com Totais */}
-              {reportData.length > 0 && (
-                <tfoot className="print-avoid-break">
-                  <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400">
-                    <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-600">
+                {/* Linha Consolidada de Totais no Fim dos Dados */}
+                {reportData.length > 0 && (
+                  <tr className="bg-slate-100 font-bold border-2 border-slate-400 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400 print-avoid-break">
+                    <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-700 border border-slate-400">
                       Total Consolidado ({reportData.length} alunos • {totals.taxaArrecadacao}% Arrecadado):
                     </td>
-                    <td className="py-2.5 px-3 text-right font-black text-amber-700 tabular-nums">
+                    <td className="py-2.5 px-3 text-right font-black text-amber-700 tabular-nums border border-slate-400">
                       {formatCurrency(totals.totalPrevisto)}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 tabular-nums">
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 tabular-nums border border-slate-400">
                       {formatCurrency(totals.totalEfetuado)}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-black text-red-700 tabular-nums">
+                    <td className="py-2.5 px-3 text-right font-black text-red-700 tabular-nums border border-slate-400">
                       {formatCurrency(totals.totalPendente)}
                     </td>
                   </tr>
-                </tfoot>
-              )}
+                )}
+              </tbody>
+
+              {/* Rodapé Oficial de Página para Impressão (repete ao final de cada página impressa) */}
+              <tfoot className="hidden print:table-footer-group">
+                <tr className="border-t border-slate-300">
+                  <td colSpan={6} className="pt-2 pb-1 px-3 text-[8.5px] text-slate-500 bg-white">
+                    <div className="flex items-center justify-between">
+                      <span>
+                        {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS')} • {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
+                      </span>
+                      <span>
+                        Documento emitido eletronicamente em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} por {profile?.name || 'Administração'}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
