@@ -561,7 +561,8 @@ const reportData = useMemo(() => {
       const isOverdue = isExpected && !isPaid && isMonthOverdue(m, yearNum);
       const isCurrent = isMonthCurrent(m, yearNum);
       const isFuture = isMonthFuture(m, yearNum);
-      const contrib = contribsInPeriod.find(c => Number(c.reference_month) === m);
+      const monthContribs = contribsInPeriod.filter(c => Number(c.reference_month) === m);
+      const latestContrib = [...monthContribs].sort((a, b) => new Date(b.payment_date || 0).getTime() - new Date(a.payment_date || 0).getTime())[0];
 
       if (isOverdue) {
         overdueDebtTotal += Math.max(0, fee - amountPaid);
@@ -572,7 +573,7 @@ const reportData = useMemo(() => {
 
       return {
         month: m,
-        monthName: m === 0 ? 'Matrícula' : (MONTH_NAMES[m - 1] || `Mês ${m}`),
+        monthName: m === 0 ? 'Matrícula Inicial' : (MONTH_NAMES[m - 1] || `Mês ${m}`),
         monthShort: m === 0 ? 'Matr.' : (MONTH_SHORT[m - 1] || `M${m}`),
         isExpected,
         isPaid,
@@ -581,8 +582,9 @@ const reportData = useMemo(() => {
         isFuture,
         amountPaid,
         fee,
-        paymentDate: contrib?.payment_date,
-        paymentMethod: contrib?.payment_method
+        paymentDate: latestContrib?.payment_date,
+        paymentMethod: latestContrib?.payment_method,
+        observations: latestContrib?.observations
       };
     });
 
@@ -724,6 +726,10 @@ const totals = useMemo(() => {
   };
 }, [reportData]);
 
+  const isSingleStudent = filterTarget === 'student' && reportData.length > 0;
+  const studentItem = isSingleStudent ? reportData[0] : null;
+  const studentClassCode = studentItem?.studentClass?.code || (studentItem?.studentClass?.name ? studentItem.studentClass.name.split(' - ')[0] : '---');
+
   // Construtor unificado do documento oficial em PDF (padrão institucional do sistema)
   const buildReportPDF = () => {
     const doc = new jsPDF('landscape');
@@ -780,11 +786,14 @@ const totals = useMemo(() => {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 23, 75);
-    doc.text('RELATÓRIO FINANCEIRO - DEMONSTRATIVO DE CONTRIBUIÇÕES', centerX, 37, { align: 'center' });
+    const titleText = isSingleStudent
+      ? 'RELATÓRIO FINANCEIRO - EXTRATO INDIVIDUAL DO ALUNO'
+      : 'RELATÓRIO FINANCEIRO - DEMONSTRATIVO DE CONTRIBUIÇÕES';
+    doc.text(titleText, centerX, 37, { align: 'center' });
 
     // 6. Faixa de Parâmetros
-    const targetDesc = filterTarget === 'student'
-      ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${formatRegistrationNumber(selectedStudent?.registration_number, '---')})`
+    const targetDesc = isSingleStudent
+      ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${formatRegistrationNumber(selectedStudent?.registration_number, '---')} • Cód. Turma: ${studentClassCode})`
       : `Turma: ${classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
     const statusLabel = !statusFilter || statusFilter === 'all' ? 'Todos' : statusFilter === 'paid' ? 'Adimplentes' : statusFilter === 'partial' ? 'Parciais' : 'Inadimplentes';
 
@@ -801,37 +810,115 @@ const totals = useMemo(() => {
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 23, 75);
-    const totalsText = `Alunos: ${totals.totalAlunos}   •   Previsto: ${formatCurrency(totals.totalPrevisto)}   •   Efetuado: ${formatCurrency(totals.totalEfetuado)}   •   Pendente Vencido: ${formatCurrency(totals.totalPendente)}   •   Taxa de Arrecadação: ${totals.taxaArrecadacao}%`;
+    let totalsText = '';
+    if (isSingleStudent && studentItem) {
+      const paidCount = studentItem.monthsStatus.filter(m => m.isPaid).length;
+      const totalExpected = studentItem.monthsStatus.filter(m => m.isExpected).length;
+      totalsText = `Parcelas: ${studentItem.monthsStatus.length}   •   Pagas: ${paidCount}   •   Em Atraso: ${studentItem.overdueMonthsCount}   •   Previsto: ${formatCurrency(totals.totalPrevisto)}   •   Efetuado: ${formatCurrency(totals.totalEfetuado)}   •   Pendente Vencido: ${formatCurrency(totals.totalPendente)}   •   Arrecadação: ${totals.taxaArrecadacao}%`;
+    } else {
+      totalsText = `Alunos: ${totals.totalAlunos}   •   Previsto: ${formatCurrency(totals.totalPrevisto)}   •   Efetuado: ${formatCurrency(totals.totalEfetuado)}   •   Pendente Vencido: ${formatCurrency(totals.totalPendente)}   •   Taxa de Arrecadação: ${totals.taxaArrecadacao}%`;
+    }
     doc.text(totalsText, centerX, 49.3, { align: 'center' });
 
-    // 8. Tabela de Alunos
-    const tableBody: any[] = reportData.map((item, index) => {
-      const classCodeStr = item.studentClass?.code || (item.studentClass?.name ? item.studentClass.name.split(' - ')[0] : '---');
-      const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: ${classCodeStr}`;
+    // 8. Tabela de Dados (Demonstrativo Mês a Mês para Aluno ou Lista Consolidada para Turma)
+    let headCols: string[][];
+    let tableBody: any[];
+    let columnStyles: any;
 
-      return [
-        (index + 1).toString(),
-        alunoEIdentificacao,
-        item.periodSummary,
-        formatCurrency(item.valorPrevisto),
-        formatCurrency(item.valorEfetuado),
-        formatCurrency(item.saldoPendente)
-      ];
-    });
+    if (isSingleStudent && studentItem) {
+      headCols = [['#', 'Parcela / Mês de Referência', 'Situação Detalhada / Data de Pagamento', 'Previsto', 'Efetuado', 'Pendente (Vencido)']];
+      
+      tableBody = studentItem.monthsStatus.map((m, index) => {
+        const refName = m.month === 0 ? 'Matrícula Inicial' : `${m.monthName} / ${selectedYear || new Date().getFullYear()}`;
+        
+        let situacaoText = '';
+        if (m.isPaid) {
+          const dateStr = m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : '';
+          const methodStr = m.paymentMethod ? ` (${m.paymentMethod.toUpperCase()})` : '';
+          situacaoText = `Pago${dateStr}${methodStr}`;
+        } else if (m.isOverdue) {
+          situacaoText = 'Inadimplente (Parcela Vencida)';
+        } else if (m.isCurrent) {
+          situacaoText = 'Mês Corrente (A Vencer)';
+        } else if (m.isFuture) {
+          situacaoText = 'A Vencer';
+        } else {
+          situacaoText = 'Não Previsto no Calendário';
+        }
 
-    // Linha de Total Consolidado
-    tableBody.push([
-      '',
-      `TOTAL CONSOLIDADO (${reportData.length} alunos • ${totals.taxaArrecadacao}% Arrecadado)`,
-      '',
-      formatCurrency(totals.totalPrevisto),
-      formatCurrency(totals.totalEfetuado),
-      formatCurrency(totals.totalPendente)
-    ]);
+        const previstoVal = m.isExpected ? m.fee : 0;
+        const efetuadoVal = m.amountPaid;
+        const pendenteVal = m.isOverdue ? Math.max(0, m.fee - m.amountPaid) : 0;
+
+        return [
+          (index + 1).toString(),
+          refName,
+          situacaoText,
+          formatCurrency(previstoVal),
+          formatCurrency(efetuadoVal),
+          formatCurrency(pendenteVal)
+        ];
+      });
+
+      const paidCount = studentItem.monthsStatus.filter(m => m.isPaid).length;
+      const totalExpected = studentItem.monthsStatus.filter(m => m.isExpected).length;
+
+      tableBody.push([
+        '',
+        `TOTAL CONSOLIDADO DO ALUNO (${paidCount} de ${totalExpected} parcelas pagas • ${studentItem.overdueMonthsCount} em atraso • ${totals.taxaArrecadacao}% Arrecadado)`,
+        '',
+        formatCurrency(totals.totalPrevisto),
+        formatCurrency(totals.totalEfetuado),
+        formatCurrency(totals.totalPendente)
+      ]);
+
+      columnStyles = {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 78, halign: 'left' },
+        2: { cellWidth: 85, halign: 'center', fontSize: 7.5 },
+        3: { cellWidth: 31, halign: 'right', textColor: [180, 83, 9] },
+        4: { cellWidth: 31, halign: 'right', textColor: [4, 120, 87] },
+        5: { cellWidth: 32, halign: 'right', textColor: [185, 28, 28] }
+      };
+    } else {
+      headCols = [['#', 'Aluno', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)']];
+      
+      tableBody = reportData.map((item, index) => {
+        const classCodeStr = item.studentClass?.code || (item.studentClass?.name ? item.studentClass.name.split(' - ')[0] : '---');
+        const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: ${classCodeStr}`;
+
+        return [
+          (index + 1).toString(),
+          alunoEIdentificacao,
+          item.periodSummary,
+          formatCurrency(item.valorPrevisto),
+          formatCurrency(item.valorEfetuado),
+          formatCurrency(item.saldoPendente)
+        ];
+      });
+
+      tableBody.push([
+        '',
+        `TOTAL CONSOLIDADO (${reportData.length} alunos • ${totals.taxaArrecadacao}% Arrecadado)`,
+        '',
+        formatCurrency(totals.totalPrevisto),
+        formatCurrency(totals.totalEfetuado),
+        formatCurrency(totals.totalPendente)
+      ]);
+
+      columnStyles = {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 100, halign: 'left' },
+        2: { cellWidth: 63, halign: 'center', fontSize: 7.5 },
+        3: { cellWidth: 31, halign: 'right', textColor: [180, 83, 9] },
+        4: { cellWidth: 31, halign: 'right', textColor: [4, 120, 87] },
+        5: { cellWidth: 32, halign: 'right', textColor: [185, 28, 28] }
+      };
+    }
 
     autoTable(doc, {
       startY: 54,
-      head: [['#', 'Aluno', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)']],
+      head: headCols,
       body: tableBody,
       theme: 'grid',
       headStyles: {
@@ -841,14 +928,7 @@ const totals = useMemo(() => {
         fontStyle: 'bold',
         halign: 'center'
       },
-      columnStyles: {
-        0: { cellWidth: 12, halign: 'center' },
-        1: { cellWidth: 100, halign: 'left' },
-        2: { cellWidth: 63, halign: 'center', fontSize: 7.5 },
-        3: { cellWidth: 31, halign: 'right', textColor: [180, 83, 9] },
-        4: { cellWidth: 31, halign: 'right', textColor: [4, 120, 87] },
-        5: { cellWidth: 32, halign: 'right', textColor: [185, 28, 28] }
-      },
+      columnStyles: columnStyles,
       styles: {
         fontSize: 8,
         cellPadding: 2.2,
@@ -1069,7 +1149,9 @@ return (
               {institution?.subtitle || 'Pe. José Fernando de Brito'}
             </p>
             <h2 className="text-[11px] font-black text-[#00174b] uppercase tracking-wider mt-1">
-              Relatório Financeiro - Demonstrativo de Contribuições
+              {isSingleStudent
+                ? 'Relatório Financeiro - Extrato Individual do Aluno'
+                : 'Relatório Financeiro - Demonstrativo de Contribuições'}
             </h2>
           </div>
         </div>
@@ -1083,10 +1165,10 @@ return (
       {/* Faixa de Parâmetros na Impressão */}
       <div className="mt-2 py-1 px-2.5 bg-slate-50 border border-slate-200 text-[9px] flex items-center justify-between font-medium text-slate-700">
         <div>
-          <span className="font-bold">{filterTarget === 'student' ? 'Aluno: ' : 'Turma: '}</span>
+          <span className="font-bold">{isSingleStudent ? 'Aluno: ' : 'Turma: '}</span>
           <span className="font-semibold text-slate-900">
-            {filterTarget === 'student'
-              ? (selectedStudent ? `${selectedStudent.name} (${formatRegistrationNumber(selectedStudent.registration_number, '---')})` : 'Pendente')
+            {isSingleStudent && studentItem
+              ? `${selectedStudent?.name || studentItem.student.name} (Matrícula: ${formatRegistrationNumber(selectedStudent?.registration_number || studentItem.student.registration_number, '---')} • Cód. Turma: ${studentClassCode})`
               : (classes.find(c => c.id === selectedClassId)?.name || 'Pendente')}
           </span>
         </div>
@@ -1104,15 +1186,35 @@ return (
 
       {/* Quadro de Totais Sintéticos na Impressão (idêntico ao PDF) */}
       <div className="mt-1.5 py-1 px-2.5 bg-slate-100/90 border border-slate-300 text-[9px] font-bold text-slate-800 flex items-center justify-between">
-        <span>Alunos: <strong className="text-slate-900">{totals.totalAlunos}</strong></span>
-        <span className="text-slate-300">•</span>
-        <span>Previsto: <strong className="text-amber-800">{formatCurrency(totals.totalPrevisto)}</strong></span>
-        <span className="text-slate-300">•</span>
-        <span>Efetuado: <strong className="text-emerald-800">{formatCurrency(totals.totalEfetuado)}</strong></span>
-        <span className="text-slate-300">•</span>
-        <span>Pendente Vencido: <strong className="text-red-700">{formatCurrency(totals.totalPendente)}</strong></span>
-        <span className="text-slate-300">•</span>
-        <span>Arrecadação: <strong className="text-blue-900">{totals.taxaArrecadacao}%</strong></span>
+        {isSingleStudent && studentItem ? (
+          <>
+            <span>Parcelas: <strong className="text-slate-900">{studentItem.monthsStatus.length}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Pagas: <strong className="text-emerald-800">{studentItem.monthsStatus.filter(m => m.isPaid).length}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Em Atraso: <strong className="text-red-700">{studentItem.overdueMonthsCount}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Previsto: <strong className="text-amber-800">{formatCurrency(totals.totalPrevisto)}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Efetuado: <strong className="text-emerald-800">{formatCurrency(totals.totalEfetuado)}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Pendente Vencido: <strong className="text-red-700">{formatCurrency(totals.totalPendente)}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Arrecadação: <strong className="text-blue-900">{totals.taxaArrecadacao}%</strong></span>
+          </>
+        ) : (
+          <>
+            <span>Alunos: <strong className="text-slate-900">{totals.totalAlunos}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Previsto: <strong className="text-amber-800">{formatCurrency(totals.totalPrevisto)}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Efetuado: <strong className="text-emerald-800">{formatCurrency(totals.totalEfetuado)}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Pendente Vencido: <strong className="text-red-700">{formatCurrency(totals.totalPendente)}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Arrecadação: <strong className="text-blue-900">{totals.taxaArrecadacao}%</strong></span>
+          </>
+        )}
       </div>
     </div>
 
@@ -2052,7 +2154,9 @@ return (
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-[#00174b] uppercase">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}</span>
                         <span className="text-slate-400 font-normal">•</span>
-                        <span className="font-semibold text-slate-700">Relatório Financeiro</span>
+                        <span className="font-semibold text-slate-700">
+                          {isSingleStudent ? 'Extrato Individual do Aluno' : 'Relatório Financeiro'}
+                        </span>
                       </div>
                       <div className="text-right text-[8.5px] text-slate-600 font-medium">
                         <span>Período: <strong className="text-slate-800">{periodLabel}</strong></span>
@@ -2064,128 +2168,234 @@ return (
                 </tr>
 
                 {/* Linha de Títulos das Colunas - Padrão Navy Institucional #00174b idêntico ao modelo PDF */}
-                <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
-                  <th className="py-2.5 px-2 text-center w-12 text-white border border-slate-400">
-                    #
-                  </th>
-                  
-                  <th 
-                    className="py-2.5 px-3 cursor-pointer hover:bg-blue-950 transition-colors select-none text-left text-white border border-slate-400"
-                    onClick={() => handleToggleSort('name')}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Aluno</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'name' && "text-white font-bold")} />
-                    </div>
-                  </th>
+                {isSingleStudent && studentItem ? (
+                  <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
+                    <th className="py-2.5 px-2 text-center w-12 text-white border border-slate-400">
+                      #
+                    </th>
+                    <th className="py-2.5 px-3 text-left text-white border border-slate-400">
+                      Parcela / Mês de Referência
+                    </th>
+                    <th className="py-2.5 px-3 text-center text-white border border-slate-400">
+                      Situação Detalhada / Data de Pagamento
+                    </th>
+                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
+                      Previsto
+                    </th>
+                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
+                      Efetuado
+                    </th>
+                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
+                      Pendente (Vencido)
+                    </th>
+                  </tr>
+                ) : (
+                  <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
+                    <th className="py-2.5 px-2 text-center w-12 text-white border border-slate-400">
+                      #
+                    </th>
+                    
+                    <th 
+                      className="py-2.5 px-3 cursor-pointer hover:bg-blue-950 transition-colors select-none text-left text-white border border-slate-400"
+                      onClick={() => handleToggleSort('name')}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Aluno</span>
+                        <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'name' && "text-white font-bold")} />
+                      </div>
+                    </th>
 
-                  <th 
-                    className="py-2.5 px-3 text-center cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
-                    onClick={() => handleToggleSort('status')}
-                  >
-                    <div className="inline-flex items-center gap-1 justify-center">
-                      <span>Situação</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'status' && "text-white font-bold")} />
-                    </div>
-                  </th>
+                    <th 
+                      className="py-2.5 px-3 text-center cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      onClick={() => handleToggleSort('status')}
+                    >
+                      <div className="inline-flex items-center gap-1 justify-center">
+                        <span>Situação</span>
+                        <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'status' && "text-white font-bold")} />
+                      </div>
+                    </th>
 
-                  <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
-                    onClick={() => handleToggleSort('previsto')}
-                  >
-                    <div className="inline-flex items-center gap-1 justify-end text-white">
-                      <span>Previsto</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'previsto' && "text-white font-bold")} />
-                    </div>
-                  </th>
+                    <th 
+                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      onClick={() => handleToggleSort('previsto')}
+                    >
+                      <div className="inline-flex items-center gap-1 justify-end text-white">
+                        <span>Previsto</span>
+                        <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'previsto' && "text-white font-bold")} />
+                      </div>
+                    </th>
 
-                  <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
-                    onClick={() => handleToggleSort('efetuado')}
-                  >
-                    <div className="inline-flex items-center gap-1 justify-end text-white">
-                      <span>Efetuado</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'efetuado' && "text-white font-bold")} />
-                    </div>
-                  </th>
+                    <th 
+                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      onClick={() => handleToggleSort('efetuado')}
+                    >
+                      <div className="inline-flex items-center gap-1 justify-end text-white">
+                        <span>Efetuado</span>
+                        <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'efetuado' && "text-white font-bold")} />
+                      </div>
+                    </th>
 
-                  <th 
-                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
-                    onClick={() => handleToggleSort('pendente')}
-                  >
-                    <div className="inline-flex items-center gap-1 justify-end text-white">
-                      <span>Pendente (Vencido)</span>
-                      <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'pendente' && "text-white font-bold")} />
-                    </div>
-                  </th>
-                </tr>
+                    <th 
+                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      onClick={() => handleToggleSort('pendente')}
+                    >
+                      <div className="inline-flex items-center gap-1 justify-end text-white">
+                        <span>Pendente (Vencido)</span>
+                        <ArrowUpDown size={12} className={cn("text-slate-400 print:hidden", sortField === 'pendente' && "text-white font-bold")} />
+                      </div>
+                    </th>
+                  </tr>
+                )}
               </thead>
               <tbody className="text-xs">
-                {reportData.length > 0 ? (
-                  reportData.map((item, idx) => {
-                    const classCodeStr = item.studentClass?.code || (item.studentClass?.name ? item.studentClass.name.split(' - ')[0] : '---');
+                {isSingleStudent && studentItem ? (
+                  studentItem.monthsStatus.length > 0 ? (
+                    studentItem.monthsStatus.map((m, idx) => {
+                      const refName = m.month === 0 ? 'Matrícula Inicial' : `${m.monthName} / ${selectedYear || new Date().getFullYear()}`;
+                      const previstoVal = m.isExpected ? m.fee : 0;
+                      const efetuadoVal = m.amountPaid;
+                      const pendenteVal = m.isOverdue ? Math.max(0, m.fee - m.amountPaid) : 0;
 
-                    return (
-                      <tr 
-                        key={item.student.id}
-                        className="hover:bg-blue-50/40 transition-colors border-b border-slate-300 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
-                      >
-                        {/* Número sequencial */}
-                        <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700 border border-slate-300">
-                          {idx + 1}
-                        </td>
+                      return (
+                        <tr 
+                          key={m.month}
+                          className="hover:bg-blue-50/40 transition-colors border-b border-slate-300 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
+                        >
+                          {/* Número sequencial */}
+                          <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700 border border-slate-300">
+                            {idx + 1}
+                          </td>
 
-                        {/* Nome, Matrícula e Cód. Turma */}
-                        <td className="py-2.5 px-3 text-left border border-slate-300">
-                          <div className="min-w-0">
-                            <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
-                              {item.student.name}
+                          {/* Parcela / Mês de Referência */}
+                          <td className="py-2.5 px-3 text-left border border-slate-300">
+                            <span className="font-bold text-slate-900 block text-xs">
+                              {refName}
                             </span>
-                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                              Matrícula: {formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: {classCodeStr}
-                            </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Situação - Texto limpo idêntico ao modelo PDF */}
-                        <td className="py-2.5 px-3 text-center border border-slate-300 text-[11px] text-slate-700 font-medium">
-                          {item.periodSummary}
-                        </td>
+                          {/* Situação Detalhada / Data de Pagamento */}
+                          <td className="py-2.5 px-3 text-center border border-slate-300 text-[11px]">
+                            {m.isPaid ? (
+                              <span className="font-semibold text-emerald-800">
+                                Pago{m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : ''}{m.paymentMethod ? ` (${m.paymentMethod.toUpperCase()})` : ''}
+                              </span>
+                            ) : m.isOverdue ? (
+                              <span className="font-bold text-red-700">
+                                Inadimplente (Parcela Vencida)
+                              </span>
+                            ) : m.isCurrent ? (
+                              <span className="font-medium text-amber-700">
+                                Mês Corrente (A Vencer)
+                              </span>
+                            ) : m.isFuture ? (
+                              <span className="font-medium text-slate-600">
+                                A Vencer
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">
+                                Não Previsto no Calendário
+                              </span>
+                            )}
+                          </td>
 
-                        {/* Valor Previsto */}
-                        <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs border border-slate-300">
-                          {formatCurrency(item.valorPrevisto)}
-                        </td>
+                          {/* Valor Previsto */}
+                          <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs border border-slate-300">
+                            {formatCurrency(previstoVal)}
+                          </td>
 
-                        {/* Valor Efetuado */}
-                        <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs border border-slate-300">
-                          {formatCurrency(item.valorEfetuado)}
-                        </td>
+                          {/* Valor Efetuado */}
+                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs border border-slate-300">
+                            {formatCurrency(efetuadoVal)}
+                          </td>
 
-                        {/* Saldo Pendente (Vencido) */}
-                        <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300 text-red-700">
-                          {formatCurrency(item.saldoPendente)}
-                        </td>
-                      </tr>
-                    );
-                  })
+                          {/* Saldo Pendente (Vencido) */}
+                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300 text-red-700">
+                            {formatCurrency(pendenteVal)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 border border-slate-300">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <DollarSign size={32} className="text-slate-300" />
+                          <p className="text-xs font-bold text-slate-700">Nenhuma parcela encontrada para o aluno no período.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )
                 ) : (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-400 border border-slate-300">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <DollarSign size={32} className="text-slate-300" />
-                        <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
-                        <p className="text-[11px] text-slate-400">Experimente alterar a turma, o período ou limpar o termo de busca.</p>
-                      </div>
-                    </td>
-                  </tr>
+                  reportData.length > 0 ? (
+                    reportData.map((item, idx) => {
+                      const classCodeStr = item.studentClass?.code || (item.studentClass?.name ? item.studentClass.name.split(' - ')[0] : '---');
+
+                      return (
+                        <tr 
+                          key={item.student.id}
+                          className="hover:bg-blue-50/40 transition-colors border-b border-slate-300 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
+                        >
+                          {/* Número sequencial */}
+                          <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700 border border-slate-300">
+                            {idx + 1}
+                          </td>
+
+                          {/* Nome, Matrícula e Cód. Turma */}
+                          <td className="py-2.5 px-3 text-left border border-slate-300">
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
+                                {item.student.name}
+                              </span>
+                              <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                Matrícula: {formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: {classCodeStr}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Situação - Texto limpo idêntico ao modelo PDF */}
+                          <td className="py-2.5 px-3 text-center border border-slate-300 text-[11px] text-slate-700 font-medium">
+                            {item.periodSummary}
+                          </td>
+
+                          {/* Valor Previsto */}
+                          <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs border border-slate-300">
+                            {formatCurrency(item.valorPrevisto)}
+                          </td>
+
+                          {/* Valor Efetuado */}
+                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs border border-slate-300">
+                            {formatCurrency(item.valorEfetuado)}
+                          </td>
+
+                          {/* Saldo Pendente (Vencido) */}
+                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300 text-red-700">
+                            {formatCurrency(item.saldoPendente)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 border border-slate-300">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <DollarSign size={32} className="text-slate-300" />
+                          <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
+                          <p className="text-[11px] text-slate-400">Experimente alterar a turma, o período ou limpar o termo de busca.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )
                 )}
 
                 {/* Linha Consolidada de Totais no Fim dos Dados */}
                 {reportData.length > 0 && (
                   <tr className="bg-slate-100 font-bold border-2 border-slate-400 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400 print-avoid-break">
                     <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-700 border border-slate-400">
-                      Total Consolidado ({reportData.length} alunos • {totals.taxaArrecadacao}% Arrecadado):
+                      {isSingleStudent && studentItem ? (
+                        <>TOTAL CONSOLIDADO DO ALUNO ({studentItem.monthsStatus.filter(m => m.isPaid).length} de {studentItem.monthsStatus.filter(m => m.isExpected).length} parcelas pagas • {studentItem.overdueMonthsCount} em atraso • {totals.taxaArrecadacao}% Arrecadado):</>
+                      ) : (
+                        <>Total Consolidado ({reportData.length} alunos • {totals.taxaArrecadacao}% Arrecadado):</>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-right font-black text-amber-700 tabular-nums border border-slate-400">
                       {formatCurrency(totals.totalPrevisto)}

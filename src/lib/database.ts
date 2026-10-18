@@ -142,7 +142,13 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
       } catch (retryErr) {}
     }
 
-    console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err?.message || err);
+    const errorMsg = err?.message || String(err || '');
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout ao buscar lista em ${collectionName}. Continuando com dados em cache/vazios.`);
+      return [];
+    }
+
+    console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, errorMsg);
     return [];
   }
 };
@@ -177,7 +183,13 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
       return null;
     }
 
-    console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err?.message || err);
+    const errorMsg = err?.message || String(err || '');
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout ao buscar ID "${id}" em ${collectionName}. Continuando com dados locais/cache.`);
+      return null;
+    }
+
+    console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, errorMsg);
     return null;
   }
 };
@@ -233,7 +245,13 @@ export const fetchQuery = async (
       return [];
     }
 
-    console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, err?.message || err);
+    const errorMsg = err?.message || String(err || '');
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout ao executar query em ${collectionName}. Retornando lista vazia.`);
+      return [];
+    }
+
+    console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, errorMsg);
     return [];
   }
 };
@@ -260,7 +278,13 @@ export const fetchCount = async (collectionName: string, status?: string) => {
     
     return result?.count || 0;
   } catch (err: any) {
-    console.error(`[Supabase] Erro ao contar em ${collectionName}:`, err?.message || err);
+    const errorMsg = err?.message || String(err || '');
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout ao contar em ${collectionName}. Retornando contagem 0.`);
+      return 0;
+    }
+
+    console.error(`[Supabase] Erro ao contar em ${collectionName}:`, errorMsg);
     return 0;
   }
 };

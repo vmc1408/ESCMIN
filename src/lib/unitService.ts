@@ -355,7 +355,7 @@ export const getUnits = async (): Promise<Unit[]> => {
 
   // 5. Tenta carregar do registro redundante em nuvem (email_registry)
   try {
-    const regData: any = await fetchById('email_registry', CLOUD_UNITS_REGISTRY_ID, 6000).catch(() => null);
+    const regData: any = await fetchById('email_registry', CLOUD_UNITS_REGISTRY_ID, 10000).catch(() => null);
     
     // Incorpora novos IDs excluídos sincronizados da nuvem
     if (Array.isArray(regData?.metadata?.deleted_ids)) {
