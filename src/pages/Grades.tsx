@@ -581,22 +581,6 @@ export function Grades() {
   const handlePrint = () => {
     const className = classes.find(c => c.id === selectedClass)?.name || '';
     const subjectName = subjects.find(s => s.id === selectedSubject)?.name || '';
-    
-    let printWindow;
-    try {
-      printWindow = window.open('', '_blank');
-    } catch (err) {
-      console.error("Failed to open print window:", err);
-    }
-
-    if (!printWindow) {
-      setNotification({
-        type: 'err',
-        message: 'A abertura de novas janelas para impressão está bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba (botão no canto superior direito) para gerar o relatório.'
-      });
-      setTimeout(() => setNotification(null), 5000);
-      return;
-    }
 
     const html = `
       <html>
@@ -988,19 +972,41 @@ export function Grades() {
             <span></span>
             <span>Emitido em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</span>
           </div>
-          
-          <script>
-            window.onload = () => {
-              window.print();
-              setTimeout(() => { window.close(); }, 500);
-            };
-          </script>
         </body>
       </html>
     `;
 
-    printWindow.document.write(html);
-    printWindow.document.close();
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch {
+          window.print();
+        } finally {
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 2000);
+        }
+      }, 350);
+    } else {
+      window.print();
+    }
   };
 
   const handleClearAll = () => {

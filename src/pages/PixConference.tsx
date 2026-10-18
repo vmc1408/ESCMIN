@@ -3524,11 +3524,21 @@ export function PixConference() {
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                   <button 
                     onClick={() => {
-                      const iframe = document.getElementById('extrato-preview-iframe') as HTMLIFrameElement;
-                      if (iframe && iframe.contentWindow) {
-                        iframe.contentWindow.focus();
-                        iframe.contentWindow.print();
+                      try {
+                        const iframe = document.getElementById('extrato-preview-iframe') as HTMLIFrameElement;
+                        if (iframe && iframe.contentWindow) {
+                          iframe.contentWindow.focus();
+                          iframe.contentWindow.print();
+                          return;
+                        }
+                      } catch (e) {
+                        console.warn("Direct iframe print blocked by cross-origin policy, downloading PDF:", e);
                       }
+                      const link = document.createElement('a');
+                      link.href = extratoPdfBlobUrl;
+                      link.download = `Extrato_Conferencia_Pix_${new Date().toISOString().split('T')[0]}.pdf`;
+                      link.click();
+                      setNotification({ type: 'success', message: 'Extrato baixado em PDF para impressão.' });
                     }}
                     className="px-6 py-3.5 bg-green-600 text-white rounded-2xl font-black flex items-center gap-2 hover:bg-green-700 hover:scale-105 transition-all shadow-xl active:scale-95 text-xs uppercase tracking-wider"
                   >

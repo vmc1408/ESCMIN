@@ -1188,35 +1188,10 @@ export function Diocese() {
 
   const handlePrint = () => {
     try {
-      const doc = generateDiocesePDFDoc();
-      if (!doc) {
-        window.print();
-        return;
-      }
-      doc.autoPrint();
-      const blobUrl = String(doc.output('bloburl'));
-      const printIframe = document.createElement('iframe');
-      printIframe.style.position = 'fixed';
-      printIframe.style.right = '0';
-      printIframe.style.bottom = '0';
-      printIframe.style.width = '0';
-      printIframe.style.height = '0';
-      printIframe.style.border = '0';
-      printIframe.src = blobUrl;
-      document.body.appendChild(printIframe);
-      printIframe.onload = () => {
-        setTimeout(() => {
-          try {
-            printIframe.contentWindow?.focus();
-            printIframe.contentWindow?.print();
-          } catch (err) {
-            window.open(blobUrl, '_blank');
-          }
-        }, 200);
-      };
-    } catch (error) {
-      console.error('Error triggering print:', error);
       window.print();
+    } catch (error) {
+      console.warn('Falha ao acionar impressão direta, exportando PDF:', error);
+      handleExportPDF();
     }
   };
 

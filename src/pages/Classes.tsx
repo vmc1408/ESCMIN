@@ -1262,8 +1262,12 @@ export function Classes() {
             iframe.contentWindow.print();
             setTimeout(cleanup, 12000);
           } catch (e) {
-            console.warn("Direct print failed on iframe, opening blob URL:", e);
-            window.open(url, '_blank');
+            console.warn("Direct print failed on iframe, downloading PDF:", e);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Diario_Classe_${selectedClass?.code || 'Turma'}.pdf`;
+            a.click();
+            cleanup();
           }
         }
       }, 300);

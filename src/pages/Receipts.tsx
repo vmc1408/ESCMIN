@@ -607,55 +607,11 @@ export function Receipts() {
 
     if (action === 'print') {
       try {
-        const blob = doc.output('blob');
-        const url = URL.createObjectURL(blob);
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        iframe.src = url;
-        document.body.appendChild(iframe);
-        iframe.onload = () => {
-          iframe.contentWindow?.focus();
-          
-          const cleanup = () => {
-            try {
-              if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe);
-              }
-              URL.revokeObjectURL(url);
-            } catch (e) {
-              console.error("Cleanup error:", e);
-            }
-          };
-
-          try {
-            iframe.contentWindow?.addEventListener('afterprint', cleanup);
-          } catch (e) {
-            console.warn("Could not add afterprint listener due to cross-origin restrictions:", e);
-            // If we cannot add the listener, trigger a faster fallback cleanup (e.g. after 15s)
-            setTimeout(cleanup, 15000);
-          }
-          try {
-            iframe.contentWindow?.print();
-          } catch (e) {
-            console.warn("Print call failed on Receipts iframe, falling back to download:", e);
-            doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
-            setNotification({ type: 'success', message: 'Impressão direta indisponível. O PDF do recibo foi baixado.' });
-            cleanup();
-          }
-          
-          // Long fallback to clean up iframe in case afterprint doesn't trigger
-          setTimeout(cleanup, 300000);
-        };
-        setNotification({ type: 'success', message: 'Enviando PDF do recibo para a impressora...' });
-      } catch (err: any) {
-        console.error('Erro ao acionar impressão direta:', err);
         doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
-        setNotification({ type: 'error', message: 'Erro na impressão direta. O PDF foi baixado como alternativa.' });
+        setNotification({ type: 'success', message: 'Recibo gerado em PDF para impressão! O download foi iniciado.' });
+      } catch (err: any) {
+        console.error('Erro ao gerar recibo:', err);
+        setNotification({ type: 'error', message: 'Erro ao gerar o PDF do recibo.' });
       }
     } else {
       doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);

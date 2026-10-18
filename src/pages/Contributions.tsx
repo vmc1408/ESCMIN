@@ -741,23 +741,12 @@ export function Contributions() {
         doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
       }
 
-      // 4. Print Execution (Opens PDF window for printing)
-      doc.autoPrint();
-      const blob = doc.output('blob');
-      const url = URL.createObjectURL(blob);
-
-      try {
-        const printWin = window.open(url, '_blank');
-        if (!printWin) {
-          doc.save(`Relatorio_Inadimplencia_${unpaidYear}.pdf`);
-        }
-      } catch (err) {
-        console.error('Error opening print window:', err);
-        doc.save(`Relatorio_Inadimplencia_${unpaidYear}.pdf`);
-      }
+      // 4. Download PDF for printing
+      doc.save(`Relatorio_Inadimplencia_${unpaidYear}.pdf`);
+      setNotification({ type: 'success', message: 'Relatório de inadimplência gerado em PDF com sucesso!' });
     } catch (error) {
       console.error('Error generating unpaid report:', error);
-      alert('Erro ao imprimir relatório de inadimplência');
+      setNotification({ type: 'error', message: 'Erro ao gerar relatório de inadimplência.' });
     }
   };
 

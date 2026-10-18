@@ -1003,29 +1003,14 @@ const totals = useMemo(() => {
     return doc;
   };
 
-  // Disparo da impressão do relatório oficial (unificado com o PDF)
+  // Disparo da impressão do relatório oficial
   const handlePrint = () => {
     if (!isFilterReady) return;
     try {
-      const doc = buildReportPDF();
-      const blobUrl = doc.output('bloburl');
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.src = blobUrl.toString();
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.focus();
-          iframe.contentWindow?.print();
-        }, 300);
-      };
-      document.body.appendChild(iframe);
-    } catch {
       window.print();
+    } catch (err) {
+      console.warn('Falha na impressão direta, exportando PDF:', err);
+      handleExportPDF();
     }
   };
 
