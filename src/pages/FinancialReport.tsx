@@ -840,7 +840,7 @@ const totals = useMemo(() => {
     let columnStyles: any;
 
     if (isSingleStudent && studentItem) {
-      headCols = [['#', 'Parcela / Mês de Referência', 'Situação Detalhada / Data de Pagamento', 'Previsto', 'Efetuado', 'Situação']];
+      headCols = [['#', 'Parcela / Mês de Referência', 'Data de Pagamento / Detalhes', 'Previsto', 'Efetuado', 'Pendente (Vencido)']];
       
       tableBody = studentItem.monthsStatus.map((m, index) => {
         const refName = m.month === 0 ? 'Matrícula Inicial' : `${m.monthName} / ${selectedYear || new Date().getFullYear()}`;
@@ -868,9 +868,9 @@ const totals = useMemo(() => {
         const pendenteVal = (!m.isWaived && m.isOverdue) ? Math.max(0, m.fee - m.amountPaid) : 0;
 
         const situacaoColVal = m.isWaived 
-          ? (m.month === 0 ? 'Abonada' : 'Abonado')
+          ? 'Isento (R$ 0,00)'
           : m.isPaid 
-          ? 'Quitada' 
+          ? 'Quitado (R$ 0,00)' 
           : m.isOverdue 
           ? formatCurrency(pendenteVal) 
           : !m.isExpected 
@@ -906,7 +906,7 @@ const totals = useMemo(() => {
         2: { cellWidth: 85, halign: 'right', fontSize: 7.5 },
         3: { cellWidth: 31, halign: 'right', textColor: [180, 83, 9] },
         4: { cellWidth: 31, halign: 'right', textColor: [4, 120, 87] },
-        5: { cellWidth: 32, halign: 'right' }
+        5: { cellWidth: 32, halign: 'right', textColor: [185, 28, 28] }
       };
     } else {
       headCols = [['#', 'Aluno', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)']];
@@ -946,22 +946,29 @@ const totals = useMemo(() => {
 
     autoTable(doc, {
       startY: 54,
+      margin: { top: 18, right: margin, bottom: 12, left: margin },
       head: headCols,
       body: tableBody,
       theme: 'grid',
+      tableLineColor: [203, 213, 225],
+      tableLineWidth: 0.2,
       headStyles: {
         fillColor: [0, 23, 75],
         textColor: [255, 255, 255],
         fontSize: 8,
         fontStyle: 'bold',
-        halign: 'center'
+        halign: 'center',
+        lineColor: [71, 85, 105],
+        lineWidth: 0.2
       },
       columnStyles: columnStyles,
       styles: {
         fontSize: 8,
         cellPadding: 2.2,
         overflow: 'linebreak',
-        font: 'helvetica'
+        font: 'helvetica',
+        lineColor: [203, 213, 225],
+        lineWidth: 0.2
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
@@ -979,10 +986,10 @@ const totals = useMemo(() => {
         } else if (isSingleStudent && data.section === 'body') {
           if (data.column.index === 5) {
             const raw = String(data.cell.raw || '');
-            if (raw === 'Quitada' || raw === 'Pago') {
+            if (raw.includes('Quitado') || raw.includes('Isento')) {
               data.cell.styles.textColor = [4, 120, 87];
-              data.cell.styles.fontStyle = 'bold';
-            } else if (raw.includes('R$')) {
+              data.cell.styles.fontStyle = 'normal';
+            } else if (raw.includes('R$') && !raw.includes('0,00')) {
               data.cell.styles.textColor = [185, 28, 28];
               data.cell.styles.fontStyle = 'bold';
             } else {
@@ -992,6 +999,36 @@ const totals = useMemo(() => {
         }
       },
       didDrawPage: (data) => {
+        // Cabeçalho institucional de continuidade a partir da página 2
+        if (data.pageNumber > 1) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 23, 75);
+          doc.text(
+            `${(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase()} • RELATÓRIO FINANCEIRO (CONTINUAÇÃO)`,
+            margin,
+            11
+          );
+
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 116, 139);
+          const targetContDesc = isSingleStudent
+            ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Cód. Turma: ${studentClassCode})`
+            : `Turma: ${classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
+          doc.text(
+            `${targetContDesc} • Período: ${periodLabel}`,
+            pageWidth - margin,
+            11,
+            { align: 'right' }
+          );
+
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.4);
+          doc.line(margin, 13.5, pageWidth - margin, 13.5);
+        }
+
+        // Rodapé Oficial em todas as páginas
         doc.setFontSize(7.5);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(120, 120, 120);
@@ -1032,12 +1069,12 @@ const totals = useMemo(() => {
 
 return (
   <div id="financial-report-main-container" className="space-y-6 print:space-y-3 print:m-0 print:p-0">
-    {/* Regras Estritas de Impressão Multi-página, Margens A4 e Repressão de Cabeçalhos/Rodapés Nativos */}
+    {/* Regras Estritas de Impressão Multi-página, Margens A4 e Continuidade */}
     <style>{`
       @media print {
         @page {
           size: A4 landscape;
-          margin: 0 !important;
+          margin: 8mm 10mm 10mm 10mm !important;
         }
 
         html, body, #root, main, [class*="min-h-screen"], [class*="h-screen"] {
@@ -1056,7 +1093,7 @@ return (
         }
 
         #financial-report-main-container {
-          padding: 8mm 10mm 10mm 10mm !important;
+          padding: 0 !important;
           margin: 0 auto !important;
           width: 100% !important;
           max-width: 100% !important;
@@ -1075,6 +1112,7 @@ return (
           width: 100% !important;
           border-collapse: collapse !important;
           table-layout: auto !important;
+          border: 1px solid #475569 !important;
         }
 
         thead {
@@ -1083,17 +1121,35 @@ return (
           page-break-inside: avoid !important;
         }
 
+        thead tr th {
+          background-color: #00174b !important;
+          color: #ffffff !important;
+          border: 1px solid #475569 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
         tbody {
           display: table-row-group !important;
         }
 
-        tfoot {
-          display: table-footer-group !important;
+        tbody tr {
           break-inside: avoid !important;
           page-break-inside: avoid !important;
         }
 
-        tr {
+        tbody tr td {
+          border: 1px solid #cbd5e1 !important;
+        }
+
+        tbody tr:nth-child(even) td {
+          background-color: #f8fafc !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        tfoot {
+          display: table-footer-group !important;
           break-inside: avoid !important;
           page-break-inside: avoid !important;
         }
@@ -1919,9 +1975,9 @@ return (
           </div>
         </div>
 
-        {/* Cards de Métricas e Indicadores Consolidados */}
+        {/* Cards de Métricas e Indicadores Consolidados (exclusivos na tela, evitando duplicidade na impressão) */}
         <div className={cn(
-          "grid gap-3.5 print:grid-cols-4 print:gap-3 print:mb-4 print-avoid-break",
+          "grid gap-3.5 print:hidden",
           showAVencerCard 
             ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" 
             : "grid-cols-1 sm:grid-cols-3"
@@ -2181,26 +2237,6 @@ return (
           <div className="overflow-x-auto print:overflow-visible print:overflow-x-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <table className="w-full text-left border-collapse border border-slate-300 print:border-slate-400">
               <thead>
-                {/* Cabeçalho de Continuação Institucional para Páginas Extras na Impressão */}
-                <tr className="hidden print:table-row bg-slate-100 border border-slate-300 text-slate-800">
-                  <th colSpan={6} className="py-1 px-3 text-[9px] font-semibold tracking-wider border border-slate-300 bg-slate-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#00174b] uppercase">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}</span>
-                        <span className="text-slate-400 font-normal">•</span>
-                        <span className="font-semibold text-slate-700">
-                          {isSingleStudent ? 'Extrato Individual do Aluno' : 'Relatório Financeiro'}
-                        </span>
-                      </div>
-                      <div className="text-right text-[8.5px] text-slate-600 font-medium">
-                        <span>Período: <strong className="text-slate-800">{periodLabel}</strong></span>
-                        <span className="mx-1.5 text-slate-400">•</span>
-                        <span>Unidade: <strong className="text-slate-800">{getUnitName(selectedUnitId) || 'Todas as Unidades'}</strong></span>
-                      </div>
-                    </div>
-                  </th>
-                </tr>
-
                 {/* Linha de Títulos das Colunas - Padrão Navy Institucional #00174b idêntico ao modelo PDF */}
                 {isSingleStudent && studentItem ? (
                   <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
@@ -2211,7 +2247,7 @@ return (
                       Parcela / Mês de Referência
                     </th>
                     <th className="py-2.5 px-3 text-right text-white border border-slate-400">
-                      Situação Detalhada / Data de Pagamento
+                      Data de Pagamento / Detalhes
                     </th>
                     <th className="py-2.5 px-3 text-right text-white border border-slate-400">
                       Previsto
@@ -2220,7 +2256,7 @@ return (
                       Efetuado
                     </th>
                     <th className="py-2.5 px-3 text-right text-white border border-slate-400">
-                      Situação
+                      Pendente (Vencido)
                     </th>
                   </tr>
                 ) : (
@@ -2346,18 +2382,18 @@ return (
                             {formatCurrency(efetuadoVal)}
                           </td>
 
-                          {/* Situação */}
+                          {/* Saldo Pendente (Vencido) */}
                           <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300">
                             {m.isWaived ? (
-                              <span className="text-blue-800 font-bold">{m.month === 0 ? 'Abonada' : 'Abonado'}</span>
+                              <span className="text-blue-800 font-semibold">Isento (R$ 0,00)</span>
                             ) : m.isPaid ? (
-                              <span className="text-emerald-700 font-bold">Quitada</span>
+                              <span className="text-emerald-700 font-semibold">Quitado (R$ 0,00)</span>
                             ) : m.isOverdue ? (
-                              <span className="text-red-700">{formatCurrency(pendenteVal)}</span>
+                              <span className="text-red-700 font-bold">{formatCurrency(pendenteVal)}</span>
                             ) : !m.isExpected ? (
                               <span className="text-slate-400 font-normal">-</span>
                             ) : (
-                              <span className="text-amber-700 font-medium">A Vencer</span>
+                              <span className="text-slate-600 font-medium">A Vencer</span>
                             )}
                           </td>
                         </tr>
