@@ -772,10 +772,9 @@ const totals = useMemo(() => {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(71, 85, 105);
-    doc.text(`EMISSÃO: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth - margin, 14, { align: 'right' });
+    doc.text(`EMISSÃO: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth - margin, 16, { align: 'right' });
     doc.setFont('helvetica', 'normal');
-    doc.text(`UNIDADE: ${(getUnitName(selectedUnitId) || 'TODAS AS UNIDADES').toUpperCase()}`, pageWidth - margin, 19, { align: 'right' });
-    doc.text(`OPERADOR: ${(profile?.name || 'ADMINISTRAÇÃO').toUpperCase()}`, pageWidth - margin, 24, { align: 'right' });
+    doc.text(`UNIDADE: ${(getUnitName(selectedUnitId) || 'TODAS AS UNIDADES').toUpperCase()}`, pageWidth - margin, 22, { align: 'right' });
 
     // 4. Linha Divisória em #00174b
     doc.setDrawColor(0, 23, 75);
@@ -976,7 +975,7 @@ const totals = useMemo(() => {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(120, 120, 120);
         doc.text(`${dioceseHeader} • ${(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase()}`, margin, pageHeight - 7);
-        doc.text(`Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} por ${profile?.name || 'Administração'} • Pág. ${data.pageNumber}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
+        doc.text(`Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} • Pág. ${data.pageNumber}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
       }
     });
 
@@ -1182,7 +1181,6 @@ return (
         <div className="text-right text-[9px] text-slate-600 shrink-0 leading-tight space-y-0.5">
           <p className="font-bold text-slate-900">Emissão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
           <p>Unidade: {getUnitName(selectedUnitId) || 'Todas as Unidades'}</p>
-          <p>Operador: {profile?.name || 'Administração'}</p>
         </div>
       </div>
       
@@ -2451,7 +2449,7 @@ return (
                         {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS')} • {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
                       </span>
                       <span>
-                        Documento emitido eletronicamente em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} por {profile?.name || 'Administração'}
+                        Documento emitido eletronicamente em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </span>
                     </div>
                   </td>
