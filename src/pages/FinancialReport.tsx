@@ -826,7 +826,7 @@ const totals = useMemo(() => {
     let columnStyles: any;
 
     if (isSingleStudent && studentItem) {
-      headCols = [['#', 'Parcela / Mês de Referência', 'Situação Detalhada / Data de Pagamento', 'Previsto', 'Efetuado', 'Pendente (Vencido)']];
+      headCols = [['#', 'Parcela / Mês de Referência', 'Situação Detalhada / Data de Pagamento', 'Previsto', 'Efetuado', 'Situação']];
       
       tableBody = studentItem.monthsStatus.map((m, index) => {
         const refName = m.month === 0 ? 'Matrícula Inicial' : `${m.monthName} / ${selectedYear || new Date().getFullYear()}`;
@@ -850,13 +850,21 @@ const totals = useMemo(() => {
         const efetuadoVal = m.amountPaid;
         const pendenteVal = m.isOverdue ? Math.max(0, m.fee - m.amountPaid) : 0;
 
+        const situacaoColVal = m.isPaid 
+          ? 'Quitada' 
+          : m.isOverdue 
+          ? formatCurrency(pendenteVal) 
+          : !m.isExpected 
+          ? '-' 
+          : 'A Vencer';
+
         return [
           (index + 1).toString(),
           refName,
           situacaoText,
           formatCurrency(previstoVal),
           formatCurrency(efetuadoVal),
-          formatCurrency(pendenteVal)
+          situacaoColVal
         ];
       });
 
@@ -875,10 +883,10 @@ const totals = useMemo(() => {
       columnStyles = {
         0: { cellWidth: 12, halign: 'center' },
         1: { cellWidth: 78, halign: 'left' },
-        2: { cellWidth: 85, halign: 'center', fontSize: 7.5 },
+        2: { cellWidth: 85, halign: 'right', fontSize: 7.5 },
         3: { cellWidth: 31, halign: 'right', textColor: [180, 83, 9] },
         4: { cellWidth: 31, halign: 'right', textColor: [4, 120, 87] },
-        5: { cellWidth: 32, halign: 'right', textColor: [185, 28, 28] }
+        5: { cellWidth: 32, halign: 'right' }
       };
     } else {
       headCols = [['#', 'Aluno', 'Situação', 'Previsto', 'Efetuado', 'Pendente (Vencido)']];
@@ -944,6 +952,22 @@ const totals = useMemo(() => {
           data.cell.styles.fillColor = [241, 245, 249];
           if (data.column.index === 1) {
             data.cell.styles.halign = 'right';
+          }
+          if (data.column.index === 5) {
+            data.cell.styles.textColor = [185, 28, 28];
+          }
+        } else if (isSingleStudent && data.section === 'body') {
+          if (data.column.index === 5) {
+            const raw = String(data.cell.raw || '');
+            if (raw === 'Quitada' || raw === 'Pago') {
+              data.cell.styles.textColor = [4, 120, 87];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (raw.includes('R$')) {
+              data.cell.styles.textColor = [185, 28, 28];
+              data.cell.styles.fontStyle = 'bold';
+            } else {
+              data.cell.styles.textColor = [100, 116, 139];
+            }
           }
         }
       },
@@ -2176,7 +2200,7 @@ return (
                     <th className="py-2.5 px-3 text-left text-white border border-slate-400">
                       Parcela / Mês de Referência
                     </th>
-                    <th className="py-2.5 px-3 text-center text-white border border-slate-400">
+                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
                       Situação Detalhada / Data de Pagamento
                     </th>
                     <th className="py-2.5 px-3 text-right text-white border border-slate-400">
@@ -2186,7 +2210,7 @@ return (
                       Efetuado
                     </th>
                     <th className="py-2.5 px-3 text-right text-white border border-slate-400">
-                      Pendente (Vencido)
+                      Situação
                     </th>
                   </tr>
                 ) : (
@@ -2274,7 +2298,7 @@ return (
                           </td>
 
                           {/* Situação Detalhada / Data de Pagamento */}
-                          <td className="py-2.5 px-3 text-center border border-slate-300 text-[11px]">
+                          <td className="py-2.5 px-3 text-right border border-slate-300 text-[11px]">
                             {m.isPaid ? (
                               <span className="font-semibold text-emerald-800">
                                 Pago{m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : ''}{m.paymentMethod ? ` (${m.paymentMethod.toUpperCase()})` : ''}
@@ -2308,9 +2332,17 @@ return (
                             {formatCurrency(efetuadoVal)}
                           </td>
 
-                          {/* Saldo Pendente (Vencido) */}
-                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300 text-red-700">
-                            {formatCurrency(pendenteVal)}
+                          {/* Situação */}
+                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300">
+                            {m.isPaid ? (
+                              <span className="text-emerald-700 font-bold">Quitada</span>
+                            ) : m.isOverdue ? (
+                              <span className="text-red-700">{formatCurrency(pendenteVal)}</span>
+                            ) : !m.isExpected ? (
+                              <span className="text-slate-400 font-normal">-</span>
+                            ) : (
+                              <span className="text-amber-700 font-medium">A Vencer</span>
+                            )}
                           </td>
                         </tr>
                       );
