@@ -233,12 +233,15 @@ export interface Contribution {
   reference_month: number;
   reference_year: number;
   payment_date: string;
-  payment_method?: 'PIX' | 'Cartão' | 'Dinheiro' | string;
+  payment_method?: 'PIX' | 'Cartão' | 'Dinheiro' | 'Abono' | string;
   origin?: string;
   pix_id?: string;
   observations?: string;
+  is_waived?: boolean;
+  status?: 'pago' | 'abonado' | string;
+  waiver_reason?: string;
   unit_id?: string;
-  user_id: string;
+  user_id?: string;
   created_at: string;
 }
 

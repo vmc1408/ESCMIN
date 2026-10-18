@@ -143,7 +143,7 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     }
 
     const errorMsg = err?.message || String(err || '');
-    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Operação lenta') || errorMsg.includes('sem resposta')) {
       console.warn(`[Supabase] Timeout ao buscar lista em ${collectionName}. Continuando com dados em cache/vazios.`);
       return [];
     }
@@ -184,7 +184,7 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
     }
 
     const errorMsg = err?.message || String(err || '');
-    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Operação lenta') || errorMsg.includes('sem resposta')) {
       console.warn(`[Supabase] Timeout ao buscar ID "${id}" em ${collectionName}. Continuando com dados locais/cache.`);
       return null;
     }
@@ -246,7 +246,7 @@ export const fetchQuery = async (
     }
 
     const errorMsg = err?.message || String(err || '');
-    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Operação lenta') || errorMsg.includes('sem resposta')) {
       console.warn(`[Supabase] Timeout ao executar query em ${collectionName}. Retornando lista vazia.`);
       return [];
     }
@@ -279,7 +279,7 @@ export const fetchCount = async (collectionName: string, status?: string) => {
     return result?.count || 0;
   } catch (err: any) {
     const errorMsg = err?.message || String(err || '');
-    if (err?.isTimeout || errorMsg.includes('TIMEOUT')) {
+    if (err?.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Operação lenta') || errorMsg.includes('sem resposta')) {
       console.warn(`[Supabase] Timeout ao contar em ${collectionName}. Retornando contagem 0.`);
       return 0;
     }

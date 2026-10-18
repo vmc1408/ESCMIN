@@ -557,17 +557,23 @@ const reportData = useMemo(() => {
     const monthsStatus = relevantPeriods.map(m => {
       const isExpected = allExpectedInYear.includes(m);
       const amountPaid = paidByMonth.get(m) || 0;
-      const isPaid = amountPaid >= fee || (amountPaid > 0 && isExpected && amountPaid >= fee * 0.9);
-      const isOverdue = isExpected && !isPaid && isMonthOverdue(m, yearNum);
-      const isCurrent = isMonthCurrent(m, yearNum);
-      const isFuture = isMonthFuture(m, yearNum);
       const monthContribs = contribsInPeriod.filter(c => Number(c.reference_month) === m);
       const latestContrib = [...monthContribs].sort((a, b) => new Date(b.payment_date || 0).getTime() - new Date(a.payment_date || 0).getTime())[0];
+      const isWaived = monthContribs.some(c => 
+        c.is_waived === true || 
+        c.payment_method === 'Abono' || 
+        (c as any).status === 'abonado' ||
+        (c.observations && typeof c.observations === 'string' && c.observations.startsWith('[ABONO]'))
+      );
+      const isPaid = !isWaived && (amountPaid >= fee || (amountPaid > 0 && isExpected && amountPaid >= fee * 0.9));
+      const isOverdue = isExpected && !isPaid && !isWaived && isMonthOverdue(m, yearNum);
+      const isCurrent = isMonthCurrent(m, yearNum);
+      const isFuture = isMonthFuture(m, yearNum);
 
       if (isOverdue) {
         overdueDebtTotal += Math.max(0, fee - amountPaid);
         overdueMonthsCount++;
-      } else if (isExpected && !isPaid) {
+      } else if (isExpected && !isPaid && !isWaived) {
         futurePendingTotal += Math.max(0, fee - amountPaid);
       }
 
@@ -577,6 +583,7 @@ const reportData = useMemo(() => {
         monthShort: m === 0 ? 'Matr.' : (MONTH_SHORT[m - 1] || `M${m}`),
         isExpected,
         isPaid,
+        isWaived,
         isOverdue,
         isCurrent,
         isFuture,
@@ -593,26 +600,32 @@ const reportData = useMemo(() => {
     const saldoPendente = overdueDebtTotal;
 
     // Situação do Aluno
+    const paidCount = monthsStatus.filter(m => m.isPaid).length;
+    const waivedCount = monthsStatus.filter(m => m.isWaived).length;
+    const resolvedCount = paidCount + waivedCount;
+
     let status: 'paid' | 'regular' | 'pending' | 'exempt' = 'regular';
-    if (valorPrevisto === 0 && valorEfetuado === 0) {
+    if (valorPrevisto === 0 && valorEfetuado === 0 && waivedCount === 0) {
       status = 'exempt';
     } else if (overdueMonthsCount > 0) {
       status = 'pending'; // Inadimplente: possui parcelas vencidas
-    } else if (valorEfetuado >= valorPrevisto && valorPrevisto > 0) {
-      status = 'paid'; // 100% quitado
+    } else if (resolvedCount >= expectedInPeriod.length && expectedInPeriod.length > 0) {
+      status = 'paid'; // 100% quitado / regularizado
     } else {
       status = 'regular'; // Em dia (mês atual/futuro previsto a vencer)
     }
 
     const overdueMonthsNames = monthsStatus.filter(m => m.isOverdue).map(m => m.monthShort);
-    const futureMonthsNames = monthsStatus.filter(m => !m.isPaid && !m.isOverdue && m.isExpected).map(m => m.monthShort);
-    const paidMonthsNames = monthsStatus.filter(m => m.isPaid).map(m => m.monthShort);
+    const futureMonthsNames = monthsStatus.filter(m => !m.isPaid && !m.isWaived && !m.isOverdue && m.isExpected).map(m => m.monthShort);
+    const paidMonthsNames = monthsStatus.filter(m => m.isPaid || m.isWaived).map(m => m.monthShort);
 
     let periodSummary = '';
     if (periodType === 'mensal') {
       const m = monthsStatus[0];
       if (!m) {
         periodSummary = '---';
+      } else if (m.isWaived) {
+        periodSummary = `${m.monthShort}: Abonado`;
       } else if (m.isPaid) {
         periodSummary = `${m.monthShort}: Pago`;
       } else if (m.isOverdue) {
@@ -621,16 +634,17 @@ const reportData = useMemo(() => {
         periodSummary = `${m.monthShort}: A Vencer`;
       }
     } else {
-      const paidCount = monthsStatus.filter(m => m.isPaid).length;
       const totalExpected = expectedInPeriod.length;
       if (totalExpected === 0) {
         periodSummary = 'Sem parcelas';
       } else if (overdueMonthsNames.length > 0) {
-        periodSummary = `${paidCount}/${totalExpected} pagas (${overdueMonthsCount} em atraso)`;
-      } else if (paidCount >= totalExpected) {
-        periodSummary = `${paidCount}/${totalExpected} pagas (Quitado)`;
+        periodSummary = `${paidCount}/${totalExpected} pagas${waivedCount > 0 ? ` (${waivedCount} abonada${waivedCount > 1 ? 's' : ''})` : ''} (${overdueMonthsCount} em atraso)`;
+      } else if (resolvedCount >= totalExpected) {
+        periodSummary = waivedCount > 0
+          ? `${paidCount}/${totalExpected} pagas (${waivedCount} abonada${waivedCount > 1 ? 's' : ''} • Quitado)`
+          : `${paidCount}/${totalExpected} pagas (Quitado)`;
       } else {
-        periodSummary = `${paidCount}/${totalExpected} pagas (Em dia)`;
+        periodSummary = `${paidCount}/${totalExpected} pagas${waivedCount > 0 ? ` (${waivedCount} abonada${waivedCount > 1 ? 's' : ''})` : ''} (Em dia)`;
       }
     }
 
@@ -812,8 +826,9 @@ const totals = useMemo(() => {
     let totalsText = '';
     if (isSingleStudent && studentItem) {
       const paidCount = studentItem.monthsStatus.filter(m => m.isPaid).length;
+      const waivedCount = studentItem.monthsStatus.filter(m => m.isWaived).length;
       const totalExpected = studentItem.monthsStatus.filter(m => m.isExpected).length;
-      totalsText = `Parcelas: ${studentItem.monthsStatus.length}   •   Pagas: ${paidCount}   •   Em Atraso: ${studentItem.overdueMonthsCount}   •   Previsto: ${formatCurrency(totals.totalPrevisto)}   •   Efetuado: ${formatCurrency(totals.totalEfetuado)}   •   Pendente Vencido: ${formatCurrency(totals.totalPendente)}   •   Arrecadação: ${totals.taxaArrecadacao}%`;
+      totalsText = `Parcelas: ${studentItem.monthsStatus.length}   •   Pagas: ${paidCount}${waivedCount > 0 ? `   •   Abonadas: ${waivedCount}` : ''}   •   Em Atraso: ${studentItem.overdueMonthsCount}   •   Previsto: ${formatCurrency(totals.totalPrevisto)}   •   Efetuado: ${formatCurrency(totals.totalEfetuado)}   •   Pendente Vencido: ${formatCurrency(totals.totalPendente)}   •   Arrecadação: ${totals.taxaArrecadacao}%`;
     } else {
       totalsText = `Alunos: ${totals.totalAlunos}   •   Previsto: ${formatCurrency(totals.totalPrevisto)}   •   Efetuado: ${formatCurrency(totals.totalEfetuado)}   •   Pendente Vencido: ${formatCurrency(totals.totalPendente)}   •   Taxa de Arrecadação: ${totals.taxaArrecadacao}%`;
     }
@@ -831,7 +846,10 @@ const totals = useMemo(() => {
         const refName = m.month === 0 ? 'Matrícula Inicial' : `${m.monthName} / ${selectedYear || new Date().getFullYear()}`;
         
         let situacaoText = '';
-        if (m.isPaid) {
+        if (m.isWaived) {
+          const dateStr = m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : '';
+          situacaoText = `Abonado${dateStr}`;
+        } else if (m.isPaid) {
           const dateStr = m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : '';
           const methodStr = m.paymentMethod ? ` (${m.paymentMethod.toUpperCase()})` : '';
           situacaoText = `Pago${dateStr}${methodStr}`;
@@ -847,9 +865,11 @@ const totals = useMemo(() => {
 
         const previstoVal = m.isExpected ? m.fee : 0;
         const efetuadoVal = m.amountPaid;
-        const pendenteVal = m.isOverdue ? Math.max(0, m.fee - m.amountPaid) : 0;
+        const pendenteVal = (!m.isWaived && m.isOverdue) ? Math.max(0, m.fee - m.amountPaid) : 0;
 
-        const situacaoColVal = m.isPaid 
+        const situacaoColVal = m.isWaived 
+          ? (m.month === 0 ? 'Abonada' : 'Abonado')
+          : m.isPaid 
           ? 'Quitada' 
           : m.isOverdue 
           ? formatCurrency(pendenteVal) 
@@ -868,11 +888,12 @@ const totals = useMemo(() => {
       });
 
       const paidCount = studentItem.monthsStatus.filter(m => m.isPaid).length;
+      const waivedCount = studentItem.monthsStatus.filter(m => m.isWaived).length;
       const totalExpected = studentItem.monthsStatus.filter(m => m.isExpected).length;
 
       tableBody.push([
         '',
-        `TOTAL CONSOLIDADO DO ALUNO (${paidCount} de ${totalExpected} parcelas pagas • ${studentItem.overdueMonthsCount} em atraso • ${totals.taxaArrecadacao}% Arrecadado)`,
+        `TOTAL CONSOLIDADO DO ALUNO (${paidCount} de ${totalExpected} parcelas pagas${waivedCount > 0 ? ` • ${waivedCount} abonadas` : ''} • ${studentItem.overdueMonthsCount} em atraso • ${totals.taxaArrecadacao}% Arrecadado)`,
         '',
         formatCurrency(totals.totalPrevisto),
         formatCurrency(totals.totalEfetuado),
@@ -1213,6 +1234,12 @@ return (
             <span>Parcelas: <strong className="text-slate-900">{studentItem.monthsStatus.length}</strong></span>
             <span className="text-slate-300">•</span>
             <span>Pagas: <strong className="text-emerald-800">{studentItem.monthsStatus.filter(m => m.isPaid).length}</strong></span>
+            {studentItem.monthsStatus.filter(m => m.isWaived).length > 0 && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span>Abonadas: <strong className="text-blue-800">{studentItem.monthsStatus.filter(m => m.isWaived).length}</strong></span>
+              </>
+            )}
             <span className="text-slate-300">•</span>
             <span>Em Atraso: <strong className="text-red-700">{studentItem.overdueMonthsCount}</strong></span>
             <span className="text-slate-300">•</span>
@@ -2297,7 +2324,11 @@ return (
 
                           {/* Situação Detalhada / Data de Pagamento */}
                           <td className="py-2.5 px-3 text-right border border-slate-300 text-[11px]">
-                            {m.isPaid ? (
+                            {m.isWaived ? (
+                              <span className="font-semibold text-blue-800">
+                                Abonado{m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : ''}
+                              </span>
+                            ) : m.isPaid ? (
                               <span className="font-semibold text-emerald-800">
                                 Pago{m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : ''}{m.paymentMethod ? ` (${m.paymentMethod.toUpperCase()})` : ''}
                               </span>
@@ -2332,7 +2363,9 @@ return (
 
                           {/* Situação */}
                           <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300">
-                            {m.isPaid ? (
+                            {m.isWaived ? (
+                              <span className="text-blue-800 font-bold">{m.month === 0 ? 'Abonada' : 'Abonado'}</span>
+                            ) : m.isPaid ? (
                               <span className="text-emerald-700 font-bold">Quitada</span>
                             ) : m.isOverdue ? (
                               <span className="text-red-700">{formatCurrency(pendenteVal)}</span>
@@ -2422,7 +2455,7 @@ return (
                   <tr className="bg-slate-100 font-bold border-2 border-slate-400 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400 print-avoid-break">
                     <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-700 border border-slate-400">
                       {isSingleStudent && studentItem ? (
-                        <>TOTAL CONSOLIDADO DO ALUNO ({studentItem.monthsStatus.filter(m => m.isPaid).length} de {studentItem.monthsStatus.filter(m => m.isExpected).length} parcelas pagas • {studentItem.overdueMonthsCount} em atraso • {totals.taxaArrecadacao}% Arrecadado):</>
+                        <>TOTAL CONSOLIDADO DO ALUNO ({studentItem.monthsStatus.filter(m => m.isPaid).length} de {studentItem.monthsStatus.filter(m => m.isExpected).length} parcelas pagas{studentItem.monthsStatus.filter(m => m.isWaived).length > 0 ? ` • ${studentItem.monthsStatus.filter(m => m.isWaived).length} abonadas` : ''} • {studentItem.overdueMonthsCount} em atraso • {totals.taxaArrecadacao}% Arrecadado):</>
                       ) : (
                         <>Total Consolidado ({reportData.length} alunos • {totals.taxaArrecadacao}% Arrecadado):</>
                       )}

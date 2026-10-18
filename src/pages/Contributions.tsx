@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search, GraduationCap } from 'lucide-react';
+import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search, GraduationCap, Award } from 'lucide-react';
 import { financialService } from '../services/financialService';
 import { financialConfigService } from '../services/financialConfigService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
@@ -138,6 +138,25 @@ export function Contributions() {
   const [manualMethod, setManualMethod] = useState<'Dinheiro' | 'PIX' | 'Cartão'>('Dinheiro');
   const [manualObservations, setManualObservations] = useState('');
   const [isSavingManual, setIsSavingManual] = useState(false);
+
+  // Estados para Abono de Matrícula e Mensalidade
+  const [abonoModal, setAbonoModal] = useState<{
+    isOpen: boolean;
+    periods: number[];
+    reason: string;
+    date: string;
+    isSubmitting: boolean;
+  } | null>(null);
+
+  const isContributionWaived = (c: Contribution | any): boolean => {
+    if (!c) return false;
+    return Boolean(
+      c.is_waived === true ||
+      c.payment_method === 'Abono' ||
+      c.status === 'abonado' ||
+      (typeof c.observations === 'string' && c.observations.startsWith('[ABONO]'))
+    );
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -992,6 +1011,90 @@ export function Contributions() {
     }
   };
 
+  const handleOpenAbonoModal = (periods: number[]) => {
+    if (!selectedStudent) {
+      setNotification({ type: 'error', message: 'Selecione um aluno primeiro.' });
+      return;
+    }
+    if (periods.length === 0) {
+      setNotification({ type: 'error', message: 'Selecione pelo menos um mês ou a taxa de matrícula para abonar.' });
+      return;
+    }
+    setAbonoModal({
+      isOpen: true,
+      periods,
+      reason: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      isSubmitting: false
+    });
+  };
+
+  const confirmAbono = async () => {
+    if (!selectedStudent || !abonoModal || abonoModal.periods.length === 0) return;
+    if (!abonoModal.reason.trim()) {
+      setNotification({ type: 'error', message: 'Por favor, informe uma breve justificativa para o abono.' });
+      return;
+    }
+
+    setAbonoModal(prev => prev ? { ...prev, isSubmitting: true } : null);
+    try {
+      const finalDate = parseSafeDate(abonoModal.date || format(new Date(), 'yyyy-MM-dd')).toISOString();
+
+      // Verificar duplicidades existentes
+      const existingContribs = await fetchQuery('contributions', [
+        { field: 'student_id', operator: '==', value: selectedStudent.id },
+        { field: 'reference_year', operator: '==', value: selectedYear },
+        { field: 'reference_month', operator: 'in', value: abonoModal.periods }
+      ]);
+
+      if (existingContribs && (existingContribs as any[]).length > 0) {
+        const duplicateMonths = (existingContribs as any[]).map((c: any) => formatContributionMonth(c.reference_month)).join(', ');
+        setNotification({ 
+          type: 'error', 
+          message: `Já existe lançamento para ${duplicateMonths}/${selectedYear}. Exclua o lançamento anterior antes de abonar.` 
+        });
+        setAbonoModal(prev => prev ? { ...prev, isSubmitting: false } : null);
+        return;
+      }
+
+      const studentClass = resolveStudentClass(selectedStudent);
+      const studentUnitId = (selectedStudent as any).unit_id || studentClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
+      const recordsToInsert = abonoModal.periods.map(periodNum => ({
+        student_id: selectedStudent.id,
+        amount: 0,
+        reference_month: periodNum,
+        reference_year: selectedYear,
+        payment_date: finalDate,
+        payment_method: 'Abono',
+        is_waived: true,
+        status: 'abonado',
+        waiver_reason: abonoModal.reason.trim(),
+        observations: `[ABONO] ${abonoModal.reason.trim()}`,
+        unit_id: studentUnitId,
+        created_at: new Date().toISOString()
+      }));
+
+      const savedDocs = await Promise.all(recordsToInsert.map(async (rec) => {
+        const finalId = await saveData('contributions', undefined, rec);
+        return { id: finalId, ...rec };
+      }));
+
+      setContributions(prev => [...prev, ...savedDocs as any]);
+      setManualMonths([]);
+      setAbonoModal(null);
+      fetchRecentContributions();
+      setNotification({ 
+        type: 'success', 
+        message: `✅ ${abonoModal.periods.length > 1 ? `${abonoModal.periods.length} períodos abonados` : 'Período abonado'} com sucesso!` 
+      });
+    } catch (error: any) {
+      console.error('Erro ao abonar:', error);
+      setNotification({ type: 'error', message: 'Erro ao registrar abono: ' + error.message });
+      setAbonoModal(prev => prev ? { ...prev, isSubmitting: false } : null);
+    }
+  };
+
   const generateSelectedReceipts = (specificBatch?: Contribution[], action: 'save' | 'print' = 'save') => {
     const currentContribs = specificBatch || selectedForPrint;
     if (currentContribs.length === 0) return;
@@ -1100,9 +1203,10 @@ export function Contributions() {
         for (let j = 0; j < 2; j++) {
           const c = currentContribs[i + j];
           if (c) {
-            const method = c.pix_id ? 'PIX (Importado)' : (c.payment_method || 'Dinheiro');
+            const isWaived = isContributionWaived(c);
+            const method = isWaived ? 'Abono (Isenção)' : (c.pix_id ? 'PIX (Importado)' : (c.payment_method || 'Dinheiro'));
             row.push(`${formatContributionMonth(c.reference_month)} / ${c.reference_year}`);
-            row.push(formatCurrency(c.amount));
+            row.push(isWaived ? 'R$ 0,00' : formatCurrency(c.amount));
             row.push(method);
           } else {
             row.push('', '', '');
@@ -1129,12 +1233,12 @@ export function Contributions() {
       doc.text(`Recebido em: ${safeFormat(new Date(), 'dd/MM/yyyy')}`, margin, nextY + 3);
       doc.text(`TOTAL ACUMULADO => ${formatCurrency(totalBatch)}`, pageWidth - margin, nextY + 3, { align: 'right' });
 
-      // Box Message / Observations
+      // Box Message / Observations - Sem opção de impressão da justificativa do abono
       doc.setDrawColor(200);
       doc.setLineWidth(0.2);
       doc.rect(margin, nextY + 6, pageWidth - (margin * 2), 18);
       
-      const contribObs = currentContribs.map(c => c.observations).filter(Boolean).join('; ');
+      const contribObs = currentContribs.filter(c => !isContributionWaived(c)).map(c => c.observations).filter(Boolean).join('; ');
       const finalMsg = [contribObs, institution?.receipt_message].filter(Boolean).join(' • ');
       
       if (finalMsg) {
@@ -1274,7 +1378,8 @@ export function Contributions() {
       doc.setFontSize(8);
       doc.text(`${studentClass?.code || '---'} - ${student.course || '---'}`, pageWidth - margin - 50, startY + 37);
 
-      const method = contribution.pix_id ? 'PIX (Importado)' : (contribution.payment_method || 'Dinheiro');
+      const isWaived = isContributionWaived(contribution);
+      const method = isWaived ? 'Abono (Isenção Concedida)' : (contribution.pix_id ? 'PIX (Importado)' : (contribution.payment_method || 'Dinheiro'));
       const origin = contribution.origin ? ` (${contribution.origin})` : '';
 
       // Main Table
@@ -1283,7 +1388,7 @@ export function Contributions() {
         head: [['Mês / Ano Referência', 'Valor da Contribuição', 'Meio de Pagamento / Origem']],
         body: [[
           `${formatContributionMonth(contribution.reference_month)} / ${contribution.reference_year}`,
-          formatCurrency(contribution.amount),
+          isWaived ? 'R$ 0,00' : formatCurrency(contribution.amount),
           `${method}${origin}`
         ]],
         theme: 'grid',
@@ -1297,14 +1402,15 @@ export function Contributions() {
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'bold');
       doc.text(`Recebido em: ${safeFormat(contribution.payment_date, 'dd/MM/yyyy')}`, margin, nextY + 5);
-      doc.text(`VALOR TOTAL => ${formatCurrency(contribution.amount)}`, pageWidth - margin, nextY + 5, { align: 'right' });
+      doc.text(`VALOR TOTAL => ${isWaived ? 'R$ 0,00' : formatCurrency(contribution.amount)}`, pageWidth - margin, nextY + 5, { align: 'right' });
 
-      // Observations Box
+      // Observations Box - Sem opção de impressão da justificativa do abono
       doc.setDrawColor(220);
       doc.setLineWidth(0.2);
       doc.rect(margin, nextY + 10, pageWidth - (margin * 2), 20);
       
-      const finalMsg = [contribution.observations, institution?.receipt_message].filter(Boolean).join(' • ');
+      const obsToPrint = isWaived ? '' : contribution.observations;
+      const finalMsg = [obsToPrint, institution?.receipt_message].filter(Boolean).join(' • ');
       if (finalMsg) {
         doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
@@ -1451,24 +1557,46 @@ export function Contributions() {
       doc.setTextColor(71, 85, 105); // slate-600
       doc.text(`Situação: ${situationText}`, rightColX, boxY + 15);
 
-      const statementData = MONTHS.map((month, idx) => {
+      const statementData: any[][] = [];
+
+      // Matrícula (se devida ou registrada)
+      if (currentExpectedMonths.includes(0) || contributions.some(c => c.reference_month === 0)) {
+        const matContrib = contributions.find(c => c.reference_month === 0);
+        const isExp = currentExpectedMonths.includes(0);
+        const isWaived = isContributionWaived(matContrib);
+        let status = 'DISPENSADO';
+        if (matContrib) {
+          status = isWaived ? 'ABONADA' : 'PAGO / LIQUIDADO';
+        } else if (isExp) {
+          status = 'PENDENTE';
+        }
+        statementData.push([
+          'TAXA DE MATRÍCULA',
+          matContrib ? (isWaived ? 'R$ 0,00' : formatCurrency(matContrib.amount)) : '---',
+          matContrib ? safeFormat(matContrib.payment_date, 'dd/MM/yyyy') : '---',
+          status
+        ]);
+      }
+
+      MONTHS.forEach((month, idx) => {
         const monthNum = idx + 1;
         const contrib = contributions.find(c => c.reference_month === monthNum);
         const isExpected = currentExpectedMonths.includes(monthNum);
+        const isWaived = isContributionWaived(contrib);
         
         let status = 'DISPENSADO';
         if (contrib) {
-          status = 'PAGO / LIQUIDADO';
+          status = isWaived ? 'ABONADO' : 'PAGO / LIQUIDADO';
         } else if (isExpected) {
           status = 'PENDENTE';
         }
 
-        return [
+        statementData.push([
           month.toUpperCase(),
-          contrib ? formatCurrency(contrib.amount) : '---',
+          contrib ? (isWaived ? 'R$ 0,00' : formatCurrency(contrib.amount)) : '---',
           contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : '---',
           status
-        ];
+        ]);
       });
 
       autoTable(doc, {
@@ -1488,6 +1616,9 @@ export function Contributions() {
             const val = data.cell.text[0];
             if (val === 'PAGO / LIQUIDADO') {
               data.cell.styles.textColor = [16, 124, 65]; // Green
+              data.cell.styles.fontStyle = 'bold';
+            } else if (val === 'ABONADO' || val === 'ABONADA') {
+              data.cell.styles.textColor = [0, 23, 75]; // Navy
               data.cell.styles.fontStyle = 'bold';
             } else if (val === 'PENDENTE') {
               data.cell.styles.textColor = [211, 47, 47]; // Red
@@ -2282,8 +2413,13 @@ export function Contributions() {
                           </div>
                         </div>
                         {contrib && (
-                          <div className="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
-                            <CheckCircle2 size={12} />
+                          <div className={cn(
+                            "w-5 h-5 rounded-md text-white flex items-center justify-center shadow-lg",
+                            isContributionWaived(contrib)
+                              ? "bg-blue-600 shadow-blue-600/20"
+                              : "bg-emerald-500 shadow-emerald-500/10"
+                          )}>
+                            {isContributionWaived(contrib) ? <Award size={12} /> : <CheckCircle2 size={12} />}
                           </div>
                         )}
                         {!contrib && isExpected && (
@@ -2296,19 +2432,32 @@ export function Contributions() {
                       {contrib ? (
                         <>
                           <div className="space-y-0.5">
-                            <p className="text-lg font-black text-[#131b2e] leading-none">{formatCurrency(contrib.amount)}</p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-lg font-black text-[#131b2e] leading-none">
+                                {isContributionWaived(contrib) ? 'R$ 0,00' : formatCurrency(contrib.amount)}
+                              </p>
+                              {isContributionWaived(contrib) && (
+                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[8px] font-black uppercase tracking-wider border border-blue-200">
+                                  Abonada
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2">
-                              <p className="text-[9px] font-bold text-slate-400">Pago: {safeFormat(contrib.payment_date, 'dd/MM/yy')}</p>
+                              <p className="text-[9px] font-bold text-slate-400">
+                                {isContributionWaived(contrib) ? 'Abono: ' : 'Pago: '}{safeFormat(contrib.payment_date, 'dd/MM/yy')}
+                              </p>
                               <span className={cn(
                                 "px-1.5 py-px rounded text-[7px] font-black uppercase tracking-wider border",
-                                contrib.pix_id 
+                                isContributionWaived(contrib)
+                                  ? "bg-blue-50 text-blue-700 border-blue-200 font-bold"
+                                  : contrib.pix_id 
                                   ? "bg-blue-50 text-blue-600 border-blue-100" 
                                   : "bg-slate-50 text-slate-600 border-slate-100"
                               )}>
-                                {contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`}
+                                {isContributionWaived(contrib) ? 'Abono (Isenção)' : (contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`)}
                               </span>
                             </div>
-                            {contrib.observations && (
+                            {contrib.observations && !isContributionWaived(contrib) && (
                               <p className="text-[9px] text-slate-400 italic truncate" title={contrib.observations}>
                                 {contrib.observations}
                               </p>
@@ -2362,18 +2511,28 @@ export function Contributions() {
                             </p>
                             <p className="text-[9px] text-slate-400">Taxa de matrícula inicial do curso</p>
                           </div>
-                          <button 
-                            onClick={() => handleAddContribution(0)}
-                            className={cn(
-                              "w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1.5",
-                              isExpected 
-                                ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-600 hover:text-white" 
-                                : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-blue-600 hover:text-white"
-                            )}
-                          >
-                            <Plus size={12} />
-                            Registrar Matrícula
-                          </button>
+                          <div className="flex gap-1.5 w-full">
+                            <button 
+                              onClick={() => handleAddContribution(0)}
+                              className={cn(
+                                "flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1 cursor-pointer",
+                                isExpected 
+                                  ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-600 hover:text-white" 
+                                  : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-blue-600 hover:text-white"
+                              )}
+                            >
+                              <Plus size={12} />
+                              Registrar
+                            </button>
+                            <button 
+                              onClick={() => handleOpenAbonoModal([0])}
+                              className="px-2.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-blue-200 bg-blue-50 text-blue-700 hover:bg-[#00174b] hover:text-white hover:border-[#00174b] flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                              title="Abonar Taxa de Matrícula (Isenção)"
+                            >
+                              <Award size={12} />
+                              Abonar
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -2417,8 +2576,13 @@ export function Contributions() {
                           </span>
                         </div>
                         {contrib && (
-                          <div className="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
-                            <CheckCircle2 size={12} />
+                          <div className={cn(
+                            "w-5 h-5 rounded-md text-white flex items-center justify-center shadow-lg",
+                            isContributionWaived(contrib)
+                              ? "bg-blue-600 shadow-blue-600/20"
+                              : "bg-emerald-500 shadow-emerald-500/10"
+                          )}>
+                            {isContributionWaived(contrib) ? <Award size={12} /> : <CheckCircle2 size={12} />}
                           </div>
                         )}
                         {!contrib && isFacultative && (
@@ -2431,19 +2595,32 @@ export function Contributions() {
                       {contrib ? (
                         <>
                           <div className="space-y-0.5">
-                            <p className="text-lg font-black text-[#131b2e] leading-none">{formatCurrency(contrib.amount)}</p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-lg font-black text-[#131b2e] leading-none">
+                                {isContributionWaived(contrib) ? 'R$ 0,00' : formatCurrency(contrib.amount)}
+                              </p>
+                              {isContributionWaived(contrib) && (
+                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[8px] font-black uppercase tracking-wider border border-blue-200">
+                                  Abonado
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2">
-                              <p className="text-[9px] font-bold text-slate-400">Pago: {safeFormat(contrib.payment_date, 'dd/MM/yy')}</p>
+                              <p className="text-[9px] font-bold text-slate-400">
+                                {isContributionWaived(contrib) ? 'Abono: ' : 'Pago: '}{safeFormat(contrib.payment_date, 'dd/MM/yy')}
+                              </p>
                               <span className={cn(
                                 "px-1.5 py-px rounded text-[7px] font-black uppercase tracking-wider border",
-                                contrib.pix_id 
+                                isContributionWaived(contrib)
+                                  ? "bg-blue-50 text-blue-700 border-blue-200 font-bold"
+                                  : contrib.pix_id 
                                   ? "bg-blue-50 text-blue-600 border-blue-100" 
                                   : "bg-slate-50 text-slate-600 border-slate-100"
                               )}>
-                                {contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`}
+                                {isContributionWaived(contrib) ? 'Abono (Isenção)' : (contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`)}
                               </span>
                             </div>
-                            {contrib.observations && (
+                            {contrib.observations && !isContributionWaived(contrib) && (
                               <p className="text-[9px] text-slate-400 italic truncate" title={contrib.observations}>
                                 {contrib.observations}
                               </p>
@@ -2499,20 +2676,30 @@ export function Contributions() {
                               {isFacultative ? 'Não gera pendência se não pago' : isExpected ? 'Mensalidade regular' : 'Fora do calendário'}
                             </p>
                           </div>
-                          <button 
-                            onClick={() => handleAddContribution(monthNum)}
-                            className={cn(
-                              "w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1.5",
-                              isExpected 
-                                ? "bg-slate-50 text-slate-600 border-dashed border-slate-300 hover:bg-blue-600 hover:text-white" 
-                                : isFacultative
-                                ? "bg-amber-50 text-amber-700 border-dashed border-amber-200 hover:bg-amber-600 hover:text-white"
-                                : "bg-slate-50 text-slate-400 border-dashed border-slate-200 hover:bg-blue-600 hover:text-white"
-                            )}
-                          >
-                            <Plus size={12} />
-                            {isExpected ? "Registrar" : isFacultative ? "Registrar (Facultativo)" : "Registrar"}
-                          </button>
+                          <div className="flex gap-1.5 w-full">
+                            <button 
+                              onClick={() => handleAddContribution(monthNum)}
+                              className={cn(
+                                "flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1 cursor-pointer",
+                                isExpected 
+                                  ? "bg-slate-50 text-slate-600 border-dashed border-slate-300 hover:bg-blue-600 hover:text-white" 
+                                  : isFacultative
+                                  ? "bg-amber-50 text-amber-700 border-dashed border-amber-200 hover:bg-amber-600 hover:text-white"
+                                  : "bg-slate-50 text-slate-400 border-dashed border-slate-200 hover:bg-blue-600 hover:text-white"
+                              )}
+                            >
+                              <Plus size={12} />
+                              {isExpected ? "Registrar" : isFacultative ? "Registrar (Facultativo)" : "Registrar"}
+                            </button>
+                            <button 
+                              onClick={() => handleOpenAbonoModal([monthNum])}
+                              className="px-2.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-blue-200 bg-blue-50 text-blue-700 hover:bg-[#00174b] hover:text-white hover:border-[#00174b] flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                              title={`Abonar Mensalidade de ${month} (Isenção)`}
+                            >
+                              <Award size={12} />
+                              Abonar
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -2743,7 +2930,10 @@ export function Contributions() {
                                     />
                                   </td>
                                   <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                                    {filterType === 'payment' ? 'Pago em' : 'Importado em'} {safeFormat(filterType === 'payment' ? c.payment_date : (c.created_at || c.payment_date), 'dd/MM/yyyy')}
+                                    {isContributionWaived(c)
+                                      ? `Abonado em ${safeFormat(c.payment_date, 'dd/MM/yyyy')}`
+                                      : `${filterType === 'payment' ? 'Pago em' : 'Importado em'} ${safeFormat(filterType === 'payment' ? c.payment_date : (c.created_at || c.payment_date), 'dd/MM/yyyy')}`
+                                    }
                                   </td>
                                   <td className="px-6 py-4 text-xs font-bold uppercase text-[#131b2e] tracking-wider">
                                     {formatContributionMonth(c.reference_month)} / {c.reference_year}
@@ -2752,14 +2942,16 @@ export function Contributions() {
                                     <div className="flex items-center gap-2">
                                       <span className={cn(
                                         "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
-                                        c.pix_id 
+                                        isContributionWaived(c)
+                                          ? "bg-blue-50 text-blue-800 border-blue-200 font-bold"
+                                          : c.pix_id 
                                           ? "bg-blue-50 text-blue-600 border-blue-100" 
                                           : "bg-slate-50 text-slate-600 border-slate-100"
                                       )}>
-                                        {c.pix_id ? 'PIX por Importação' : `Pagamento Direto (${c.payment_method || 'Dinheiro'})`}
+                                        {isContributionWaived(c) ? 'Abono (Isenção)' : c.pix_id ? 'PIX por Importação' : `Pagamento Direto (${c.payment_method || 'Dinheiro'})`}
                                       </span>
                                       {c.pix_id && <span title="Registro Conciliado"><Link2Off size={11} className="text-blue-500" /></span>}
-                                      {c.observations && (
+                                      {c.observations && !isContributionWaived(c) && (
                                         <span className="text-[10px] text-slate-400 italic truncate max-w-[150px]" title={c.observations}>
                                           • {c.observations}
                                         </span>
@@ -3037,13 +3229,14 @@ export function Contributions() {
               {/* Forma de Recebimento */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Recebimento</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {(['Dinheiro', 'PIX', 'Cartão'] as const).map((method) => (
                     <button
                       key={method}
+                      type="button"
                       onClick={() => setManualMethod(method)}
                       className={cn(
-                        "py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border",
+                        "py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer",
                         manualMethod === method 
                           ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100" 
                           : "bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-600"
@@ -3052,6 +3245,15 @@ export function Contributions() {
                       {method}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAbonoModal(manualMonths)}
+                    className="py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-blue-200 bg-blue-50 text-blue-800 hover:bg-[#00174b] hover:text-white hover:border-[#00174b] flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                    title="Abonar períodos selecionados com justificativa"
+                  >
+                    <Award size={13} />
+                    Abono
+                  </button>
                 </div>
               </div>
 
@@ -3085,6 +3287,123 @@ export function Contributions() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pequena Janela / Modal de Abono de Contribuição */}
+      {abonoModal && abonoModal.isOpen && selectedStudent && (
+        <div className="fixed inset-0 bg-[#00174b]/50 backdrop-blur-sm z-[130] flex items-center justify-center p-3 sm:p-4 overflow-y-auto print:hidden">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col my-auto">
+            {/* Header da Janela */}
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#00174b] text-white flex items-center justify-center shadow-md shadow-blue-950/20 shrink-0">
+                  <Award size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wide leading-tight">Abonar Contribuição</h3>
+                  <p className="text-[10px] font-bold text-slate-500">Concessão de Isenção do Aluno • {selectedYear}</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setAbonoModal(null)}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Corpo da Janela */}
+            <div className="p-4 sm:p-5 space-y-3.5">
+              {/* Identificação do Aluno e Períodos */}
+              <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100/90 space-y-1.5">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider">Aluno(a):</span>
+                  <span className="font-mono text-slate-600 font-bold">Matrícula: {selectedStudent.registration_number || '---'}</span>
+                </div>
+                <p className="text-xs font-black text-[#00174b] truncate">{selectedStudent.name}</p>
+                <div className="pt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold text-slate-500">Período(s) a Abonar:</span>
+                  {abonoModal.periods.map(p => (
+                    <span key={p} className="px-2 py-0.5 bg-[#00174b] text-white rounded text-[9px] font-black uppercase">
+                      {formatContributionMonth(p)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Data da Concessão */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+                  Data da Concessão do Abono
+                </label>
+                <input 
+                  type="date"
+                  value={abonoModal.date}
+                  onChange={(e) => setAbonoModal(prev => prev ? { ...prev, date: e.target.value } : null)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-[#00174b] focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
+                />
+              </div>
+
+              {/* Campo de Texto Limitado para Breve Justificativa */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                    Breve Justificativa do Motivo do Abono *
+                  </label>
+                  <span className={cn(
+                    "text-[10px] font-mono font-bold",
+                    abonoModal.reason.length >= 230 ? "text-red-600" : "text-slate-400"
+                  )}>
+                    {abonoModal.reason.length} / 250
+                  </span>
+                </div>
+                <textarea 
+                  value={abonoModal.reason}
+                  onChange={(e) => setAbonoModal(prev => prev ? { ...prev, reason: e.target.value.slice(0, 250) } : null)}
+                  maxLength={250}
+                  rows={3}
+                  placeholder="Informe o motivo do abono (ex: bolsa de estudos pastoral, dispensa pela coordenação)..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all resize-none leading-relaxed placeholder:text-slate-400"
+                />
+                <p className="text-[9.5px] text-slate-500 leading-snug italic bg-slate-50 p-2 rounded-lg border border-slate-200/70">
+                  ℹ️ <strong>Auditoria Interna:</strong> Esta justificativa é registrada para controle administrativo interno. Não há opção de impressão da justificativa em recibos ou relatórios oficiais.
+                </p>
+              </div>
+            </div>
+
+            {/* Rodapé da Janela - Sem opção de impressão da justificativa */}
+            <div className="p-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAbonoModal(null)}
+                disabled={abonoModal.isSubmitting}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/70 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmAbono}
+                disabled={abonoModal.isSubmitting || !abonoModal.reason.trim()}
+                className="px-5 py-2 bg-[#00174b] hover:bg-blue-900 active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md shadow-blue-950/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {abonoModal.isSubmitting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Gravando Abono...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} />
+                    Confirmar Abono
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -3192,9 +3511,9 @@ export function Contributions() {
                                   {items.map((reg) => (
                                     <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
                                       <td className="py-1.5 px-2">{formatContributionMonth(reg.reference_month, true)} / {reg.reference_year}</td>
-                                      <td className="py-1.5 px-2 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
+                                      <td className="py-1.5 px-2 border-l border-slate-100">{isContributionWaived(reg) ? 'R$ 0,00' : formatCurrency(reg.amount)}</td>
                                       <td className="py-1.5 px-2 border-l border-slate-100 text-[9px] font-semibold text-slate-600">
-                                        {reg.pix_id ? 'Importado' : (reg.payment_method || 'Dinheiro')}
+                                        {isContributionWaived(reg) ? 'Abono (Isenção)' : (reg.pix_id ? 'Importado' : (reg.payment_method || 'Dinheiro'))}
                                       </td>
                                       <td className="py-1.5 px-2 border-l border-slate-100 text-[#00174b]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
                                     </tr>
