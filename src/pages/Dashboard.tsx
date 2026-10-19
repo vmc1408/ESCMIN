@@ -3010,10 +3010,11 @@ export function Dashboard() {
                    ======================================================== */}
                 {financialChartMode === 'monthly' && (
                   <div className="space-y-3.5 mb-4">
-                    {/* Barra de Navegação Mês a Mês */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
+                    {/* Barra de Navegação Mês a Mês Simplificada e Direta */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-2xs">
+                      {/* Lado Esquerdo: Mês em Análise com navegação rápida */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                           Mês em Análise:
                         </span>
                         <div className="flex items-center gap-1">
@@ -3021,19 +3022,19 @@ export function Dashboard() {
                             type="button"
                             onClick={() => setSelectedComparisonMonth(prev => Math.max(1, prev - 1))}
                             disabled={selectedComparisonMonth === 1}
-                            className="p-1 rounded bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none border border-slate-200 shadow-2xs cursor-pointer"
+                            className="p-1 rounded bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none border border-slate-200 shadow-2xs cursor-pointer transition-colors"
                             title="Mês anterior"
                           >
                             <ChevronLeft size={14} />
                           </button>
-                          <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded text-xs font-black shadow-2xs">
+                          <span className="px-2.5 py-0.5 bg-[#00174b] text-white rounded-lg text-xs font-bold shadow-2xs">
                             {MONTH_NAMES_LIST[selectedComparisonMonth - 1]} / {delinquencyYear}
                           </span>
                           <button
                             type="button"
                             onClick={() => setSelectedComparisonMonth(prev => Math.min(12, prev + 1))}
                             disabled={selectedComparisonMonth === 12}
-                            className="p-1 rounded bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none border border-slate-200 shadow-2xs cursor-pointer"
+                            className="p-1 rounded bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none border border-slate-200 shadow-2xs cursor-pointer transition-colors"
                             title="Próximo mês"
                           >
                             <ChevronRight size={14} />
@@ -3041,8 +3042,8 @@ export function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Seletor rápido de meses (Pills Jan a Dez) */}
-                      <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                      {/* Centro: Seletor Rápido de Meses (Pills Jan a Dez) */}
+                      <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
                         {MONTH_SHORT_LABELS.map((label, idx) => {
                           const mNum = idx + 1;
                           const isSel = selectedComparisonMonth === mNum;
@@ -3052,9 +3053,9 @@ export function Dashboard() {
                               type="button"
                               onClick={() => setSelectedComparisonMonth(mNum)}
                               className={cn(
-                                "px-2 py-1 rounded-md text-[10px] font-bold transition-all shrink-0 cursor-pointer",
+                                "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 cursor-pointer",
                                 isSel
-                                  ? "bg-blue-600 text-white shadow-2xs scale-105"
+                                  ? "bg-[#00174b] text-white shadow-2xs"
                                   : "bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200/70"
                               )}
                             >
@@ -3063,122 +3064,63 @@ export function Dashboard() {
                           );
                         })}
                       </div>
-
-                      {/* Alternadores: Escopo Trio vs 12 Meses & Mês Isolado vs Acumulado */}
-                      <div className="flex items-center gap-1.5 self-start md:self-auto shrink-0 flex-wrap">
-                        {/* Trio vs 12 Meses */}
-                        <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200/80">
-                          <button
-                            type="button"
-                            onClick={() => setMonthlyChartScope('trio')}
-                            className={cn(
-                              "px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer",
-                              monthlyChartScope === 'trio'
-                                ? "bg-blue-50 text-blue-700 font-black"
-                                : "text-slate-500 hover:text-slate-800"
-                            )}
-                          >
-                            Foco Trio (M-1, M, M+1)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setMonthlyChartScope('all')}
-                            className={cn(
-                              "px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer",
-                              monthlyChartScope === 'all'
-                                ? "bg-blue-50 text-blue-700 font-black"
-                                : "text-slate-500 hover:text-slate-800"
-                            )}
-                          >
-                            12 Meses
-                          </button>
-                        </div>
-
-                        {/* Mês Isolado vs Acumulado no Ano */}
-                        <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200/80">
-                          <button
-                            type="button"
-                            onClick={() => setMonthlyDisplayType('regular')}
-                            className={cn(
-                              "px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer",
-                              monthlyDisplayType === 'regular'
-                                ? "bg-emerald-50 text-emerald-800 font-black"
-                                : "text-slate-500 hover:text-slate-800"
-                            )}
-                          >
-                            Mês a Mês
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setMonthlyDisplayType('accumulated')}
-                            className={cn(
-                              "px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer",
-                              monthlyDisplayType === 'accumulated'
-                                ? "bg-blue-50 text-blue-800 font-black"
-                                : "text-slate-500 hover:text-slate-800"
-                            )}
-                          >
-                            Acumulado no Ano
-                          </button>
-                        </div>
-                      </div>
                     </div>
 
-                    {/* Cards de Síntese do Mês Selecionado */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                      {/* Previsto no Mês */}
-                      <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-200/70 shadow-2xs flex flex-col justify-between">
+                    {/* 4 Cards Principais de Síntese (Claros, Diretos e Completos) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {/* 1. Previsto a Receber */}
+                      <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 shadow-2xs flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between gap-1 mb-1">
                             <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider">
                               Previsto a Receber
                             </span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-200">
                               {delinquencyMonthlyData.comparison.selectedMonth.monthShort}
                             </span>
                           </div>
-                          <div className="text-lg font-black text-blue-950 tabular-nums">
+                          <div className="text-xl font-black text-blue-950 tabular-nums">
                             {formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthPrevisto)}
                           </div>
-                          <p className="text-[10px] text-blue-700 font-semibold mt-0.5">
+                          <p className="text-[11px] text-blue-700 font-medium mt-0.5">
                             Expectativa do plano curricular
                           </p>
                         </div>
-                        <div className="mt-2 pt-1.5 border-t border-blue-200/60 text-[10px] text-blue-900/80 flex justify-between">
+                        <div className="mt-2.5 pt-2 border-t border-blue-200/70 text-[11px] text-blue-900/80 flex justify-between">
                           <span>Acumulado no ano:</span>
                           <span className="font-bold">{formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.accumulatedPrevisto)}</span>
                         </div>
                       </div>
 
-                      {/* Realizado no Mês */}
-                      <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200/70 shadow-2xs flex flex-col justify-between">
+                      {/* 2. Realizado Recebido */}
+                      <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 shadow-2xs flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between gap-1 mb-1">
                             <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider">
                               Realizado Recebido
                             </span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                               Efetivado
                             </span>
                           </div>
-                          <div className="text-lg font-black text-emerald-950 tabular-nums">
+                          <div className="text-xl font-black text-emerald-950 tabular-nums">
                             {formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthRealizado)}
                           </div>
-                          <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                          <p className="text-[11px] text-emerald-700 font-medium mt-0.5">
                             {delinquencyMonthlyData.comparison.selectedMonth.contribCount} pagamento(s) computado(s)
                           </p>
                         </div>
-                        <div className="mt-2 pt-1.5 border-t border-emerald-200/60 text-[10px] text-emerald-900/80 flex justify-between">
+                        <div className="mt-2.5 pt-2 border-t border-emerald-200/70 text-[11px] text-emerald-900/80 flex justify-between">
                           <span>Acumulado no ano:</span>
                           <span className="font-bold">{formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.accumulatedRealizado)}</span>
                         </div>
                       </div>
 
-                      {/* Saldo da Diferença */}
+                      {/* 3. Saldo da Diferença */}
                       <div className={cn(
-                        "p-3 rounded-xl border shadow-2xs flex flex-col justify-between",
+                        "p-3.5 rounded-xl border shadow-2xs flex flex-col justify-between",
                         delinquencyMonthlyData.comparison.selectedMonth.monthSaldo > 0
-                          ? "bg-amber-50/80 border-amber-200/80"
+                          ? "bg-amber-50/70 border-amber-200/80"
                           : "bg-slate-50 border-slate-200/80"
                       )}>
                         <div>
@@ -3190,7 +3132,7 @@ export function Dashboard() {
                               Saldo da Diferença
                             </span>
                             <span className={cn(
-                              "text-[9px] font-bold px-1.5 py-0.5 rounded",
+                              "text-[10px] font-bold px-1.5 py-0.5 rounded",
                               delinquencyMonthlyData.comparison.selectedMonth.monthSaldo > 0
                                 ? "bg-amber-100 text-amber-900 border border-amber-200"
                                 : "bg-emerald-100 text-emerald-900 border border-emerald-200"
@@ -3199,240 +3141,195 @@ export function Dashboard() {
                             </span>
                           </div>
                           <div className={cn(
-                            "text-lg font-black tabular-nums",
+                            "text-xl font-black tabular-nums",
                             delinquencyMonthlyData.comparison.selectedMonth.monthSaldo > 0 ? "text-amber-950" : "text-slate-900"
                           )}>
                             {formatCurrency(Math.abs(delinquencyMonthlyData.comparison.selectedMonth.monthSaldo))}
                           </div>
-                          <p className="text-[10px] font-semibold mt-0.5 text-slate-500">
+                          <p className="text-[11px] font-medium mt-0.5 text-slate-500">
                             {delinquencyMonthlyData.comparison.selectedMonth.monthSaldo > 0
                               ? 'Diferença prevista a ser recebida'
-                              : 'Totalmente realizado ou superavitário'}
+                              : 'Totalmente realizado'}
                           </p>
                         </div>
-                        <div className="mt-2 pt-1.5 border-t border-slate-200/60 text-[10px] text-slate-600 flex justify-between">
+                        <div className="mt-2.5 pt-2 border-t border-slate-200/70 text-[11px] text-slate-600 flex justify-between">
                           <span>Saldo acum. no ano:</span>
                           <span className="font-bold text-slate-800">{formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.accumulatedSaldo)}</span>
                         </div>
                       </div>
 
-                      {/* Taxa de Efetivação / Arrecadação */}
-                      <div className="p-3 rounded-xl bg-violet-50/80 border border-violet-200/70 shadow-2xs flex flex-col justify-between">
+                      {/* 4. Taxa de Efetivação */}
+                      <div className="p-3.5 rounded-xl bg-violet-50/70 border border-violet-200/80 shadow-2xs flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between gap-1 mb-1">
                             <span className="text-[10px] font-bold text-violet-900 uppercase tracking-wider">
                               Taxa de Efetivação
                             </span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 border border-violet-200">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 border border-violet-200">
                               Realizado / Previsto
                             </span>
                           </div>
-                          <div className="text-lg font-black text-violet-950 tabular-nums">
+                          <div className="text-xl font-black text-violet-950 tabular-nums">
                             {delinquencyMonthlyData.comparison.selectedMonth.rateRealizado}%
                           </div>
-                          <p className="text-[10px] text-violet-700 font-semibold mt-0.5">
+                          <p className="text-[11px] text-violet-700 font-medium mt-0.5">
                             Atingimento da previsão no mês
                           </p>
                         </div>
-                        <div className="mt-2 pt-1.5 border-t border-violet-200/60 text-[10px] text-violet-900/80 flex justify-between">
+                        <div className="mt-2.5 pt-2 border-t border-violet-200/70 text-[11px] text-violet-900/80 flex justify-between">
                           <span>Efetivação acum. ano:</span>
                           <span className="font-bold">{delinquencyMonthlyData.comparison.selectedMonth.rateRealizadoAccum}%</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* COMPARATIVO DE 3 COLUNAS: ANTECESSOR vs SELECIONADO vs POSTERIOR */}
+                    {/* Faixa Comparativa de Contexto Temporal (Sem Duplicações) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {/* Coluna 1: Mês Antecessor */}
-                      <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-                        {delinquencyMonthlyData.comparison.prevMonth ? (
-                          <>
-                            <div>
-                              <div className="flex items-center justify-between gap-1 mb-1.5">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                                  Mês Antecessor (M - 1)
-                                </span>
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                                  {delinquencyMonthlyData.comparison.prevMonth.monthName}
-                                </span>
-                              </div>
-                              <div className="flex items-baseline justify-between">
-                                <span className="text-xs text-slate-500 font-medium">Previsto:</span>
-                                <span className="text-sm font-bold text-slate-800">{formatCurrency(delinquencyMonthlyData.comparison.prevMonth.monthPrevisto)}</span>
-                              </div>
-                              <div className="flex items-baseline justify-between mt-1">
-                                <span className="text-xs text-emerald-700 font-medium">Realizado:</span>
-                                <span className="text-base font-black text-emerald-800">{formatCurrency(delinquencyMonthlyData.comparison.prevMonth.monthRealizado)}</span>
-                              </div>
-                              <div className="flex items-baseline justify-between mt-1 text-[11px]">
-                                <span className="text-slate-500">Saldo da Diferença:</span>
-                                <span className={cn(
-                                  "font-bold",
-                                  delinquencyMonthlyData.comparison.prevMonth.monthSaldo > 0 ? "text-amber-700" : "text-emerald-700"
-                                )}>
-                                  {formatCurrency(delinquencyMonthlyData.comparison.prevMonth.monthSaldo)}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="mt-2.5 pt-2 border-t border-slate-200/70 space-y-1 text-[10.5px]">
-                              <div className="flex justify-between text-slate-600">
-                                <span>Taxa de Realização:</span>
-                                <span className="font-bold text-slate-800">{delinquencyMonthlyData.comparison.prevMonth.rateRealizado}%</span>
-                              </div>
-                              <div className="flex justify-between text-slate-600">
-                                <span>Acumulado até M-1:</span>
-                                <span className="font-bold text-slate-800">{formatCurrency(delinquencyMonthlyData.comparison.prevMonth.accumulatedRealizado)}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedComparisonMonth(selectedComparisonMonth - 1)}
-                                className="w-full mt-2 text-center text-[9.5px] font-bold text-blue-700 hover:text-blue-900 hover:underline pt-1 cursor-pointer"
-                              >
-                                ← Analisar este mês em foco
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-center py-6 text-slate-400">
-                            <span className="text-xs font-bold text-slate-600 mb-1">Início do Ano Letivo</span>
-                            <span className="text-[10px]">Janeiro é o primeiro mês do ano letivo (não possui antecessor).</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Coluna 2: Mês Selecionado (Destaque Principal) */}
-                      <div className="p-3.5 rounded-xl bg-blue-50/70 border-2 border-blue-500 shadow-xs flex flex-col justify-between relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-blue-600 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-bl-lg">
-                          Mês em Foco
-                        </div>
-
+                      {/* Coluna 1: Contexto do Mês Anterior */}
+                      <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between">
                         <div>
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <span className="text-[11px] font-black text-blue-950 uppercase tracking-wider">
-                              {delinquencyMonthlyData.comparison.selectedMonth.monthName} / {delinquencyYear}
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              Mês Anterior (M - 1)
                             </span>
+                            {delinquencyMonthlyData.comparison.prevMonth && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                                {delinquencyMonthlyData.comparison.prevMonth.monthName}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-xs text-blue-800 font-medium">Previsto (A Receber):</span>
-                            <span className="text-sm font-bold text-blue-950">{formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthPrevisto)}</span>
-                          </div>
-                          <div className="flex items-baseline justify-between mt-1">
-                            <span className="text-xs text-emerald-800 font-medium">Realizado (Recebido):</span>
-                            <span className="text-xl font-black text-emerald-900">{formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthRealizado)}</span>
-                          </div>
-                          <div className="flex items-baseline justify-between mt-1 text-[11px]">
-                            <span className="text-slate-700">Saldo da Diferença:</span>
-                            <span className={cn(
-                              "font-bold text-xs",
-                              delinquencyMonthlyData.comparison.selectedMonth.monthSaldo > 0 ? "text-amber-800" : "text-emerald-800"
-                            )}>
-                              {formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthSaldo)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Bloco de Variação comparativa vs Antecessor */}
-                        <div className="mt-2.5 pt-2 border-t border-blue-200/80 space-y-1 text-[10.5px]">
                           {delinquencyMonthlyData.comparison.prevMonth ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-600 font-medium">Variação Realizado vs M-1:</span>
-                                {delinquencyMonthlyData.comparison.deltaRealizadoVsPrev !== null && (
-                                  <span className={cn(
-                                    "flex items-center gap-0.5 px-1.5 py-0.5 rounded font-bold text-[10px]",
-                                    delinquencyMonthlyData.comparison.deltaRealizadoVsPrev >= 0
-                                      ? "bg-emerald-100 text-emerald-800"
-                                      : "bg-rose-100 text-rose-800"
-                                  )}>
-                                    {delinquencyMonthlyData.comparison.deltaRealizadoVsPrev >= 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
-                                    <span>
-                                      {delinquencyMonthlyData.comparison.deltaRealizadoVsPrev >= 0 ? '+' : ''}
-                                      {formatCurrency(delinquencyMonthlyData.comparison.deltaRealizadoVsPrev)}
-                                      {delinquencyMonthlyData.comparison.deltaRealizadoPctVsPrev !== null ? ` (${delinquencyMonthlyData.comparison.deltaRealizadoPctVsPrev}%)` : ''}
-                                    </span>
-                                  </span>
-                                )}
+                            <div className="space-y-1.5 text-xs">
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-slate-500">Realizado:</span>
+                                <span className="font-bold text-emerald-800">{formatCurrency(delinquencyMonthlyData.comparison.prevMonth.monthRealizado)}</span>
                               </div>
-                              <div className="flex items-center justify-between text-[10px] text-slate-500">
-                                <span>Variação Previsto:</span>
-                                <span className="font-semibold text-slate-700">
-                                  {delinquencyMonthlyData.comparison.deltaPrevistoVsPrev !== null && (
-                                    <>
-                                      {delinquencyMonthlyData.comparison.deltaPrevistoVsPrev >= 0 ? '+' : ''}
-                                      {formatCurrency(delinquencyMonthlyData.comparison.deltaPrevistoVsPrev)}
-                                    </>
-                                  )}
-                                </span>
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-slate-500">Taxa de Realização:</span>
+                                <span className="font-bold text-slate-700">{delinquencyMonthlyData.comparison.prevMonth.rateRealizado}%</span>
+                              </div>
+                              <div className="flex justify-between items-baseline text-[11px]">
+                                <span className="text-slate-400">Saldo Pendente:</span>
+                                <span className="font-medium text-slate-600">{formatCurrency(delinquencyMonthlyData.comparison.prevMonth.monthSaldo)}</span>
                               </div>
                             </div>
                           ) : (
-                            <div className="text-[10px] text-slate-500 italic">Mês base inicial do exercício</div>
+                            <div className="py-4 text-center text-xs text-slate-400 italic">
+                              Janeiro é o primeiro mês do ano letivo.
+                            </div>
                           )}
+                        </div>
+                        {delinquencyMonthlyData.comparison.prevMonth && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedComparisonMonth(selectedComparisonMonth - 1)}
+                            className="mt-2.5 pt-2 border-t border-slate-200 text-left text-[11px] font-bold text-blue-700 hover:text-blue-900 cursor-pointer flex items-center gap-1"
+                          >
+                            <ChevronLeft size={13} />
+                            <span>Analisar {delinquencyMonthlyData.comparison.prevMonth.monthName}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Coluna 2: Desempenho e Variação no Mês em Foco (Sem duplicar os valores já exibidos nos cards) */}
+                      <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-200 shadow-2xs flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
+                              Variação & Desempenho
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#00174b] text-white">
+                              {delinquencyMonthlyData.comparison.selectedMonth.monthName}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-600 font-medium">Variação vs Mês Anterior:</span>
+                              {delinquencyMonthlyData.comparison.deltaRealizadoVsPrev !== null ? (
+                                <span className={cn(
+                                  "font-bold px-1.5 py-0.5 rounded text-[11px] flex items-center gap-0.5",
+                                  delinquencyMonthlyData.comparison.deltaRealizadoVsPrev >= 0
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-rose-100 text-rose-800"
+                                )}>
+                                  {delinquencyMonthlyData.comparison.deltaRealizadoVsPrev >= 0 ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+                                  <span>
+                                    {delinquencyMonthlyData.comparison.deltaRealizadoVsPrev >= 0 ? '+' : ''}
+                                    {formatCurrency(delinquencyMonthlyData.comparison.deltaRealizadoVsPrev)}
+                                    {delinquencyMonthlyData.comparison.deltaRealizadoPctVsPrev !== null && ` (${delinquencyMonthlyData.comparison.deltaRealizadoPctVsPrev}%)`}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-medium">Mês base</span>
+                              )}
+                            </div>
+                            <div className="flex justify-between items-center text-[11px]">
+                              <span className="text-slate-500">Média Mensal Realizada:</span>
+                              <span className="font-semibold text-slate-700">
+                                {formatCurrency(delinquencyMonthlyData.annual.realizado / 12)} / mês
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px]">
+                              <span className="text-slate-500">Participação no Ano:</span>
+                              <span className="font-semibold text-slate-700">
+                                {delinquencyMonthlyData.annual.realizado > 0
+                                  ? `${((delinquencyMonthlyData.comparison.selectedMonth.monthRealizado / delinquencyMonthlyData.annual.realizado) * 100).toFixed(1)}% do arrecadado`
+                                  : '0% do total'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-[11px] text-blue-900 font-semibold flex items-center justify-between">
+                          <span>Atingimento da Meta:</span>
+                          <span className="font-black text-blue-950">{delinquencyMonthlyData.comparison.selectedMonth.rateRealizado}%</span>
                         </div>
                       </div>
 
-                      {/* Coluna 3: Mês Posterior */}
-                      <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-                        {delinquencyMonthlyData.comparison.nextMonth ? (
-                          <>
-                            <div>
-                              <div className="flex items-center justify-between gap-1 mb-1.5">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                                  Mês Posterior (M + 1)
-                                </span>
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                                  {delinquencyMonthlyData.comparison.nextMonth.monthName}
-                                </span>
+                      {/* Coluna 3: Contexto do Próximo Mês */}
+                      <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              Próximo Mês (M + 1)
+                            </span>
+                            {delinquencyMonthlyData.comparison.nextMonth && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                                {delinquencyMonthlyData.comparison.nextMonth.monthName}
+                              </span>
+                            )}
+                          </div>
+                          {delinquencyMonthlyData.comparison.nextMonth ? (
+                            <div className="space-y-1.5 text-xs">
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-slate-500">Previsão Projetada:</span>
+                                <span className="font-bold text-slate-800">{formatCurrency(delinquencyMonthlyData.comparison.nextMonth.monthPrevisto)}</span>
                               </div>
-                              <div className="flex items-baseline justify-between">
-                                <span className="text-xs text-slate-500 font-medium">Previsto Projetado:</span>
-                                <span className="text-sm font-bold text-slate-800">{formatCurrency(delinquencyMonthlyData.comparison.nextMonth.monthPrevisto)}</span>
-                              </div>
-                              <div className="flex items-baseline justify-between mt-1">
-                                <span className="text-xs text-emerald-700 font-medium">Realizado até Agora:</span>
-                                <span className="text-base font-black text-emerald-800">{formatCurrency(delinquencyMonthlyData.comparison.nextMonth.monthRealizado)}</span>
-                              </div>
-                              <div className="flex items-baseline justify-between mt-1 text-[11px]">
-                                <span className="text-slate-500">Saldo a Realizar:</span>
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-slate-500">Situação:</span>
                                 <span className="font-bold text-amber-700">
-                                  {formatCurrency(delinquencyMonthlyData.comparison.nextMonth.monthSaldo)}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="mt-2.5 pt-2 border-t border-slate-200/70 space-y-1 text-[10.5px]">
-                              <div className="flex justify-between text-slate-600">
-                                <span>Situação do Mês:</span>
-                                <span className="font-bold text-slate-800">
                                   {delinquencyMonthlyData.comparison.nextMonth.isFuture ? 'A Vencer' : 'Vigente'}
                                 </span>
                               </div>
-                              <div className="flex justify-between text-slate-600">
-                                <span>Variação de Previsão:</span>
-                                <span className="font-bold text-slate-800">
-                                  {delinquencyMonthlyData.comparison.deltaPrevistoVsNext !== null && (
-                                    <>
-                                      {delinquencyMonthlyData.comparison.deltaPrevistoVsNext >= 0 ? '+' : ''}
-                                      {formatCurrency(delinquencyMonthlyData.comparison.deltaPrevistoVsNext)}
-                                    </>
-                                  )}
-                                </span>
+                              <div className="flex justify-between items-baseline text-[11px]">
+                                <span className="text-slate-400">Realizado até Agora:</span>
+                                <span className="font-medium text-slate-600">{formatCurrency(delinquencyMonthlyData.comparison.nextMonth.monthRealizado)}</span>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedComparisonMonth(selectedComparisonMonth + 1)}
-                                className="w-full mt-2 text-center text-[9.5px] font-bold text-blue-700 hover:text-blue-900 hover:underline pt-1 cursor-pointer"
-                              >
-                                Analisar este mês em foco →
-                              </button>
                             </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-center py-6 text-slate-400">
-                            <span className="text-xs font-bold text-slate-600 mb-1">Encerramento do Ciclo</span>
-                            <span className="text-[10px]">Dezembro é o último mês do ano letivo (não possui posterior).</span>
-                          </div>
+                          ) : (
+                            <div className="py-4 text-center text-xs text-slate-400 italic">
+                              Dezembro encerra o exercício letivo.
+                            </div>
+                          )}
+                        </div>
+                        {delinquencyMonthlyData.comparison.nextMonth && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedComparisonMonth(selectedComparisonMonth + 1)}
+                            className="mt-2.5 pt-2 border-t border-slate-200 text-right text-[11px] font-bold text-blue-700 hover:text-blue-900 cursor-pointer flex items-center justify-end gap-1 ml-auto"
+                          >
+                            <span>Analisar {delinquencyMonthlyData.comparison.nextMonth.monthName}</span>
+                            <ChevronRight size={13} />
+                          </button>
                         )}
                       </div>
                     </div>
@@ -3476,35 +3373,6 @@ export function Dashboard() {
                             2º Semestre (Jul a Dez)
                           </button>
                         </div>
-                      </div>
-
-                      {/* Alternador de exibição no semestre: Mês a Mês vs Acumulado no Semestre */}
-                      <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-500 px-1.5">Barras:</span>
-                        <button
-                          type="button"
-                          onClick={() => setSemesterDisplayType('regular')}
-                          className={cn(
-                            "px-2.5 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer",
-                            semesterDisplayType === 'regular'
-                              ? "bg-slate-100 text-slate-900 font-black shadow-2xs"
-                              : "text-slate-500 hover:text-slate-800"
-                          )}
-                        >
-                          Valores Mês a Mês
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSemesterDisplayType('accumulated')}
-                          className={cn(
-                            "px-2.5 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer",
-                            semesterDisplayType === 'accumulated'
-                              ? "bg-blue-50 text-blue-800 font-black shadow-2xs"
-                              : "text-slate-500 hover:text-slate-800"
-                          )}
-                        >
-                          Acumulado no Semestre
-                        </button>
                       </div>
                     </div>
 
@@ -3644,35 +3512,6 @@ export function Dashboard() {
                           Exercício {delinquencyYear} (12 Meses)
                         </span>
                       </div>
-
-                      {/* Alternador de exibição anual: Mês a Mês vs Evolução Acumulada Anual */}
-                      <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200/80">
-                        <span className="text-[10px] font-bold text-slate-500 px-1.5">Barras:</span>
-                        <button
-                          type="button"
-                          onClick={() => setAnnualDisplayType('regular')}
-                          className={cn(
-                            "px-2.5 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer",
-                            annualDisplayType === 'regular'
-                              ? "bg-slate-100 text-slate-900 font-black shadow-2xs"
-                              : "text-slate-500 hover:text-slate-800"
-                          )}
-                        >
-                          Valores Mês a Mês (12 Meses)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAnnualDisplayType('accumulated')}
-                          className={cn(
-                            "px-2.5 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer",
-                            annualDisplayType === 'accumulated'
-                              ? "bg-blue-50 text-blue-800 font-black shadow-2xs"
-                              : "text-slate-500 hover:text-slate-800"
-                          )}
-                        >
-                          Evolução Acumulada Anual
-                        </button>
-                      </div>
                     </div>
 
                     {/* Cards de Resultado Anual Previsto, Realizado e Saldo da Diferença */}
@@ -3798,15 +3637,161 @@ export function Dashboard() {
                     GRÁFICO DE BARRAS RECHARTS DINÂMICO (PREVISTO vs REALIZADO vs SALDO)
                    ======================================================== */}
                 <div className="w-full pt-1">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-2 px-1">
-                    <span>
-                      {financialChartMode === 'monthly'
-                        ? `Comparativo de Barras (${monthlyChartScope === 'trio' ? 'Mês Anterior, Foco e Posterior' : '12 Meses'}) — ${monthlyDisplayType === 'accumulated' ? 'Valores Acumulados' : 'Valores do Mês'}`
-                        : financialChartMode === 'semester'
-                          ? `Comparativo Mês a Mês do ${delinquencyMonthlyData.activeSemesterSummary.title} (${semesterDisplayType === 'accumulated' ? 'Evolução Acumulada no Semestre' : 'Mês a Mês'})`
-                          : `Demonstrativo Anual dos 12 Meses (${annualDisplayType === 'accumulated' ? 'Evolução Acumulada Anual' : 'Valores Mês a Mês'})`}
-                    </span>
-                    <span className="text-[10px] text-slate-400">Valores em R$ (Reais)</span>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-2.5 px-1 pb-2 border-b border-slate-100">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                          {financialChartMode === 'monthly'
+                            ? `Comparativo de Barras (${monthlyChartScope === 'trio' ? '3 Meses: Anterior, Foco e Posterior' : '12 Meses'})`
+                            : financialChartMode === 'semester'
+                              ? `Comparativo Mês a Mês — ${delinquencyMonthlyData.activeSemesterSummary.title}`
+                              : `Demonstrativo Anual dos 12 Meses`}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                          {financialChartMode === 'monthly'
+                            ? (monthlyDisplayType === 'accumulated' ? 'Valores Acumulados no Ano' : 'Valores do Mês')
+                            : financialChartMode === 'semester'
+                              ? (semesterDisplayType === 'accumulated' ? 'Evolução Acumulada no Semestre' : 'Valores Mês a Mês')
+                              : (annualDisplayType === 'accumulated' ? 'Evolução Acumulada Anual' : 'Valores Mês a Mês')}
+                        </span>
+                      </div>
+                      <p className="text-[10px] sm:text-[10.5px] text-slate-500 font-medium mt-0.5">
+                        {financialChartMode === 'monthly'
+                          ? (monthlyChartScope === 'trio'
+                              ? `Comparando ${delinquencyMonthlyData.comparison.prevMonth.monthShort} (M-1), ${delinquencyMonthlyData.comparison.selectedMonth.monthShort} (Foco) e ${delinquencyMonthlyData.comparison.nextMonth.monthShort} (M+1)`
+                              : `Visão geral dos 12 meses de ${delinquencyYear} com o mês de ${delinquencyMonthlyData.comparison.selectedMonth.monthName} em foco`)
+                          : financialChartMode === 'semester'
+                            ? `Evolução das contribuições no ${delinquencyMonthlyData.activeSemesterSummary.periodLabel} de ${delinquencyYear}`
+                            : `Resultado detalhado das 12 competências do exercício ${delinquencyYear}`}
+                      </p>
+                    </div>
+
+                    {/* Controles do Gráfico de Barras reunidos */}
+                    <div className="flex items-center flex-wrap gap-2 self-start md:self-auto shrink-0">
+                      {/* 1. Escopo das Barras (apenas modo mensal) */}
+                      {financialChartMode === 'monthly' && (
+                        <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                          <span className="text-[9.5px] font-bold text-slate-400 px-1 uppercase tracking-wider hidden sm:inline">Escopo:</span>
+                          <button
+                            type="button"
+                            onClick={() => setMonthlyChartScope('trio')}
+                            className={cn(
+                              "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                              monthlyChartScope === 'trio'
+                                ? "bg-white text-blue-900 shadow-2xs font-extrabold"
+                                : "text-slate-500 hover:text-slate-800"
+                            )}
+                          >
+                            3 Meses (Foco)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMonthlyChartScope('all')}
+                            className={cn(
+                              "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                              monthlyChartScope === 'all'
+                                ? "bg-white text-blue-900 shadow-2xs font-extrabold"
+                                : "text-slate-500 hover:text-slate-800"
+                            )}
+                          >
+                            12 Meses
+                          </button>
+                        </div>
+                      )}
+
+                      {/* 2. Alternador de Mês a Mês vs Acumulado (agora posicionado junto ao gráfico de barras) */}
+                      <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <span className="text-[9.5px] font-bold text-slate-400 px-1 uppercase tracking-wider hidden sm:inline">Barras:</span>
+                        {financialChartMode === 'monthly' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setMonthlyDisplayType('regular')}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                                monthlyDisplayType === 'regular'
+                                  ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                                  : "text-slate-500 hover:text-slate-800"
+                              )}
+                            >
+                              Mês a Mês
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMonthlyDisplayType('accumulated')}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                                monthlyDisplayType === 'accumulated'
+                                  ? "bg-blue-50 text-blue-900 border border-blue-200/80 shadow-2xs font-extrabold"
+                                  : "text-slate-500 hover:text-slate-800"
+                              )}
+                            >
+                              Acumulado no Ano
+                            </button>
+                          </>
+                        )}
+                        {financialChartMode === 'semester' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setSemesterDisplayType('regular')}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                                semesterDisplayType === 'regular'
+                                  ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                                  : "text-slate-500 hover:text-slate-800"
+                              )}
+                            >
+                              Valores Mês a Mês
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSemesterDisplayType('accumulated')}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                                semesterDisplayType === 'accumulated'
+                                  ? "bg-blue-50 text-blue-900 border border-blue-200/80 shadow-2xs font-extrabold"
+                                  : "text-slate-500 hover:text-slate-800"
+                              )}
+                            >
+                              Acumulado no Semestre
+                            </button>
+                          </>
+                        )}
+                        {financialChartMode === 'annual' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setAnnualDisplayType('regular')}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                                annualDisplayType === 'regular'
+                                  ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                                  : "text-slate-500 hover:text-slate-800"
+                              )}
+                            >
+                              Valores Mês a Mês
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAnnualDisplayType('accumulated')}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
+                                annualDisplayType === 'accumulated'
+                                  ? "bg-blue-50 text-blue-900 border border-blue-200/80 shadow-2xs font-extrabold"
+                                  : "text-slate-500 hover:text-slate-800"
+                              )}
+                            >
+                              Evolução Acumulada
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      <span className="text-[10px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
+                        Valores em R$ (Reais)
+                      </span>
+                    </div>
                   </div>
 
                   <ResponsiveContainer width="100%" height={300}>
