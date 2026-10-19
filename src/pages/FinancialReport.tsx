@@ -59,7 +59,7 @@ const MONTH_SHORT = [
   'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
 ];
 
-type PeriodType = 'mensal' | 'trimestral' | 'semestral' | 'anual';
+type PeriodType = 'mensal' | 'intervalo' | 'trimestral' | 'semestral' | 'anual';
 type FinancialStatusFilter = 'all' | 'paid' | 'partial' | 'pending';
 
 export function FinancialReport() {
@@ -75,7 +75,7 @@ export function FinancialReport() {
   const [financialSettings, setFinancialSettings] = useState<FinancialSettings | null>(null);
   const [enrollments, setEnrollments] = useState<any[]>([]);
 
-// Filtros - Inicialmente limpos, sem dados pré-selecionados
+  // Filtros - Inicialmente limpos, sem dados pré-selecionados
   // 1º Filtro: Aluno ou Turma
   const [filterTarget, setFilterTarget] = useState<'class' | 'student'>('class');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -83,11 +83,17 @@ export function FinancialReport() {
   const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
   const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
 
+  // Alunos da Turma: Todos ou Selecionar
+  const [studentSelectionMode, setStudentSelectionMode] = useState<'all' | 'select'>('all');
+  const [selectedStudentIdsInClass, setSelectedStudentIdsInClass] = useState<string[]>([]);
+
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [periodType, setPeriodType] = useState<PeriodType | ''>('');
   
   // Sub-períodos - Inicialmente limpos
-  const [selectedMonth, setSelectedMonth] = useState<string>(''); // '1' a '12'
+  const [selectedMonth, setSelectedMonth] = useState<string>(''); // '1' a '12' (para mês único)
+  const [startMonth, setStartMonth] = useState<string>('1'); // '1' a '12' (período de um mês)
+  const [endMonth, setEndMonth] = useState<string>('12'); // '1' a '12' (a outro mês)
   const [selectedQuarter, setSelectedQuarter] = useState<string>(''); // '1' a '4'
   const [selectedSemester, setSelectedSemester] = useState<string>(''); // '1' ou '2'
 
@@ -137,10 +143,14 @@ export function FinancialReport() {
     setSelectedYear('');
     setPeriodType('');
     setSelectedMonth('');
+    setStartMonth('1');
+    setEndMonth('12');
     setSelectedQuarter('');
     setSelectedSemester('');
     setStatusFilter('');
     setSearchTerm('');
+    setStudentSelectionMode('all');
+    setSelectedStudentIdsInClass([]);
   }, []);
 
   const handlePeriodTypeChange = useCallback((type: PeriodType) => {
@@ -148,6 +158,13 @@ export function FinancialReport() {
     if (type === 'mensal') {
       const now = new Date();
       setSelectedMonth(String(now.getMonth() + 1));
+      setSelectedQuarter('');
+      setSelectedSemester('');
+    } else if (type === 'intervalo') {
+      const now = new Date();
+      setStartMonth('1');
+      setEndMonth(String(now.getMonth() + 1));
+      setSelectedMonth('');
       setSelectedQuarter('');
       setSelectedSemester('');
     } else if (type === 'trimestral') {
@@ -325,15 +342,19 @@ export function FinancialReport() {
 
   // Valida se os parâmetros obrigatórios foram definidos pelo usuário
   const isFilterReady = useMemo(() => {
-    if (filterTarget === 'class' && !selectedClassId) return false;
+    if (filterTarget === 'class') {
+      if (!selectedClassId) return false;
+      if (studentSelectionMode === 'select' && selectedStudentIdsInClass.length === 0) return false;
+    }
     if (filterTarget === 'student' && !selectedStudentId) return false;
     if (!selectedYear) return false;
     if (!periodType) return false;
     if (periodType === 'mensal' && !selectedMonth) return false;
+    if (periodType === 'intervalo' && (!startMonth || !endMonth)) return false;
     if (periodType === 'trimestral' && !selectedQuarter) return false;
     if (periodType === 'semestral' && !selectedSemester) return false;
     return true;
-  }, [filterTarget, selectedClassId, selectedStudentId, selectedYear, periodType, selectedMonth, selectedQuarter, selectedSemester]);
+  }, [filterTarget, selectedClassId, studentSelectionMode, selectedStudentIdsInClass, selectedStudentId, selectedYear, periodType, selectedMonth, startMonth, endMonth, selectedQuarter, selectedSemester]);
 
   // Determina os meses que compõem o período selecionado
   const periodMonths = useMemo((): number[] => {
@@ -341,6 +362,15 @@ export function FinancialReport() {
     switch (periodType) {
       case 'mensal':
         return selectedMonth ? [Number(selectedMonth)] : [];
+      case 'intervalo': {
+        const start = Math.min(Number(startMonth) || 1, Number(endMonth) || 12);
+        const end = Math.max(Number(startMonth) || 1, Number(endMonth) || 12);
+        const list: number[] = [];
+        for (let m = start; m <= end; m++) {
+          list.push(m);
+        }
+        return list;
+      }
       case 'trimestral':
         if (!selectedQuarter) return [];
         const q = Number(selectedQuarter);
@@ -356,7 +386,7 @@ export function FinancialReport() {
       default:
         return [];
     }
-  }, [periodType, selectedMonth, selectedQuarter, selectedSemester]);
+  }, [periodType, selectedMonth, startMonth, endMonth, selectedQuarter, selectedSemester]);
 
   // Nome amigável do período
   const periodLabel = useMemo(() => {
@@ -365,6 +395,15 @@ export function FinancialReport() {
     switch (periodType) {
       case 'mensal':
         return selectedMonth ? `${MONTH_NAMES[Number(selectedMonth) - 1]} de ${yearStr}` : `Mês pendente (${yearStr})`;
+      case 'intervalo': {
+        const start = Math.min(Number(startMonth) || 1, Number(endMonth) || 12);
+        const end = Math.max(Number(startMonth) || 1, Number(endMonth) || 12);
+        const sName = MONTH_NAMES[start - 1] || `Mês ${start}`;
+        const eName = MONTH_NAMES[end - 1] || `Mês ${end}`;
+        return start === end
+          ? `${sName} de ${yearStr}`
+          : `${sName} a ${eName} de ${yearStr}`;
+      }
       case 'trimestral':
         return selectedQuarter 
           ? `${selectedQuarter}º Trimestre de ${yearStr} (${MONTH_SHORT[(Number(selectedQuarter) - 1) * 3]} a ${MONTH_SHORT[Number(selectedQuarter) * 3 - 1]})`
@@ -378,7 +417,7 @@ export function FinancialReport() {
       default:
         return yearStr;
     }
-  }, [periodType, selectedMonth, selectedQuarter, selectedSemester, selectedYear]);
+  }, [periodType, selectedMonth, startMonth, endMonth, selectedQuarter, selectedSemester, selectedYear]);
 
   // Identifica se o período selecionado é o mês atual ou o ano completo para exibição do card 'A Vencer'
   const isCurrentMonthPeriod = useMemo(() => {
@@ -390,7 +429,7 @@ export function FinancialReport() {
     );
   }, [periodType, selectedMonth, selectedYear]);
 
-  const isAnnualPeriod = periodType === 'anual';
+  const isAnnualPeriod = periodType === 'anual' || periodType === 'intervalo';
   const showAVencerCard = isCurrentMonthPeriod || isAnnualPeriod;
 
 // Helper para verificar se um mês de um determinado ano já está vencido
@@ -490,6 +529,12 @@ const getStudentFee = useCallback((student: Student) => {
   return Number(financialSettings?.default_monthly_fee) || 100;
 }, [selectedYear, classes, financialSettings, contributions, students]);
 
+// Lista de todos os alunos pertencentes à turma selecionada
+const studentsInSelectedClass = useMemo(() => {
+  if (!selectedClassId) return [];
+  return filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
+}, [selectedClassId, scopedStudents, enrollments]);
+
 // Processamento analítico por aluno
 const reportData = useMemo(() => {
   if (!isFilterReady) {
@@ -507,7 +552,10 @@ const reportData = useMemo(() => {
       })()
     : (() => {
         if (!selectedClassId) return [];
-        const classStudents = filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
+        let classStudents = filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
+        if (studentSelectionMode === 'select') {
+          classStudents = classStudents.filter(student => selectedStudentIdsInClass.includes(student.id));
+        }
         if (searchTerm.trim()) {
           return classStudents.filter(student => matchesStudentSearch(student, searchTerm.trim()));
         }
@@ -528,8 +576,8 @@ const reportData = useMemo(() => {
     const paidMonthsInYear = studentContribs.map(c => Number(c.reference_month));
     const allExpectedInYear = getExpectedMonthsForStudent(student, yearNum, paidMonthsInYear);
 
-    // Meses esperados que caem no período selecionado (se anual ou 1º sem, inclui taxa de matrícula se esperada/paga)
-    const shouldIncludeMatricula = (periodType === 'anual' || (periodType === 'semestral' && selectedSemester === '1')) && (allExpectedInYear.includes(0) || paidMonthsInYear.includes(0));
+    // Meses esperados que caem no período selecionado (se anual, 1º sem ou intervalo contendo jan, inclui taxa de matrícula se esperada/paga)
+    const shouldIncludeMatricula = (periodType === 'anual' || (periodType === 'semestral' && selectedSemester === '1') || (periodType === 'intervalo' && periodMonths.includes(1))) && (allExpectedInYear.includes(0) || paidMonthsInYear.includes(0));
     const relevantPeriods = shouldIncludeMatricula ? [0, ...periodMonths] : periodMonths;
 
     const expectedInPeriod = relevantPeriods.filter(m => allExpectedInYear.includes(m));
@@ -704,6 +752,8 @@ const reportData = useMemo(() => {
   periodMonths, 
   searchTerm, 
   statusFilter, 
+  studentSelectionMode,
+  selectedStudentIdsInClass,
   sortField,
   sortOrder,
   getExpectedMonthsForStudent,
@@ -1598,10 +1648,11 @@ return (
               className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
             >
               <option value="">Selecione...</option>
-              <option value="mensal">Mensal (1 Mês)</option>
-              <option value="trimestral">Trimestral (3 Meses)</option>
+              <option value="mensal">Mês</option>
+              <option value="intervalo">Período (De um mês a outro)</option>
+              <option value="anual">Ano Completo (Jan a Dez)</option>
               <option value="semestral">Semestral (6 Meses)</option>
-              <option value="anual">Anual (12 Meses)</option>
+              <option value="trimestral">Trimestral (3 Meses)</option>
             </select>
           </div>
 
@@ -1615,6 +1666,11 @@ return (
               {periodType === 'mensal' && selectedMonth && (
                 <span className="text-[10px] font-bold text-blue-900">
                   {MONTH_SHORT[Number(selectedMonth) - 1]} {selectedYear && `/${selectedYear}`}
+                </span>
+              )}
+              {periodType === 'intervalo' && startMonth && endMonth && (
+                <span className="text-[10px] font-bold text-blue-900">
+                  {MONTH_SHORT[Number(startMonth) - 1]} a {MONTH_SHORT[Number(endMonth) - 1]}
                 </span>
               )}
             </div>
@@ -1658,6 +1714,39 @@ return (
               </div>
             )}
 
+            {periodType === 'intervalo' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-500 block">De:</span>
+                  <select
+                    value={startMonth}
+                    onChange={(e) => setStartMonth(e.target.value)}
+                    className="w-full h-8 px-2 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
+                  >
+                    {MONTH_NAMES.map((name, idx) => (
+                      <option key={idx + 1} value={String(idx + 1)}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-500 block">Até:</span>
+                  <select
+                    value={endMonth}
+                    onChange={(e) => setEndMonth(e.target.value)}
+                    className="w-full h-8 px-2 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
+                  >
+                    {MONTH_NAMES.map((name, idx) => (
+                      <option key={idx + 1} value={String(idx + 1)}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
             {periodType === 'trimestral' && (
               <select
                 value={selectedQuarter}
@@ -1693,15 +1782,72 @@ return (
         </div>
       </div>
 
-      {/* Barra Secundária: Filtro de Situação, Busca Rápida na Tabela e Modo de Exibição */}
-      <div className="px-4 py-2.5 sm:px-5 bg-slate-50/70 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Situação */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Situação:
+      {/* Barra Secundária: Quadro de Alunos, Quadro de Situação, Busca Rápida na Tabela e Modo de Exibição */}
+      <div className="px-4 py-3 sm:px-5 bg-slate-50/80 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          {/* Quadro Alunos (quando Por Turma) */}
+          {filterTarget === 'class' && (
+            <div className="flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200/90 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                <Users size={13} className="text-blue-700" />
+                <span>Alunos:</span>
+              </span>
+              <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/70 gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStudentSelectionMode('all');
+                  }}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                    studentSelectionMode === 'all'
+                      ? "bg-[#00174b] text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  )}
+                >
+                  <span>Todos</span>
+                  {selectedClassId && (
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                      studentSelectionMode === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                    )}>
+                      {studentsInSelectedClass.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStudentSelectionMode('select');
+                    if (selectedStudentIdsInClass.length === 0 && studentsInSelectedClass.length > 0) {
+                      setSelectedStudentIdsInClass(studentsInSelectedClass.map(s => s.id));
+                    }
+                  }}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                    studentSelectionMode === 'select'
+                      ? "bg-[#00174b] text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  )}
+                >
+                  <span>Selecionar</span>
+                  {studentSelectionMode === 'select' && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-white/20 text-white">
+                      {selectedStudentIdsInClass.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quadro Situação Formatado Corretamente */}
+          <div className="flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200/90 shadow-2xs">
+            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <SlidersHorizontal size={13} className="text-blue-700" />
+              <span>Situação:</span>
             </span>
-            <div className="inline-flex items-center gap-1">
+            <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200/70 gap-0.5">
               {[
                 { id: '', label: 'Todos' },
                 { id: 'paid', label: 'Quitados', dot: 'bg-emerald-500' },
@@ -1713,13 +1859,18 @@ return (
                   type="button"
                   onClick={() => setStatusFilter(st.id)}
                   className={cn(
-                    "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                    "px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
                     statusFilter === st.id
-                      ? "bg-white text-slate-900 shadow-2xs border border-slate-200"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                      ? "bg-[#00174b] text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
                   )}
                 >
-                  {st.dot && <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", st.dot)} />}
+                  {st.dot && (
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      statusFilter === st.id ? "bg-white" : st.dot
+                    )} />
+                  )}
                   <span>{st.label}</span>
                 </button>
               ))}
@@ -1728,14 +1879,14 @@ return (
 
           {/* Se turma: Busca rápida de aluno dentro da lista */}
           {filterTarget === 'class' && (
-            <div className="relative w-56">
+            <div className="relative w-52">
               <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Filtrar aluno na tabela..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-8 pl-8 pr-7 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full h-8 pl-8 pr-7 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
               />
               {searchTerm && (
                 <button
@@ -1788,6 +1939,80 @@ return (
           )}
         </div>
       </div>
+
+      {/* Painel Expansível de Seleção de Alunos Específicos da Turma */}
+      {filterTarget === 'class' && studentSelectionMode === 'select' && selectedClassId && (
+        <div className="px-4 py-3 sm:px-5 bg-blue-50/50 border-t border-blue-100/90 space-y-2.5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-blue-950">
+                Alunos Selecionados para o Relatório:
+              </span>
+              <span className="text-[11px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200">
+                {selectedStudentIdsInClass.length} de {studentsInSelectedClass.length} selecionados
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedStudentIdsInClass(studentsInSelectedClass.map(s => s.id))}
+                className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-white px-2.5 py-1 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors cursor-pointer shadow-2xs"
+              >
+                Marcar Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStudentIdsInClass([])}
+                className="text-xs font-bold text-slate-600 hover:text-red-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-red-50 transition-colors cursor-pointer shadow-2xs"
+              >
+                Desmarcar Todos
+              </button>
+            </div>
+          </div>
+
+          {studentsInSelectedClass.length === 0 ? (
+            <p className="text-xs text-slate-500 italic py-2">
+              Nenhum aluno matriculado nesta turma.
+            </p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto bg-white rounded-xl border border-slate-200 p-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 shadow-2xs">
+              {studentsInSelectedClass.map(st => {
+                const isChecked = selectedStudentIdsInClass.includes(st.id);
+                return (
+                  <label
+                    key={st.id}
+                    className={cn(
+                      "flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all select-none",
+                      isChecked
+                        ? "bg-blue-50/80 border-blue-300 text-blue-950 font-semibold shadow-2xs"
+                        : "bg-white border-slate-200/70 text-slate-700 hover:bg-slate-50"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        if (isChecked) {
+                          setSelectedStudentIdsInClass(prev => prev.filter(id => id !== st.id));
+                        } else {
+                          setSelectedStudentIdsInClass(prev => [...prev, st.id]);
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-800 rounded border-slate-300 focus:ring-blue-500 shrink-0 cursor-pointer"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">{st.name}</p>
+                      <p className="text-[10px] text-slate-400 font-mono truncate">
+                        Matrícula: #{st.registration_number || '---'}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
 
     {/* Estado Vazio Elegante e Proativo (Quando filtros ainda não foram preenchidos) */}
