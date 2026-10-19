@@ -102,7 +102,6 @@ export function FinancialReport() {
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'matricula' | 'previsto' | 'efetuado' | 'pendente' | 'status'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'detailed' | 'compact'>('detailed');
 
   const handleToggleSort = (field: 'name' | 'matricula' | 'previsto' | 'efetuado' | 'pendente' | 'status') => {
     if (sortField === field) {
@@ -1897,44 +1896,6 @@ return (
                   <X size={12} />
                 </button>
               )}
-            </div>
-          )}
-        </div>
-
-        {/* Resumo ao vivo & Modo de Visualização */}
-        <div className="flex items-center gap-3">
-          {isFilterReady && (
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500">
-              <span>{reportData.length} aluno(s) listado(s)</span>
-              <span className="text-slate-300">·</span>
-              <span className="text-emerald-700 font-bold">{totals.taxaArrecadacao}% arrecadado</span>
-            </div>
-          )}
-
-          {filterTarget === 'class' && isFilterReady && (
-            <div className="flex items-center gap-1 bg-slate-200/60 p-0.5 rounded-lg border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setViewMode('detailed')}
-                className={cn(
-                  "px-2 py-0.5 text-[11px] font-bold rounded transition-all cursor-pointer",
-                  viewMode === 'detailed' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
-                )}
-                title="Exibir colunas completas com detalhamento mês a mês"
-              >
-                Detalhado
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('compact')}
-                className={cn(
-                  "px-2 py-0.5 text-[11px] font-bold rounded transition-all cursor-pointer",
-                  viewMode === 'compact' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
-                )}
-                title="Visualização compacta para maior densidade"
-              >
-                Compacto
-              </button>
             </div>
           )}
         </div>
