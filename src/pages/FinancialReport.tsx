@@ -949,26 +949,20 @@ const totals = useMemo(() => {
       margin: { top: 18, right: margin, bottom: 12, left: margin },
       head: headCols,
       body: tableBody,
-      theme: 'grid',
-      tableLineColor: [203, 213, 225],
-      tableLineWidth: 0.2,
+      theme: 'striped',
       headStyles: {
         fillColor: [0, 23, 75],
         textColor: [255, 255, 255],
         fontSize: 8,
         fontStyle: 'bold',
-        halign: 'center',
-        lineColor: [71, 85, 105],
-        lineWidth: 0.2
+        halign: 'center'
       },
       columnStyles: columnStyles,
       styles: {
         fontSize: 8,
         cellPadding: 2.2,
         overflow: 'linebreak',
-        font: 'helvetica',
-        lineColor: [203, 213, 225],
-        lineWidth: 0.2
+        font: 'helvetica'
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
@@ -1112,7 +1106,7 @@ return (
           width: 100% !important;
           border-collapse: collapse !important;
           table-layout: auto !important;
-          border: 1px solid #475569 !important;
+          border: none !important;
         }
 
         thead {
@@ -1124,7 +1118,7 @@ return (
         thead tr th {
           background-color: #00174b !important;
           color: #ffffff !important;
-          border: 1px solid #475569 !important;
+          border: none !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
@@ -1139,7 +1133,8 @@ return (
         }
 
         tbody tr td {
-          border: 1px solid #cbd5e1 !important;
+          border: none !important;
+          border-bottom: 1px solid #e2e8f0 !important;
         }
 
         tbody tr:nth-child(even) td {
@@ -2212,7 +2207,7 @@ return (
         )}
 
         {/* Tabela Analítica Oficial de Contribuições */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border print:border-slate-300 print:rounded-none print:shadow-none print:overflow-visible">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border-none print:rounded-none print:shadow-none print:overflow-visible">
           <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between print:hidden">
             <div className="flex items-center gap-2">
               {filterTarget === 'student' ? (
@@ -2235,38 +2230,38 @@ return (
           </div>
 
           <div className="overflow-x-auto print:overflow-visible print:overflow-x-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <table className="w-full text-left border-collapse border border-slate-300 print:border-slate-400">
+            <table className="w-full text-left border-collapse">
               <thead>
                 {/* Linha de Títulos das Colunas - Padrão Navy Institucional #00174b idêntico ao modelo PDF */}
                 {isSingleStudent && studentItem ? (
-                  <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
-                    <th className="py-2.5 px-2 text-center w-12 text-white border border-slate-400">
+                  <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
+                    <th className="py-2.5 px-2 text-center w-12 text-white">
                       #
                     </th>
-                    <th className="py-2.5 px-3 text-left text-white border border-slate-400">
+                    <th className="py-2.5 px-3 text-left text-white">
                       Parcela / Mês de Referência
                     </th>
-                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
+                    <th className="py-2.5 px-3 text-right text-white">
                       Data de Pagamento / Detalhes
                     </th>
-                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
+                    <th className="py-2.5 px-3 text-right text-white">
                       Previsto
                     </th>
-                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
+                    <th className="py-2.5 px-3 text-right text-white">
                       Efetuado
                     </th>
-                    <th className="py-2.5 px-3 text-right text-white border border-slate-400">
+                    <th className="py-2.5 px-3 text-right text-white">
                       Pendente (Vencido)
                     </th>
                   </tr>
                 ) : (
-                  <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white border border-slate-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
-                    <th className="py-2.5 px-2 text-center w-12 text-white border border-slate-400">
+                  <tr className="bg-[#00174b] text-white print:bg-[#00174b] print:text-white text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
+                    <th className="py-2.5 px-2 text-center w-12 text-white">
                       #
                     </th>
                     
                     <th 
-                      className="py-2.5 px-3 cursor-pointer hover:bg-blue-950 transition-colors select-none text-left text-white border border-slate-400"
+                      className="py-2.5 px-3 cursor-pointer hover:bg-blue-950 transition-colors select-none text-left text-white"
                       onClick={() => handleToggleSort('name')}
                     >
                       <div className="flex items-center gap-1.5">
@@ -2276,7 +2271,7 @@ return (
                     </th>
 
                     <th 
-                      className="py-2.5 px-3 text-center cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      className="py-2.5 px-3 text-center cursor-pointer hover:bg-blue-950 transition-colors select-none text-white"
                       onClick={() => handleToggleSort('status')}
                     >
                       <div className="inline-flex items-center gap-1 justify-center">
@@ -2286,7 +2281,7 @@ return (
                     </th>
 
                     <th 
-                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white"
                       onClick={() => handleToggleSort('previsto')}
                     >
                       <div className="inline-flex items-center gap-1 justify-end text-white">
@@ -2296,7 +2291,7 @@ return (
                     </th>
 
                     <th 
-                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white"
                       onClick={() => handleToggleSort('efetuado')}
                     >
                       <div className="inline-flex items-center gap-1 justify-end text-white">
@@ -2306,7 +2301,7 @@ return (
                     </th>
 
                     <th 
-                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white border border-slate-400"
+                      className="py-2.5 px-3 text-right cursor-pointer hover:bg-blue-950 transition-colors select-none text-white"
                       onClick={() => handleToggleSort('pendente')}
                     >
                       <div className="inline-flex items-center gap-1 justify-end text-white">
@@ -2329,22 +2324,22 @@ return (
                       return (
                         <tr 
                           key={m.month}
-                          className="hover:bg-blue-50/40 transition-colors border-b border-slate-300 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
+                          className="hover:bg-blue-50/40 transition-colors border-b border-slate-100 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
                         >
                           {/* Número sequencial */}
-                          <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700 border border-slate-300">
+                          <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700">
                             {idx + 1}
                           </td>
 
                           {/* Parcela / Mês de Referência */}
-                          <td className="py-2.5 px-3 text-left border border-slate-300">
+                          <td className="py-2.5 px-3 text-left">
                             <span className="font-bold text-slate-900 block text-xs">
                               {refName}
                             </span>
                           </td>
 
-                          {/* Situação Detalhada / Data de Pagamento */}
-                          <td className="py-2.5 px-3 text-right border border-slate-300 text-[11px]">
+                          {/* Data de Pagamento / Detalhes */}
+                          <td className="py-2.5 px-3 text-right text-[11px]">
                             {m.isWaived ? (
                               <span className="font-semibold text-blue-800">
                                 Abonado{m.paymentDate ? ` em ${formatDateForDisplay(m.paymentDate)}` : ''}
@@ -2373,17 +2368,17 @@ return (
                           </td>
 
                           {/* Valor Previsto */}
-                          <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs border border-slate-300">
+                          <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs">
                             {formatCurrency(previstoVal)}
                           </td>
 
                           {/* Valor Efetuado */}
-                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs border border-slate-300">
+                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs">
                             {formatCurrency(efetuadoVal)}
                           </td>
 
                           {/* Saldo Pendente (Vencido) */}
-                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300">
+                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs">
                             {m.isWaived ? (
                               <span className="text-blue-800 font-semibold">Isento (R$ 0,00)</span>
                             ) : m.isPaid ? (
@@ -2401,7 +2396,7 @@ return (
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 border border-slate-300">
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <DollarSign size={32} className="text-slate-300" />
                           <p className="text-xs font-bold text-slate-700">Nenhuma parcela encontrada para o aluno no período.</p>
@@ -2417,15 +2412,15 @@ return (
                       return (
                         <tr 
                           key={item.student.id}
-                          className="hover:bg-blue-50/40 transition-colors border-b border-slate-300 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
+                          className="hover:bg-blue-50/40 transition-colors border-b border-slate-100 even:bg-slate-50/70 print:even:bg-[#f8fafc] print-avoid-break"
                         >
                           {/* Número sequencial */}
-                          <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700 border border-slate-300">
+                          <td className="py-2.5 px-2 text-center font-mono text-[11px] text-slate-700">
                             {idx + 1}
                           </td>
 
                           {/* Nome, Matrícula e Cód. Turma */}
-                          <td className="py-2.5 px-3 text-left border border-slate-300">
+                          <td className="py-2.5 px-3 text-left">
                             <div className="min-w-0">
                               <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
                                 {item.student.name}
@@ -2437,22 +2432,22 @@ return (
                           </td>
 
                           {/* Situação - Texto limpo idêntico ao modelo PDF */}
-                          <td className="py-2.5 px-3 text-center border border-slate-300 text-[11px] text-slate-700 font-medium">
+                          <td className="py-2.5 px-3 text-center text-[11px] text-slate-700 font-medium">
                             {item.periodSummary}
                           </td>
 
                           {/* Valor Previsto */}
-                          <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs border border-slate-300">
+                          <td className="py-2.5 px-3 text-right font-bold text-amber-700 tabular-nums text-xs">
                             {formatCurrency(item.valorPrevisto)}
                           </td>
 
                           {/* Valor Efetuado */}
-                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs border border-slate-300">
+                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums text-xs">
                             {formatCurrency(item.valorEfetuado)}
                           </td>
 
                           {/* Saldo Pendente (Vencido) */}
-                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs border border-slate-300 text-red-700">
+                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-xs text-red-700">
                             {formatCurrency(item.saldoPendente)}
                           </td>
                         </tr>
@@ -2460,7 +2455,7 @@ return (
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 border border-slate-300">
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <DollarSign size={32} className="text-slate-300" />
                           <p className="text-xs font-bold text-slate-700">Nenhum aluno encontrado para os filtros selecionados.</p>
@@ -2473,21 +2468,21 @@ return (
 
                 {/* Linha Consolidada de Totais no Fim dos Dados */}
                 {reportData.length > 0 && (
-                  <tr className="bg-slate-100 font-bold border-2 border-slate-400 text-slate-900 text-xs print:bg-slate-100 print:border-slate-400 print-avoid-break">
-                    <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-700 border border-slate-400">
+                  <tr className="bg-slate-100 font-bold border-t-2 border-b-2 border-slate-300 text-slate-900 text-xs print:bg-slate-100 print:border-slate-300 print-avoid-break">
+                    <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] font-bold text-slate-700">
                       {isSingleStudent && studentItem ? (
                         <>TOTAL CONSOLIDADO DO ALUNO ({studentItem.monthsStatus.filter(m => m.isPaid).length} de {studentItem.monthsStatus.filter(m => m.isExpected).length} parcelas pagas{studentItem.monthsStatus.filter(m => m.isWaived).length > 0 ? ` • ${studentItem.monthsStatus.filter(m => m.isWaived).length} abonadas` : ''} • {studentItem.overdueMonthsCount} em atraso • {totals.taxaArrecadacao}% Arrecadado):</>
                       ) : (
                         <>Total Consolidado ({reportData.length} alunos • {totals.taxaArrecadacao}% Arrecadado):</>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-black text-amber-700 tabular-nums border border-slate-400">
+                    <td className="py-2.5 px-3 text-right font-black text-amber-700 tabular-nums">
                       {formatCurrency(totals.totalPrevisto)}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 tabular-nums border border-slate-400">
+                    <td className="py-2.5 px-3 text-right font-black text-emerald-700 tabular-nums">
                       {formatCurrency(totals.totalEfetuado)}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-black text-red-700 tabular-nums border border-slate-400">
+                    <td className="py-2.5 px-3 text-right font-black text-red-700 tabular-nums">
                       {formatCurrency(totals.totalPendente)}
                     </td>
                   </tr>
