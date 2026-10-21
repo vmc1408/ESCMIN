@@ -1731,6 +1731,17 @@ export function Contributions() {
         }
       }
 
+      // Rodapé com numeração de páginas
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(120, 120, 120);
+        doc.text(`SISTEMA ESCMIN • Extrato de Contribuição`, margin, doc.internal.pageSize.height - 8);
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, doc.internal.pageSize.height - 8, { align: 'right' });
+      }
+
       doc.save(`Extrato_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedYear}.pdf`);
     } catch (error) {
       console.error('Error generating statement:', error);

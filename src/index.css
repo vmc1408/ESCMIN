@@ -179,8 +179,13 @@
       display: table-header-group !important;
     }
 
-    tfoot {
+    tfoot:not(.printable-footer-group):not(.print\:table-footer-group) {
       display: table-row-group !important;
+    }
+
+    tfoot.printable-footer-group,
+    tfoot.print\:table-footer-group {
+      display: table-footer-group !important;
     }
 
     /* Re-establish high-fidelity typography alignments consistently across engines */

@@ -431,6 +431,21 @@ export function FinancialReport() {
   const isAnnualPeriod = periodType === 'anual' || periodType === 'intervalo';
   const showAVencerCard = isCurrentMonthPeriod || isAnnualPeriod;
 
+  // Identificadores institucionais oficiais para cabeçalhos e rodapés de relatórios
+  const dioceseOfficialName = useMemo(() => {
+    return institution?.city_uf 
+      ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` 
+      : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS');
+  }, [institution]);
+
+  const schoolOfficialName = useMemo(() => {
+    return (institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase();
+  }, [institution]);
+
+  const emissionDateFormatted = useMemo(() => {
+    return format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  }, []);
+
 // Helper para verificar se um mês de um determinado ano já está vencido
 // Regra de negócio do usuário:
 // - Meses anteriores ao mês corrente do ano selecionado: VENCIDOS (compõem o saldo pendente se não pagos)
@@ -1070,15 +1085,28 @@ const totals = useMemo(() => {
           doc.setLineWidth(0.4);
           doc.line(margin, 13.5, pageWidth - margin, 13.5);
         }
-
-        // Rodapé Oficial em todas as páginas
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(120, 120, 120);
-        doc.text(`${dioceseHeader} • ${(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase()}`, margin, pageHeight - 7);
-        doc.text(`Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} • Pág. ${data.pageNumber}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
       }
     });
+
+    // Rodapé Oficial e Paginação em Todas as Páginas
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.4);
+      doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      
+      const footerLeft = `SISTEMA ESCMIN • ${dioceseHeader} • ${(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase()} • Documento Administrativo Oficial`;
+      const footerRight = `Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} • Página ${i} de ${totalPages}`;
+      
+      doc.text(footerLeft, margin, pageHeight - 6);
+      doc.text(footerRight, pageWidth - margin, pageHeight - 6, { align: 'right' });
+    }
 
     return doc;
   };
@@ -1117,7 +1145,26 @@ return (
       @media print {
         @page {
           size: A4 landscape;
-          margin: 8mm 10mm 10mm 10mm !important;
+          margin: 8mm 10mm 14mm 10mm !important;
+          @bottom-left {
+            content: "SISTEMA ESCMIN • ${dioceseOfficialName} • ${schoolOfficialName} • Documento Administrativo Oficial";
+            font-size: 7.5pt;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #64748b;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 4px;
+            vertical-align: top;
+          }
+          @bottom-right {
+            content: "Emissão: ${emissionDateFormatted}  •  Página " counter(page) " de " counter(pages);
+            font-size: 7.5pt;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-weight: 700;
+            color: #00174b;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 4px;
+            vertical-align: top;
+          }
         }
 
         html, body, #root, main, [class*="min-h-screen"], [class*="h-screen"] {
@@ -1192,7 +1239,9 @@ return (
           print-color-adjust: exact !important;
         }
 
-        tfoot {
+        tfoot,
+        .printable-footer-group,
+        .print\:table-footer-group {
           display: table-footer-group !important;
           break-inside: avoid !important;
           page-break-inside: avoid !important;
@@ -2676,21 +2725,47 @@ return (
               </tbody>
 
               {/* Rodapé Oficial de Página para Impressão (repete ao final de cada página impressa) */}
-              <tfoot className="hidden print:table-footer-group">
+              {/* Rodapé Oficial de Página para Impressão (repete ao final de cada página impressa) */}
+              <tfoot className="hidden print:table-footer-group printable-footer-group">
                 <tr className="border-t border-slate-300">
-                  <td colSpan={6} className="pt-2 pb-1 px-3 text-[8.5px] text-slate-500 bg-white">
+                  <td colSpan={6} className="pt-2.5 pb-2 px-3 text-[8.5px] text-slate-500 bg-white">
                     <div className="flex items-center justify-between">
-                      <span>
-                        {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : (institution?.diocese?.toUpperCase() || 'DIOCESE DE GUARULHOS')} • {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
-                      </span>
-                      <span>
-                        Documento emitido eletronicamente em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </span>
+                      <div className="flex items-center gap-1.5 text-slate-600">
+                        <span className="font-extrabold text-[#00174b]">SISTEMA ESCMIN</span>
+                        <span>•</span>
+                        <span className="font-semibold text-slate-700">
+                          {dioceseOfficialName} • {schoolOfficialName}
+                        </span>
+                        <span>•</span>
+                        <span className="text-slate-500">Documento Administrativo Oficial</span>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono text-slate-700">
+                        <span>
+                          Documento emitido eletronicamente em {emissionDateFormatted}
+                        </span>
+                      </div>
                     </div>
                   </td>
                 </tr>
               </tfoot>
             </table>
+          </div>
+        </div>
+
+        {/* Rodapé Oficial Informativo na Visualização em Tela */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 px-5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 print:hidden">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-[#00174b]">SISTEMA ESCMIN</span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-slate-700">{dioceseOfficialName} • {schoolOfficialName}</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-500">Documento Administrativo Oficial</span>
+          </div>
+          <div className="flex items-center gap-3 font-mono text-[11px] text-slate-600 flex-wrap">
+            <span>Emissão: {emissionDateFormatted}</span>
+            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-900 font-bold border border-blue-200">
+              {reportData.length} {reportData.length === 1 ? 'registro' : 'registros'} listados
+            </span>
           </div>
         </div>
       </>
