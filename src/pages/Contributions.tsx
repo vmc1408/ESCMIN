@@ -70,6 +70,38 @@ export function Contributions() {
   const [searchByName, setSearchByName] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
+
+  // Estados para seleção de tipo de alvo e periodicidade (conforme solicitado pelo usuário)
+  const [reportTarget, setReportTarget] = useState<'class' | 'student'>('class');
+  const [selectedClassId, setSelectedClassId] = useState<string>('all');
+  const [periodOption, setPeriodOption] = useState<'mensal' | 'semestral' | 'anual'>('mensal');
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [selectedSemester, setSelectedSemester] = useState<1 | 2>(() => (new Date().getMonth() + 1 <= 6 ? 1 : 2));
+
+  const applyPeriodDates = useCallback((period: 'mensal' | 'semestral' | 'anual', m: number, sem: 1 | 2, yr: number) => {
+    let s = '';
+    let e = '';
+    if (period === 'mensal') {
+      const lastDay = new Date(yr, m, 0).getDate();
+      s = `${yr}-${String(m).padStart(2, '0')}-01`;
+      e = `${yr}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    } else if (period === 'semestral') {
+      if (sem === 1) {
+        s = `${yr}-01-01`;
+        e = `${yr}-06-30`;
+      } else {
+        s = `${yr}-07-01`;
+        e = `${yr}-12-31`;
+      }
+    } else if (period === 'anual') {
+      s = `${yr}-01-01`;
+      e = `${yr}-12-31`;
+    }
+    setStartDate(s);
+    setEndDate(e);
+    setSelectedYear(yr);
+    setUnpaidYear(yr);
+  }, []);
   
   // Scoped Classes to active unit
   const scopedClasses = useMemo(() => {
@@ -261,10 +293,11 @@ export function Contributions() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [rawClasses, instData, finData] = await Promise.all([
+      const [rawClasses, instData, finData, rawStudents] = await Promise.all([
         fetchAll('classes').catch(() => []),
         financialService.getInstitutionSettings(),
         financialConfigService.getSettings(),
+        fetchAll('students').catch(() => []),
         fetchAcademicSettings()
       ]);
 
@@ -272,6 +305,10 @@ export function Contributions() {
       setClasses(normalizedClasses);
       setInstitution(instData || null);
       setFinancialSettings(finData || null);
+
+      const activeStuds = (rawStudents || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
+      allStudentsCacheRef.current = activeStuds;
+      setAllActiveStudents(activeStuds as Student[]);
 
       if (initialStudentId) {
         const studentData = await fetchById('students', initialStudentId);
@@ -385,6 +422,14 @@ export function Contributions() {
         });
       }
 
+      if (reportTarget === 'class' && selectedClassId && selectedClassId !== 'all') {
+        data = data.filter(c => c.student?.class_id === selectedClassId);
+      }
+
+      if (reportTarget === 'student' && selectedStudent) {
+        data = data.filter(c => c.student_id === selectedStudent.id);
+      }
+
       if (searchByName.trim()) {
         const term = searchByName.trim();
         data = data.filter(c => matchesStudentSearch(c.student, term));
@@ -459,7 +504,8 @@ export function Contributions() {
 
   // Compute list of students with unpaid months
   const unpaidReportList = useMemo(() => {
-    if (!unpaidClassFilter) return [];
+    const targetClass = reportTarget === 'class' ? (selectedClassId || unpaidClassFilter) : (unpaidClassFilter || 'all');
+    if (!targetClass && reportTarget === 'class') return [];
 
     const scopedPool = (!selectedUnitId || selectedUnitId === 'all')
       ? allActiveStudents
@@ -476,8 +522,16 @@ export function Contributions() {
         .map(c => c.reference_month);
 
       // Expected months for this student in the selected unpaidYear, aligned with academic settings
-      const expectedMonths = getExpectedMonthsForStudent(student, unpaidYear, paidMonths);
+      let expectedMonths = getExpectedMonthsForStudent(student, unpaidYear, paidMonths);
       
+      // Filtrar conforme periodicidade selecionada
+      if (periodOption === 'mensal') {
+        expectedMonths = expectedMonths.filter(m => m === selectedMonth);
+      } else if (periodOption === 'semestral') {
+        const semMonths = selectedSemester === 1 ? [1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12];
+        expectedMonths = expectedMonths.filter(m => semMonths.includes(m));
+      }
+
       // Unpaid months
       const unpaidMonths = expectedMonths.filter(m => !paidMonths.includes(m));
       
@@ -510,11 +564,14 @@ export function Contributions() {
       return matchesStudentSearch(item.student, unpaidSearchTerm.trim());
     })
     .filter(item => {
+      if (reportTarget === 'student' && selectedStudent) {
+        return item.student.id === selectedStudent.id;
+      }
       // Class filter
-      if (unpaidClassFilter === 'all') return true;
-      return item.student.class_id === unpaidClassFilter;
+      if (!targetClass || targetClass === 'all') return true;
+      return item.student.class_id === targetClass;
     });
-  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter, selectedUnitId, activeUnits, classes, financialSettings]);
+  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter, selectedClassId, reportTarget, selectedStudent, periodOption, selectedMonth, selectedSemester, selectedUnitId, activeUnits, classes, financialSettings]);
 
   // Calculate stats breakdown for top overview cards (overdue vs future/to-be-due)
   const unpaidStats = useMemo(() => {
@@ -1687,6 +1744,17 @@ export function Contributions() {
     setSearchTerm('');
     setSearchByName('');
     setStudents([]);
+    setReportTarget('class');
+    setSelectedClassId('all');
+    setUnpaidClassFilter('');
+    setPeriodOption('mensal');
+    const m = new Date().getMonth() + 1;
+    const yr = new Date().getFullYear();
+    const sem: 1 | 2 = m <= 6 ? 1 : 2;
+    setSelectedMonth(m);
+    setSelectedSemester(sem);
+    setSelectedYear(yr);
+    applyPeriodDates('mensal', m, sem, yr);
     
     const d = new Date();
     d.setDate(d.getDate() - 15);
@@ -1727,78 +1795,527 @@ export function Contributions() {
         />
       </div>
 
-      {/* 1. Barra de Filtro e Busca Redesenhada: Elegante, Compacta e Direta */}
-      <div className="bg-white px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-2xs shrink-0">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end">
-          {/* Busca por Nome / Matrícula */}
-          <div className="md:col-span-4 lg:col-span-4 space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-              Nome / Matrícula
-            </label>
-            <div className="relative">
-              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
-                {isSearching ? (
-                  <Loader2 size={14} className="text-blue-600 animate-spin" />
-                ) : (
-                  <Search size={14} className="text-slate-400" />
+      {/* 1. Abas Principais de Relatório */}
+      <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs shrink-0 flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode('period');
+            fetchPeriodContributions();
+          }}
+          className={cn(
+            "flex-1 py-3 px-3 sm:px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
+            viewMode === 'period'
+              ? "bg-[#00174b] text-white ring-2 ring-blue-600/40 shadow-md"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/80 border border-slate-200/70"
+          )}
+        >
+          <Calendar size={15} className={viewMode === 'period' ? "text-blue-300" : "text-amber-600"} />
+          <span>Lançamentos de Contribuição</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode('unpaid');
+            fetchUnpaidData(selectedYear);
+          }}
+          className={cn(
+            "flex-1 py-3 px-3 sm:px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
+            viewMode === 'unpaid'
+              ? "bg-[#00174b] text-white ring-2 ring-rose-600/40 shadow-md"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/80 border border-slate-200/70"
+          )}
+        >
+          <AlertCircle size={15} className={viewMode === 'unpaid' ? "text-rose-300" : "text-rose-600"} />
+          <span>Inadimplência</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode('individual');
+            if (selectedStudent) {
+              fetchContributions(selectedStudent.id, selectedYear);
+            }
+          }}
+          className={cn(
+            "flex-1 py-3 px-3 sm:px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
+            viewMode === 'individual'
+              ? "bg-[#00174b] text-white ring-2 ring-blue-600/40 shadow-md"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/80 border border-slate-200/70"
+          )}
+        >
+          <UserIcon size={15} className={viewMode === 'individual' ? "text-blue-300" : "text-blue-600"} />
+          <span>Ficha {selectedStudent ? `(${selectedStudent.name.split(' ')[0]})` : 'Individual'}</span>
+        </button>
+      </div>
+
+      {/* 2. Barra de Filtros Direta e Sem Redundâncias */}
+      {viewMode === 'individual' ? (
+        /* Barra de Filtros da Ficha Individual: Nome ou RA do Aluno + Período */
+        <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200/90 shadow-2xs shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Lado Esquerdo: Digitar Nome ou RA do Aluno */}
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
+              Aluno:
+            </span>
+            {selectedStudent ? (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
+                <UserIcon size={14} className="text-blue-600 shrink-0" />
+                <span className="text-xs font-black text-blue-950 truncate max-w-[200px] sm:max-w-[320px]">
+                  {selectedStudent.name}
+                </span>
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded font-mono">
+                  RA: {selectedStudent.registration_number}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStudent(null);
+                    setSearchTerm('');
+                    setSearchByName('');
+                  }}
+                  className="ml-1 px-2 py-0.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-lg text-slate-600 hover:text-rose-700 transition-colors cursor-pointer text-[10px] font-extrabold flex items-center gap-1 shadow-2xs"
+                  title="Trocar aluno"
+                >
+                  <X size={12} />
+                  <span>Trocar Aluno</span>
+                </button>
+              </div>
+            ) : (
+              <div className="relative flex-1 max-w-md">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Digite o Nome ou RA do Aluno para abrir a ficha..."
+                  value={searchTerm || searchByName}
+                  onChange={(e) => {
+                    setSearchByName(e.target.value);
+                    handleSearchStudents(e.target.value);
+                  }}
+                  className="w-full h-9 pl-8 pr-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  autoFocus
+                />
+                {students.length > 0 && !selectedStudent && (
+                  <div className="absolute left-0 top-full mt-1 w-full max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-1">
+                    {students.slice(0, 8).map(s => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          handleSelectStudent(s);
+                          fetchContributions(s.id, selectedYear);
+                          setSearchTerm('');
+                          setSearchByName('');
+                          setStudents([]);
+                        }}
+                        className="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <p className="font-bold text-slate-800 truncate">{s.name}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">RA: {s.registration_number}</p>
+                        </div>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">
+                          Abrir Ficha
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
-              <input 
-                type="text"
-                placeholder="Buscar por nome ou matrícula..."
-                value={searchTerm || searchByName}
-                onChange={(e) => {
-                  setSearchByName(e.target.value);
-                  handleSearchStudents(e.target.value);
+            )}
+          </div>
+
+          {/* Lado Direito: Período entre as opções (Mensal / Semestral / Anual) */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
+              Período:
+            </span>
+            <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodOption('mensal');
+                  applyPeriodDates('mensal', selectedMonth, selectedSemester, selectedYear);
                 }}
-                className="w-full h-9 pl-8 pr-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              />
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  periodOption === 'mensal'
+                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodOption('semestral');
+                  applyPeriodDates('semestral', selectedMonth, selectedSemester, selectedYear);
+                }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  periodOption === 'semestral'
+                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Semestral
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodOption('anual');
+                  applyPeriodDates('anual', selectedMonth, selectedSemester, selectedYear);
+                }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  periodOption === 'anual'
+                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Anual
+              </button>
             </div>
-          </div>
 
-          {/* Período */}
-          <div className="md:col-span-5 lg:col-span-5 space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-              Período
-            </label>
-            <div className="h-9 flex items-center bg-slate-50/70 hover:bg-slate-50 focus-within:bg-white border border-slate-200 rounded-lg px-2.5 gap-2 transition-all focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500">
-              <Calendar size={13} className="text-slate-400 shrink-0" />
-              <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent border-none text-xs font-semibold text-slate-800 focus:ring-0 p-0 cursor-pointer flex-1 min-w-0"
-              />
-              <span className="text-slate-300 font-medium text-xs select-none">→</span>
-              <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent border-none text-xs font-semibold text-slate-800 focus:ring-0 p-0 cursor-pointer flex-1 min-w-0"
-              />
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 h-8.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Exercício:</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  const yr = Number(e.target.value);
+                  setSelectedYear(yr);
+                  setUnpaidYear(yr);
+                  if (selectedStudent) {
+                    fetchContributions(selectedStudent.id, yr);
+                  }
+                }}
+                className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+              >
+                {[2026, 2025, 2024, 2023].map(yr => (
+                  <option key={yr} value={yr}>{yr}</option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          {/* Botões Filtrar e Limpar */}
-          <div className="md:col-span-3 lg:col-span-3 flex items-center gap-2">
-            <button 
-              onClick={() => fetchPeriodContributions()}
-              className="flex-1 h-9 bg-[#00174b] hover:bg-[#00256e] text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-2xs"
-            >
-              <Search size={13} />
-              <span>Filtrar</span>
-            </button>
-            <button 
+            <button
+              type="button"
               onClick={clearSelection}
-              className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 rounded-lg font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
-              title="Limpar filtros"
+              className="h-8.5 px-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+              title="Limpar seleção"
             >
               <X size={13} />
-              <span>Limpar</span>
             </button>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Barra de Filtros para Lançamentos de Contribuição e Inadimplência: Por Turma ou Aluno + Período */
+        <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200/90 shadow-2xs shrink-0 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Lado Esquerdo: Alvo (Por Turma vs Por Aluno) */}
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
+              Alvo:
+            </span>
+            <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setReportTarget('class');
+                  if (viewMode === 'period') {
+                    fetchPeriodContributions();
+                  }
+                }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                  reportTarget === 'class'
+                    ? "bg-[#00174b] text-white shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                <GraduationCap size={13} />
+                <span>Por Turma</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReportTarget('student');
+                  if (viewMode === 'period') {
+                    fetchPeriodContributions();
+                  }
+                }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                  reportTarget === 'student'
+                    ? "bg-[#00174b] text-white shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                <UserIcon size={13} />
+                <span>Por Aluno</span>
+              </button>
+            </div>
+
+            {/* Opção Por Turma: Dropdown de Turmas */}
+            {reportTarget === 'class' && (
+              <div className="flex items-center gap-1.5 min-w-[200px] sm:min-w-[240px]">
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedClassId(val);
+                    setUnpaidClassFilter(val);
+                  }}
+                  className="w-full h-8.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                >
+                  <option value="all">Todas as Turmas ({scopedClasses.length})</option>
+                  {scopedClasses.map(c => (
+                    <option key={c.id} value={c.id}>{c.code ? `${c.code} - ${c.name}` : c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Opção Por Aluno: Busca / Seleção do Aluno */}
+            {reportTarget === 'student' && (
+              <div className="relative flex items-center gap-2">
+                {selectedStudent ? (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
+                    <UserIcon size={13} className="text-blue-600 shrink-0" />
+                    <span className="text-xs font-extrabold text-blue-950 truncate max-w-[160px] sm:max-w-[220px]">
+                      {selectedStudent.name}
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-1.5 py-0.5 rounded font-mono">
+                      {selectedStudent.registration_number}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedStudent(null);
+                        setSearchByName('');
+                        setSearchTerm('');
+                      }}
+                      className="p-0.5 hover:bg-blue-200 rounded-md text-blue-700 hover:text-rose-600 transition-colors cursor-pointer"
+                      title="Remover seleção"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative min-w-[220px] sm:min-w-[260px]">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Digite o Nome ou RA do Aluno..."
+                      value={searchTerm || searchByName}
+                      onChange={(e) => {
+                        setSearchByName(e.target.value);
+                        handleSearchStudents(e.target.value);
+                      }}
+                      className="w-full h-8.5 pl-8 pr-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    />
+                    {students.length > 0 && !selectedStudent && (
+                      <div className="absolute left-0 top-full mt-1 w-full max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-1">
+                        {students.slice(0, 8).map(s => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudent(s);
+                              setSearchTerm('');
+                              setSearchByName('');
+                              setStudents([]);
+                              if (viewMode === 'period') {
+                                fetchPeriodContributions();
+                              }
+                            }}
+                            className="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <p className="font-bold text-slate-800 truncate">{s.name}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">RA: {s.registration_number}</p>
+                            </div>
+                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">
+                              Selecionar
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Lado Direito: Período (Mensal / Semestral / Anual) + Botões de Ação */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
+              Período:
+            </span>
+            <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodOption('mensal');
+                  applyPeriodDates('mensal', selectedMonth, selectedSemester, selectedYear);
+                }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  periodOption === 'mensal'
+                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodOption('semestral');
+                  applyPeriodDates('semestral', selectedMonth, selectedSemester, selectedYear);
+                }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  periodOption === 'semestral'
+                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Semestral
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodOption('anual');
+                  applyPeriodDates('anual', selectedMonth, selectedSemester, selectedYear);
+                }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                  periodOption === 'anual'
+                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Anual
+              </button>
+            </div>
+
+            {/* Sub-seletores de Mês / Semestre / Ano */}
+            {periodOption === 'mensal' && (
+              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 h-8.5">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    const m = Number(e.target.value);
+                    setSelectedMonth(m);
+                    applyPeriodDates('mensal', m, selectedSemester, selectedYear);
+                  }}
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                >
+                  {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((mName, idx) => (
+                    <option key={idx + 1} value={idx + 1}>{mName}</option>
+                  ))}
+                </select>
+                <span className="text-slate-300">/</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    const yr = Number(e.target.value);
+                    setSelectedYear(yr);
+                    setUnpaidYear(yr);
+                    applyPeriodDates('mensal', selectedMonth, selectedSemester, yr);
+                  }}
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                >
+                  {[2026, 2025, 2024, 2023].map(yr => (
+                    <option key={yr} value={yr}>{yr}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {periodOption === 'semestral' && (
+              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 h-8.5">
+                <select
+                  value={selectedSemester}
+                  onChange={(e) => {
+                    const sem = Number(e.target.value) as 1 | 2;
+                    setSelectedSemester(sem);
+                    applyPeriodDates('semestral', selectedMonth, sem, selectedYear);
+                  }}
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                >
+                  <option value={1}>1º Semestre (Jan a Jun)</option>
+                  <option value={2}>2º Semestre (Jul a Dez)</option>
+                </select>
+                <span className="text-slate-300">/</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    const yr = Number(e.target.value);
+                    setSelectedYear(yr);
+                    setUnpaidYear(yr);
+                    applyPeriodDates('semestral', selectedMonth, selectedSemester, yr);
+                  }}
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                >
+                  {[2026, 2025, 2024, 2023].map(yr => (
+                    <option key={yr} value={yr}>{yr}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {periodOption === 'anual' && (
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 h-8.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Exercício:</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    const yr = Number(e.target.value);
+                    setSelectedYear(yr);
+                    setUnpaidYear(yr);
+                    applyPeriodDates('anual', selectedMonth, selectedSemester, yr);
+                  }}
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                >
+                  {[2026, 2025, 2024, 2023].map(yr => (
+                    <option key={yr} value={yr}>{yr}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Botões Filtrar e Limpar */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (viewMode === 'period') {
+                    fetchPeriodContributions();
+                  } else if (viewMode === 'unpaid') {
+                    fetchUnpaidData(selectedYear);
+                  }
+                }}
+                className="h-8.5 px-3.5 bg-[#00174b] hover:bg-[#00256e] text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-2xs"
+              >
+                <Search size={13} />
+                <span>Filtrar</span>
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="h-8.5 px-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+                title="Limpar filtros"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-2 lg:overflow-hidden overflow-visible">
         {/* Sidebar - Aba Resultados com Fundo Bordô Claro */}
@@ -1884,179 +2401,68 @@ export function Contributions() {
 
         {/* Main Workspace */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-          {/* Aba de navegação de modos de visualização */}
-          <div className="flex flex-wrap sm:flex-nowrap border-b border-slate-100 bg-slate-50/40 p-1.5 shrink-0 gap-1 sm:gap-1.5">
-            <button
-              onClick={() => {
-                setViewMode('period');
-                fetchPeriodContributions();
-              }}
-              className={cn(
-                "flex-1 py-2 px-1.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
-                viewMode === 'period' 
-                  ? "bg-[#131b2e] text-white shadow-lg" 
-                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-              )}
-            >
-              <Calendar size={13} className="shrink-0" />
-              Lançamentos do Período
-            </button>
-            <button
-              onClick={() => {
-                if (selectedStudent) {
-                  setViewMode('individual');
-                } else {
-                  setNotification({ type: 'info', message: 'Selecione um contribuinte no campo "Nome / Matrícula" acima para ver a Ficha Individual' });
-                }
-              }}
-              className={cn(
-                "flex-1 py-2 px-1.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
-                viewMode === 'individual' 
-                  ? "bg-[#131b2e] text-white shadow-lg" 
-                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50",
-                !selectedStudent && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <UserIcon size={13} className="shrink-0" />
-              Ficha {selectedStudent ? `(${selectedStudent.name.split(' ')[0]})` : 'Individual'}
-            </button>
-            <button
-              onClick={() => {
-                setViewMode('unpaid');
-                fetchUnpaidData();
-              }}
-              className={cn(
-                "flex-1 py-2 px-1.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
-                viewMode === 'unpaid' 
-                  ? "bg-[#131b2e] text-white shadow-lg" 
-                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-              )}
-            >
-              <AlertCircle size={13} className="shrink-0" />
-              Inadimplência
-            </button>
-
-            <button
-              onClick={() => navigate('/financial-report')}
-              className="py-2 px-2.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 shadow-2xs cursor-pointer active:scale-95"
-              title="Acessar Relatório Financeiro Detalhado por Turma e Períodos"
-            >
-              <FileText size={13} className="shrink-0 text-blue-600" />
-              <span className="hidden md:inline">Relatório por Turma</span>
-              <span className="md:hidden">Relatório</span>
-            </button>
-          </div>
-
           {viewMode === 'unpaid' ? (
             <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/30">
               {/* Unpaid Filters & Header */}
-              <div className="p-5 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+              <div className="p-4 sm:p-5 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                 <div className="space-y-1">
                   <h3 className="text-base font-black text-[#131b2e] flex items-center gap-2">
                     <AlertCircle size={18} className="text-[#131b2e]" />
                     Inadimplência de Mensalidades
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    Acompanhamento de mensalidades em aberto e controle de arrecadação para o ano letivo de <strong>{unpaidYear}</strong>.
+                    {reportTarget === 'class' ? (
+                      selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
+                    ) : (
+                      selectedStudent ? selectedStudent.name : 'Todos os Alunos'
+                    )} • Exercício <strong>{unpaidYear}</strong> ({periodOption === 'mensal' ? `${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth - 1]}` : periodOption === 'semestral' ? `${selectedSemester}º Semestre` : '12 Meses'})
                   </p>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2.5">
                   {/* Opções do Relatório */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
                       <input 
                         type="checkbox" 
                         checked={hideStudentName} 
                         onChange={(e) => setHideStudentName(e.target.checked)} 
-                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-4 h-4 cursor-pointer accent-[#131b2e]" 
+                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-3.5 h-3.5 cursor-pointer accent-[#131b2e]" 
                       />
-                      <span className="whitespace-nowrap">Ocultar Nome</span>
+                      <span className="whitespace-nowrap text-[11px]">Ocultar Nome</span>
                     </label>
 
-                    <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
                       <input 
                         type="checkbox" 
                         checked={showPendingTotalizer} 
                         onChange={(e) => setShowPendingTotalizer(e.target.checked)} 
-                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-4 h-4 cursor-pointer accent-[#131b2e]" 
+                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-3.5 h-3.5 cursor-pointer accent-[#131b2e]" 
                       />
-                      <span className="whitespace-nowrap">Totalizador</span>
+                      <span className="whitespace-nowrap text-[11px]">Totalizador</span>
                     </label>
 
-                    <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
                       <input 
                         type="checkbox" 
                         checked={showDateTime} 
                         onChange={(e) => setShowDateTime(e.target.checked)} 
-                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-4 h-4 cursor-pointer accent-[#131b2e]" 
+                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-3.5 h-3.5 cursor-pointer accent-[#131b2e]" 
                       />
-                      <span className="whitespace-nowrap">Data e Hora</span>
+                      <span className="whitespace-nowrap text-[11px]">Data e Hora</span>
                     </label>
                   </div>
-
-                  {/* Selector of Year */}
-                  <div className="flex items-center bg-slate-100 p-1 rounded-xl">
-                    <button 
-                      onClick={() => {
-                        const newY = unpaidYear - 1;
-                        setUnpaidYear(newY);
-                        fetchUnpaidData(newY);
-                      }}
-                      className="p-1.5 hover:bg-white rounded-lg transition-all"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-                    <span className="px-3 text-xs font-black text-[#131b2e]">{unpaidYear}</span>
-                    <button 
-                      onClick={() => {
-                        const newY = unpaidYear + 1;
-                        setUnpaidYear(newY);
-                        fetchUnpaidData(newY);
-                      }}
-                      className="p-1.5 hover:bg-white rounded-lg transition-all"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-
-                  {/* Class Filter */}
-                  <select
-                    value={unpaidClassFilter}
-                    onChange={(e) => setUnpaidClassFilter(e.target.value)}
-                    className="h-10 px-3 bg-slate-100 border-none rounded-xl text-xs font-black text-[#131b2e] focus:ring-2 focus:ring-slate-200 cursor-pointer"
-                  >
-                    <option value="">SELECIONE UMA TURMA...</option>
-                    <option value="all">TODAS AS TURMAS</option>
-                    {scopedClasses.map(c => (
-                      <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                    ))}
-                  </select>
 
                   {/* Direct Print Button */}
                   <button
                     onClick={generateUnpaidReport}
-                    disabled={!unpaidClassFilter || unpaidReportList.length === 0}
-                    className="h-10 px-4 bg-[#131b2e] text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
+                    disabled={unpaidReportList.length === 0}
+                    className="h-9 px-3.5 bg-[#131b2e] text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
                     title="Imprimir relatório de inadimplência"
                   >
-                    <Printer size={15} />
+                    <Printer size={14} />
                     Imprimir Relatório
                   </button>
-                </div>
-              </div>
-
-              {/* Unpaid Search Input */}
-              <div className="px-5 py-3 border-b border-slate-100 bg-white shrink-0">
-                <div className="relative">
-                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Filtrar inadimplentes por nome ou RA..."
-                    value={unpaidSearchTerm}
-                    onChange={(e) => setUnpaidSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:bg-slate-100 focus:ring-2 focus:ring-slate-150 transition-all"
-                  />
                 </div>
               </div>
 
@@ -2066,16 +2472,6 @@ export function Contributions() {
                   <div className="h-64 flex flex-col items-center justify-center gap-3">
                     <Loader2 size={36} className="text-blue-600 animate-spin" />
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Processando cruzamento de dados...</p>
-                  </div>
-                ) : !unpaidClassFilter ? (
-                  <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
-                    <div className="w-16 h-16 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mb-4 animate-pulse">
-                      <Search size={32} className="text-blue-500 opacity-80" />
-                    </div>
-                    <h4 className="text-sm font-black text-[#131b2e] uppercase tracking-wider">Selecione uma Turma</h4>
-                    <p className="text-xs text-center text-slate-400 max-w-sm mt-2 leading-relaxed">
-                      Selecione uma turma específica no filtro acima ou escolha <strong>Todas as Turmas</strong> para carregar o relatório de mensalidades em aberto.
-                    </p>
                   </div>
                 ) : unpaidReportList.length === 0 ? (
                   <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
@@ -2287,7 +2683,8 @@ export function Contributions() {
                 )}
               </div>
             </div>
-          ) : selectedStudent && viewMode === 'individual' ? (
+          ) : viewMode === 'individual' ? (
+            selectedStudent ? (
           <>
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -2697,7 +3094,58 @@ export function Contributions() {
               </div>
             </div>
           </>
-          ) : viewMode === 'period' ? (
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
+                <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-4 shadow-sm">
+                  <UserIcon size={32} />
+                </div>
+                <h3 className="text-base font-black text-slate-800 uppercase tracking-wider mb-1">
+                  Ficha Individual do Aluno
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mb-6 leading-relaxed">
+                  Digite o <strong>Nome</strong> ou <strong>Matrícula/RA</strong> do aluno no campo acima para carregar o histórico financeiro, ou selecione um aluno na lista rápida abaixo:
+                </p>
+
+                {/* Quick Select Grid of Students */}
+                <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-left">
+                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Contribuintes Ativos ({allActiveStudents.length})
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-600">
+                      Clique para abrir a ficha
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                    {allActiveStudents.slice(0, 24).map(s => {
+                      const sClass = classes.find(c => c.id === s.class_id);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            handleSelectStudent(s);
+                            fetchContributions(s.id, selectedYear);
+                          }}
+                          className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/60 transition-all text-left cursor-pointer group"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                            {s.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-slate-800 truncate group-hover:text-blue-900">{s.name}</p>
+                            <p className="text-[10px] text-slate-400 font-mono truncate">
+                              RA: {s.registration_number} {sClass ? `• ${sClass.name}` : ''}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )
+          ) : (
             <div className="flex-1 flex flex-col p-4 overflow-hidden">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3">
@@ -2705,9 +3153,13 @@ export function Contributions() {
                     <FileText size={16} />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-[#131b2e] leading-tight">Relatório de Período</h3>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
-                      {formatDateForDisplay(startDate)} ATÉ {formatDateForDisplay(endDate)}
+                    <h3 className="text-base font-black text-[#131b2e] leading-tight">Lançamentos de Contribuição</h3>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
+                      {reportTarget === 'class' ? (
+                        selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
+                      ) : (
+                        selectedStudent ? selectedStudent.name : 'Aluno'
+                      )} • {formatDateForDisplay(startDate)} ATÉ {formatDateForDisplay(endDate)}
                     </p>
                   </div>
                 </div>
@@ -2979,16 +3431,6 @@ export function Contributions() {
                 </table>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50">
-              <div className="w-24 h-24 rounded-2xl bg-white border border-slate-100 shadow-xl flex items-center justify-center mb-6">
-                <Search size={40} className="text-blue-600 opacity-20" />
-              </div>
-              <h3 className="text-xl font-black text-[#131b2e]">Controle de Contribuições</h3>
-              <p className="text-sm text-center max-w-sm mt-2 text-slate-500 font-medium">
-                Pesquise por um contribuinte no campo acima ou filtre um período específico para visualizar os recebimentos.
-              </p>
             </div>
           )}
         </div>
