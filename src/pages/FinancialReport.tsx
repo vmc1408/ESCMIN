@@ -1239,12 +1239,8 @@ return (
           print-color-adjust: exact !important;
         }
 
-        tfoot,
-        .printable-footer-group,
-        .print\:table-footer-group {
-          display: table-footer-group !important;
-          break-inside: avoid !important;
-          page-break-inside: avoid !important;
+        tfoot {
+          display: none !important;
         }
 
         td, th {
@@ -2723,31 +2719,6 @@ return (
                   </tr>
                 )}
               </tbody>
-
-              {/* Rodapé Oficial de Página para Impressão (repete ao final de cada página impressa) */}
-              {/* Rodapé Oficial de Página para Impressão (repete ao final de cada página impressa) */}
-              <tfoot className="hidden print:table-footer-group printable-footer-group">
-                <tr className="border-t border-slate-300">
-                  <td colSpan={6} className="pt-2.5 pb-2 px-3 text-[8.5px] text-slate-500 bg-white">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-slate-600">
-                        <span className="font-extrabold text-[#00174b]">SISTEMA ESCMIN</span>
-                        <span>•</span>
-                        <span className="font-semibold text-slate-700">
-                          {dioceseOfficialName} • {schoolOfficialName}
-                        </span>
-                        <span>•</span>
-                        <span className="text-slate-500">Documento Administrativo Oficial</span>
-                      </div>
-                      <div className="flex items-center gap-2 font-mono text-slate-700">
-                        <span>
-                          Documento emitido eletronicamente em {emissionDateFormatted}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
