@@ -1898,6 +1898,7 @@ export function Contributions() {
               <div className="relative flex-1 max-w-md">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
+                  id="student-search-input-individual"
                   type="text"
                   placeholder="Digite o Nome ou RA do Aluno para abrir a ficha..."
                   value={searchTerm || searchByName}
@@ -3106,54 +3107,64 @@ export function Contributions() {
             </div>
           </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
-                <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-4 shadow-sm">
+              <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-slate-50/50">
+                <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900 mb-4 shadow-2xs">
                   <UserIcon size={32} />
                 </div>
-                <h3 className="text-base font-black text-slate-800 uppercase tracking-wider mb-1">
+                <h3 className="text-base font-black text-slate-800 uppercase tracking-wider mb-1.5">
                   Ficha Individual do Aluno
                 </h3>
                 <p className="text-xs text-slate-500 max-w-md mb-6 leading-relaxed">
-                  Digite o <strong>Nome</strong> ou <strong>Matrícula/RA</strong> do aluno no campo acima para carregar o histórico financeiro, ou selecione um aluno na lista rápida abaixo:
+                  Digite o <strong>Nome</strong> ou <strong>Matrícula/RA</strong> do estudante no campo de busca acima para carregar o histórico financeiro detalhado de contribuições.
                 </p>
 
-                {/* Quick Select Grid of Students */}
-                <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-left">
-                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Contribuintes Ativos ({allActiveStudents.length})
-                    </span>
-                    <span className="text-[10px] font-bold text-blue-600">
-                      Clique para abrir a ficha
-                    </span>
+                {/* 3 Cartões de Orientação Simples e Objetivos */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl w-full text-left mb-6">
+                  <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+                    <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 font-black text-xs flex items-center justify-center mb-2">
+                      1
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-800 mb-1">Localizar Aluno</h4>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Informe o nome ou número de matrícula/RA no campo superior.
+                    </p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
-                    {allActiveStudents.slice(0, 24).map(s => {
-                      const sClass = classes.find(c => c.id === s.class_id);
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => {
-                            handleSelectStudent(s);
-                            fetchContributions(s.id, selectedYear);
-                          }}
-                          className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/60 transition-all text-left cursor-pointer group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                            {s.name.charAt(0)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-slate-800 truncate group-hover:text-blue-900">{s.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono truncate">
-                              RA: {s.registration_number} {sClass ? `• ${sClass.name}` : ''}
-                            </p>
-                          </div>
-                        </button>
-                      );
-                    })}
+
+                  <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-800 font-black text-xs flex items-center justify-center mb-2">
+                      2
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-800 mb-1">Selecionar Cadastro</h4>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Clique no aluno desejado na lista suspensa de sugestões instantâneas.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center mb-2">
+                      3
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-800 mb-1">Histórico Completo</h4>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Consulte as 12 parcelas, registre quitações, abonos e emita relatórios.
+                    </p>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const inputEl = document.getElementById('student-search-input-individual') as HTMLInputElement | null;
+                    if (inputEl) {
+                      inputEl.focus();
+                      inputEl.select();
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-[#00174b] hover:bg-blue-900 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <Search size={14} />
+                  <span>Digitar Nome ou RA do Aluno</span>
+                </button>
               </div>
             )
           ) : (
