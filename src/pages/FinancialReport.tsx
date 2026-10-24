@@ -1102,7 +1102,7 @@ const totals = useMemo(() => {
       doc.setTextColor(100, 116, 139);
       
       const footerLeft = `SISTEMA ESCMIN • ${dioceseHeader} • ${(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase()} • Documento Administrativo Oficial`;
-      const footerRight = `Documento emitido eletronicamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} • Página ${i} de ${totalPages}`;
+      const footerRight = `Página ${i} de ${totalPages}`;
       
       doc.text(footerLeft, margin, pageHeight - 6);
       doc.text(footerRight, pageWidth - margin, pageHeight - 6, { align: 'right' });
@@ -1156,7 +1156,7 @@ return (
             vertical-align: top;
           }
           @bottom-right {
-            content: "Emissão: ${emissionDateFormatted}  •  Página " counter(page) " de " counter(pages);
+            content: "Página " counter(page) " de " counter(pages);
             font-size: 7.5pt;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-weight: 700;
@@ -2733,7 +2733,6 @@ return (
             <span className="text-slate-500">Documento Administrativo Oficial</span>
           </div>
           <div className="flex items-center gap-3 font-mono text-[11px] text-slate-600 flex-wrap">
-            <span>Emissão: {emissionDateFormatted}</span>
             <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-900 font-bold border border-blue-200">
               {reportData.length} {reportData.length === 1 ? 'registro' : 'registros'} listados
             </span>
