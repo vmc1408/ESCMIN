@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search, GraduationCap, Award } from 'lucide-react';
+import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search, GraduationCap, Award, Clock, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Receipt } from 'lucide-react';
 import { financialService } from '../services/financialService';
 import { financialConfigService } from '../services/financialConfigService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
@@ -30,6 +30,85 @@ const MONTHS = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+export const computePeriodDateRange = (period: 'mensal' | 'semestral' | 'anual', m: number, sem: 1 | 2, yr: number) => {
+  let s = '';
+  let e = '';
+  if (period === 'mensal') {
+    const lastDay = new Date(yr, m, 0).getDate();
+    s = `${yr}-${String(m).padStart(2, '0')}-01`;
+    e = `${yr}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  } else if (period === 'semestral') {
+    if (sem === 1) {
+      s = `${yr}-01-01`;
+      e = `${yr}-06-30`;
+    } else {
+      s = `${yr}-07-01`;
+      e = `${yr}-12-31`;
+    }
+  } else if (period === 'anual') {
+    s = `${yr}-01-01`;
+    e = `${yr}-12-31`;
+  }
+  return { start: s, end: e };
+};
+
+export const renderPaymentMethodBadge = (methodStr?: string, isWaived?: boolean, pixId?: string) => {
+  if (isWaived || methodStr === 'Abono') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+        <Award size={10} className="text-amber-600" />
+        <span>Abono</span>
+      </span>
+    );
+  }
+
+  const raw = (methodStr || '').trim().toLowerCase();
+  const isPix = Boolean(pixId || raw === 'pix');
+
+  if (isPix) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200 shadow-2xs">
+        <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+        <span>{pixId ? 'PIX (Importado)' : 'PIX'}</span>
+      </span>
+    );
+  }
+
+  if (raw.includes('crédito') || raw.includes('credito')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+        <CreditCard size={10} className="text-purple-600" />
+        <span>Cartão Crédito</span>
+      </span>
+    );
+  }
+
+  if (raw.includes('débito') || raw.includes('debito')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs">
+        <CreditCard size={10} className="text-indigo-600" />
+        <span>Cartão Débito</span>
+      </span>
+    );
+  }
+
+  if (raw.includes('cartão') || raw.includes('cartao')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs">
+        <CreditCard size={10} className="text-indigo-600" />
+        <span>Cartão</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+      <DollarSign size={10} className="text-emerald-600" />
+      <span>Dinheiro</span>
+    </span>
+  );
+};
+
 export function Contributions() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,49 +137,114 @@ export function Contributions() {
       localStorage.setItem('contributions_view_mode', mode);
     } catch (e) {}
   }, []);
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 15);
-    return format(d, 'yyyy-MM-dd');
-  });
-  const [endDate, setEndDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [periodData, setPeriodData] = useState<(Contribution & { student?: Student })[]>([]);
-  const [recentContributions, setRecentContributions] = useState<(Contribution & { student?: Student })[]>([]);
-  const [filterType, setFilterType] = useState<'payment' | 'created'>('payment');
-  const [searchByName, setSearchByName] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [classes, setClasses] = useState<Class[]>([]);
 
-  // Estados para seleção de tipo de alvo e periodicidade (conforme solicitado pelo usuário)
+  // Estados para seleção de tipo de alvo e periodicidade (mensal, semestral, anual)
   const [reportTarget, setReportTarget] = useState<'class' | 'student'>('class');
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
   const [periodOption, setPeriodOption] = useState<'mensal' | 'semestral' | 'anual'>('mensal');
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(() => (new Date().getMonth() + 1 <= 6 ? 1 : 2));
 
-  const applyPeriodDates = useCallback((period: 'mensal' | 'semestral' | 'anual', m: number, sem: 1 | 2, yr: number) => {
-    let s = '';
-    let e = '';
-    if (period === 'mensal') {
-      const lastDay = new Date(yr, m, 0).getDate();
-      s = `${yr}-${String(m).padStart(2, '0')}-01`;
-      e = `${yr}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    } else if (period === 'semestral') {
-      if (sem === 1) {
-        s = `${yr}-01-01`;
-        e = `${yr}-06-30`;
-      } else {
-        s = `${yr}-07-01`;
-        e = `${yr}-12-31`;
-      }
-    } else if (period === 'anual') {
-      s = `${yr}-01-01`;
-      e = `${yr}-12-31`;
+  // Inicialização de datas estritamente alinhada com o período selecionado (padrão: Mês Atual)
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    const yr = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const sem: 1 | 2 = m <= 6 ? 1 : 2;
+    return computePeriodDateRange('mensal', m, sem, yr).start;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    const yr = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const sem: 1 | 2 = m <= 6 ? 1 : 2;
+    return computePeriodDateRange('mensal', m, sem, yr).end;
+  });
+
+  // Estados para ordenação da tabela de lançamentos por período
+  const [periodSortField, setPeriodSortField] = useState<'date' | 'name' | 'amount'>('date');
+  const [periodSortDirection, setPeriodSortDirection] = useState<'asc' | 'desc'>('desc'); // Padrão: mais recente para o mais antigo
+
+  const handlePeriodSort = (field: 'date' | 'name' | 'amount') => {
+    if (periodSortField === field) {
+      setPeriodSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPeriodSortField(field);
+      setPeriodSortDirection(field === 'name' ? 'asc' : 'desc');
     }
+  };
+
+  const [periodData, setPeriodData] = useState<(Contribution & { student?: Student })[]>([]);
+  const [recentContributions, setRecentContributions] = useState<(Contribution & { student?: Student })[]>([]);
+  const [filterType, setFilterType] = useState<'payment' | 'created'>('payment');
+  const [searchByName, setSearchByName] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [allEnrollments, setAllEnrollments] = useState<any[]>([]);
+
+  // Helper com hierarquia estrita de resolução de turma para sincronização absoluta com o cadastro de alunos
+  const resolveStudentClass = useCallback((student: Student | null | undefined): Class | undefined => {
+    if (!student || !classes || classes.length === 0) return undefined;
+
+    // 1. PRIORIDADE ABSOLUTA: student.class_id direto do cadastro do aluno
+    if (student.class_id) {
+      const targetId = String(student.class_id).trim();
+      const directMatch = classes.find(c => String(c.id).trim() === targetId);
+      if (directMatch) return directMatch;
+    }
+
+    // 2. SEGUNDA PRIORIDADE: Matrícula ativa do aluno na tabela de matrículas (enrollments)
+    if (student.id && allEnrollments && allEnrollments.length > 0) {
+      const activeEnrollment = allEnrollments.find(e => 
+        String(e.student_id).trim() === String(student.id).trim() && 
+        (e.status || 'Ativo') === 'Ativo' && 
+        e.class_id
+      );
+      if (activeEnrollment) {
+        const enrMatch = classes.find(c => String(c.id).trim() === String(activeEnrollment.class_id).trim());
+        if (enrMatch) return enrMatch;
+      }
+    }
+
+    // 3. TERCEIRA PRIORIDADE: Array de matrículas embutido no objeto do aluno (se presente)
+    if (Array.isArray((student as any).enrollments) && (student as any).enrollments.length > 0) {
+      for (const enr of (student as any).enrollments) {
+        if (enr.class_id) {
+          const m = classes.find(c => String(c.id).trim() === String(enr.class_id).trim());
+          if (m) return m;
+        }
+      }
+    }
+
+    // 4. QUARTA PRIORIDADE: Nome da turma coincide exatamente com class_name (se presente)
+    if ((student as any).class_name) {
+      const targetName = String((student as any).class_name).trim().toLowerCase();
+      const nameMatch = classes.find(c => c.name && c.name.trim().toLowerCase() === targetName);
+      if (nameMatch) return nameMatch;
+    }
+
+    // 5. QUINTA PRIORIDADE: Busca por curso APENAS se houver correspondência inequívoca (uma única turma do curso)
+    const rawCourse = (student as any).course ? String((student as any).course).trim().toLowerCase() : '';
+    if (rawCourse && rawCourse !== 'sem curso informado' && rawCourse !== 'identificar curso...') {
+      const courseClasses = classes.filter(c => 
+        (c.course && c.course.trim().toLowerCase() === rawCourse) ||
+        (c.name && c.name.trim().toLowerCase() === rawCourse)
+      );
+      if (courseClasses.length === 1) {
+        return courseClasses[0];
+      }
+    }
+
+    return undefined;
+  }, [classes, allEnrollments]);
+
+  const applyPeriodDates = useCallback((period: 'mensal' | 'semestral' | 'anual', m: number, sem: 1 | 2, yr: number) => {
+    const { start: s, end: e } = computePeriodDateRange(period, m, sem, yr);
     setStartDate(s);
     setEndDate(e);
     setSelectedYear(yr);
     setUnpaidYear(yr);
+    return { start: s, end: e };
   }, []);
   
   // Scoped Classes to active unit
@@ -167,7 +311,7 @@ export function Contributions() {
   const [manualMonths, setManualMonths] = useState<number[]>([]);
   const [manualDate, setManualDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [manualAmount, setManualAmount] = useState('100,00');
-  const [manualMethod, setManualMethod] = useState<'Dinheiro' | 'PIX' | 'Cartão'>('Dinheiro');
+  const [manualMethod, setManualMethod] = useState<'Dinheiro' | 'PIX' | 'Cartão' | 'Cartão de Crédito' | 'Cartão de Débito'>('Dinheiro');
   const [manualObservations, setManualObservations] = useState('');
   const [isSavingManual, setIsSavingManual] = useState(false);
 
@@ -179,6 +323,10 @@ export function Contributions() {
     date: string;
     isSubmitting: boolean;
   } | null>(null);
+
+  // Estados da Ficha Individual (Auditoria, Extrato e Seleção de Parcelas)
+  const [individualSubTab, setIndividualSubTab] = useState<'statement' | 'pending' | 'balance'>('statement');
+  const [selectedPendingMonths, setSelectedPendingMonths] = useState<number[]>([]);
 
   const isContributionWaived = (c: Contribution | any): boolean => {
     if (!c) return false;
@@ -210,6 +358,19 @@ export function Contributions() {
     window.addEventListener('financial_settings_updated', handleSettingsUpdated);
     return () => window.removeEventListener('financial_settings_updated', handleSettingsUpdated);
   }, []); // Only once on mount
+
+  // Filtragem 100% automática e reativa conforme seleção de Alvo (Turma/Aluno) e Período (Mensal/Semestral/Anual)
+  useEffect(() => {
+    if (viewMode === 'period') {
+      fetchPeriodContributions(startDate, endDate);
+    }
+  }, [viewMode, startDate, endDate, reportTarget, selectedClassId, selectedStudent?.id, selectedUnitId]);
+
+  useEffect(() => {
+    if (viewMode === 'unpaid') {
+      fetchUnpaidData(selectedYear);
+    }
+  }, [viewMode, selectedYear, selectedUnitId]);
 
   useEffect(() => {
     // Focus listener for automatic updates
@@ -293,16 +454,18 @@ export function Contributions() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [rawClasses, instData, finData, rawStudents] = await Promise.all([
+      const [rawClasses, instData, finData, rawStudents, _, rawEnrollments] = await Promise.all([
         fetchAll('classes').catch(() => []),
         financialService.getInstitutionSettings(),
         financialConfigService.getSettings(),
         fetchAll('students').catch(() => []),
-        fetchAcademicSettings()
+        fetchAcademicSettings(),
+        fetchAll('enrollments').catch(() => [])
       ]);
 
       const normalizedClasses = (rawClasses || []).map((cls: any) => normalizeClass(cls));
       setClasses(normalizedClasses);
+      setAllEnrollments(rawEnrollments || []);
       setInstitution(instData || null);
       setFinancialSettings(finData || null);
 
@@ -349,7 +512,7 @@ export function Contributions() {
       let pool = allStudentsCacheRef.current || [];
       if (selectedUnitId && selectedUnitId !== 'all') {
         pool = pool.filter(s => {
-          const studentClass = classes.find(c => c.id === s.class_id);
+          const studentClass = resolveStudentClass(s);
           const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
           return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
         });
@@ -423,7 +586,11 @@ export function Contributions() {
       }
 
       if (reportTarget === 'class' && selectedClassId && selectedClassId !== 'all') {
-        data = data.filter(c => c.student?.class_id === selectedClassId);
+        data = data.filter(c => {
+          if (c.student?.class_id === selectedClassId) return true;
+          const sClass = resolveStudentClass(c.student);
+          return sClass?.id === selectedClassId;
+        });
       }
 
       if (reportTarget === 'student' && selectedStudent) {
@@ -464,8 +631,13 @@ export function Contributions() {
   const fetchUnpaidData = async (targetYear = unpaidYear) => {
     setUnpaidLoading(true);
     try {
-      // 1. Fetch all students and filter active ones locally (handles implicit active status where status field is empty/null)
-      const allStuds = await fetchAll('students');
+      // 1. Fetch all students and enrollments locally
+      const [allStuds, rawEnrollments] = await Promise.all([
+        fetchAll('students'),
+        fetchAll('enrollments').catch(() => [])
+      ]);
+      setAllEnrollments(rawEnrollments || []);
+
       const studs = (allStuds || [])
         .filter((s: any) => (s.status || 'Ativo') === 'Ativo')
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -491,16 +663,8 @@ export function Contributions() {
     }
   };
 
-  // Helper para localizar a turma do aluno com inteligência e tolerância a matrículas/cursos
-  const resolveStudentClass = (student: Student | null | undefined): Class | undefined => {
-    if (!student) return undefined;
-    return classes.find(c => 
-      (student.class_id && c.id === student.class_id) ||
-      ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
-      ((student as any).course && c.course && c.course.trim().toLowerCase() === (student as any).course.trim().toLowerCase()) ||
-      ((student as any).course && c.name && c.name.toLowerCase().includes((student as any).course.toLowerCase()))
-    );
-  };
+  // Turma do aluno atualmente selecionado
+  const selectedStudentClass = useMemo(() => resolveStudentClass(selectedStudent), [selectedStudent, resolveStudentClass]);
 
   // Compute list of students with unpaid months
   const unpaidReportList = useMemo(() => {
@@ -621,6 +785,63 @@ export function Contributions() {
     const paidMonths = contributions.map(c => c.reference_month);
     return getStudentContributionPlan(selectedStudent, studentClass, selectedYear, paidMonths, activeSettings);
   }, [selectedStudent, selectedYear, contributions, academicSettingsList, classes]);
+
+  // Parcelas em aberto do aluno selecionado no ano corrente
+  const individualUnpaidMonths = useMemo(() => {
+    if (!selectedStudent) return [];
+    const paidMonths = contributions.map(c => c.reference_month);
+    return currentExpectedMonths
+      .filter(m => m > 0 && !paidMonths.includes(m))
+      .map(m => {
+        const isOverdue = isPeriodOverdue(m, selectedYear);
+        const isFacultative = Boolean(studentPlan?.isFirstYear && studentPlan.facultativeMonths.includes(m));
+        const studentClass = resolveStudentClass(selectedStudent);
+        const fee = financialConfigService.resolveFee({
+          year: selectedYear,
+          classId: selectedStudent.class_id || studentClass?.id,
+          className: studentClass?.name,
+          studentClass,
+          student: selectedStudent,
+          subjectId: (selectedStudent as any).subject_id || (selectedStudent as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+          courseName: studentClass?.course || (selectedStudent as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+          period: (selectedStudent as any).period || studentClass?.period
+        }, financialSettings);
+        return {
+          month: m,
+          monthName: MONTHS[m - 1],
+          isOverdue,
+          isFacultative,
+          dueDate: `10/${String(m).padStart(2, '0')}/${selectedYear}`,
+          amount: fee
+        };
+      });
+  }, [selectedStudent, contributions, currentExpectedMonths, selectedYear, studentPlan, classes, financialSettings]);
+
+  const togglePendingMonthSelection = (m: number) => {
+    setSelectedPendingMonths(prev => 
+      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m].sort((a, b) => a - b)
+    );
+  };
+
+  const handleBatchAddContributions = (monthsToPay: number[]) => {
+    if (!selectedStudent || monthsToPay.length === 0) return;
+    const limitedMonths = monthsToPay.slice(0, 6);
+    setManualMonths(limitedMonths);
+    const studentClass = resolveStudentClass(selectedStudent);
+    const resolvedFee = financialConfigService.resolveFee({
+      year: selectedYear,
+      classId: selectedStudent.class_id || studentClass?.id,
+      className: studentClass?.name,
+      studentClass,
+      student: selectedStudent,
+      subjectId: (selectedStudent as any).subject_id || (selectedStudent as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+      courseName: studentClass?.course || (selectedStudent as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+      period: (selectedStudent as any).period || studentClass?.period
+    }, financialSettings);
+    setManualAmount((resolvedFee * limitedMonths.length).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setManualMethod('Dinheiro');
+    setManualDate(format(new Date(), 'yyyy-MM-dd'));
+  };
 
   // Generate PDF report and trigger direct print for unpaid fees (Relatório de Inadimplência)
   const generateUnpaidReport = () => {
@@ -1164,7 +1385,7 @@ export function Contributions() {
     const student = (selectedContribs[0] as any).student || selectedStudent;
     if (!student) return;
     
-    const studentClass = classes.find(c => c.id === student.class_id);
+    const studentClass = resolveStudentClass(student);
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const margin = 15;
@@ -1240,7 +1461,10 @@ export function Contributions() {
       doc.text('TURMA / CURSO', pageWidth - margin - 50, startY + 32);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.text(`${studentClass?.code || '---'} - ${student.course || '---'}`, pageWidth - margin - 50, startY + 36);
+      const turmaLabel = studentClass 
+        ? `${studentClass.code ? `${studentClass.code} - ` : ''}${studentClass.name}`
+        : (student.course || '---');
+      doc.text(turmaLabel, pageWidth - margin - 50, startY + 36);
 
       // Grid for multiple payments
       const tableRows: any[][] = [];
@@ -1346,7 +1570,7 @@ export function Contributions() {
     const student = (contribution as any).student || selectedStudent;
     if (!student) return;
     
-    const studentClass = classes.find(c => c.id === student.class_id);
+    const studentClass = resolveStudentClass(student);
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const margin = 15;
@@ -1422,7 +1646,10 @@ export function Contributions() {
       doc.text('TURMA / CURSO', pageWidth - margin - 50, startY + 33);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.text(`${studentClass?.code || '---'} - ${student.course || '---'}`, pageWidth - margin - 50, startY + 37);
+      const turmaLabel = studentClass 
+        ? `${studentClass.code ? `${studentClass.code} - ` : ''}${studentClass.name}`
+        : (student.course || '---');
+      doc.text(turmaLabel, pageWidth - margin - 50, startY + 37);
 
       const isWaived = isContributionWaived(contribution);
       const method = isWaived ? 'Abono (Isenção Concedida)' : (contribution.pix_id ? 'PIX (Importado)' : (contribution.payment_method || 'Dinheiro'));
@@ -1783,7 +2010,7 @@ export function Contributions() {
   return (
     <>
       <div className={cn(
-        "lg:h-[calc(100vh-8rem)] h-auto flex flex-col gap-4 print:hidden lg:overflow-hidden",
+        "lg:h-[calc(100vh-8rem)] h-auto flex flex-col gap-2 sm:gap-2.5 print:hidden lg:overflow-hidden",
         isPrinting && "hidden"
       )}>
       <PageHeader
@@ -1791,38 +2018,43 @@ export function Contributions() {
         description="Lançamento e controle de contribuições de uso interno da tesouraria."
         icon={TrendingUp}
         badge="Tesouraria & Conferência"
+        className="!mb-0 mb-0"
       />
 
       {/* Unit Conflict Banner */}
-      <div className="print:hidden">
-        <UnitConflictBanner
-          moduleName="Gestão de Contribuições"
-          entityNameSingular="contribuinte"
-          entityNamePlural="contribuintes"
-          totalRecordsAllUnits={allStudentsCacheRef.current?.length || 0}
-          recordsInActiveUnit={students.length}
-          selectedItemUnit={selectedStudent ? (getItemUnitId(selectedStudent) || classes.find(c => c.id === selectedStudent.class_id)?.unit_id) : undefined}
-          selectedItemName={selectedStudent?.name}
-        />
-      </div>
+      <UnitConflictBanner
+        moduleName="Gestão de Contribuições"
+        entityNameSingular="contribuinte"
+        entityNamePlural="contribuintes"
+        totalRecordsAllUnits={allStudentsCacheRef.current?.length || 0}
+        recordsInActiveUnit={students.length}
+        selectedItemUnit={selectedStudent ? (getItemUnitId(selectedStudent) || classes.find(c => c.id === selectedStudent.class_id)?.unit_id) : undefined}
+        selectedItemName={selectedStudent?.name}
+      />
 
-      {/* 1. Abas Principais de Relatório */}
-      <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs shrink-0 flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2">
+      {/* 1. Abas Principais de Relatório (Fusão de Lançamento e Ficha em "Contribuição") */}
+      <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs shrink-0 flex gap-2">
         <button
           type="button"
           onClick={() => {
-            setViewMode('period');
-            fetchPeriodContributions();
+            if (reportTarget === 'student' && selectedStudent) {
+              setViewMode('individual');
+              fetchContributions(selectedStudent.id, selectedYear);
+            } else {
+              setReportTarget('class');
+              setViewMode('period');
+              fetchPeriodContributions();
+            }
           }}
           className={cn(
-            "flex-1 py-3 px-3 sm:px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
-            viewMode === 'period'
+            "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
+            (viewMode === 'period' || viewMode === 'individual')
               ? "bg-[#00174b] text-white ring-2 ring-blue-600/40 shadow-md"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/80 border border-slate-200/70"
           )}
         >
-          <Calendar size={15} className={viewMode === 'period' ? "text-blue-300" : "text-amber-600"} />
-          <span>Lançamentos de Contribuição</span>
+          <Receipt size={15} className={(viewMode === 'period' || viewMode === 'individual') ? "text-blue-300" : "text-blue-600"} />
+          <span>Contribuição</span>
         </button>
 
         <button
@@ -1832,7 +2064,7 @@ export function Contributions() {
             fetchUnpaidData(selectedYear);
           }}
           className={cn(
-            "flex-1 py-3 px-3 sm:px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
+            "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
             viewMode === 'unpaid'
               ? "bg-[#00174b] text-white ring-2 ring-rose-600/40 shadow-md"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/80 border border-slate-200/70"
@@ -1841,261 +2073,86 @@ export function Contributions() {
           <AlertCircle size={15} className={viewMode === 'unpaid' ? "text-rose-300" : "text-rose-600"} />
           <span>Inadimplência</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setViewMode('individual');
-            if (selectedStudent) {
-              fetchContributions(selectedStudent.id, selectedYear);
-            }
-          }}
-          className={cn(
-            "flex-1 py-3 px-3 sm:px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
-            viewMode === 'individual'
-              ? "bg-[#00174b] text-white ring-2 ring-blue-600/40 shadow-md"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50/80 border border-slate-200/70"
-          )}
-        >
-          <UserIcon size={15} className={viewMode === 'individual' ? "text-blue-300" : "text-blue-600"} />
-          <span>Ficha {selectedStudent ? `(${selectedStudent.name.split(' ')[0]})` : 'Individual'}</span>
-        </button>
       </div>
 
-      {/* 2. Barra de Filtros Direta e Sem Redundâncias */}
-      {viewMode === 'individual' ? (
-        /* Barra de Filtros da Ficha Individual: Nome ou RA do Aluno + Período */
-        <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200/90 shadow-2xs shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Lado Esquerdo: Digitar Nome ou RA do Aluno */}
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
-              Aluno:
-            </span>
-            {selectedStudent ? (
-              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
-                <UserIcon size={14} className="text-blue-600 shrink-0" />
-                <span className="text-xs font-black text-blue-950 truncate max-w-[200px] sm:max-w-[320px]">
-                  {selectedStudent.name}
-                </span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded font-mono">
-                  RA: {selectedStudent.registration_number}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedStudent(null);
-                    setSearchTerm('');
-                    setSearchByName('');
-                  }}
-                  className="ml-1 px-2 py-0.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-lg text-slate-600 hover:text-rose-700 transition-colors cursor-pointer text-[10px] font-extrabold flex items-center gap-1 shadow-2xs"
-                  title="Trocar aluno"
-                >
-                  <X size={12} />
-                  <span>Trocar Aluno</span>
-                </button>
-              </div>
-            ) : (
-              <div className="relative flex-1 max-w-md">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="student-search-input-individual"
-                  type="text"
-                  placeholder="Digite o Nome ou RA do Aluno para abrir a ficha..."
-                  value={searchTerm || searchByName}
-                  onChange={(e) => {
-                    setSearchByName(e.target.value);
-                    handleSearchStudents(e.target.value);
-                  }}
-                  className="w-full h-9 pl-8 pr-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                  autoFocus
-                />
-                {students.length > 0 && !selectedStudent && (
-                  <div className="absolute left-0 top-full mt-1 w-full max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-1">
-                    {students.slice(0, 8).map(s => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          handleSelectStudent(s);
-                          fetchContributions(s.id, selectedYear);
-                          setSearchTerm('');
-                          setSearchByName('');
-                          setStudents([]);
-                        }}
-                        className="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer"
-                      >
-                        <div className="min-w-0 pr-2">
-                          <p className="font-bold text-slate-800 truncate">{s.name}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">RA: {s.registration_number}</p>
-                        </div>
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">
-                          Abrir Ficha
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+      {/* 2. Barra de Filtros Unificada da Gestão de Contribuição */}
+      <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200/90 shadow-2xs shrink-0 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Lado Esquerdo: Alvo (Por Turma vs Por Aluno) + Seleção e Informação da Turma */}
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap min-w-0">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
+            Alvo:
+          </span>
+          <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setReportTarget('class');
+                if (viewMode !== 'unpaid') {
+                  setViewMode('period');
+                  fetchPeriodContributions();
+                }
+              }}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                reportTarget === 'class' && (viewMode === 'period' || viewMode === 'unpaid')
+                  ? "bg-[#00174b] text-white shadow-2xs font-extrabold"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              <GraduationCap size={13} />
+              <span>Por Turma</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReportTarget('student');
+                if (viewMode !== 'unpaid') {
+                  setViewMode('individual');
+                  if (selectedStudent) {
+                    fetchContributions(selectedStudent.id, selectedYear);
+                  }
+                }
+              }}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                reportTarget === 'student' || viewMode === 'individual'
+                  ? "bg-[#00174b] text-white shadow-2xs font-extrabold"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              <UserIcon size={13} />
+              <span>Por Aluno</span>
+            </button>
           </div>
 
-          {/* Lado Direito: Período entre as opções (Mensal / Semestral / Anual) */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
-              Período:
-            </span>
-            <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setPeriodOption('mensal');
-                  applyPeriodDates('mensal', selectedMonth, selectedSemester, selectedYear);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                  periodOption === 'mensal'
-                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Mensal
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPeriodOption('semestral');
-                  applyPeriodDates('semestral', selectedMonth, selectedSemester, selectedYear);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                  periodOption === 'semestral'
-                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Semestral
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPeriodOption('anual');
-                  applyPeriodDates('anual', selectedMonth, selectedSemester, selectedYear);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                  periodOption === 'anual'
-                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Anual
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 h-8.5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Exercício:</span>
+          {/* Opção Por Turma: Dropdown de Turmas */}
+          {reportTarget === 'class' && (
+            <div className="flex items-center gap-1.5 min-w-[200px] sm:min-w-[240px]">
               <select
-                value={selectedYear}
+                value={selectedClassId}
                 onChange={(e) => {
-                  const yr = Number(e.target.value);
-                  setSelectedYear(yr);
-                  setUnpaidYear(yr);
-                  if (selectedStudent) {
-                    fetchContributions(selectedStudent.id, yr);
-                  }
+                  const val = e.target.value;
+                  setSelectedClassId(val);
+                  setUnpaidClassFilter(val);
                 }}
-                className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                className="w-full h-8.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
               >
-                {[2026, 2025, 2024, 2023].map(yr => (
-                  <option key={yr} value={yr}>{yr}</option>
+                <option value="all">Todas as Turmas ({scopedClasses.length})</option>
+                {scopedClasses.map(c => (
+                  <option key={c.id} value={c.id}>{c.code ? `${c.code} - ${c.name}` : c.name}</option>
                 ))}
               </select>
             </div>
+          )}
 
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="h-8.5 px-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
-              title="Limpar seleção"
-            >
-              <X size={13} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Barra de Filtros para Lançamentos de Contribuição e Inadimplência: Por Turma ou Aluno + Período */
-        <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200/90 shadow-2xs shrink-0 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Lado Esquerdo: Alvo (Por Turma vs Por Aluno) */}
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
-              Alvo:
-            </span>
-            <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setReportTarget('class');
-                  if (viewMode === 'period') {
-                    fetchPeriodContributions();
-                  }
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
-                  reportTarget === 'class'
-                    ? "bg-[#00174b] text-white shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                <GraduationCap size={13} />
-                <span>Por Turma</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setReportTarget('student');
-                  if (viewMode === 'period') {
-                    fetchPeriodContributions();
-                  }
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
-                  reportTarget === 'student'
-                    ? "bg-[#00174b] text-white shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                <UserIcon size={13} />
-                <span>Por Aluno</span>
-              </button>
-            </div>
-
-            {/* Opção Por Turma: Dropdown de Turmas */}
-            {reportTarget === 'class' && (
-              <div className="flex items-center gap-1.5 min-w-[200px] sm:min-w-[240px]">
-                <select
-                  value={selectedClassId}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSelectedClassId(val);
-                    setUnpaidClassFilter(val);
-                  }}
-                  className="w-full h-8.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                >
-                  <option value="all">Todas as Turmas ({scopedClasses.length})</option>
-                  {scopedClasses.map(c => (
-                    <option key={c.id} value={c.id}>{c.code ? `${c.code} - ${c.name}` : c.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Opção Por Aluno: Busca / Seleção do Aluno */}
-            {reportTarget === 'student' && (
-              <div className="relative flex items-center gap-2">
-                {selectedStudent ? (
+          {/* Opção Por Aluno: Aluno Selecionado + Informação da Turma (Quadro 1) OU Campo de Busca */}
+          {reportTarget === 'student' && (
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
+              {selectedStudent ? (
+                <>
                   <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
                     <UserIcon size={13} className="text-blue-600 shrink-0" />
-                    <span className="text-xs font-extrabold text-blue-950 truncate max-w-[160px] sm:max-w-[220px]">
+                    <span className="text-xs font-extrabold text-blue-950 truncate max-w-[150px] sm:max-w-[200px]">
                       {selectedStudent.name}
                     </span>
                     <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-1.5 py-0.5 rounded font-mono">
@@ -2109,137 +2166,171 @@ export function Contributions() {
                         setSearchTerm('');
                       }}
                       className="p-0.5 hover:bg-blue-200 rounded-md text-blue-700 hover:text-rose-600 transition-colors cursor-pointer"
-                      title="Remover seleção"
+                      title="Trocar aluno"
                     >
                       <X size={13} />
                     </button>
                   </div>
-                ) : (
-                  <div className="relative min-w-[220px] sm:min-w-[260px]">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Digite o Nome ou RA do Aluno..."
-                      value={searchTerm || searchByName}
-                      onChange={(e) => {
-                        setSearchByName(e.target.value);
-                        handleSearchStudents(e.target.value);
-                      }}
-                      className="w-full h-8.5 pl-8 pr-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                    />
-                    {students.length > 0 && !selectedStudent && (
-                      <div className="absolute left-0 top-full mt-1 w-full max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-1">
-                        {students.slice(0, 8).map(s => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedStudent(s);
-                              setSearchTerm('');
-                              setSearchByName('');
-                              setStudents([]);
-                              if (viewMode === 'period') {
-                                fetchPeriodContributions();
-                              }
-                            }}
-                            className="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer"
-                          >
-                            <div className="min-w-0 pr-2">
-                              <p className="font-bold text-slate-800 truncate">{s.name}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">RA: {s.registration_number}</p>
-                            </div>
-                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">
-                              Selecionar
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+
+                  {/* Informação da Turma do Aluno (Quadro 1 Marcado pelo Usuário) */}
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100/90 border border-slate-200/90 rounded-xl text-xs font-bold text-slate-800 shrink-0 shadow-2xs">
+                    <GraduationCap size={14} className="text-blue-600 shrink-0" />
+                    <span className="text-[10px] uppercase font-black text-slate-500 tracking-wider">Turma:</span>
+                    <span className="text-slate-900 font-extrabold truncate max-w-[180px] sm:max-w-[240px]">
+                      {selectedStudentClass ? (
+                        `${selectedStudentClass.code ? `${selectedStudentClass.code} - ` : ''}${selectedStudentClass.name}`
+                      ) : (
+                        (selectedStudent as any).course || 'Sem Turma'
+                      )}
+                    </span>
                   </div>
-                )}
-              </div>
-            )}
+                </>
+              ) : (
+                <div className="relative min-w-[220px] sm:min-w-[280px]">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="student-search-input-individual"
+                    type="text"
+                    placeholder="Digite o Nome ou RA do Aluno..."
+                    value={searchTerm || searchByName}
+                    onChange={(e) => {
+                      setSearchByName(e.target.value);
+                      handleSearchStudents(e.target.value);
+                    }}
+                    className="w-full h-8.5 pl-8 pr-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  />
+                  {students.length > 0 && !selectedStudent && (
+                    <div className="absolute left-0 top-full mt-1 w-full max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-1">
+                      {students.slice(0, 8).map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            handleSelectStudent(s);
+                            setViewMode('individual');
+                            setReportTarget('student');
+                            fetchContributions(s.id, selectedYear);
+                            setSearchTerm('');
+                            setSearchByName('');
+                            setStudents([]);
+                          }}
+                          className="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <p className="font-bold text-slate-800 truncate">{s.name}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">RA: {s.registration_number}</p>
+                          </div>
+                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">
+                            Selecionar
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Lado Direito: Período (Mensal / Semestral / Anual) com Tamanho Fixo */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
+            Período:
+          </span>
+          <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setPeriodOption('mensal');
+                const dates = applyPeriodDates('mensal', selectedMonth, selectedSemester, selectedYear);
+                if (viewMode === 'period') {
+                  fetchPeriodContributions(dates.start, dates.end);
+                }
+              }}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                periodOption === 'mensal'
+                  ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              Mensal
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPeriodOption('semestral');
+                const dates = applyPeriodDates('semestral', selectedMonth, selectedSemester, selectedYear);
+                if (viewMode === 'period') {
+                  fetchPeriodContributions(dates.start, dates.end);
+                }
+              }}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                periodOption === 'semestral'
+                  ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              Semestral
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPeriodOption('anual');
+                const dates = applyPeriodDates('anual', selectedMonth, selectedSemester, selectedYear);
+                if (viewMode === 'period') {
+                  fetchPeriodContributions(dates.start, dates.end);
+                }
+              }}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                periodOption === 'anual'
+                  ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              Anual
+            </button>
           </div>
 
-          {/* Lado Direito: Período (Mensal / Semestral / Anual) + Botões de Ação */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider shrink-0">
-              Período:
-            </span>
-            <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setPeriodOption('mensal');
-                  applyPeriodDates('mensal', selectedMonth, selectedSemester, selectedYear);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                  periodOption === 'mensal'
-                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Mensal
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPeriodOption('semestral');
-                  applyPeriodDates('semestral', selectedMonth, selectedSemester, selectedYear);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                  periodOption === 'semestral'
-                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Semestral
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPeriodOption('anual');
-                  applyPeriodDates('anual', selectedMonth, selectedSemester, selectedYear);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                  periodOption === 'anual'
-                    ? "bg-white text-slate-900 shadow-2xs font-extrabold"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                Anual
-              </button>
-            </div>
-
-            {/* Sub-seletores de Mês / Semestre / Ano */}
+          {/* Sub-seletores de Mês / Semestre / Ano com Tamanho Fixo */}
+          <div className="w-[275px] shrink-0 h-8.5 flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5">
             {periodOption === 'mensal' && (
-              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 h-8.5">
+              <div className="w-full flex items-center justify-between">
                 <select
                   value={selectedMonth}
                   onChange={(e) => {
                     const m = Number(e.target.value);
                     setSelectedMonth(m);
-                    applyPeriodDates('mensal', m, selectedSemester, selectedYear);
+                    const dates = applyPeriodDates('mensal', m, selectedSemester, selectedYear);
+                    if (viewMode === 'period') {
+                      fetchPeriodContributions(dates.start, dates.end);
+                    }
                   }}
-                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none flex-1 truncate"
                 >
                   {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((mName, idx) => (
                     <option key={idx + 1} value={idx + 1}>{mName}</option>
                   ))}
                 </select>
-                <span className="text-slate-300">/</span>
+                <span className="text-slate-300 px-2 shrink-0">/</span>
                 <select
                   value={selectedYear}
                   onChange={(e) => {
                     const yr = Number(e.target.value);
                     setSelectedYear(yr);
                     setUnpaidYear(yr);
-                    applyPeriodDates('mensal', selectedMonth, selectedSemester, yr);
+                    const dates = applyPeriodDates('mensal', selectedMonth, selectedSemester, yr);
+                    if (viewMode === 'period') {
+                      fetchPeriodContributions(dates.start, dates.end);
+                    }
+                    if (selectedStudent && viewMode === 'individual') {
+                      fetchContributions(selectedStudent.id, yr);
+                    }
                   }}
-                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none shrink-0"
                 >
                   {[2026, 2025, 2024, 2023].map(yr => (
                     <option key={yr} value={yr}>{yr}</option>
@@ -2249,29 +2340,38 @@ export function Contributions() {
             )}
 
             {periodOption === 'semestral' && (
-              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 h-8.5">
+              <div className="w-full flex items-center justify-between">
                 <select
                   value={selectedSemester}
                   onChange={(e) => {
                     const sem = Number(e.target.value) as 1 | 2;
                     setSelectedSemester(sem);
-                    applyPeriodDates('semestral', selectedMonth, sem, selectedYear);
+                    const dates = applyPeriodDates('semestral', selectedMonth, sem, selectedYear);
+                    if (viewMode === 'period') {
+                      fetchPeriodContributions(dates.start, dates.end);
+                    }
                   }}
-                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none flex-1 truncate pr-1"
                 >
                   <option value={1}>1º Semestre (Jan a Jun)</option>
                   <option value={2}>2º Semestre (Jul a Dez)</option>
                 </select>
-                <span className="text-slate-300">/</span>
+                <span className="text-slate-300 px-1.5 shrink-0">/</span>
                 <select
                   value={selectedYear}
                   onChange={(e) => {
                     const yr = Number(e.target.value);
                     setSelectedYear(yr);
                     setUnpaidYear(yr);
-                    applyPeriodDates('semestral', selectedMonth, selectedSemester, yr);
+                    const dates = applyPeriodDates('semestral', selectedMonth, selectedSemester, yr);
+                    if (viewMode === 'period') {
+                      fetchPeriodContributions(dates.start, dates.end);
+                    }
+                    if (selectedStudent && viewMode === 'individual') {
+                      fetchContributions(selectedStudent.id, yr);
+                    }
                   }}
-                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
+                  className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none shrink-0"
                 >
                   {[2026, 2025, 2024, 2023].map(yr => (
                     <option key={yr} value={yr}>{yr}</option>
@@ -2281,53 +2381,44 @@ export function Contributions() {
             )}
 
             {periodOption === 'anual' && (
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 h-8.5">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Exercício:</span>
+              <div className="w-full flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-500 uppercase shrink-0">Exercício:</span>
                 <select
                   value={selectedYear}
                   onChange={(e) => {
                     const yr = Number(e.target.value);
                     setSelectedYear(yr);
                     setUnpaidYear(yr);
-                    applyPeriodDates('anual', selectedMonth, selectedSemester, yr);
+                    const dates = applyPeriodDates('anual', selectedMonth, selectedSemester, yr);
+                    if (viewMode === 'period') {
+                      fetchPeriodContributions(dates.start, dates.end);
+                    }
+                    if (selectedStudent && viewMode === 'individual') {
+                      fetchContributions(selectedStudent.id, yr);
+                    }
                   }}
                   className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
                 >
                   {[2026, 2025, 2024, 2023].map(yr => (
-                    <option key={yr} value={yr}>{yr}</option>
+                    <option key={yr} value={yr}>{yr} (Ano Completo)</option>
                   ))}
                 </select>
               </div>
             )}
-
-            {/* Botões Filtrar e Limpar */}
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  if (viewMode === 'period') {
-                    fetchPeriodContributions();
-                  } else if (viewMode === 'unpaid') {
-                    fetchUnpaidData(selectedYear);
-                  }
-                }}
-                className="h-8.5 px-3.5 bg-[#00174b] hover:bg-[#00256e] text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-2xs"
-              >
-                <Search size={13} />
-                <span>Filtrar</span>
-              </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="h-8.5 px-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
-                title="Limpar filtros"
-              >
-                <X size={13} />
-              </button>
-            </div>
           </div>
+
+          {selectedStudent && (
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="h-8.5 px-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+              title="Limpar seleção do aluno"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-2 lg:overflow-hidden overflow-visible">
         {/* Sidebar - Aba Resultados com Fundo Bordô Claro */}
@@ -2548,7 +2639,8 @@ export function Contributions() {
                         </thead>
                         <tbody>
                           {unpaidReportList.map(item => {
-                            const className = classes.find(c => c.id === item.student.class_id)?.name || 'Sem turma';
+                            const itemClass = resolveStudentClass(item.student);
+                            const className = itemClass ? (itemClass.code ? `${itemClass.code} - ${itemClass.name}` : itemClass.name) : 'Sem turma';
                             const currentYear = new Date().getFullYear();
                             const currentMonth = new Date().getMonth() + 1; // 1-indexed
 
@@ -2697,412 +2789,911 @@ export function Contributions() {
             </div>
           ) : viewMode === 'individual' ? (
             selectedStudent ? (
-          <>
-            <div className="p-4 border-b border-slate-50 bg-slate-50/50">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl md:rounded-3xl bg-blue-600 flex items-center justify-center text-white text-lg md:text-2xl font-black shadow-xl shadow-blue-200">
+            <>
+            {/* Barra Compacta de Aluno e Indicadores Resumidos */}
+            <div className="px-3.5 sm:px-4 py-2 border-b border-slate-200/80 bg-slate-50/80 shrink-0">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                {/* Lado Esquerdo: Aluno, RA e Status */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#00174b] text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
                     {selectedStudent.name.charAt(0)}
                   </div>
-                  <div>
-                    <h3 className="text-lg md:text-xl font-black text-[#131b2e] leading-tight">{selectedStudent.name}</h3>
-                    <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs font-bold text-slate-500 mt-1">
-                      <span className="flex items-center gap-1"><Calendar size={14} /> {selectedStudent.registration_number}</span>
-                      <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider">{selectedStudent.status}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-black text-[#131b2e] leading-tight truncate">
+                        {selectedStudent.name}
+                      </h3>
+                      <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-black uppercase tracking-wider shrink-0">
+                        {selectedStudent.status}
+                      </span>
                     </div>
+                    <p className="text-[10px] font-bold text-slate-500 font-mono leading-none mt-0.5">
+                      RA: {selectedStudent.registration_number}
+                    </p>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+
+                {/* Informação da Turma do Aluno (Quadro 2 Marcado pelo Usuário) */}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs font-bold text-slate-800 shadow-2xs shrink-0">
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                    <GraduationCap size={13} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-none">Turma</p>
+                    <p className="text-xs font-black text-[#131b2e] truncate max-w-[200px] sm:max-w-[260px]">
+                      {selectedStudentClass ? (
+                        `${selectedStudentClass.code ? `${selectedStudentClass.code} - ` : ''}${selectedStudentClass.name}`
+                      ) : (
+                        (selectedStudent as any).course || 'Sem Turma Atribuída'
+                      )}
+                    </p>
+                  </div>
+                  {selectedStudentClass?.period && (
+                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black uppercase">
+                      {selectedStudentClass.period}
+                    </span>
+                  )}
+                </div>
+
+                {/* Centro: Indicadores Financeiros Rápidos */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800">
+                    <TrendingUp size={12} className="text-emerald-600" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Total Quitado:</span>
+                    <span className="text-xs font-black font-mono">
+                      {formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-900">
+                    <CheckCircle2 size={12} className="text-blue-600" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-blue-600">Meses Pagos:</span>
+                    <span className="text-xs font-black font-mono">
+                      {contributions.filter(c => c.reference_month > 0).length} de {currentExpectedMonths.filter(m => m > 0).length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Lado Direito: Navegação de Ano e Ações Globais */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
                     <button 
                       onClick={() => setSelectedYear(selectedYear - 1)}
-                      className="p-1 px-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+                      className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer"
+                      title="Ano anterior"
                     >
-                      <ChevronLeft size={14} />
+                      <ChevronLeft size={13} />
                     </button>
-                    <span className="px-2 text-xs md:text-sm font-black text-[#131b2e]">{selectedYear}</span>
+                    <span className="px-1.5 text-xs font-black text-[#131b2e] font-mono">{selectedYear}</span>
                     <button 
                       onClick={() => setSelectedYear(selectedYear + 1)}
-                      className="p-1 px-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+                      className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer"
+                      title="Próximo ano"
                     >
-                      <ChevronRight size={14} />
+                      <ChevronRight size={13} />
                     </button>
                   </div>
-                        {selectedForPrint.length > 0 && (
-                          <div className="flex gap-1.5">
-                            <button 
-                              onClick={() => {
-                                generateSelectedReceipts(selectedForPrint, 'print');
-                                setSelectedForPrint([]);
-                              }}
-                              className="flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg active:scale-95 animate-in fade-in slide-in-from-right-4"
-                            >
-                              <Printer size={14} />
-                              ({selectedForPrint.length})
-                            </button>
-                          </div>
-                        )}
-                  <button 
-                    onClick={() => {
-                      setIsPrintingStatement(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
-                  >
-                    <FileText size={14} />
-                    Extrato
-                  </button>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0"><TrendingUp size={14} /></div>
-                  <div>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total no Ano</p>
-                    <p className="text-sm font-black text-[#131b2e]">{formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}</p>
-                  </div>
-                </div>
-                <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center shrink-0"><CheckCircle2 size={14} /></div>
-                  <div>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Meses Pagos</p>
-                    <p className="text-sm font-black text-[#131b2e]">{contributions.length} de {currentExpectedMonths.length}</p>
-                  </div>
+                  {selectedForPrint.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        generateSelectedReceipts(selectedForPrint, 'print');
+                        setSelectedForPrint([]);
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                      title="Imprimir Recibos Selecionados"
+                    >
+                      <Printer size={13} />
+                      <span>Imprimir ({selectedForPrint.length})</span>
+                    </button>
+                  )}
+
+                  <button 
+                    onClick={() => setIsPrintingStatement(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#00174b] text-white rounded-lg font-black text-[10px] uppercase tracking-wider hover:bg-[#00256e] transition-all shadow-2xs active:scale-95 cursor-pointer"
+                    title="Emitir Extrato Financeiro Anual"
+                  >
+                    <FileText size={13} />
+                    <span>Extrato Anual</span>
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {/* Card de Matrícula (Obrigatória no 1º Ano / Início de Curso) */}
-                {(studentPlan?.enrollmentFeeRequired || contributions.some(c => c.reference_month === 0)) && (() => {
-                  const contrib = contributions.find(c => c.reference_month === 0);
-                  const isExpected = currentExpectedMonths.includes(0);
-                  return (
-                    <div 
-                      key="matricula-card"
-                      className={cn(
-                        "group p-3 rounded-xl border transition-all duration-300 flex flex-col gap-2.5 h-full",
-                        contrib 
-                          ? "bg-emerald-50/50 border-emerald-100 ring-1 ring-emerald-50/50" 
-                          : isExpected
-                          ? "bg-rose-50/30 border-rose-200/80 hover:border-rose-300 hover:shadow-lg hover:shadow-rose-500/5"
-                          : "bg-slate-50 border-slate-200/50"
+            {/* Faixa Opcional e Compacta de Taxa de Matrícula */}
+            {(studentPlan?.enrollmentFeeRequired || contributions.some(c => c.reference_month === 0)) && (() => {
+              const contrib = contributions.find(c => c.reference_month === 0);
+              const isExpected = currentExpectedMonths.includes(0);
+              const isWaived = Boolean(contrib && isContributionWaived(contrib));
+              return (
+                <div className="mx-3 mt-2 px-3 py-1.5 rounded-xl border bg-white shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-slate-200 shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={cn(
+                      "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
+                      contrib ? "bg-emerald-100 text-emerald-700" : isExpected ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
+                    )}>
+                      <GraduationCap size={13} />
+                    </div>
+                    <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                        Taxa de Matrícula
+                      </span>
+                      {contrib ? (
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border",
+                          isWaived
+                            ? "bg-blue-50 text-blue-800 border-blue-200"
+                            : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        )}>
+                          {isWaived ? 'Abonada' : 'Quitada'}
+                        </span>
+                      ) : isExpected ? (
+                        <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 font-bold">
+                          Obrigatória (1º Ano)
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
+                          Dispensada
+                        </span>
                       )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          {contrib && (
-                            <input 
-                              type="checkbox"
-                              checked={selectedForPrint.some(c => c.id === contrib.id)}
-                              onChange={() => togglePrintSelection(contrib)}
-                              className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                            />
+
+                      {contrib && (
+                        <span className="text-xs font-black font-mono text-slate-900 ml-1">
+                          {isWaived ? 'R$ 0,00' : formatCurrency(contrib.amount)}
+                        </span>
+                      )}
+                      {contrib && (
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          ({isWaived ? 'Abono: ' : 'Pago: '}{safeFormat(contrib.payment_date, 'dd/MM/yy')})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {contrib ? (
+                      <>
+                        <button 
+                          type="button"
+                          onClick={() => setReceiptPreviewData([contrib])}
+                          className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                          title="Visualizar Recibo"
+                        >
+                          <FileText size={12} />
+                          <span>Ver</span>
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => generateSelectedReceipts([contrib], 'print')}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                          title="Imprimir Recibo"
+                        >
+                          <Printer size={12} />
+                          <span>Recibo</span>
+                        </button>
+                        {contrib.pix_id && (
+                          <button 
+                            type="button"
+                            onClick={() => setUnlinkConfirmationFor(contrib)}
+                            className="px-2 py-1 bg-white hover:bg-blue-600 hover:text-white text-blue-600 border border-blue-200 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            title="Tornar Manual (Desvincular do Pix)"
+                          >
+                            <Link2Off size={11} />
+                            <span>Manual</span>
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button 
+                            type="button"
+                            onClick={() => setDeleteConfirmationFor(contrib)}
+                            disabled={isDeleting === contrib.id}
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                            title="Excluir Registro"
+                          >
+                            {isDeleting === contrib.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          type="button"
+                          onClick={() => handleAddContribution(0)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95",
+                            isExpected 
+                              ? "bg-[#00174b] text-white hover:bg-[#00256e]" 
+                              : "bg-slate-700 text-white hover:bg-slate-800"
                           )}
-                          <div className="flex items-center gap-1.5">
-                            <GraduationCap size={14} className={contrib ? "text-emerald-600" : isExpected ? "text-rose-600" : "text-slate-400"} />
+                        >
+                          <Plus size={12} />
+                          <span>+ Quitar Matrícula</span>
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => handleOpenAbonoModal([0])}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 flex items-center gap-1 cursor-pointer active:scale-95"
+                          title="Abonar Taxa de Matrícula (Isenção)"
+                        >
+                          <Award size={12} />
+                          <span>Abonar</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* CONTAINER LADO A LADO RESPONSIVO: CALENDÁRIO À ESQUERDA + EXTRATO/AUDITORIA À DIREITA */}
+            <div className="flex-1 flex flex-col xl:flex-row min-h-0 overflow-hidden bg-slate-50/20">
+              
+              {/* COLUNA ESQUERDA: CALENDÁRIO DAS 12 PARCELAS (LADO A LADO) */}
+              <div className="w-full xl:w-[480px] 2xl:w-[520px] shrink-0 flex flex-col border-b xl:border-b-0 xl:border-r border-slate-200 bg-white overflow-hidden">
+                <div className="p-2 sm:p-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={13} className="text-[#00174b]" />
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">
+                      Calendário {selectedYear}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold font-mono">
+                      (12 Parcelas)
+                    </span>
+                  </div>
+
+                  {/* Ações em Lote para parcelas selecionadas ou recibos */}
+                  {selectedPendingMonths.length > 0 ? (
+                    <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-2">
+                      <span className="text-[9px] font-black text-blue-900 bg-blue-100 px-1.5 py-0.5 rounded font-mono">
+                        {selectedPendingMonths.length} sel.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleBatchAddContributions(selectedPendingMonths)}
+                        className="px-2 py-0.5 bg-[#00174b] hover:bg-blue-900 text-white text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95 transition-all"
+                        title="Quitar parcelas selecionadas"
+                      >
+                        <Plus size={10} />
+                        <span>Quitar</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAbonoModal(selectedPendingMonths)}
+                        className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-0.5 cursor-pointer active:scale-95 transition-all"
+                        title="Abonar parcelas selecionadas"
+                      >
+                        <Award size={10} />
+                        <span>Abonar</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPendingMonths([])}
+                        className="p-0.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded text-xs cursor-pointer"
+                        title="Desmarcar todas"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ) : selectedForPrint.length > 0 ? (
+                    <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-2">
+                      <span className="text-[9px] font-black text-emerald-900 bg-emerald-100 px-1.5 py-0.5 rounded font-mono">
+                        {selectedForPrint.length} recibo(s)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          generateSelectedReceipts(selectedForPrint, 'print');
+                          setSelectedForPrint([]);
+                        }}
+                        className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95 transition-all"
+                        title="Imprimir recibos selecionados"
+                      >
+                        <Printer size={10} />
+                        <span>Imprimir</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedForPrint([])}
+                        className="p-0.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded text-xs cursor-pointer"
+                        title="Limpar seleção"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100/90 border border-slate-200/60 px-2 py-0.5 rounded-full">
+                      Gestão de Contribuições
+                    </span>
+                  )}
+                </div>
+
+                {/* Grid das 12 Parcelas com rolagem independente */}
+                <div className="flex-1 overflow-y-auto p-2 sm:p-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-2">
+                  {MONTHS.map((month, idx) => {
+                    const monthNum = idx + 1;
+                    const contrib = contributions.find(c => c.reference_month === monthNum);
+                    const isExpected = currentExpectedMonths.includes(monthNum);
+                    const isFacultative = Boolean(studentPlan?.isFirstYear && studentPlan.facultativeMonths.includes(monthNum));
+                    const isOverdue = !contrib && isExpected && isPeriodOverdue(monthNum, selectedYear);
+                    const isWaived = Boolean(contrib && isContributionWaived(contrib));
+                    const isPendingSelected = selectedPendingMonths.includes(monthNum);
+
+                    return (
+                      <div 
+                        key={month}
+                        className={cn(
+                          "rounded-xl border p-2 transition-all duration-200 flex flex-col justify-between gap-1 shadow-2xs hover:shadow-xs",
+                          contrib
+                            ? isWaived 
+                              ? "bg-blue-50/40 border-blue-200/90 hover:border-blue-300"
+                              : "bg-emerald-50/40 border-emerald-200/90 hover:border-emerald-300"
+                            : isOverdue
+                            ? "bg-rose-50/40 border-rose-200/90 hover:border-rose-300 ring-1 ring-rose-200/40"
+                            : isFacultative
+                            ? "bg-amber-50/30 border-amber-200/80 hover:border-amber-300"
+                            : "bg-white border-slate-200/90 hover:border-slate-300",
+                          isPendingSelected && "ring-2 ring-blue-500 border-blue-500 bg-blue-50/30"
+                        )}
+                      >
+                        {/* Topo do Card: Checkbox de Seleção, Número, Nome do Mês e Status */}
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {contrib ? (
+                              <input 
+                                type="checkbox"
+                                checked={selectedForPrint.some(c => c.id === contrib.id)}
+                                onChange={() => togglePrintSelection(contrib)}
+                                className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                                title="Selecionar para impressão de recibo"
+                              />
+                            ) : (
+                              <input 
+                                type="checkbox"
+                                checked={isPendingSelected}
+                                onChange={() => togglePendingMonthSelection(monthNum)}
+                                className="w-3.5 h-3.5 rounded border-slate-300 text-[#00174b] focus:ring-blue-500 cursor-pointer shrink-0"
+                                title="Selecionar para quitação ou abono em lote"
+                              />
+                            )}
                             <span className={cn(
-                              "text-[10px] font-black uppercase tracking-widest",
-                              contrib ? "text-emerald-700" : isExpected ? "text-rose-700 font-extrabold" : "text-slate-500"
+                              "text-[10px] font-black uppercase tracking-wider truncate",
+                              contrib
+                                ? isWaived ? "text-blue-900" : "text-emerald-900"
+                                : isOverdue
+                                ? "text-rose-900"
+                                : isFacultative
+                                ? "text-amber-900"
+                                : "text-slate-800"
                             )}>
-                              Taxa de Matrícula
+                              {month}
                             </span>
                           </div>
-                        </div>
-                        {contrib && (
-                          <div className={cn(
-                            "w-5 h-5 rounded-md text-white flex items-center justify-center shadow-lg",
-                            isContributionWaived(contrib)
-                              ? "bg-blue-600 shadow-blue-600/20"
-                              : "bg-emerald-500 shadow-emerald-500/10"
-                          )}>
-                            {isContributionWaived(contrib) ? <Award size={12} /> : <CheckCircle2 size={12} />}
-                          </div>
-                        )}
-                        {!contrib && isExpected && (
-                          <span className="px-1.5 py-0.5 rounded text-[7.5px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200">
-                            Obrigatória
-                          </span>
-                        )}
-                      </div>
 
-                      {contrib ? (
-                        <>
-                          <div className="space-y-0.5">
-                            <div className="flex items-center justify-between">
-                              <p className="text-lg font-black text-[#131b2e] leading-none">
-                                {isContributionWaived(contrib) ? 'R$ 0,00' : formatCurrency(contrib.amount)}
-                              </p>
-                              {isContributionWaived(contrib) && (
-                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[8px] font-black uppercase tracking-wider border border-blue-200">
-                                  Abonada
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-[9px] font-bold text-slate-400">
-                                {isContributionWaived(contrib) ? 'Abono: ' : 'Pago: '}{safeFormat(contrib.payment_date, 'dd/MM/yy')}
-                              </p>
-                              <span className={cn(
-                                "px-1.5 py-px rounded text-[7px] font-black uppercase tracking-wider border",
-                                isContributionWaived(contrib)
-                                  ? "bg-blue-50 text-blue-700 border-blue-200 font-bold"
-                                  : contrib.pix_id 
-                                  ? "bg-blue-50 text-blue-600 border-blue-100" 
-                                  : "bg-slate-50 text-slate-600 border-slate-100"
-                              )}>
-                                {isContributionWaived(contrib) ? 'Abono (Isenção)' : (contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`)}
-                              </span>
-                            </div>
-                            {contrib.observations && !isContributionWaived(contrib) && (
-                              <p className="text-[9px] text-slate-400 italic truncate" title={contrib.observations}>
-                                {contrib.observations}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex gap-2 pt-1.5 border-t border-emerald-100/50">
-                            <button 
-                              onClick={() => setReceiptPreviewData([contrib])}
-                              className="p-1.5 bg-white text-slate-400 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all"
-                              title="Visualizar Recibo de Matrícula"
-                            >
-                              <FileText size={14} />
-                            </button>
-                            <button 
-                              onClick={() => generateSelectedReceipts([contrib], 'print')}
-                              className="flex-1 py-1.5 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-sm flex items-center justify-center gap-1.5"
-                            >
-                              <Printer size={10} />
-                              Imprimir
-                            </button>
-                            {contrib.pix_id && (
-                              <button 
-                                onClick={() => setUnlinkConfirmationFor(contrib)}
-                                className="flex-1 py-1.5 bg-slate-50 text-blue-500 border border-slate-100 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5"
-                                title="Tornar Manual (Desvincular do Pix)"
-                              >
-                                <Link2Off size={10} />
-                                Manual
-                              </button>
-                            )}
-                            {canDelete && (
-                              <button 
-                                onClick={() => setDeleteConfirmationFor(contrib)}
-                                disabled={isDeleting === contrib.id}
-                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all bg-white border border-red-100 rounded-xl shadow-sm disabled:opacity-50"
-                                title="Excluir Registro de Matrícula"
-                              >
-                                {isDeleting === contrib.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="space-y-0.5 py-1">
-                            <p className={cn(
-                              "text-xs font-bold",
-                              isExpected ? "text-rose-600 font-black" : "text-slate-400"
+                          {/* Pílula de Status Informativa */}
+                          {contrib ? (
+                            <span className={cn(
+                              "px-1.5 py-0.2 rounded text-[7.5px] font-black uppercase tracking-wider shrink-0 flex items-center gap-0.5",
+                              isWaived 
+                                ? "bg-blue-100 text-blue-800 border border-blue-200" 
+                                : "bg-emerald-100 text-emerald-800 border border-emerald-200"
                             )}>
-                              {isExpected ? "Matrícula Pendente (1º Ano)" : "Não Exigida"}
-                            </p>
-                            <p className="text-[9px] text-slate-400">Taxa de matrícula inicial do curso</p>
-                          </div>
-                          <div className="flex gap-1.5 w-full">
-                            <button 
-                              onClick={() => handleAddContribution(0)}
-                              className={cn(
-                                "flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1 cursor-pointer",
-                                isExpected 
-                                  ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-600 hover:text-white" 
-                                  : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-blue-600 hover:text-white"
-                              )}
-                            >
-                              <Plus size={12} />
-                              Registrar
-                            </button>
-                            <button 
-                              onClick={() => handleOpenAbonoModal([0])}
-                              className="px-2.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-blue-200 bg-blue-50 text-blue-700 hover:bg-[#00174b] hover:text-white hover:border-[#00174b] flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                              title="Abonar Taxa de Matrícula (Isenção)"
-                            >
-                              <Award size={12} />
-                              Abonar
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  );
-                })()}
+                              <CheckCircle2 size={8} />
+                              <span>{isWaived ? 'Abonado' : 'Pago'}</span>
+                            </span>
+                          ) : isOverdue ? (
+                            <span className="px-1.5 py-0.2 rounded text-[7.5px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200 shrink-0 flex items-center gap-0.5">
+                              <AlertCircle size={8} />
+                              <span>Vencido</span>
+                            </span>
+                          ) : isFacultative ? (
+                            <span className="px-1.5 py-0.2 rounded text-[7.5px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                              Facultativo
+                            </span>
+                          ) : isExpected ? (
+                            <span className="px-1.5 py-0.2 rounded text-[7.5px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                              A Vencer
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded text-[7.5px] font-medium uppercase tracking-wider bg-slate-50 text-slate-400 border border-slate-100 shrink-0">
+                              Isento
+                            </span>
+                          )}
+                        </div>
 
-                {MONTHS.map((month, idx) => {
-                  const monthNum = idx + 1;
-                  const contrib = contributions.find(c => c.reference_month === monthNum);
-                  const isExpected = currentExpectedMonths.includes(monthNum);
-                  const isFacultative = Boolean(studentPlan?.isFirstYear && studentPlan.facultativeMonths.includes(monthNum));
-                  return (
-                    <div 
-                      key={month}
+                        {/* Corpo do Card: Valor e Detalhes */}
+                        <div className="py-0.5">
+                          {contrib ? (
+                            <div className="space-y-0.5">
+                              <div className="flex items-baseline justify-between gap-1">
+                                <span className="text-xs font-black font-mono text-[#131b2e] leading-tight">
+                                  {isWaived ? 'R$ 0,00' : formatCurrency(contrib.amount)}
+                                </span>
+                                <span className={cn(
+                                  "text-[7px] font-bold px-1 py-0.2 rounded border",
+                                  isWaived 
+                                    ? "bg-blue-50 text-blue-700 border-blue-100" 
+                                    : contrib.pix_id 
+                                    ? "bg-blue-50 text-blue-700 border-blue-100" 
+                                    : "bg-slate-50 text-slate-600 border-slate-200"
+                                )}>
+                                  {isWaived ? 'Abono' : (contrib.pix_id ? 'Pix' : (contrib.payment_method || 'Dinheiro'))}
+                                </span>
+                              </div>
+                              <p className="text-[8.5px] font-bold text-slate-400 leading-tight">
+                                {isWaived ? 'Abono: ' : 'Pago: '}{safeFormat(contrib.payment_date, 'dd/MM/yy')}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-0.5">
+                              <div className="flex items-baseline justify-between gap-1">
+                                <span className={cn(
+                                  "text-[11px] font-bold leading-tight",
+                                  isOverdue ? "text-rose-700 font-black" : isFacultative ? "text-amber-700" : "text-slate-500"
+                                )}>
+                                  {isOverdue ? "Em atraso" : isFacultative ? "Opcional" : isExpected ? "Mensalidade regular" : "Dispensado"}
+                                </span>
+                              </div>
+                              <p className="text-[8.5px] text-slate-400 leading-tight">
+                                {isOverdue ? `Venceu: 10/${String(monthNum).padStart(2, '0')}/${selectedYear}` : isExpected ? `Venc.: 10/${String(monthNum).padStart(2, '0')}/${selectedYear}` : 'Sem cobrança'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Ações Rápidas do Card (Onde se gerencia o processo) */}
+                        <div className="flex items-center gap-1 pt-1 border-t border-slate-100">
+                          {contrib ? (
+                            <>
+                              <button 
+                                type="button"
+                                onClick={() => setReceiptPreviewData([contrib])}
+                                className="p-1 text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-[8.5px] font-bold transition-all cursor-pointer shadow-2xs"
+                                title="Visualizar Recibo"
+                              >
+                                <FileText size={11} />
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => generateSelectedReceipts([contrib], 'print')}
+                                className="flex-1 py-1 px-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[8.5px] font-black uppercase tracking-wider transition-all shadow-2xs flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                                title="Imprimir Recibo"
+                              >
+                                <Printer size={10} />
+                                <span>Recibo</span>
+                              </button>
+                              {contrib.pix_id && (
+                                <button 
+                                  type="button"
+                                  onClick={() => setUnlinkConfirmationFor(contrib)}
+                                  className="p-1 text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-md text-[8.5px] font-bold transition-all cursor-pointer"
+                                  title="Tornar Manual (Desvincular do Pix)"
+                                >
+                                  <Link2Off size={10} />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button 
+                                  type="button"
+                                  onClick={() => setDeleteConfirmationFor(contrib)}
+                                  disabled={isDeleting === contrib.id}
+                                  className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all cursor-pointer disabled:opacity-50"
+                                  title="Excluir Registro"
+                                >
+                                  {isDeleting === contrib.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <button 
+                                type="button"
+                                onClick={() => handleAddContribution(monthNum)}
+                                className={cn(
+                                  "flex-1 py-1 px-1 rounded-md text-[8.5px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs active:scale-95",
+                                  isOverdue
+                                    ? "bg-rose-700 hover:bg-rose-800 text-white"
+                                    : "bg-[#00174b] hover:bg-[#00256e] text-white"
+                                )}
+                                title={`Registrar quitação de ${month}`}
+                              >
+                                <Plus size={10} />
+                                <span>+ Quitar</span>
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => handleOpenAbonoModal([monthNum])}
+                                className="py-1 px-1.5 rounded-md text-[8.5px] font-bold uppercase tracking-wider border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 flex items-center justify-center gap-0.5 cursor-pointer active:scale-95 transition-all"
+                                title={`Abonar mensalidade de ${month} (Isenção)`}
+                              >
+                                <Award size={10} />
+                                <span>Abonar</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUNA DIREITA: PAINEL PROFISSIONAL DE AUDITORIA, EXTRATO & COBRANÇA (LADO A LADO) */}
+              <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
+                {/* Cabeçalho com Abas Profissionais */}
+                <div className="px-3 sm:px-4 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                  <div className="flex items-center gap-1 pt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIndividualSubTab('statement')}
                       className={cn(
-                        "group p-3 rounded-xl border transition-all duration-300 flex flex-col gap-2.5 h-full",
-                        contrib 
-                          ? "bg-emerald-50/50 border-emerald-100 ring-1 ring-emerald-50/50" 
-                          : isExpected
-                          ? "bg-white border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5"
-                          : isFacultative
-                          ? "bg-amber-50/25 border-amber-200/60 hover:border-amber-300 hover:shadow-lg hover:shadow-amber-500/5"
-                          : "bg-slate-50/60 border-slate-200/40"
+                        "px-3 py-2 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all flex items-center gap-2 border-b-2 cursor-pointer",
+                        individualSubTab === 'statement'
+                          ? "bg-white text-[#00174b] border-[#00174b] shadow-2xs"
+                          : "text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          {contrib && (
-                            <input 
-                              type="checkbox"
-                              checked={selectedForPrint.some(c => c.id === contrib.id)}
-                              onChange={() => togglePrintSelection(contrib)}
-                              className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                            />
-                          )}
-                          <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest",
-                            contrib ? "text-emerald-600" : isExpected ? "text-slate-700 font-bold" : isFacultative ? "text-amber-700 font-bold" : "text-slate-400"
-                          )}>
-                            {month}
+                      <FileText size={13} className={individualSubTab === 'statement' ? "text-[#00174b]" : "text-slate-400"} />
+                      <span>Extrato de Lançamentos & Recibos</span>
+                      <span className={cn(
+                        "px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold",
+                        individualSubTab === 'statement' ? "bg-blue-100 text-[#00174b]" : "bg-slate-200 text-slate-600"
+                      )}>
+                        {contributions.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIndividualSubTab('pending')}
+                      className={cn(
+                        "px-3 py-2 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all flex items-center gap-2 border-b-2 cursor-pointer",
+                        individualSubTab === 'pending'
+                          ? "bg-white text-rose-700 border-rose-600 shadow-2xs"
+                          : "text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
+                      )}
+                    >
+                      <AlertCircle size={13} className={individualSubTab === 'pending' ? "text-rose-600" : "text-slate-400"} />
+                      <span>Pendências & Cobrança</span>
+                      {individualUnpaidMonths.filter(m => m.isOverdue).length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black bg-rose-100 text-rose-800">
+                          {individualUnpaidMonths.filter(m => m.isOverdue).length} vencida(s)
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIndividualSubTab('balance')}
+                      className={cn(
+                        "px-3 py-2 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all flex items-center gap-2 border-b-2 cursor-pointer",
+                        individualSubTab === 'balance'
+                          ? "bg-white text-indigo-700 border-indigo-600 shadow-2xs"
+                          : "text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
+                      )}
+                    >
+                      <TrendingUp size={13} className={individualSubTab === 'balance' ? "text-indigo-600" : "text-slate-400"} />
+                      <span>Balanço & Diagnóstico</span>
+                    </button>
+                  </div>
+
+                  {/* Ações rápidas da aba */}
+                  <div className="flex items-center gap-2 py-1">
+                    {individualSubTab === 'statement' && contributions.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allContribs = [...contributions].sort((a, b) => a.reference_month - b.reference_month);
+                          generateSelectedReceipts(allContribs, 'print');
+                        }}
+                        className="px-2.5 py-1 bg-[#00174b] hover:bg-blue-900 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 transition-all"
+                        title="Imprimir todos os comprovantes emitidos em lote"
+                      >
+                        <Printer size={12} />
+                        <span>Imprimir Extrato Completo ({contributions.length})</span>
+                      </button>
+                    )}
+
+                    {individualSubTab === 'pending' && individualUnpaidMonths.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">
+                          Total Aberto: {formatCurrency(individualUnpaidMonths.reduce((acc, m) => acc + m.amount, 0))}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Conteúdo com rolagem da Sub-Aba Ativa */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                  {/* ABA 1: EXTRATO DE LANÇAMENTOS (SOMENTE INFORMATIVO & DETALHADO) */}
+                  {individualSubTab === 'statement' && (
+                    contributions.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                          <FileText size={24} />
+                        </div>
+                        <h5 className="text-sm font-black text-slate-700 uppercase">Nenhum pagamento registrado em {selectedYear}</h5>
+                        <p className="text-xs text-slate-400 max-w-sm mt-1">
+                          O gerenciamento, quitações e abonos são realizados através dos cartões mensais no quadro de contribuições à esquerda.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
+                        <table className="w-full min-w-[620px] text-left text-xs">
+                          <thead className="bg-[#00174b] text-white text-[10px] font-black uppercase tracking-wider">
+                            <tr>
+                              <th className="py-2.5 px-3">#</th>
+                              <th className="py-2.5 px-3">Referência</th>
+                              <th className="py-2.5 px-3">Data Pagto</th>
+                              <th className="py-2.5 px-3">Modalidade</th>
+                              <th className="py-2.5 px-3">Valor Pago</th>
+                              <th className="py-2.5 px-3">Situação</th>
+                              <th className="py-2.5 px-3">Autenticação / Registro</th>
+                              <th className="py-2.5 px-3 text-right">Observações & Justificativas</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {[...contributions]
+                              .sort((a, b) => a.reference_month - b.reference_month)
+                              .map((c, index) => {
+                                const isWaived = isContributionWaived(c);
+                                return (
+                                  <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                                    <td className="py-2.5 px-3 font-mono text-[10px] text-slate-400 font-bold">
+                                      {String(index + 1).padStart(2, '0')}
+                                    </td>
+                                    <td className="py-2.5 px-3 font-black text-slate-900">
+                                      {c.reference_month === 0 ? 'Taxa de Matrícula' : `Mensalidade de ${MONTHS[c.reference_month - 1]}/${c.reference_year}`}
+                                    </td>
+                                    <td className="py-2.5 px-3 font-medium text-slate-600">
+                                      {safeFormat(c.payment_date, 'dd/MM/yyyy')}
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      <span className={cn(
+                                        "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border",
+                                        isWaived
+                                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                                          : c.pix_id
+                                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                                          : "bg-slate-100 text-slate-700 border-slate-200"
+                                      )}>
+                                        {isWaived ? 'Abono (Isenção)' : c.pix_id ? 'Pix (Importado)' : (c.payment_method || 'Dinheiro')}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3 font-mono font-black text-slate-900">
+                                      {isWaived ? 'R$ 0,00' : formatCurrency(c.amount)}
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      <span className={cn(
+                                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                                        isWaived ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
+                                      )}>
+                                        <CheckCircle2 size={10} />
+                                        <span>{isWaived ? 'Isento' : 'Liquidado'}</span>
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-[10px] font-mono text-slate-500">
+                                      {c.pix_id ? `Pix: ${c.pix_id.substring(0, 16)}...` : `Recibo: #${c.reference_year}-${String(c.reference_month).padStart(2, '0')}`}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-[11px] text-slate-600 font-medium text-right max-w-xs break-words">
+                                      {c.observations || (isWaived ? (c.waiver_reason || 'Isenção administrativa') : 'Sem observações adicionais')}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                          <tfoot className="bg-slate-50 border-t border-slate-200 text-[10px] font-bold text-slate-600">
+                            <tr>
+                              <td colSpan={4} className="py-2.5 px-3 text-right font-black uppercase tracking-wider">
+                                Total Geral Liquidado ({contributions.length} parcelas):
+                              </td>
+                              <td className="py-2.5 px-3 font-mono font-black text-sm text-[#00174b]">
+                                {formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}
+                              </td>
+                              <td colSpan={3} className="py-2.5 px-3 text-right text-slate-500">
+                                {contributions.filter(c => isContributionWaived(c)).length} parcela(s) com abono administrativo
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )
+                  )}
+
+                  {/* ABA 2: PENDÊNCIAS & DIAGNÓSTICO (SOMENTE INFORMATIVO & DIAGNÓSTICO) */}
+                  {individualSubTab === 'pending' && (
+                    individualUnpaidMonths.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-emerald-50/30 rounded-2xl border border-emerald-100">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-3">
+                          <CheckCircle2 size={24} />
+                        </div>
+                        <h5 className="text-sm font-black text-emerald-900 uppercase">Aluno 100% Adimplente em {selectedYear}!</h5>
+                        <p className="text-xs text-emerald-700 max-w-sm mt-1">
+                          Todas as parcelas previstas para este estudante estão quitadas ou devidamente abonadas. Nenhuma pendência financeira.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
+                        <table className="w-full min-w-[620px] text-left text-xs">
+                          <thead className="bg-[#00174b] text-white text-[10px] font-black uppercase tracking-wider">
+                            <tr>
+                              <th className="py-2.5 px-3">Parcela</th>
+                              <th className="py-2.5 px-3">Data Vencimento</th>
+                              <th className="py-2.5 px-3">Situação</th>
+                              <th className="py-2.5 px-3">Valor Previsto</th>
+                              <th className="py-2.5 px-3">Regra Aplicável</th>
+                              <th className="py-2.5 px-3 text-right">Diagnóstico Financeiro</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {individualUnpaidMonths.map((item) => (
+                              <tr key={item.month} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="py-2.5 px-3 font-black text-slate-900 flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center font-mono text-[10px] font-bold">
+                                    {item.month}
+                                  </span>
+                                  <span>{item.monthName} / {selectedYear}</span>
+                                </td>
+                                <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
+                                  {item.dueDate}
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border",
+                                    item.isOverdue
+                                      ? "bg-rose-50 text-rose-700 border-rose-200 font-black animate-pulse"
+                                      : item.isFacultative
+                                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                                      : "bg-slate-100 text-slate-600 border-slate-200"
+                                  )}>
+                                    {item.isOverdue ? 'Vencida (Em Débito)' : item.isFacultative ? 'Facultativo (1º Ano)' : 'A Vencer (Futuro)'}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 font-mono font-black text-slate-900">
+                                  {formatCurrency(item.amount)}
+                                </td>
+                                <td className="py-2.5 px-3 text-[11px] text-slate-500">
+                                  {item.isFacultative ? 'Opcional, não gera restrição' : 'Mensalidade regular prevista em plano'}
+                                </td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <span className={cn(
+                                    "text-[9.5px] font-bold px-2 py-0.5 rounded-md border",
+                                    item.isOverdue
+                                      ? "bg-rose-50 text-rose-700 border-rose-200 font-black"
+                                      : item.isFacultative
+                                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                                      : "bg-slate-50 text-slate-600 border-slate-200"
+                                  )}>
+                                    {item.isOverdue ? "Pendente de Quitação" : item.isFacultative ? "Dispensável" : "Dentro do Prazo"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-rose-50/50 border-t border-rose-200 text-[10px] font-bold text-rose-900">
+                            <tr>
+                              <td colSpan={3} className="py-2.5 px-3 text-right font-black uppercase tracking-wider">
+                                Total em Atraso ({individualUnpaidMonths.filter(m => m.isOverdue).length} parcelas vencidas):
+                              </td>
+                              <td className="py-2.5 px-3 font-mono font-black text-sm text-rose-700">
+                                {formatCurrency(individualUnpaidMonths.filter(m => m.isOverdue).reduce((acc, m) => acc + m.amount, 0))}
+                              </td>
+                              <td colSpan={2} className="py-2.5 px-3 text-right text-slate-500">
+                                Total a Vencer: {formatCurrency(individualUnpaidMonths.filter(m => !m.isOverdue && !m.isFacultative).reduce((acc, m) => acc + m.amount, 0))}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )
+                  )}
+
+                  {/* ABA 3: BALANÇO & DIAGNÓSTICO FINANCEIRO */}
+                  {individualSubTab === 'balance' && (
+                    <div className="space-y-4">
+                      {/* 4 Cards de Métricas Analíticas */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 shadow-2xs">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Total Previsto no Ano</span>
+                          <p className="text-base font-black text-slate-900 font-mono">
+                            {formatCurrency((contributions.length + individualUnpaidMonths.length) * 100)}
+                          </p>
+                          <span className="text-[10px] text-slate-500 font-medium mt-1 block">
+                            {contributions.length + individualUnpaidMonths.length} parcelas no exercício
                           </span>
                         </div>
-                        {contrib && (
-                          <div className={cn(
-                            "w-5 h-5 rounded-md text-white flex items-center justify-center shadow-lg",
-                            isContributionWaived(contrib)
-                              ? "bg-blue-600 shadow-blue-600/20"
-                              : "bg-emerald-500 shadow-emerald-500/10"
-                          )}>
-                            {isContributionWaived(contrib) ? <Award size={12} /> : <CheckCircle2 size={12} />}
-                          </div>
-                        )}
-                        {!contrib && isFacultative && (
-                          <span className="px-1.5 py-0.5 rounded text-[7.5px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
-                            Facultativo
+
+                        <div className="p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-200 shadow-2xs">
+                          <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest block mb-1">Total Efetivamente Pago</span>
+                          <p className="text-base font-black text-emerald-800 font-mono">
+                            {formatCurrency(contributions.filter(c => !isContributionWaived(c)).reduce((acc, c) => acc + c.amount, 0))}
+                          </p>
+                          <span className="text-[10px] text-emerald-600 font-medium mt-1 block">
+                            {contributions.filter(c => !isContributionWaived(c)).length} parcela(s) quitada(s)
                           </span>
-                        )}
+                        </div>
+
+                        <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200 shadow-2xs">
+                          <span className="text-[9px] font-black text-blue-700 uppercase tracking-widest block mb-1">Total de Abonos (Isenções)</span>
+                          <p className="text-base font-black text-blue-800 font-mono">
+                            {contributions.filter(c => isContributionWaived(c)).length} mês(es)
+                          </p>
+                          <span className="text-[10px] text-blue-600 font-medium mt-1 block">
+                            Concedidos administrativamente
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 bg-rose-50/50 rounded-xl border border-rose-200 shadow-2xs">
+                          <span className="text-[9px] font-black text-rose-700 uppercase tracking-widest block mb-1">Saldo em Atraso (Débito)</span>
+                          <p className="text-base font-black text-rose-700 font-mono">
+                            {formatCurrency(individualUnpaidMonths.filter(m => m.isOverdue).reduce((acc, m) => acc + m.amount, 0))}
+                          </p>
+                          <span className="text-[10px] text-rose-600 font-medium mt-1 block">
+                            {individualUnpaidMonths.filter(m => m.isOverdue).length} parcela(s) vencida(s)
+                          </span>
+                        </div>
                       </div>
 
-                      {contrib ? (
-                        <>
-                          <div className="space-y-0.5">
-                            <div className="flex items-center justify-between">
-                              <p className="text-lg font-black text-[#131b2e] leading-none">
-                                {isContributionWaived(contrib) ? 'R$ 0,00' : formatCurrency(contrib.amount)}
-                              </p>
-                              {isContributionWaived(contrib) && (
-                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[8px] font-black uppercase tracking-wider border border-blue-200">
-                                  Abonado
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-[9px] font-bold text-slate-400">
-                                {isContributionWaived(contrib) ? 'Abono: ' : 'Pago: '}{safeFormat(contrib.payment_date, 'dd/MM/yy')}
-                              </p>
-                              <span className={cn(
-                                "px-1.5 py-px rounded text-[7px] font-black uppercase tracking-wider border",
-                                isContributionWaived(contrib)
-                                  ? "bg-blue-50 text-blue-700 border-blue-200 font-bold"
-                                  : contrib.pix_id 
-                                  ? "bg-blue-50 text-blue-600 border-blue-100" 
-                                  : "bg-slate-50 text-slate-600 border-slate-100"
-                              )}>
-                                {isContributionWaived(contrib) ? 'Abono (Isenção)' : (contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`)}
-                              </span>
-                            </div>
-                            {contrib.observations && !isContributionWaived(contrib) && (
-                              <p className="text-[9px] text-slate-400 italic truncate" title={contrib.observations}>
-                                {contrib.observations}
-                              </p>
-                            )}
-                          </div>
-                           <div className="flex gap-2 pt-1.5 border-t border-emerald-100/50">
-                             <button 
-                               onClick={() => setReceiptPreviewData([contrib])}
-                               className="p-1.5 bg-white text-slate-400 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all"
-                               title="Visualizar Recibo"
-                             >
-                               <FileText size={14} />
-                             </button>
-                             <button 
-                               onClick={() => generateSelectedReceipts([contrib], 'print')}
-                               className="flex-1 py-1.5 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-sm flex items-center justify-center gap-1.5"
-                             >
-                               <Printer size={10} />
-                               Imprimir
-                             </button>
-                             {contrib.pix_id && (
-                               <button 
-                                 onClick={() => setUnlinkConfirmationFor(contrib)}
-                                 className="flex-1 py-1.5 bg-slate-50 text-blue-500 border border-slate-100 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5"
-                                 title="Tornar Manual (Desvincular do Pix)"
-                               >
-                                 <Link2Off size={10} />
-                                 Manual
-                               </button>
-                             )}
-                             {canDelete && (
-                               <button 
-                                 onClick={() => setDeleteConfirmationFor(contrib)}
-                                 disabled={isDeleting === contrib.id}
-                                 className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all bg-white border border-red-100 rounded-xl shadow-sm disabled:opacity-50"
-                                 title="Excluir Registro / Recibo"
-                               >
-                                 {isDeleting === contrib.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                               </button>
-                             )}
-                           </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="space-y-0.5 py-1">
-                            <p className={cn(
-                              "text-xs font-bold",
-                              isExpected ? "text-slate-600" : isFacultative ? "text-amber-700 font-black" : "text-slate-400"
-                            )}>
-                              {isExpected ? (isPeriodOverdue(monthNum, selectedYear) ? "Vencido" : "Pendente") : isFacultative ? "Facultativo (1º Ano)" : "Dispensado"}
-                            </p>
-                            <p className="text-[9px] text-slate-400">
-                              {isFacultative ? 'Não gera pendência se não pago' : isExpected ? 'Mensalidade regular' : 'Fora do calendário'}
-                            </p>
-                          </div>
-                          <div className="flex gap-1.5 w-full">
-                            <button 
-                              onClick={() => handleAddContribution(monthNum)}
-                              className={cn(
-                                "flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1 cursor-pointer",
-                                isExpected 
-                                  ? "bg-slate-50 text-slate-600 border-dashed border-slate-300 hover:bg-blue-600 hover:text-white" 
-                                  : isFacultative
-                                  ? "bg-amber-50 text-amber-700 border-dashed border-amber-200 hover:bg-amber-600 hover:text-white"
-                                  : "bg-slate-50 text-slate-400 border-dashed border-slate-200 hover:bg-blue-600 hover:text-white"
-                              )}
-                            >
-                              <Plus size={12} />
-                              {isExpected ? "Registrar" : isFacultative ? "Registrar (Facultativo)" : "Registrar"}
-                            </button>
-                            <button 
-                              onClick={() => handleOpenAbonoModal([monthNum])}
-                              className="px-2.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-blue-200 bg-blue-50 text-blue-700 hover:bg-[#00174b] hover:text-white hover:border-[#00174b] flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                              title={`Abonar Mensalidade de ${month} (Isenção)`}
-                            >
-                              <Award size={12} />
-                              Abonar
-                            </button>
-                          </div>
-                        </>
-                      )}
+                      {/* Barra de Progresso de Quitação Anual */}
+                      <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-200/80">
+                        <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider mb-2">
+                          <span className="text-slate-800">Status Geral do Exercício {selectedYear}</span>
+                          <span className="text-[#00174b] font-mono">
+                            {contributions.length} de {contributions.length + individualUnpaidMonths.length} parcelas resolvidas ({Math.round((contributions.length / (contributions.length + individualUnpaidMonths.length || 1)) * 100)}%)
+                          </span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden flex shadow-inner">
+                          {/* Liquidado */}
+                          <div 
+                            style={{ width: `${(contributions.filter(c => !isContributionWaived(c)).length / (contributions.length + individualUnpaidMonths.length || 1)) * 100}%` }}
+                            className="bg-emerald-500 h-full transition-all"
+                            title="Pago em dia"
+                          />
+                          {/* Abonado */}
+                          <div 
+                            style={{ width: `${(contributions.filter(c => isContributionWaived(c)).length / (contributions.length + individualUnpaidMonths.length || 1)) * 100}%` }}
+                            className="bg-blue-500 h-full transition-all"
+                            title="Abonado"
+                          />
+                          {/* Vencido */}
+                          <div 
+                            style={{ width: `${(individualUnpaidMonths.filter(m => m.isOverdue).length / (contributions.length + individualUnpaidMonths.length || 1)) * 100}%` }}
+                            className="bg-rose-500 h-full transition-all"
+                            title="Vencido em atraso"
+                          />
+                        </div>
+                        <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 mt-2 flex-wrap">
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Pago ({contributions.filter(c => !isContributionWaived(c)).length})</span>
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Abonado ({contributions.filter(c => isContributionWaived(c)).length})</span>
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" /> Vencido ({individualUnpaidMonths.filter(m => m.isOverdue).length})</span>
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" /> A Vencer ({individualUnpaidMonths.filter(m => !m.isOverdue && !m.isFacultative).length})</span>
+                        </div>
+                      </div>
+
+                      {/* Informações Cadastrais e Contratuais */}
+                      <div className="p-4 bg-white rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Estudante</span>
+                          <p className="font-black text-slate-800">{selectedStudent.name}</p>
+                          <p className="text-[11px] text-slate-500 font-mono mt-0.5">RA: {selectedStudent.registration_number}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Turma & Curso Vinculado</span>
+                          <p className="font-bold text-slate-800">{resolveStudentClass(selectedStudent)?.name || 'Turma não informada'}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{resolveStudentClass(selectedStudent)?.course || 'Curso regular'}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Regra de Contribuição</span>
+                          <p className="font-bold text-slate-800">Dia 10 de cada mês</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {studentPlan?.isFirstYear ? 'Plano de Ingressante (1º Ano)' : 'Plano Regular Anual (Veterano)'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
             </div>
           </>
@@ -3176,13 +3767,25 @@ export function Contributions() {
                   </div>
                   <div>
                     <h3 className="text-base font-black text-[#131b2e] leading-tight">Lançamentos de Contribuição</h3>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
-                      {reportTarget === 'class' ? (
-                        selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
-                      ) : (
-                        selectedStudent ? selectedStudent.name : 'Aluno'
-                      )} • {formatDateForDisplay(startDate)} ATÉ {formatDateForDisplay(endDate)}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                        {reportTarget === 'class' ? (
+                          selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
+                        ) : (
+                          selectedStudent ? selectedStudent.name : 'Aluno'
+                        )}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 border border-blue-200/80 font-black text-[9.5px] uppercase tracking-wider">
+                        {periodOption === 'mensal' && `Mês de ${MONTHS[selectedMonth - 1]} / ${selectedYear}`}
+                        {periodOption === 'semestral' && `${selectedSemester}º Semestre de ${selectedYear} (${selectedSemester === 1 ? 'Jan a Jun' : 'Jul a Dez'})`}
+                        {periodOption === 'anual' && `Exercício Anual de ${selectedYear}`}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="font-mono text-slate-500 font-bold text-[10px]">
+                        {formatDateForDisplay(startDate)} ATÉ {formatDateForDisplay(endDate)}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -3226,26 +3829,81 @@ export function Contributions() {
 
               <div className="flex-1 overflow-y-auto rounded-3xl border border-slate-100 shadow-sm bg-white">
                 <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-left border-collapse min-w-[800px]">
+                  <table className="w-full text-left border-collapse min-w-[840px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-6 py-4 w-10"></th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Contribuinte / Matrícula</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Informação do Período</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Método</th>
-                      <th className="px-6 py-4 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Valor Total</th>
-                      <th className="px-6 py-4"></th>
+                      <th className="px-5 py-3.5 w-12 text-center"></th>
+                      
+                      {/* Contribuinte / Matrícula com ordenação */}
+                      <th 
+                        onClick={() => handlePeriodSort('name')}
+                        className="px-5 py-3.5 text-xs font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue-700 transition-colors select-none group"
+                        title="Clique para ordenar por Nome do Contribuinte"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Contribuinte / Matrícula</span>
+                          {periodSortField === 'name' ? (
+                            periodSortDirection === 'asc' ? <ArrowUp size={13} className="text-blue-600 font-black" /> : <ArrowDown size={13} className="text-blue-600 font-black" />
+                          ) : (
+                            <ArrowUpDown size={12} className="text-slate-300 group-hover:text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Informação do Período */}
+                      <th className="px-5 py-3.5 text-xs font-black text-slate-500 uppercase tracking-widest">
+                        Informação do Período
+                      </th>
+
+                      {/* Método */}
+                      <th className="px-5 py-3.5 text-xs font-black text-slate-500 uppercase tracking-widest">
+                        Método
+                      </th>
+
+                      {/* Data Pagto com ordenação */}
+                      <th 
+                        onClick={() => handlePeriodSort('date')}
+                        className="px-5 py-3.5 text-xs font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue-700 transition-colors select-none group"
+                        title="Clique para ordenar por Data do Pagamento (Padrão: Mais recente primeiro)"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Data Pagto</span>
+                          {periodSortField === 'date' ? (
+                            periodSortDirection === 'asc' ? <ArrowUp size={13} className="text-blue-600 font-black" /> : <ArrowDown size={13} className="text-blue-600 font-black" />
+                          ) : (
+                            <ArrowUpDown size={12} className="text-slate-300 group-hover:text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Valor Total com ordenação */}
+                      <th 
+                        onClick={() => handlePeriodSort('amount')}
+                        className="px-5 py-3.5 text-right text-xs font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue-700 transition-colors select-none group"
+                        title="Clique para ordenar por Valor Total"
+                      >
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span>Valor Total</span>
+                          {periodSortField === 'amount' ? (
+                            periodSortDirection === 'asc' ? <ArrowUp size={13} className="text-blue-600 font-black" /> : <ArrowDown size={13} className="text-blue-600 font-black" />
+                          ) : (
+                            <ArrowUpDown size={12} className="text-slate-300 group-hover:text-slate-400" />
+                          )}
+                        </div>
+                      </th>
+
+                      <th className="px-5 py-3.5 w-24"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {periodData.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-24 text-center text-slate-300">
+                        <td colSpan={7} className="px-6 py-24 text-center text-slate-300">
                           <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
                             <AlertCircle size={32} className="opacity-20" />
                           </div>
                           <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Nenhum registro encontrado</p>
-                          <p className="text-sm text-slate-300 mt-2">Tente ajustar os filtros de data ou nome acima.</p>
+                          <p className="text-sm text-slate-300 mt-2">Tente ajustar os filtros de período ou nome acima.</p>
                         </td>
                       </tr>
                     ) : (
@@ -3256,15 +3914,63 @@ export function Contributions() {
                             acc[studentId] = {
                               student: curr.student,
                               contributions: [],
-                              total: 0
+                              total: 0,
+                              latestDate: '',
+                              earliestDate: ''
                             };
                           }
                           acc[studentId].contributions.push(curr);
-                          acc[studentId].total += Number(curr.amount);
+                          acc[studentId].total += Number(curr.amount || 0);
+                          const payDate = curr.payment_date || curr.created_at || '';
+                          if (!acc[studentId].latestDate || payDate > acc[studentId].latestDate) {
+                            acc[studentId].latestDate = payDate;
+                          }
+                          if (!acc[studentId].earliestDate || payDate < acc[studentId].earliestDate) {
+                            acc[studentId].earliestDate = payDate;
+                          }
                           return acc;
-                        }, {} as Record<string, { student?: Student; contributions: (Contribution & { student?: Student })[]; total: number }>);
+                        }, {} as Record<string, { student?: Student; contributions: (Contribution & { student?: Student })[]; total: number; latestDate: string; earliestDate: string }>);
 
-                        return Object.values(grouped).map((group: any) => {
+                        const groupList = Object.values(grouped);
+
+                        // Ordenar lançamentos internos de cada aluno:
+                        // Se as datas de pagamento forem diferentes, segue a ordenação da coluna de data;
+                        // Se a data de pagamento for a mesma (ou na ausência de datas distintas), mantém estritamente a ordem cronológica mensal (ano e mês de referência: Jan -> Dez)
+                        groupList.forEach(group => {
+                          group.contributions.sort((a, b) => {
+                            const da = a.payment_date ? new Date(a.payment_date).getTime() : 0;
+                            const db = b.payment_date ? new Date(b.payment_date).getTime() : 0;
+                            if (da !== db) {
+                              return periodSortDirection === 'asc' ? da - db : db - da;
+                            }
+                            // Mesma data de pagamento: ordenar estritamente pelo ano e mês de referência crescente (Janeiro -> Dezembro)
+                            const yDiff = (Number(a.reference_year) || 0) - (Number(b.reference_year) || 0);
+                            if (yDiff !== 0) return yDiff;
+                            return (Number(a.reference_month) || 0) - (Number(b.reference_month) || 0);
+                          });
+                        });
+
+                        // Ordenar lista de contribuintes agrupada conforme seleção do usuário (Padrão: Data mais recente primeiro)
+                        groupList.sort((a, b) => {
+                          if (periodSortField === 'name') {
+                            const nameA = a.student?.name || '';
+                            const nameB = b.student?.name || '';
+                            const cmp = nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+                            return periodSortDirection === 'asc' ? cmp : -cmp;
+                          } else if (periodSortField === 'amount') {
+                            const diff = a.total - b.total;
+                            return periodSortDirection === 'asc' ? diff : -diff;
+                          } else {
+                            // date (mais recente para o mais antigo por padrão)
+                            const da = a.latestDate ? new Date(a.latestDate).getTime() : 0;
+                            const db = b.latestDate ? new Date(b.latestDate).getTime() : 0;
+                            const diff = da - db;
+                            if (diff !== 0) return periodSortDirection === 'asc' ? diff : -diff;
+                            return (a.student?.name || '').localeCompare(b.student?.name || '', 'pt-BR', { sensitivity: 'base' });
+                          }
+                        });
+
+                        return groupList.map((group: any) => {
                           const studentId = group.student?.id || '';
                           const isExpanded = expandedStudents.includes(studentId);
                           
@@ -3281,8 +3987,8 @@ export function Contributions() {
                                   isExpanded ? "bg-slate-50/50" : ""
                                 )}
                               >
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center gap-4">
+                                <td className="px-5 py-3.5">
+                                  <div className="flex items-center gap-3">
                                      <input 
                                       type="checkbox"
                                       className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
@@ -3314,48 +4020,81 @@ export function Contributions() {
                                       "p-1.5 rounded-lg transition-all",
                                       isExpanded ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-slate-100 text-slate-400 group-hover:bg-slate-200"
                                     )}>
-                                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                      {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-5 py-3.5">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-xs">
+                                    <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-xs shrink-0">
                                       {group.student?.name?.charAt(0) || '?'}
                                     </div>
                                     <div>
                                       <p className="text-sm font-black text-[#131b2e] leading-snug">{group.student?.name || 'Contribuinte Deletado'}</p>
-                                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{group.student?.registration_number || 'S/ MATRÍCULA'}</p>
+                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">{group.student?.registration_number || 'S/ MATRÍCULA'}</p>
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                  <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                    {group.contributions.length} {group.contributions.length === 1 ? 'Lançamento' : 'Lançamentos'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="flex flex-wrap gap-2">
-                                    {Array.from(new Set(group.contributions.map((c: any) => c.pix_id ? 'PIX por Importação' : `Pagamento Direto (${c.payment_method || 'Dinheiro'})`))).map((type: any) => (
-                                      <span 
-                                        key={type} 
-                                        className={cn(
-                                          "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border",
-                                          type.startsWith('PIX')
-                                            ? "bg-blue-50 text-blue-600 border-blue-100"
-                                            : "bg-slate-50 text-slate-600 border-slate-100"
-                                        )}
-                                      >
-                                        {type}
-                                      </span>
-                                    ))}
+                                <td className="px-5 py-3.5">
+                                  <div className="flex flex-col gap-1">
+                                    <span className="w-fit px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-200/60">
+                                      {group.contributions.length} {group.contributions.length === 1 ? 'Lançamento' : 'Lançamentos'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-bold">
+                                      {[...group.contributions]
+                                        .sort((a: any, b: any) => {
+                                          const yDiff = (Number(a.reference_year) || 0) - (Number(b.reference_year) || 0);
+                                          if (yDiff !== 0) return yDiff;
+                                          return (Number(a.reference_month) || 0) - (Number(b.reference_month) || 0);
+                                        })
+                                        .map((c: any) => c.reference_month === 0 ? 'Matrícula' : MONTHS[c.reference_month - 1]?.substring(0, 3))
+                                        .join(', ')}
+                                    </span>
                                   </div>
                                 </td>
-                                <td className="px-6 py-4 text-right">
-                                  <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl">{formatCurrency(group.total)}</span>
+                                <td className="px-5 py-3.5">
+                                  <div className="flex flex-wrap gap-1.5 items-center">
+                                    {(() => {
+                                      const uniqueTypes = Array.from(new Set(group.contributions.map((c: any) => {
+                                        if (isContributionWaived(c)) return 'abono';
+                                        if (c.pix_id || (c.payment_method || '').toLowerCase() === 'pix') return c.pix_id ? 'pix_import' : 'pix';
+                                        const raw = (c.payment_method || '').toLowerCase();
+                                        if (raw.includes('crédito') || raw.includes('credito')) return 'credit';
+                                        if (raw.includes('débito') || raw.includes('debito')) return 'debit';
+                                        if (raw.includes('cartão') || raw.includes('cartao')) return 'card';
+                                        return 'cash';
+                                      })));
+
+                                      return uniqueTypes.map((mType: any) => {
+                                        if (mType === 'abono') return <React.Fragment key={mType}>{renderPaymentMethodBadge('Abono', true)}</React.Fragment>;
+                                        if (mType === 'pix_import') return <React.Fragment key={mType}>{renderPaymentMethodBadge('PIX', false, 'imp')}</React.Fragment>;
+                                        if (mType === 'pix') return <React.Fragment key={mType}>{renderPaymentMethodBadge('PIX', false)}</React.Fragment>;
+                                        if (mType === 'credit') return <React.Fragment key={mType}>{renderPaymentMethodBadge('Cartão de Crédito', false)}</React.Fragment>;
+                                        if (mType === 'debit') return <React.Fragment key={mType}>{renderPaymentMethodBadge('Cartão de Débito', false)}</React.Fragment>;
+                                        if (mType === 'card') return <React.Fragment key={mType}>{renderPaymentMethodBadge('Cartão', false)}</React.Fragment>;
+                                        return <React.Fragment key={mType}>{renderPaymentMethodBadge('Dinheiro', false)}</React.Fragment>;
+                                      });
+                                    })()}
+                                  </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <td className="px-5 py-3.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar size={13} className="text-slate-400 shrink-0" />
+                                    <span className="font-mono text-xs font-bold text-slate-800">
+                                      {safeFormat(group.latestDate, 'dd/MM/yyyy')}
+                                    </span>
+                                    {group.contributions.length > 1 && (
+                                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1 py-0.2 rounded" title={`${group.contributions.length} pagamentos realizados`}>
+                                        +{group.contributions.length - 1}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-5 py-3.5 text-right">
+                                  <span className="text-sm font-black text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl font-mono">{formatCurrency(group.total)}</span>
+                                </td>
+                                <td className="px-5 py-3.5">
+                                  <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button 
                                       onClick={(e) => { 
                                         e.stopPropagation(); 
@@ -3364,81 +4103,84 @@ export function Contributions() {
                                         setViewMode('individual'); 
                                         fetchContributions(studentId, group.contributions[0].reference_year); 
                                       }} 
-                                      className="p-2.5 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm border border-blue-100" 
-                                      title="Extrato do Aluno"
+                                      className="p-2 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm border border-blue-100 cursor-pointer" 
+                                      title="Ficha e Extrato do Aluno"
                                     >
-                                      <FileText size={18} />
+                                      <FileText size={16} />
                                     </button>
                                     <button 
                                       onClick={(e) => { 
                                         e.stopPropagation(); 
                                         triggerDirectPrint(group.contributions);
                                       }} 
-                                      className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm border border-emerald-100" 
-                                      title="Visualizar Recibos Multiplos"
+                                      className="p-2 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm border border-emerald-100 cursor-pointer" 
+                                      title="Visualizar Recibos Múltiplos"
                                     >
-                                      <Printer size={18} />
+                                      <Printer size={16} />
                                     </button>
                                   </div>
                                 </td>
                               </tr>
                               {isExpanded && group.contributions.map((c: any) => (
-                                <tr key={c.id} className="bg-slate-50/10 border-b border-slate-50/50 hover:bg-slate-50/40 transition-colors group/inner">
-                                  <td className="px-6 py-3 pl-12 flex items-center gap-4">
+                                <tr key={c.id} className="bg-slate-50/20 border-b border-slate-100/60 hover:bg-slate-50/60 transition-colors group/inner">
+                                  <td className="px-5 py-2.5 pl-12">
                                      <input 
                                       type="checkbox"
                                       checked={selectedForPrint.some(s => s.id === c.id)}
                                       onChange={() => togglePrintSelection(c)}
-                                      className="w-3.5 h-3.5 rounded border-slate-200 text-blue-500 focus:ring-blue-400"
+                                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                     />
                                   </td>
-                                  <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                                    {isContributionWaived(c)
-                                      ? `Abonado em ${safeFormat(c.payment_date, 'dd/MM/yyyy')}`
-                                      : `${filterType === 'payment' ? 'Pago em' : 'Importado em'} ${safeFormat(filterType === 'payment' ? c.payment_date : (c.created_at || c.payment_date), 'dd/MM/yyyy')}`
-                                    }
-                                  </td>
-                                  <td className="px-6 py-4 text-xs font-bold uppercase text-[#131b2e] tracking-wider">
-                                    {formatContributionMonth(c.reference_month)} / {c.reference_year}
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2">
-                                      <span className={cn(
-                                        "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
-                                        isContributionWaived(c)
-                                          ? "bg-blue-50 text-blue-800 border-blue-200 font-bold"
-                                          : c.pix_id 
-                                          ? "bg-blue-50 text-blue-600 border-blue-100" 
-                                          : "bg-slate-50 text-slate-600 border-slate-100"
-                                      )}>
-                                        {isContributionWaived(c) ? 'Abono (Isenção)' : c.pix_id ? 'PIX por Importação' : `Pagamento Direto (${c.payment_method || 'Dinheiro'})`}
+                                  <td className="px-5 py-2.5">
+                                    <div className="text-xs font-bold text-slate-700 flex items-center gap-2">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                      <span>
+                                        {c.reference_month === 0 ? 'Taxa de Matrícula' : `Mensalidade de ${MONTHS[c.reference_month - 1]}/${c.reference_year}`}
                                       </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-5 py-2.5">
+                                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-mono font-bold">
+                                      {c.reference_month === 0 ? 'Mês 0' : `Mês ${String(c.reference_month).padStart(2, '0')}/${c.reference_year}`}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-2.5">
+                                    <div className="flex items-center gap-2">
+                                      {renderPaymentMethodBadge(c.payment_method, isContributionWaived(c), c.pix_id)}
                                       {c.pix_id && <span title="Registro Conciliado"><Link2Off size={11} className="text-blue-500" /></span>}
-                                      {c.observations && !isContributionWaived(c) && (
-                                        <span className="text-[10px] text-slate-400 italic truncate max-w-[150px]" title={c.observations}>
+                                      {c.observations && (
+                                        <span className="text-[10px] text-slate-400 italic truncate max-w-[140px]" title={c.observations}>
                                           • {c.observations}
                                         </span>
                                       )}
                                     </div>
                                   </td>
-                                  <td className="px-6 py-4 text-right">
-                                    <span className="text-sm font-black text-[#131b2e]">{formatCurrency(c.amount)}</span>
+                                  <td className="px-5 py-2.5">
+                                    <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-700">
+                                      <Clock size={12} className="text-slate-400" />
+                                      <span>{safeFormat(c.payment_date, 'dd/MM/yyyy')}</span>
+                                    </div>
                                   </td>
-                                  <td className="px-6 py-3 text-right">
-                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover/inner:opacity-100 transition-opacity">
+                                  <td className="px-5 py-2.5 text-right">
+                                    <span className="text-xs font-mono font-black text-slate-900">
+                                      {isContributionWaived(c) ? 'R$ 0,00' : formatCurrency(c.amount)}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-2.5 text-right">
+                                    <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover/inner:opacity-100 transition-opacity">
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); setReceiptPreviewData([c]); }} 
-                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" 
+                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer" 
                                         title="Visualizar Recibo"
                                       >
-                                        <FileText size={16} />
+                                        <FileText size={15} />
                                       </button>
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); generateSelectedReceipts([c], 'print'); }} 
-                                        className="p-2 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm" 
+                                        className="p-1.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-xs cursor-pointer" 
                                         title="Imprimir Agora"
                                       >
-                                        <Printer size={16} />
+                                        <Printer size={15} />
                                       </button>
                                     </div>
                                   </td>
@@ -3682,29 +4424,29 @@ export function Contributions() {
               {/* Forma de Recebimento */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Recebimento</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(['Dinheiro', 'PIX', 'Cartão'] as const).map((method) => (
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {(['Dinheiro', 'PIX', 'Cartão de Crédito', 'Cartão de Débito'] as const).map((method) => (
                     <button
                       key={method}
                       type="button"
                       onClick={() => setManualMethod(method)}
                       className={cn(
-                        "py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer",
+                        "py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all border cursor-pointer text-center",
                         manualMethod === method 
                           ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100" 
                           : "bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-600"
                       )}
                     >
-                      {method}
+                      {method === 'Cartão de Crédito' ? 'Cartão Créd.' : method === 'Cartão de Débito' ? 'Cartão Déb.' : method}
                     </button>
                   ))}
                   <button
                     type="button"
                     onClick={() => handleOpenAbonoModal(manualMonths)}
-                    className="py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-blue-200 bg-blue-50 text-blue-800 hover:bg-[#00174b] hover:text-white hover:border-[#00174b] flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                    className="py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 flex items-center justify-center gap-1 shadow-2xs cursor-pointer text-center"
                     title="Abonar períodos selecionados com justificativa"
                   >
-                    <Award size={13} />
+                    <Award size={13} className="text-amber-600" />
                     Abono
                   </button>
                 </div>
