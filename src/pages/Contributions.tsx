@@ -312,6 +312,10 @@ export function Contributions() {
   const [searchModalQuery, setSearchModalQuery] = useState('');
   const [readingType, setReadingType] = useState<'ra' | 'name'>('ra');
   const [formRAInput, setFormRAInput] = useState('');
+  const [formNameInput, setFormNameInput] = useState('');
+  const [nameSuggestions, setNameSuggestions] = useState<Student[]>([]);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const [selectedFormMonth, setSelectedFormMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [formMonthText, setFormMonthText] = useState<string>(() => String(new Date().getMonth() + 1).padStart(2, '0'));
   const [selectedFormYear, setSelectedFormYear] = useState<number>(() => new Date().getFullYear());
@@ -334,6 +338,19 @@ export function Contributions() {
   const obsInputRef = React.useRef<HTMLInputElement>(null);
   const saveButtonRef = React.useRef<HTMLButtonElement>(null);
   const newButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  // Helper para posicionar o cursor no campo ativo de busca do aluno (código ou nome)
+  const focusStudentSearchField = useCallback(() => {
+    setTimeout(() => {
+      if (readingType === 'ra') {
+        raInputRef.current?.focus();
+        raInputRef.current?.select();
+      } else {
+        nameInputRef.current?.focus();
+        nameInputRef.current?.select();
+      }
+    }, 60);
+  }, [readingType]);
 
   // Estados para Registro Manual
   const [manualMonths, setManualMonths] = useState<number[]>([]);
@@ -1102,6 +1119,8 @@ export function Contributions() {
     
     // Sincroniza formulário
     setFormRAInput(student.registration_number || '');
+    setFormNameInput(student.name || '');
+    setIsSuggestionsOpen(false);
     
     const sClass = resolveStudentClass(student);
     const resolvedFee = financialConfigService.resolveFee({
@@ -1148,16 +1167,39 @@ export function Contributions() {
     }
   };
 
+  // Busca rápida por Nome do Aluno
+  const handleLookupByName = (nameValue: string) => {
+    const clean = nameValue.trim().toLowerCase();
+    if (!clean) return;
+    const pool = (!selectedUnitId || selectedUnitId === 'all')
+      ? allActiveStudents
+      : allActiveStudents.filter(student => {
+          const studentClass = resolveStudentClass(student);
+          const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+          return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+        });
+    const exact = pool.find(s => s.name.trim().toLowerCase() === clean);
+    if (exact) {
+      handleSelectStudentForForm(exact);
+      return;
+    }
+    const matches = pool.filter(s => s.name.toLowerCase().includes(clean));
+    if (matches.length === 1) {
+      handleSelectStudentForForm(matches[0]);
+    } else if (matches.length > 1) {
+      setNameSuggestions(matches.slice(0, 8));
+      setIsSuggestionsOpen(true);
+    } else {
+      setSearchModalQuery(clean);
+      setIsSearchModalOpen(true);
+    }
+  };
+
   useEffect(() => {
     if (viewMode === 'individual') {
-      if (readingType === 'ra') {
-        raInputRef.current?.focus();
-        raInputRef.current?.select();
-      } else {
-        nameInputRef.current?.focus();
-      }
+      focusStudentSearchField();
     }
-  }, [readingType, viewMode]);
+  }, [readingType, viewMode, focusStudentSearchField]);
 
   // Helper de informações sobre a última contribuição registrada (apenas se aluno estiver identificado)
   const latestContributionInfo = useMemo(() => {
@@ -1415,10 +1457,8 @@ export function Contributions() {
       setFormMethod('Dinheiro');
       fetchRecentContributions();
 
-      // Pula para o campo de mês para permitir o próximo lançamento imediatamente
-      setTimeout(() => {
-        monthInputRef.current?.focus();
-      }, 50);
+      // O cursor deve retornar para o campo cod/ nome do aluno
+      focusStudentSearchField();
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
       setNotification({ type: 'error', message: 'Erro ao salvar lançamento: ' + error.message });
@@ -1436,24 +1476,19 @@ export function Contributions() {
     setHistorySortBy('month');
     setHistorySortDirection('asc');
     setFormRAInput('');
+    setFormNameInput('');
+    setNameSuggestions([]);
+    setIsSuggestionsOpen(false);
     setFormObservations('');
     setFormMethod('Dinheiro');
-    setFormAmount('0,00');
+    setFormAmount('');
     const curMonth = new Date().getMonth() + 1;
     setSelectedFormMonth(curMonth);
     setFormMonthText(String(curMonth).padStart(2, '0'));
     setSelectedPaymentDate(format(new Date(), 'yyyy-MM-dd'));
-    if (readingType === 'ra') {
-      setTimeout(() => {
-        raInputRef.current?.focus();
-        raInputRef.current?.select();
-      }, 50);
-    } else {
-      setIsSearchModalOpen(true);
-      setTimeout(() => {
-        nameInputRef.current?.focus();
-      }, 50);
-    }
+    
+    // O cursor deve retornar para o campo cod/ nome do aluno
+    focusStudentSearchField();
   };
 
   // Botão Desfazer: funciona como um CLEAR do formulário em relação a qualquer informação carregada
@@ -1468,9 +1503,8 @@ export function Contributions() {
     setFormMethod('Dinheiro');
     setSelectedPaymentDate(format(new Date(), 'yyyy-MM-dd'));
 
-    setTimeout(() => {
-      monthInputRef.current?.focus();
-    }, 50);
+    // O cursor deve retornar para o campo cod/ nome do aluno
+    focusStudentSearchField();
   };
 
   const handlePrintReceipt = () => {
@@ -1601,9 +1635,8 @@ export function Contributions() {
 
       fetchRecentContributions();
 
-      setTimeout(() => {
-        monthInputRef.current?.focus();
-      }, 100);
+      // O cursor deve retornar para o campo cod/ nome do aluno
+      focusStudentSearchField();
     } catch (error: any) {
       console.error('Falha ao excluir:', error);
       setNotification({ type: 'error', message: 'Erro ao excluir: ' + error.message });
@@ -2456,6 +2489,10 @@ export function Contributions() {
     setOriginalContributionData(null);
     setHistorySortBy('month');
     setHistorySortDirection('asc');
+    setFormRAInput('');
+    setFormNameInput('');
+    setNameSuggestions([]);
+    setIsSuggestionsOpen(false);
     setSearchTerm('');
     setSearchByName('');
     setStudents([]);
@@ -2480,6 +2517,7 @@ export function Contributions() {
     setEndDate(end);
     setViewMode('period');
     fetchPeriodContributions(start, end);
+    focusStudentSearchField();
   };
 
   const filteredStudents = students;
@@ -3378,153 +3416,284 @@ export function Contributions() {
                       onChange={(e) => {
                         const val = e.target.value as 'ra' | 'name';
                         setReadingType(val);
-                        if (val === 'ra') {
-                          setTimeout(() => {
+                        setIsSuggestionsOpen(false);
+                        setTimeout(() => {
+                          if (val === 'ra') {
                             raInputRef.current?.focus();
                             raInputRef.current?.select();
-                          }, 50);
-                        } else {
-                          setTimeout(() => {
+                          } else {
                             nameInputRef.current?.focus();
-                            setIsSearchModalOpen(true);
-                          }, 50);
-                        }
+                            nameInputRef.current?.select();
+                          }
+                        }, 50);
                       }}
-                      className="flex-1 max-w-sm h-8.5 px-3 bg-white border border-slate-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600"
+                      className="flex-1 max-w-sm h-8.5 px-3 bg-white border border-slate-300 rounded-md text-xs font-medium text-slate-800 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 cursor-pointer"
                     >
                       <option value="ra">Código de Matrícula (RA)</option>
                       <option value="name">Nome do Aluno</option>
                     </select>
                   </div>
 
-                  {/* Código do Aluno (RA) */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                    <label className="text-xs font-semibold text-slate-700 sm:w-36 text-right shrink-0">
-                      Código do Aluno (RA):
-                    </label>
-                    <div className="flex items-center gap-2 flex-1 max-w-sm">
-                      <div className="relative flex-1">
-                        <input
-                          ref={raInputRef}
-                          type="text"
-                          disabled={readingType !== 'ra'}
-                          value={formRAInput}
-                          onChange={(e) => setFormRAInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleLookupByRA(formRAInput);
-                            }
-                          }}
-                          placeholder={readingType === 'ra' ? "Digite o RA e tecle Enter..." : "Bloqueado (leitura por Nome)"}
-                          className={cn(
-                            "w-full h-8.5 pl-3 pr-14 bg-white border border-slate-300 rounded-md text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600",
-                            readingType !== 'ra' && "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200"
-                          )}
-                        />
-                        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                          {formRAInput && readingType === 'ra' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFormRAInput('');
-                                setSelectedStudent(null);
-                                raInputRef.current?.focus();
+                  {/* Campo de Busca que ACOMPANHA e se AJUSTA à seleção de Tipo de Leitura */}
+                  {readingType === 'ra' ? (
+                    <>
+                      {/* CAMPO ATIVO: Código do Aluno (RA) */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs font-semibold text-slate-700 sm:w-36 text-right shrink-0 flex items-center justify-end gap-1">
+                          <span>Código do Aluno (RA)</span>
+                          <span className="inline-block w-2.5 h-2.5 bg-amber-400 rounded-xs" title="Campo obrigatório"></span>
+                          <span>:</span>
+                        </label>
+                        <div className="flex items-center gap-2 flex-1 max-w-sm">
+                          <div className="relative flex-1">
+                            <input
+                              ref={raInputRef}
+                              type="text"
+                              value={formRAInput}
+                              onChange={(e) => setFormRAInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleLookupByRA(formRAInput);
+                                }
                               }}
-                              className="p-1 text-slate-400 hover:text-slate-600 rounded"
-                              title="Limpar RA"
-                            >
-                              <X size={13} />
-                            </button>
+                              placeholder="Digite o RA e tecle Enter..."
+                              className="w-full h-8.5 pl-3 pr-14 bg-white border border-slate-300 rounded-md text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600"
+                            />
+                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                              {formRAInput && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormRAInput('');
+                                    setFormNameInput('');
+                                    setSelectedStudent(null);
+                                    raInputRef.current?.focus();
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                                  title="Limpar RA"
+                                >
+                                  <X size={13} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleLookupByRA(formRAInput)}
+                                className="p-1 text-slate-600 hover:text-cyan-700 hover:bg-slate-100 rounded cursor-pointer"
+                                title="Buscar por RA"
+                              >
+                                <Search size={13} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Status do Aluno */}
+                          {studentStatusIndicator ? (
+                            <span className={cn(
+                              "px-2.5 py-1 rounded text-[11px] font-bold border shrink-0 flex items-center gap-1",
+                              studentStatusIndicator.color
+                            )}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                              {studentStatusIndicator.label}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic shrink-0">
+                              Aguardando RA...
+                            </span>
                           )}
-                          <button
-                            type="button"
-                            disabled={readingType !== 'ra'}
-                            onClick={() => handleLookupByRA(formRAInput)}
-                            className="p-1 text-slate-600 hover:text-cyan-700 hover:bg-slate-100 rounded cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Buscar por RA"
-                          >
-                            <Search size={13} />
-                          </button>
                         </div>
                       </div>
 
-                      {/* Status do Aluno */}
-                      {studentStatusIndicator ? (
-                        <span className={cn(
-                          "px-2.5 py-1 rounded text-[11px] font-bold border shrink-0 flex items-center gap-1",
-                          studentStatusIndicator.color
-                        )}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                          {studentStatusIndicator.label}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-slate-400 italic shrink-0">
-                          {readingType === 'ra' ? 'Aguardando RA...' : 'Aguardando Nome...'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Aluno (com indicador amarelo de obrigatório) */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                    <label className="text-xs font-semibold text-slate-700 sm:w-36 text-right shrink-0 flex items-center justify-end gap-1">
-                      <span>Aluno</span>
-                      <span className="inline-block w-2.5 h-2.5 bg-amber-400 rounded-xs" title="Campo obrigatório"></span>
-                      <span>:</span>
-                    </label>
-                    <div className="relative flex-1 max-w-lg">
-                      <input
-                        ref={nameInputRef}
-                        type="text"
-                        readOnly
-                        disabled={readingType !== 'name'}
-                        value={selectedStudent?.name || ''}
-                        onClick={() => {
-                          if (readingType === 'name') {
-                            setIsSearchModalOpen(true);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (readingType === 'name') {
-                              setIsSearchModalOpen(true);
-                            }
-                          }
-                        }}
-                        placeholder={readingType === 'name' ? "Clique ou tecle Enter para selecionar..." : "Bloqueado (leitura por RA)"}
-                        className={cn(
-                          "w-full h-8.5 pl-3 pr-14 bg-slate-50 border border-slate-300 rounded-md text-xs font-bold text-slate-900 cursor-pointer focus:outline-none focus:border-cyan-600",
-                          readingType !== 'name' && "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200"
-                        )}
-                      />
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                        {selectedStudent && readingType === 'name' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              clearSelection();
-                              setIsSearchModalOpen(true);
-                            }}
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                            title="Limpar seleção"
-                          >
-                            <X size={13} />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={readingType !== 'name'}
-                          onClick={() => setIsSearchModalOpen(true)}
-                          className="p-1 text-slate-600 hover:text-cyan-700 hover:bg-slate-100 rounded cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                          title="Procurar Aluno"
-                        >
-                          <Search size={14} />
-                        </button>
+                      {/* CAMPO INFORMATIVO BLOQUEADO: Aluno (preenchido automaticamente pelo RA) */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs font-semibold text-slate-700 sm:w-36 text-right shrink-0 flex items-center justify-end gap-1">
+                          <span>Aluno</span>
+                          <span className="inline-block w-2.5 h-2.5 bg-amber-400 rounded-xs" title="Campo obrigatório"></span>
+                          <span>:</span>
+                        </label>
+                        <input
+                          type="text"
+                          readOnly
+                          disabled
+                          tabIndex={-1}
+                          value={selectedStudent?.name || ''}
+                          placeholder="Preenchido automaticamente pelo RA..."
+                          className="flex-1 max-w-lg h-8.5 px-3 bg-slate-100/90 border border-slate-300 rounded-md text-xs font-bold text-slate-700 select-none cursor-default"
+                        />
                       </div>
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* CAMPO ATIVO: Nome do Aluno */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs font-semibold text-slate-700 sm:w-36 text-right shrink-0 flex items-center justify-end gap-1">
+                          <span>Nome do Aluno</span>
+                          <span className="inline-block w-2.5 h-2.5 bg-amber-400 rounded-xs" title="Campo obrigatório"></span>
+                          <span>:</span>
+                        </label>
+                        <div className="flex items-center gap-2 flex-1 max-w-lg">
+                          <div className="relative flex-1">
+                            <input
+                              ref={nameInputRef}
+                              type="text"
+                              value={formNameInput}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFormNameInput(val);
+                                if (!val.trim()) {
+                                  setNameSuggestions([]);
+                                  setIsSuggestionsOpen(false);
+                                  setSelectedStudent(null);
+                                  return;
+                                }
+                                const clean = val.trim().toLowerCase();
+                                const pool = (!selectedUnitId || selectedUnitId === 'all')
+                                  ? allActiveStudents
+                                  : allActiveStudents.filter(student => {
+                                      const studentClass = resolveStudentClass(student);
+                                      const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+                                      return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+                                    });
+                                const matches = pool.filter(s => 
+                                  s.name.toLowerCase().includes(clean) || 
+                                  (s.registration_number && s.registration_number.toLowerCase().includes(clean))
+                                ).slice(0, 8);
+                                setNameSuggestions(matches);
+                                setIsSuggestionsOpen(matches.length > 0);
+                                setActiveSuggestionIndex(-1);
+                              }}
+                              onFocus={() => {
+                                if (formNameInput.trim().length >= 1 && nameSuggestions.length > 0) {
+                                  setIsSuggestionsOpen(true);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'ArrowDown') {
+                                  e.preventDefault();
+                                  if (nameSuggestions.length > 0) {
+                                    setIsSuggestionsOpen(true);
+                                    setActiveSuggestionIndex(prev => (prev + 1) % nameSuggestions.length);
+                                  }
+                                } else if (e.key === 'ArrowUp') {
+                                  e.preventDefault();
+                                  if (nameSuggestions.length > 0) {
+                                    setIsSuggestionsOpen(true);
+                                    setActiveSuggestionIndex(prev => (prev - 1 + nameSuggestions.length) % nameSuggestions.length);
+                                  }
+                                } else if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  if (isSuggestionsOpen && activeSuggestionIndex >= 0 && nameSuggestions[activeSuggestionIndex]) {
+                                    handleSelectStudentForForm(nameSuggestions[activeSuggestionIndex]);
+                                  } else if (nameSuggestions.length === 1) {
+                                    handleSelectStudentForForm(nameSuggestions[0]);
+                                  } else if (nameSuggestions.length > 1) {
+                                    handleSelectStudentForForm(nameSuggestions[0]);
+                                  } else {
+                                    handleLookupByName(formNameInput);
+                                  }
+                                } else if (e.key === 'Escape') {
+                                  setIsSuggestionsOpen(false);
+                                }
+                              }}
+                              placeholder="Digite o Nome do Aluno..."
+                              className="w-full h-8.5 pl-3 pr-14 bg-white border border-slate-300 rounded-md text-xs font-bold text-slate-900 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600"
+                            />
+
+                            {/* Dropdown de sugestões instantâneas */}
+                            {isSuggestionsOpen && nameSuggestions.length > 0 && (
+                              <div className="absolute left-0 top-full mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-xl z-50 overflow-hidden divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                                {nameSuggestions.map((s, idx) => {
+                                  const sClass = resolveStudentClass(s);
+                                  const isHighlighted = idx === activeSuggestionIndex;
+                                  return (
+                                    <div
+                                      key={s.id}
+                                      onMouseDown={() => {
+                                        handleSelectStudentForForm(s);
+                                      }}
+                                      className={cn(
+                                        "p-2.5 cursor-pointer flex items-center justify-between text-xs transition-colors",
+                                        isHighlighted ? "bg-cyan-100 text-cyan-950 font-bold" : "hover:bg-cyan-50 text-slate-800"
+                                      )}
+                                    >
+                                      <div className="min-w-0 pr-2">
+                                        <p className="font-bold truncate">{s.name}</p>
+                                        <p className="text-[10px] text-slate-500 font-mono">
+                                          RA: {s.registration_number || '---'} {sClass ? `• ${sClass.name}` : ''}
+                                        </p>
+                                      </div>
+                                      <span className="text-[9.5px] font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200 shrink-0">
+                                        Selecionar
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                              {formNameInput && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormNameInput('');
+                                    setFormRAInput('');
+                                    setNameSuggestions([]);
+                                    setIsSuggestionsOpen(false);
+                                    setSelectedStudent(null);
+                                    nameInputRef.current?.focus();
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                                  title="Limpar Nome"
+                                >
+                                  <X size={13} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleLookupByName(formNameInput)}
+                                className="p-1 text-slate-600 hover:text-cyan-700 hover:bg-slate-100 rounded cursor-pointer"
+                                title="Buscar Aluno"
+                              >
+                                <Search size={14} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Status do Aluno */}
+                          {studentStatusIndicator ? (
+                            <span className={cn(
+                              "px-2.5 py-1 rounded text-[11px] font-bold border shrink-0 flex items-center gap-1",
+                              studentStatusIndicator.color
+                            )}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                              {studentStatusIndicator.label}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic shrink-0">
+                              Aguardando Nome...
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* CAMPO INFORMATIVO BLOQUEADO: Código de Matrícula (RA) */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <label className="text-xs font-semibold text-slate-700 sm:w-36 text-right shrink-0">
+                          Código do Aluno (RA):
+                        </label>
+                        <input
+                          type="text"
+                          readOnly
+                          disabled
+                          tabIndex={-1}
+                          value={selectedStudent?.registration_number || ''}
+                          placeholder="Preenchido automaticamente pelo Nome..."
+                          className="flex-1 max-w-sm h-8.5 px-3 bg-slate-100/90 border border-slate-300 rounded-md text-xs font-mono font-bold text-slate-700 select-none cursor-default"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   {/* Turma / Polo (Apenas Informativo) */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
