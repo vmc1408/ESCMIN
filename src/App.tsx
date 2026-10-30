@@ -19,6 +19,7 @@ import { StudentFicha } from './pages/StudentFicha';
 import { Diocese } from './pages/Diocese';
 import { Import } from './pages/Import';
 import { Reports } from './pages/Reports';
+import { FinancialDashboard } from './pages/FinancialDashboard';
 import { Contributions } from './pages/Contributions';
 import { FinancialReport } from './pages/FinancialReport';
 import { PixConference } from './pages/PixConference';
@@ -202,6 +203,7 @@ function AppContent() {
               <Route path="parishes" element={<ProtectedRoute requiredModule="/parishes"><Diocese /></ProtectedRoute>} />
               <Route path="import" element={<ProtectedRoute requiredModule="/import"><Import /></ProtectedRoute>} />
               <Route path="reports" element={<ProtectedRoute requiredModule="/reports"><Reports /></ProtectedRoute>} />
+              <Route path="financial" element={<ProtectedRoute requiredModule="/contributions"><FinancialDashboard /></ProtectedRoute>} />
               <Route path="contributions" element={<ProtectedRoute requiredModule="/contributions"><Contributions /></ProtectedRoute>} />
               <Route path="financial-report" element={<ProtectedRoute requiredModule="/contributions"><FinancialReport /></ProtectedRoute>} />
               <Route path="pix-conference" element={<ProtectedRoute requiredModule="/pix-conference"><PixConference /></ProtectedRoute>} />

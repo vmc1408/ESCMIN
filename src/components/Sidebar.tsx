@@ -38,7 +38,7 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getInstitutionSettings } from '../lib/database';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -96,7 +96,9 @@ const navItems = [
       {
         label: 'Financeiro',
         icon: Wallet,
+        path: '/financial',
         children: [
+          { icon: DashboardIcon, label: 'Dashboard Financeiro', path: '/financial' },
           { icon: PixIcon, label: 'Contribuições', path: '/contributions' },
           { icon: ReportsIcon, label: 'Relatório Financeiro', path: '/financial-report' },
           { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference' },
@@ -147,6 +149,7 @@ import { financialService } from '../services/financialService';
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { profile, logout, canAccess, isAdmin, lock, latency: authLatency, isConnected } = useAuth();
 
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>(
@@ -340,6 +343,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     if (
       label === 'Financeiro' || 
       parentLabel === 'Financeiro' || 
+      item.path === '/financial' ||
       item.path?.includes('quitacao') || 
       item.path === '/contributions' || 
       item.path === '/financial-report' || 
@@ -474,9 +478,19 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         return (
           <div key={item.label} className="space-y-0.5">
             <button
-              onClick={() => toggleGroup(item.label)}
+              onClick={() => {
+                if (item.path) {
+                  navigate(item.path);
+                  if (!isOpen) {
+                    toggleGroup(item.label);
+                  }
+                  onClose?.();
+                } else {
+                  toggleGroup(item.label);
+                }
+              }}
               className={cn(
-                "w-full flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-md transition-all duration-200",
+                "w-full flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-md transition-all duration-200 cursor-pointer",
                 isActive && !isOpen ? "bg-white/5 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
@@ -497,7 +511,16 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   {item.label}
                 </span>
               </div>
-              {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleGroup(item.label);
+                }}
+                className="p-1 hover:text-white cursor-pointer"
+                title={isOpen ? "Recolher menu" : "Expandir menu"}
+              >
+                {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </div>
             </button>
             
             <AnimatePresence mode="wait">

@@ -113,6 +113,7 @@ export function Contributions() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialStudentId = (location.state as any)?.studentId;
+  const requestedViewMode = (location.state as any)?.viewMode || (location.state as any)?.tab;
   const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   
   const [students, setStudents] = useState<Student[]>([]);
@@ -122,6 +123,15 @@ export function Contributions() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [viewMode, setViewModeState] = useState<'individual' | 'period' | 'unpaid'>(() => {
+    if (requestedViewMode === 'individual' || requestedViewMode === 'period' || requestedViewMode === 'unpaid') {
+      try {
+        localStorage.setItem('contributions_view_mode', requestedViewMode);
+      } catch (e) {}
+      return requestedViewMode;
+    }
+    if (initialStudentId) {
+      return 'individual';
+    }
     try {
       const saved = localStorage.getItem('contributions_view_mode');
       if (saved === 'individual' || saved === 'period' || saved === 'unpaid') {
@@ -137,6 +147,17 @@ export function Contributions() {
       localStorage.setItem('contributions_view_mode', mode);
     } catch (e) {}
   }, []);
+
+  // Sincroniza viewMode com o estado de navegação caso o usuário venha do Dashboard ou outros atalhos
+  useEffect(() => {
+    const reqMode = (location.state as any)?.viewMode || (location.state as any)?.tab;
+    if (reqMode === 'individual' || reqMode === 'period' || reqMode === 'unpaid') {
+      setViewMode(reqMode);
+      if (reqMode === 'individual') {
+        setReportTarget('student');
+      }
+    }
+  }, [location.state, setViewMode]);
 
   // Estados para seleção de tipo de alvo e periodicidade (mensal, semestral, anual)
   const [reportTarget, setReportTarget] = useState<'class' | 'student'>('class');
@@ -395,9 +416,9 @@ export function Contributions() {
     fetchInitialData();
     fetchRecentContributions();
     
-    // Default to period view with last 15 days if no internal navigation student
-    if (!initialStudentId) {
-      setViewMode('period');
+    // Se a aba inicial ativa for period, carrega os dados de período
+    const activeMode = requestedViewMode || (initialStudentId ? 'individual' : (localStorage.getItem('contributions_view_mode') || 'individual'));
+    if (activeMode === 'period') {
       fetchPeriodContributions();
     }
 
@@ -605,7 +626,6 @@ export function Contributions() {
 
       if (!docsData) {
         setPeriodData([]);
-        setViewMode('period');
         return;
       }
       
@@ -659,7 +679,6 @@ export function Contributions() {
       }
 
       setPeriodData(data as any);
-      setViewMode('period');
     } catch (error: any) {
       setNotification({ type: 'error', message: 'Erro ao buscar dados: ' + error.message });
     } finally {
@@ -2515,8 +2534,9 @@ export function Contributions() {
     
     setStartDate(start);
     setEndDate(end);
-    setViewMode('period');
-    fetchPeriodContributions(start, end);
+    if (viewMode === 'period') {
+      fetchPeriodContributions(start, end);
+    }
     focusStudentSearchField();
   };
 

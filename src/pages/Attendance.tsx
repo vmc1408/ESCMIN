@@ -981,21 +981,33 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       });
   }, [classEvents, selectedClass, selectedSubject, selectedClassWeekdays, currentSubjectObj, currentClassObj, academicParams]);
 
-  // 1. Determina a data autorizada por padrão (aula de hoje se for dia letivo, ou a próxima aula programada mais imediata)
+  // Helper para obter a data de hoje no formato YYYY-MM-DD local
+  const getTodayDbDate = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  // 1. Determina a data de aula padrão: aula de hoje (se houver aula hoje) ou a aula passada mais recente
   const defaultAllowedDate = React.useMemo(() => {
     if (availableDates.length === 0) return null;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDbDate();
     
-    // Se hoje for uma aula válida na lista, autoriza hoje
+    // Se hoje for dia de aula válido na lista, seleciona hoje
     const todayMatch = availableDates.find(d => d.dbValue === today);
     if (todayMatch) return todayMatch.dbValue;
     
-    // Senão, seleciona a próxima aula futura (>= hoje)
-    const nextMatch = availableDates.find(d => d.dbValue >= today);
-    if (nextMatch) return nextMatch.dbValue;
+    // Senão, seleciona a aula passada mais recente (<= hoje)
+    const pastDates = availableDates.filter(d => d.dbValue <= today);
+    if (pastDates.length > 0) {
+      // availableDates está em ordem cronológica crescente, logo o último item é a aula passada mais recente
+      return pastDates[pastDates.length - 1].dbValue;
+    }
 
-    // Se todas as aulas já passaram, seleciona a última aula da lista
-    return availableDates[availableDates.length - 1].dbValue;
+    // Se nenhuma aula passada existir (ex: início do ano letivo futuro), seleciona a primeira aula da grade
+    return availableDates[0].dbValue;
   }, [availableDates]);
 
   const currentSelectedDbDate = React.useMemo(() => {
@@ -1007,19 +1019,25 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     return !!unlockedDate && unlockedDate === currentSelectedDbDate;
   }, [unlockedDate, currentSelectedDbDate]);
 
-  const isDefaultAllowedDate = React.useMemo(() => {
-    if (!defaultAllowedDate || !currentSelectedDbDate) return false;
-    return currentSelectedDbDate === defaultAllowedDate;
-  }, [defaultAllowedDate, currentSelectedDbDate]);
+  const isTodayDate = React.useMemo(() => {
+    if (!currentSelectedDbDate) return false;
+    return currentSelectedDbDate === getTodayDbDate();
+  }, [currentSelectedDbDate]);
 
-  // Data está restrita/bloqueada para lançamentos se não for a aula de hoje/próxima aula E não estiver desbloqueada via PIN
+  const isFutureDate = React.useMemo(() => {
+    if (!currentSelectedDbDate) return false;
+    return currentSelectedDbDate > getTodayDbDate();
+  }, [currentSelectedDbDate]);
+
+  // Regra de Bloqueio: datas futuras ficam bloqueadas automaticamente, liberando-se apenas via PIN
+  // Datas de hoje ou passadas são liberadas normalmente para lançamento
   const isDateLockedByRule = React.useMemo(() => {
     if (!selectedClass || !selectedSubject || !currentSelectedDbDate) return false;
-    if (!isDefaultAllowedDate && !isDateUnlockedByPin) {
+    if (isFutureDate && !isDateUnlockedByPin) {
       return true;
     }
     return false;
-  }, [selectedClass, selectedSubject, currentSelectedDbDate, isDefaultAllowedDate, isDateUnlockedByPin]);
+  }, [selectedClass, selectedSubject, currentSelectedDbDate, isFutureDate, isDateUnlockedByPin]);
 
   // Sistema de Auto-Bloqueio: reseta qualquer autorização temporária de PIN assim que sair da data, turma ou disciplina
   useEffect(() => {
@@ -1029,17 +1047,26 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     setPinError('');
   }, [selectedDate, selectedClass, selectedSubject]);
 
-  // Auto-select logic: Ao selecionar a turma e disciplina, seleciona automaticamente a data da aula de hoje ou próxima aula
+  const prevSubjectRef = React.useRef<string>('');
+  const prevClassRef = React.useRef<string>('');
+
+  // Auto-select logic: Ao entrar em chamada ou alterar turma/disciplina, traz a data de aula do dia ou aula passada mais recente
   useEffect(() => {
     if (availableDates.length > 0 && selectedClass && selectedSubject && defaultAllowedDate) {
+      const classChanged = prevClassRef.current !== '' && prevClassRef.current !== selectedClass;
+      const subjectChanged = prevSubjectRef.current !== '' && prevSubjectRef.current !== selectedSubject;
       const isSelectedDateInAvailable = availableDates.some(d => d.dbValue === parseDateToDB(selectedDate));
-      if (!isSelectedDateInAvailable || !selectedDate) {
+
+      if (classChanged || subjectChanged || !isSelectedDateInAvailable || !selectedDate) {
         setSelectedDate(formatDateForDisplay(defaultAllowedDate));
       }
+
+      prevClassRef.current = selectedClass;
+      prevSubjectRef.current = selectedSubject;
     }
   }, [availableDates, selectedClass, selectedSubject, defaultAllowedDate, selectedDate]);
 
-  // Verificação e Validação do PIN de Administrador, Diretor ou Secretário
+  // Verificação e Validação do PIN de qualquer usuário autorizado ou Master Admin
   const handleVerifyPin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!enteredPin || enteredPin.length < 4) {
@@ -1054,15 +1081,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       let isValid = false;
       let authorizerTitle = '';
 
-      // 1. Verifica perfil do usuário logado (Admin, Diretor ou Secretário)
-      if (profile) {
-        const role = (profile.role || '').toLowerCase();
-        const isPrivileged = ['admin', 'diretor', 'secretario', 'administrator', 'director', 'secretary'].includes(role);
-        if (isPrivileged && profile.pin && String(profile.pin) === String(enteredPin)) {
-          isValid = true;
-          const roleName = profile.role === 'admin' ? 'Administrador' : profile.role === 'diretor' ? 'Diretor' : 'Secretário';
-          authorizerTitle = `${profile.name || profile.email || 'Usuário Atual'} (${roleName})`;
-        }
+      // 1. Verifica perfil do usuário logado
+      if (profile && profile.pin && String(profile.pin) === String(enteredPin)) {
+        isValid = true;
+        const roleLabel = profile.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Usuário';
+        authorizerTitle = `${profile.name || profile.email || 'Usuário Atual'} (${roleLabel})`;
       }
 
       // 2. Chave Master de emergência (0000)
@@ -1071,24 +1094,20 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         authorizerTitle = 'Master Admin (PIN 0000)';
       }
 
-      // 3. Consulta coleção de usuários para validar PIN de qualquer Administrador, Diretor ou Secretário cadastrado
+      // 3. Consulta coleção de usuários para validar PIN de qualquer usuário cadastrado no sistema
       if (!isValid) {
         const allUsers = await fetchAll('users');
-        const matchingUser = (allUsers || []).find((u: any) => {
-          const role = (u.role || '').toLowerCase();
-          const isPrivileged = ['admin', 'diretor', 'secretario', 'administrator', 'director', 'secretary'].includes(role);
-          return isPrivileged && u.pin && String(u.pin) === String(enteredPin);
-        });
+        const matchingUser = (allUsers || []).find((u: any) => u.pin && String(u.pin) === String(enteredPin));
 
         if (matchingUser) {
           isValid = true;
-          const roleLabel = matchingUser.role === 'admin' ? 'Administrador' : matchingUser.role === 'diretor' ? 'Diretor' : 'Secretário';
+          const roleLabel = matchingUser.role ? matchingUser.role.charAt(0).toUpperCase() + matchingUser.role.slice(1) : 'Usuário';
           authorizerTitle = `${matchingUser.name || matchingUser.email || 'Usuário'} (${roleLabel})`;
         }
       }
 
       if (!isValid) {
-        setPinError('PIN incorreto ou usuário não possui permissão de Administrador, Diretor ou Secretário.');
+        setPinError('PIN incorreto. Digite o PIN de 4 dígitos de um usuário cadastrado.');
         setPinSubmitting(false);
         return;
       }
@@ -1100,7 +1119,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       setPinError('');
       setNotification({
         type: 'success',
-        message: `Data ${selectedDate} desbloqueada com sucesso para lançamentos por ${authorizerTitle}. O auto-bloqueio será ativado ao sair desta data.`
+        message: `Data futura ${selectedDate} desbloqueada com sucesso para lançamentos por ${authorizerTitle}. O auto-bloqueio será reativado ao sair desta data.`
       });
     } catch (err: any) {
       console.error('Erro ao validar PIN:', err);
@@ -2226,15 +2245,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                         <span>Data</span>
                         {selectedClass && selectedSubject && (
-                          isDefaultAllowedDate ? (
-                            <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 flex items-center gap-1">
-                              <Check size={9} /> Liberada (Aula Atual)
-                            </span>
-                          ) : isDateUnlockedByPin ? (
+                          isDateUnlockedByPin ? (
                             <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-widest px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 flex items-center gap-1">
                               <Unlock size={9} /> Desbloqueada via PIN
                             </span>
-                          ) : (
+                          ) : isFutureDate ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -2245,8 +2260,16 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               className="text-[8px] font-bold text-amber-800 uppercase tracking-widest px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
                               title="Clique para inserir PIN e desbloquear"
                             >
-                              <Lock size={9} /> Bloqueada (Requer PIN)
+                              <Lock size={9} /> Bloqueada (Data Futura - Requer PIN)
                             </button>
+                          ) : isTodayDate ? (
+                            <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 flex items-center gap-1">
+                              <Check size={9} /> Aula de Hoje (Liberada)
+                            </span>
+                          ) : (
+                            <span className="text-[8px] font-bold text-slate-700 uppercase tracking-widest px-1.5 py-0.5 bg-slate-100 border border-slate-200 flex items-center gap-1">
+                              <Check size={9} /> Aula Realizada (Liberada)
+                            </span>
                           )
                         )}
                       </label>
@@ -2287,9 +2310,19 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             <>
                               <option value="">SELECIONAR DATA...</option>
                               {[...availableDates].reverse().map((date, dIdx) => {
-                                const isDefault = date.dbValue === defaultAllowedDate;
+                                const isDateToday = date.dbValue === getTodayDbDate();
+                                const isDateFuture = date.dbValue > getTodayDbDate();
                                 const isPinUnlocked = date.dbValue === unlockedDate;
-                                const tag = isDefault ? '⭐ [AULA ATUAL - LIBERADA]' : isPinUnlocked ? '🔓 [DESBLOQUEADA COM PIN]' : '🔒 [REQUER PIN]';
+
+                                let tag = '✓ [AULA REALIZADA]';
+                                if (isPinUnlocked) {
+                                  tag = '🔓 [DESBLOQUEADA COM PIN]';
+                                } else if (isDateToday) {
+                                  tag = '⭐ [AULA DE HOJE]';
+                                } else if (isDateFuture) {
+                                  tag = '🔒 [DATA FUTURA - REQUER PIN]';
+                                }
+
                                 return (
                                   <option key={`att-dt-${date.dbValue}-${dIdx}`} value={date.dbValue}>
                                     {date.label.toUpperCase()} - {tag}
@@ -2485,10 +2518,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           </div>
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wider text-amber-950">
-                              Data Bloqueada para Lançamentos ({selectedDate})
+                              Data Futura Bloqueada para Lançamentos ({selectedDate})
                             </p>
                             <p className="text-[11px] text-amber-850 mt-0.5">
-                              Por segurança acadêmica, apenas a data da aula atual ou próxima aula é liberada automaticamente. Para lançar nesta data, utilize o PIN de autorização.
+                              Por segurança acadêmica, lançamentos de frequência em datas futuras ficam bloqueados automaticamente. Para antecipar lançamentos nesta data, utilize o PIN de um usuário.
                             </p>
                           </div>
                         </div>
@@ -2586,7 +2619,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                     title={isDateLockedByRule ? "Data bloqueada. Clique para desbloquear via PIN" : "Clique para editar as observações do abono"}
                                     onClick={() => {
                                       if (isDateLockedByRule) {
-                                        setPinError('Esta data está bloqueada para alterações. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
+                                        setPinError('Esta data futura está bloqueada para alterações. Digite o PIN de um usuário cadastrado para desbloquear.');
                                         setEnteredPin('');
                                         setIsPinModalOpen(true);
                                         return;
@@ -2664,13 +2697,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                     : !isDateValidForSubject 
                                       ? `Data fora do ${currentSubjectSemester}` 
                                       : isDateLockedByRule
-                                        ? "Data bloqueada. Clique para inserir PIN de Administrador/Diretor/Secretário"
+                                        ? "Data futura bloqueada. Clique para inserir o PIN de um usuário e desbloquear"
                                         : "Dê um clique simples para marcar ou duplo clique para limpar a seleção"
                                 }
                                 onClick={() => {
                                   if (isClosed || !isDateValidForSubject) return;
                                   if (isDateLockedByRule) {
-                                    setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
+                                    setPinError('Esta data futura está bloqueada para lançamentos. Digite o PIN de um usuário cadastrado para desbloquear.');
                                     setEnteredPin('');
                                     setIsPinModalOpen(true);
                                     return;
@@ -2915,7 +2948,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   Chave de Segurança (PIN de 4 Dígitos)
                 </label>
                 <p className="text-[11px] text-slate-500 mb-2.5 leading-relaxed">
-                  Digite o PIN de um <strong>Administrador</strong>, <strong>Diretor</strong> ou <strong>Secretário</strong> para autorizar o lançamento de presenças e faltas nesta data.
+                  Digite o PIN de segurança de um usuário para autorizar o lançamento de presenças e faltas nesta data futura.
                 </p>
 
                 <input
