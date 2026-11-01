@@ -80,17 +80,17 @@ const SubjectItem = React.memo(({
     <button
       onClick={() => onSelect(subject)}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-none transition-all text-left",
+        "w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left",
         isSelected 
           ? "bg-slate-50 border-slate-200" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
+      <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
         {subject.code}
         <div className={cn(
-          "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2 border-white",
+          "absolute -top-1 -right-1 w-3 h-3 rounded-lg border-2 border-white",
           subject.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
         )} />
       </div>
@@ -627,7 +627,7 @@ export function Subjects() {
   return (
     <>
       <div className={cn(
-        "print:hidden pt-3 sm:pt-4 h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        "print:hidden h-auto lg:h-[calc(100vh-4.5rem)] min-h-[calc(100vh-4.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-2.5 sm:gap-3 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
@@ -643,7 +643,7 @@ export function Subjects() {
           <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
           
           {/* Hover instruction tooltip */}
-          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
             ➔ Lista de Disciplinas <span className="text-slate-300">(Passe o mouse)</span>
           </div>
         </div>
@@ -657,7 +657,7 @@ export function Subjects() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
+          "bg-white rounded-lg shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
@@ -678,12 +678,12 @@ export function Subjects() {
               )}
             </div>
             <div className="flex gap-2">
-              <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-none border border-slate-200 flex items-center">
+              <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-lg border border-slate-200 flex items-center">
                 {filteredSubjects.length}
               </div>
               <button 
                 onClick={generateSubjectListPDF}
-                className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
+                className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
                 title="Imprimir Listagem Completa"
               >
                 <Printer size={16} />
@@ -691,7 +691,7 @@ export function Subjects() {
               </button>
               <button 
                 onClick={handleNew}
-                className="p-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-colors"
+                className="p-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
                 title="Nova Disciplina"
               >
                 <Plus size={18} />
@@ -705,7 +705,7 @@ export function Subjects() {
               placeholder="Buscar disciplina..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10"
             />
           </div>
           <div className="flex flex-col gap-4">
@@ -718,7 +718,7 @@ export function Subjects() {
                   setStatusFilter('');
                   setSearchTerm('');
                 }}
-                className="w-full px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
+                className="w-full px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
               >
                 <option value="Todos">Todos Semestres</option>
                 <option value="1º Sem.">1º Semestre</option>
@@ -729,13 +729,13 @@ export function Subjects() {
 
             <div className="space-y-1">
               <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 ml-1">Situação</label>
-              <div className="flex bg-slate-50 p-1 rounded-none border border-slate-100">
+              <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
                 {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
                     className={cn(
-                      "flex-1 py-1.5 text-[9px] font-bold uppercase rounded-none transition-all",
+                      "flex-1 py-1.5 text-[9px] font-bold uppercase rounded-lg transition-all",
                       statusFilter === status 
                         ? "bg-white text-slate-800 shadow-sm" 
                         : "text-slate-400 hover:text-slate-600"
@@ -752,7 +752,7 @@ export function Subjects() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
+                className="w-full px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
               >
                 <option value="year">Ordenar por Ano</option>
                 <option value="name">Ordenar por Nome</option>
@@ -789,16 +789,16 @@ export function Subjects() {
 
       {/* Main Content */}
       <div className={cn(
-        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+        "bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
         actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
       )}>
         {notification && (
           <div className={cn(
-            "fixed top-6 right-6 z-[60] px-6 py-4 rounded-none shadow-2xl border text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-4",
+            "fixed top-6 right-6 z-[60] px-6 py-4 rounded-lg shadow-2xl border text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-4",
             notification.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-600" : "bg-red-50 border-red-100 text-red-600"
           )}>
             <div className={cn(
-              "w-8 h-8 rounded-none flex items-center justify-center",
+              "w-8 h-8 rounded-lg flex items-center justify-center",
               notification.type === 'success' ? "bg-emerald-100" : "bg-red-100"
             )}>
               {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
@@ -823,7 +823,7 @@ export function Subjects() {
               </button>
               <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-800">
+                <div className="w-16 h-16 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-800">
                   <BookOpen size={32} />
                 </div>
                   <div>
@@ -883,7 +883,7 @@ export function Subjects() {
                             e.stopPropagation();
                             setShowDeleteConfirm(true);
                           }}
-                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
                           title="Excluir Disciplina"
                         >
                           <Trash2 size={16} />
@@ -898,7 +898,7 @@ export function Subjects() {
                             handleToggleSubjectStatus();
                           }}
                           className={cn(
-                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
+                            "h-10 px-4 border rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
                             formData.status === 'Inativo'
                               ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                               : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
@@ -912,14 +912,14 @@ export function Subjects() {
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
                       <X size={15} />
                       <span>Cancelar</span>
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
+                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
                       <Save size={16} />
                       <span>Salvar Disciplina</span>
@@ -933,7 +933,7 @@ export function Subjects() {
                           setSelectedSubject(null);
                           setIsEditing(false);
                         }}
-                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-none hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-lg hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Fechar Ficha (Voltar à lista)"
                         aria-label="Fechar Ficha"
                       >
@@ -952,7 +952,7 @@ export function Subjects() {
                             });
                           }
                         }}
-                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-lg hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Imprimir Disciplina"
                         aria-label="Imprimir Disciplina"
                       >
@@ -962,7 +962,7 @@ export function Subjects() {
                       {canManipulateSubject(selectedSubject) ? (
                         <button 
                           onClick={() => setIsEditing(true)}
-                          className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                          className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                           title="Editar Disciplina"
                           aria-label="Editar Disciplina"
                         >
@@ -997,7 +997,7 @@ export function Subjects() {
                         value={formData.code || ''}
                         onChange={(e) => setFormData({...formData, code: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={1}
                       />
                     </div>
@@ -1009,7 +1009,7 @@ export function Subjects() {
                         value={formData.name || ''}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={2}
                       />
                     </div>
@@ -1023,7 +1023,7 @@ export function Subjects() {
                           disabled={!isEditing || (!canSwitchUnit && isRestricted)}
                           value={formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
                           onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
                         >
                           {canSwitchUnit && <option value="all">🌐 Institucional (Todas as Unidades)</option>}
                           {activeUnits.map(u => (
@@ -1037,7 +1037,7 @@ export function Subjects() {
                     <div className="col-span-12 grid grid-cols-12 gap-3 pt-2">
                       <div className="col-span-12 md:col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Ano</label>
-                        <div className="flex bg-slate-50 p-1 rounded-none gap-1 flex-wrap">
+                        <div className="flex bg-slate-50 p-1 rounded-lg gap-1 flex-wrap">
                           {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
                             <button
                               key={year}
@@ -1045,7 +1045,7 @@ export function Subjects() {
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, year})}
                               className={cn(
-                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-none transition-all",
+                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-lg transition-all",
                                 formData.year === year 
                                   ? "bg-white text-slate-800 shadow-sm" 
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
@@ -1058,7 +1058,7 @@ export function Subjects() {
                       </div>
                       <div className="col-span-12 md:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Semestre</label>
-                        <div className="flex bg-slate-50 p-1 rounded-none gap-1">
+                        <div className="flex bg-slate-50 p-1 rounded-lg gap-1">
                           {['1º Sem.', '2º Sem.', 'Anual'].map((sem) => (
                             <button
                               key={sem}
@@ -1066,7 +1066,7 @@ export function Subjects() {
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, semester: sem})}
                               className={cn(
-                                "flex-1 py-2 text-[10px] font-bold rounded-none transition-all",
+                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
                                 formData.semester === sem 
                                   ? "bg-white text-slate-800 shadow-sm" 
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
@@ -1085,7 +1085,7 @@ export function Subjects() {
                         value={formData.teacher_id || ''}
                         onChange={(e) => setFormData({...formData, teacher_id: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={4}
                       >
                         <option value="">Selecione o professor responsável...</option>
@@ -1128,7 +1128,7 @@ export function Subjects() {
                         value={formData.status || 'Ativo'}
                         onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={11}
                       >
                         <option value="Ativo">Ativo</option>
@@ -1151,7 +1151,7 @@ export function Subjects() {
                           placeholder="Deixe em branco para aplicar o valor padrão definido"
                           value={formData.monthly_fee !== undefined && formData.monthly_fee !== null ? formData.monthly_fee : ''}
                           onChange={(e) => setFormData({ ...formData, monthly_fee: e.target.value === '' ? undefined : Number(e.target.value) })}
-                          className="w-full pl-8 pr-3 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
+                          className="w-full pl-8 pr-3 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
                         />
                       </div>
                       <p className="text-[10px] text-slate-400">
@@ -1248,7 +1248,7 @@ export function Subjects() {
                     onKeyDown={handleKeyDown}
                     rows={12}
                     placeholder="Descreva aqui o conteúdo programático da disciplina..."
-                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
+                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
                     tabIndex={3}
                   />
                 </section>
@@ -1257,7 +1257,7 @@ export function Subjects() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-lg flex items-center justify-center">
               <BookOpen size={40} />
             </div>
             <p className="text-sm font-medium">Selecione uma disciplina para ver os detalhes</p>
@@ -1268,8 +1268,8 @@ export function Subjects() {
       {/* Delete Confirmation Modal (Apenas para canDelete) */}
       {showDeleteConfirm && canDelete && selectedSubject && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mx-auto">
               <Trash2 size={32} />
             </div>
             <div className="text-center space-y-2">
@@ -1282,14 +1282,14 @@ export function Subjects() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
               >
                 {loading ? 'Excluindo...' : 'Sim, Excluir'}
               </button>
@@ -1412,7 +1412,7 @@ export function Subjects() {
             </div>
 
             {/* CONTEÚDO PROGRAMÁTICO */}
-            <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-none space-y-1.5 flex-1 flex flex-col">
+            <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg space-y-1.5 flex-1 flex flex-col">
               <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1 tracking-wider text-slate-800">
                 Conteúdo Programático e Ementa
               </h4>

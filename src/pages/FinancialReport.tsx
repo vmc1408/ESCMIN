@@ -1139,7 +1139,7 @@ const totals = useMemo(() => {
   };
 
 return (
-  <div id="financial-report-main-container" className="space-y-6 print:space-y-3 print:m-0 print:p-0">
+  <div id="financial-report-main-container" className="w-full space-y-3 sm:space-y-3.5 pb-6 print:space-y-3 print:m-0 print:p-0">
     {/* Regras Estritas de Impressão Multi-página, Margens A4 e Continuidade */}
     <style>{`
       @media print {
@@ -2209,7 +2209,7 @@ return (
             : "grid-cols-1 sm:grid-cols-3"
         )}>
           {/* Card 1: Previsto */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-lg print:border print:border-slate-300 print:shadow-none print-avoid-break">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -2236,7 +2236,7 @@ return (
           </div>
 
           {/* Card 2: Efetuado / Arrecadado */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-lg print:border print:border-slate-300 print:shadow-none print-avoid-break">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -2268,7 +2268,7 @@ return (
           </div>
 
           {/* Card 3: Saldo Pendente (Vencido) */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-lg print:border print:border-slate-300 print:shadow-none print-avoid-break">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -2296,7 +2296,7 @@ return (
 
           {/* Card 4: A Vencer / Restante */}
           {showAVencerCard && (
-            <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-none print:border print:border-slate-300 print:shadow-none print-avoid-break">
+            <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between print:p-3 print:rounded-lg print:border print:border-slate-300 print:shadow-none print-avoid-break">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -2438,7 +2438,7 @@ return (
         )}
 
         {/* Tabela Analítica Oficial de Contribuições */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border-none print:rounded-none print:shadow-none print:overflow-visible">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print:border-none print:rounded-lg print:shadow-none print:overflow-visible">
           <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between print:hidden">
             <div className="flex items-center gap-2">
               {filterTarget === 'student' ? (

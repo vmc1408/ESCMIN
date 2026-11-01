@@ -230,7 +230,10 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
 
-    const resolvedName = getUnitNameHelper(units, effectiveSelectedUnitId);
+    const rawResolved = getUnitNameHelper(units, effectiveSelectedUnitId);
+    const resolvedName = (norm === 'matriz' && (!rawResolved || rawResolved === 'Sede / Matriz' || rawResolved === 'Sede - Matriz'))
+      ? 'Matriz - Itapegica'
+      : (rawResolved || (norm === 'matriz' ? 'Matriz - Itapegica' : effectiveSelectedUnitId));
 
     return {
       id: effectiveSelectedUnitId,

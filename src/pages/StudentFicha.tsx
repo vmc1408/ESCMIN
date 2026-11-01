@@ -976,7 +976,7 @@ export function StudentFicha() {
   };
 
   return (
-    <div id="student-ficha-module" className="min-h-screen bg-slate-50/50 pb-12 font-sans text-slate-800">
+    <div id="student-ficha-module" className="w-full pb-8 font-sans text-slate-800">
       
       {/* Toast Notification */}
       <AnimatePresence>
@@ -1007,7 +1007,7 @@ export function StudentFicha() {
         {activeStudent && (
           <button
             onClick={triggerDossierPrint}
-            className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 cursor-pointer rounded-none"
+            className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 cursor-pointer rounded-lg"
           >
             <Printer size={14} /> Imprimir Documento
           </button>
@@ -1015,7 +1015,7 @@ export function StudentFicha() {
       </PageHeader>
 
       {/* Unit Conflict Banner */}
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-4 print:hidden">
+      <div className="w-full print:hidden">
         <UnitConflictBanner
           moduleName="Ficha do Aluno"
           entityNameSingular="aluno"
@@ -1033,11 +1033,11 @@ export function StudentFicha() {
           <p className="text-xs uppercase font-extrabold tracking-widest text-slate-400 animate-pulse">Buscando Fichas...</p>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 print:hidden">
+        <div className="w-full py-2.5 sm:py-3.5 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 print:hidden">
           
           {/* LEFT PANEL: Student Lookup sidebar */}
           <div className={cn("lg:col-span-4 space-y-4", activeStudent ? "hidden lg:block" : "block")}>
-            <div className="bg-white border border-slate-200 p-4 rounded-none shadow-sm space-y-3">
+            <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-3">
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                 <div>
                   <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
@@ -1066,7 +1066,7 @@ export function StudentFicha() {
                   placeholder="Nome, Matrícula, CPF ou Turma..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-none text-xs font-semibold focus:outline-none focus:border-slate-800 focus:bg-white focus:ring-1 focus:ring-slate-800/10 placeholder-slate-400 uppercase"
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-slate-800 focus:bg-white focus:ring-1 focus:ring-slate-800/10 placeholder-slate-400 uppercase"
                 />
                 {searchTerm && (
                   <button 
@@ -1080,7 +1080,7 @@ export function StudentFicha() {
               </div>
 
               {/* Students Selection List */}
-              <div className="max-h-[560px] overflow-y-auto divide-y divide-slate-100 border border-slate-150 rounded-none bg-white">
+              <div className="max-h-[560px] overflow-y-auto divide-y divide-slate-100 border border-slate-150 rounded-lg bg-white">
                 {!searchTerm.trim() ? (
                   <div className="p-8 text-center space-y-2">
                     <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center mx-auto">
@@ -1162,7 +1162,7 @@ export function StudentFicha() {
           <div className={cn("lg:col-span-8 space-y-6", !activeStudent ? "hidden lg:block" : "block")}>
             {!activeStudent ? (
               <div className="bg-white border border-slate-200 py-24 text-center space-y-4">
-                <div className="w-16 h-16 bg-slate-50 text-slate-350 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
+                <div className="w-16 h-16 bg-slate-50 text-slate-350 border border-slate-100 rounded-lg flex items-center justify-center mx-auto">
                   <User size={28} />
                 </div>
                 <div>
@@ -1178,14 +1178,14 @@ export function StudentFicha() {
                 {/* Back button for mobile/tablet */}
                 <button
                   onClick={() => setSelectedStudentId('')}
-                  className="lg:hidden w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 transition-colors rounded-none"
+                  className="lg:hidden w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 transition-colors rounded-lg"
                 >
                   ← Voltar para a Consulta de Alunos
                 </button>
 
                 {/* Financial Alert for Unpaid Contributions - Compact & Minimalist */}
                 {unpaidMonthsAlert && (
-                  <div className="bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-none flex flex-wrap items-center justify-between gap-3 shadow-sm animate-in fade-in duration-200">
+                  <div className="bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-lg flex flex-wrap items-center justify-between gap-3 shadow-sm animate-in fade-in duration-200">
                     <div className="flex items-center gap-2 text-xs text-amber-900">
                       <AlertCircle className="text-amber-600 shrink-0" size={16} />
                       <span>
@@ -1199,10 +1199,10 @@ export function StudentFicha() {
                 )}
                 
                 {/* 1. Personal & Contact Dossier - Clean & Minimalist */}
-                <div className="bg-white border border-slate-200 p-5 rounded-none space-y-4 shadow-sm">
+                <div className="bg-white border border-slate-200 p-5 rounded-lg space-y-4 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-none flex-shrink-0 flex items-center justify-center overflow-hidden">
+                      <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden">
                         {activeStudent.photo_url ? (
                           <img src={activeStudent.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
@@ -1347,7 +1347,7 @@ export function StudentFicha() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                   {/* 2. Frequency Control card */}
-                  <div className="bg-white border border-slate-200 p-4 rounded-none shadow-sm space-y-3">
+                  <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-3">
                     <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
                       Controle de Frequência
                     </h3>
@@ -1378,7 +1378,7 @@ export function StudentFicha() {
                         </span>
                       </div>
                       
-                      <div className="w-full bg-slate-100 h-2 rounded-none overflow-hidden border border-slate-200/50">
+                      <div className="w-full bg-slate-100 h-2 rounded-lg overflow-hidden border border-slate-200/50">
                         <div 
                           className={cn(
                             "h-full transition-all duration-500",
@@ -1402,7 +1402,7 @@ export function StudentFicha() {
                   </div>
 
                   {/* 3. Grades and performance */}
-                  <div className="bg-white border border-slate-200 p-4 rounded-none shadow-sm space-y-3">
+                  <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm space-y-3">
                     <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
                       Controle Acadêmico por Disciplinas
                     </h3>
@@ -1454,7 +1454,7 @@ export function StudentFicha() {
                 </div>
 
                 {/* 4. Historic & Issued Certificates block */}
-                <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
+                <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
                     <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <Award size={12} className="text-indigo-600" /> Registro de Documentação e Diplomas
@@ -1573,7 +1573,7 @@ export function StudentFicha() {
 
                 if (fStatus !== 'Aprovado') {
                   return (
-                    <div className="bg-rose-50 border border-rose-300 p-4 rounded-none space-y-1.5 text-rose-800 text-[10.5px] font-medium leading-normal">
+                    <div className="bg-rose-50 border border-rose-300 p-4 rounded-lg space-y-1.5 text-rose-800 text-[10.5px] font-medium leading-normal">
                       <h5 className="font-bold text-rose-850 text-xs font-sans uppercase flex items-center gap-1">
                         <AlertCircle size={14} /> IMPEDIMENTO ACADÊMICO
                       </h5>
@@ -1585,7 +1585,7 @@ export function StudentFicha() {
 
                 if (certFormData.type === 'honra' && !diplomaRequirementsMet) {
                   return (
-                    <div className="bg-amber-50 border border-amber-300 p-4 rounded-none space-y-2 text-amber-800 text-[10.5px] font-medium leading-normal">
+                    <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg space-y-2 text-amber-800 text-[10.5px] font-medium leading-normal">
                       <h5 className="font-bold text-amber-855 text-xs font-sans uppercase flex items-center gap-1">
                         <AlertCircle size={14} /> CRITÉRIOS DE DIPLOMA PENDENTES
                       </h5>
@@ -1902,7 +1902,7 @@ export function StudentFicha() {
             </div>
 
             {/* RESUMO CADASTRAL DO ALUNO - DESIGN ELEGANTE SEM BORDAS PESADAS */}
-            <div className="bg-slate-50/70 p-3.5 mb-5 rounded-none border-t border-b border-slate-200 space-y-2 text-[9.5pt]">
+            <div className="bg-slate-50/70 p-3.5 mb-5 rounded-lg border-t border-b border-slate-200 space-y-2 text-[9.5pt]">
               <div className="grid grid-cols-12 gap-x-4 gap-y-1 items-baseline">
                 <div className="col-span-8 flex items-baseline gap-2">
                   <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Aluno(a):</span>

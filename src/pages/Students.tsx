@@ -82,14 +82,14 @@ const StudentItem = React.memo(({
     <button
       onClick={() => onSelect(student)}
       className={cn(
-        "w-full flex items-center gap-3 p-2.5 rounded-none transition-all text-left",
+        "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left",
         isSelected 
           ? "bg-slate-50 border-slate-200 shadow-sm" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200">
+      <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200">
         {student.photo_url ? (
           <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
@@ -100,7 +100,7 @@ const StudentItem = React.memo(({
         <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{student.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
           <span className={cn(
-            "text-[9px] font-bold px-1.5 py-0.5 rounded-none uppercase tracking-wider",
+            "text-[9px] font-bold px-1.5 py-0.5 rounded-lg uppercase tracking-wider",
             student.status === 'Inativo' ? "bg-red-50 text-red-700 border border-red-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
           )}>
             {student.status || 'Ativo'}
@@ -2092,7 +2092,7 @@ export function Students() {
           </div>
 
           {/* BASIC INFORMATION SECTION - NORMAS */}
-          <div className="my-2.5 p-2.5 bg-slate-50/50 border border-slate-300 rounded-none">
+          <div className="my-2.5 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg">
             <h4 className="text-[8pt] font-black uppercase text-center mb-1.5 tracking-wider text-slate-800 border-b border-slate-200 pb-1">
               Normas Básicas para Admissão
             </h4>
@@ -2333,7 +2333,7 @@ export function Students() {
     <>
       {notification && (
         <div className={cn(
-          "fixed top-4 left-1/2 -translate-x-1/2 z-[300] px-4 py-3 rounded-none shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-start sm:items-center gap-3 max-w-xl w-[94vw] sm:w-auto border",
+          "fixed top-4 left-1/2 -translate-x-1/2 z-[300] px-4 py-3 rounded-lg shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-start sm:items-center gap-3 max-w-xl w-[94vw] sm:w-auto border",
           notification.type === 'success' 
             ? "bg-emerald-600 border-emerald-700 text-white" 
             : "bg-rose-700 border-rose-800 text-white shadow-rose-950/30 ring-2 ring-rose-500/20"
@@ -2356,21 +2356,8 @@ export function Students() {
         </div>
       )}
 
-      <div className="pt-3 sm:pt-4 mb-3 print:hidden">
-        <UnitConflictBanner
-          moduleName="Alunos"
-          entityNameSingular="aluno"
-          entityNamePlural="alunos"
-          totalRecordsAllUnits={students.length}
-          recordsInActiveUnit={studentsInActiveUnitCount}
-          selectedItemUnit={selectedStudent ? (getItemUnitId(selectedStudent) || classes.find(c => c.id === selectedStudent.class_id)?.unit_id) : undefined}
-          selectedItemName={selectedStudent?.name}
-          onAddNewInActiveUnit={handleNew}
-        />
-      </div>
-
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        "print:hidden h-auto lg:h-[calc(100vh-4.5rem)] min-h-[calc(100vh-4.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-2.5 sm:gap-3 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
@@ -2386,7 +2373,7 @@ export function Students() {
           <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
           
           {/* Hover instruction tooltip */}
-          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
             ➔ Lista de Alunos <span className="text-slate-300">(Passe o mouse)</span>
           </div>
         </div>
@@ -2400,7 +2387,7 @@ export function Students() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
+          "bg-white rounded-lg shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[380px] opacity-100 shadow-2xl border-l border-slate-200" 
@@ -2422,7 +2409,7 @@ export function Students() {
             </div>
             <button 
               onClick={handleNew}
-              className="px-3 h-8 bg-slate-800 text-white rounded-none text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
+              className="px-3 h-8 bg-slate-800 text-white rounded-lg text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
             >
               <Plus size={14} />
               Novo
@@ -2436,7 +2423,7 @@ export function Students() {
                 placeholder="Buscar por nome, RA ou CPF..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-none text-[11px] focus:ring-1 focus:ring-slate-500/10 focus:bg-white transition-all outline-none"
+                className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] focus:ring-1 focus:ring-slate-500/10 focus:bg-white transition-all outline-none"
               />
             </div>
             <div className="flex gap-1.5">
@@ -2445,7 +2432,7 @@ export function Students() {
                   key={status}
                   onClick={() => setStatusFilter(status)}
                   className={cn(
-                    "flex-1 py-1.5 text-[9px] font-bold rounded-none transition-all border uppercase tracking-wider",
+                    "flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all border uppercase tracking-wider",
                     statusFilter === status 
                       ? "bg-slate-800 border-slate-800 text-white shadow-sm" 
                       : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
@@ -2491,7 +2478,7 @@ export function Students() {
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
                 className={cn(
-                  "w-full px-2.5 py-1.5 border rounded-none text-[11px] font-medium outline-none transition-all",
+                  "w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-medium outline-none transition-all",
                   selectedClassId === 'unallocated'
                     ? "bg-amber-50 border-amber-300 text-amber-900 font-bold"
                     : "bg-slate-50 border-slate-200 text-slate-600 focus:ring-1 focus:ring-slate-500/10"
@@ -2509,7 +2496,7 @@ export function Students() {
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-none text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-slate-500/10 outline-none"
+                  className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-slate-500/10 outline-none"
                 >
                   <option value="">Escolha um ano</option>
                   <option value="all">Todos os Anos</option>
@@ -2517,7 +2504,7 @@ export function Students() {
                 </select>
                 <button
                   onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
-                  className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded-none hover:bg-slate-50 transition-colors"
+                  className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 transition-colors"
                   title={sortBy === 'name' ? "Ordering by RA" : "Ordering by Name"}
                 >
                   <ArrowUpDown size={14} />
@@ -2559,7 +2546,7 @@ export function Students() {
 
       {/* Main Content (Student Details or Registration Form) */}
       <div className={cn(
-        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+        "bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
         actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
       )}>
         {selectedStudent || isEditing ? (
@@ -2597,7 +2584,7 @@ export function Students() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                 <div className="relative group shrink-0">
-                  <div className="w-16 sm:w-20 h-22 sm:h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
+                  <div className="w-16 sm:w-20 h-22 sm:h-28 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
                     {formData.photo_url ? (
                       <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -2611,7 +2598,7 @@ export function Students() {
                     )}
                   </div>
                   {isEditing && !uploadingPhoto && (
-                    <div className="absolute inset-0 bg-black/40 rounded-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button 
                         onClick={() => setShowWebcam(true)}
                         className="p-1.5 bg-white text-slate-800 rounded hover:scale-105 transition-transform"
@@ -2641,7 +2628,7 @@ export function Students() {
                       {formData.status}
                     </span>
                     {hasParallelCourses && (
-                      <span className="px-2 py-0.5 rounded-none text-[9.5px] font-black uppercase tracking-wider bg-amber-100 text-amber-950 border border-amber-400 shadow-2xs flex items-center gap-1.5 shrink-0 animate-in fade-in" title={`Aluno com ${secondaryEnrollments.length + 1} matrículas ativas simultâneas`}>
+                      <span className="px-2 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-amber-100 text-amber-950 border border-amber-400 shadow-2xs flex items-center gap-1.5 shrink-0 animate-in fade-in" title={`Aluno com ${secondaryEnrollments.length + 1} matrículas ativas simultâneas`}>
                         <Layers size={11} className="text-amber-700 shrink-0" />
                         <span>{secondaryEnrollments.length + 1} Cursos em Paralelo</span>
                       </span>
@@ -2654,7 +2641,7 @@ export function Students() {
                   <>
                     <button 
                       onClick={handleCloseFicha}
-                      className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-none hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                      className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-lg hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                       title={returnOrigin ? `Fechar e voltar para ${returnOrigin.sourceTitle || 'origem'}` : "Fechar Ficha (Voltar à lista)"}
                       aria-label={returnOrigin ? `Fechar e voltar para ${returnOrigin.sourceTitle || 'origem'}` : "Fechar Ficha"}
                     >
@@ -2663,7 +2650,7 @@ export function Students() {
 
                     <button 
                       onClick={handlePrint}
-                      className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                      className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-lg hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                       title="Imprimir Ficha"
                       aria-label="Imprimir Ficha"
                     >
@@ -2672,7 +2659,7 @@ export function Students() {
                     
                     <button 
                       onClick={() => navigate('/contributions', { state: { studentId: selectedStudent.id } })}
-                      className="h-10 w-10 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-none hover:text-emerald-800 hover:bg-emerald-100/50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                      className="h-10 w-10 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg hover:text-emerald-800 hover:bg-emerald-100/50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                       title="Financeiro do Aluno"
                       aria-label="Financeiro do Aluno"
                     >
@@ -2681,7 +2668,7 @@ export function Students() {
 
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                      className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                       title="Editar Ficha"
                       aria-label="Editar Ficha"
                     >
@@ -2700,7 +2687,7 @@ export function Students() {
                             e.stopPropagation();
                             setShowDeleteConfirm(true);
                           }}
-                          className="h-10 px-4 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                          className="h-10 px-4 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
                           title="Excluir Aluno"
                         >
                           <Trash2 size={16} />
@@ -2715,7 +2702,7 @@ export function Students() {
                             handleToggleStudentStatus();
                           }}
                           className={cn(
-                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
+                            "h-10 px-4 border rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
                             formData.status === 'Inativo'
                               ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                               : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
@@ -2743,7 +2730,7 @@ export function Students() {
                           }
                         }
                       }}
-                      className="h-10 px-4 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 text-rose-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 text-rose-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                       <X size={15} />
                       <span className="uppercase tracking-wider text-[10px] hidden sm:inline">Cancelar Edição</span>
@@ -2752,7 +2739,7 @@ export function Students() {
                     <button 
                       onClick={handleSave}
                       disabled={loading || uploadingPhoto}
-                      className="h-10 px-5 bg-[#00174b] hover:bg-indigo-950 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-95 disabled:opacity-50"
+                      className="h-10 px-5 bg-[#00174b] hover:bg-indigo-950 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-95 disabled:opacity-50"
                     >
                       {loading ? (
                         <>
@@ -2777,7 +2764,7 @@ export function Students() {
               <div className="p-3 pb-24">
                 {showWebcam ? (
                 <div className="max-w-md mx-auto space-y-4">
-                  <div className="aspect-video bg-black rounded-none overflow-hidden relative">
+                  <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
                     <Webcam
                       audio={false}
                       ref={webcamRef}
@@ -2795,13 +2782,13 @@ export function Students() {
                   <div className="flex justify-center gap-4">
                     <button 
                       onClick={() => setShowWebcam(false)}
-                      className="px-4 py-2 bg-slate-100 text-slate-600 rounded-none font-bold text-sm"
+                      className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={capturePhoto}
-                      className="px-6 py-2 bg-slate-800 text-white rounded-none font-bold text-sm flex items-center gap-2"
+                      className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm flex items-center gap-2"
                     >
                       <Camera size={18} />
                       Capturar Foto
@@ -2812,7 +2799,7 @@ export function Students() {
                 <div className="max-w-4xl mx-auto space-y-4">
                   {/* Unallocated Quick Action Banner */}
                   {isStudentUnallocated && selectedStudent && !isEditing && (
-                    <div className="bg-amber-50 border-2 border-amber-300 p-3 sm:p-4 rounded-none flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-amber-950 shadow-xs animate-in fade-in duration-200">
+                    <div className="bg-amber-50 border-2 border-amber-300 p-3 sm:p-4 rounded-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-amber-950 shadow-xs animate-in fade-in duration-200">
                       <div className="flex items-start sm:items-center gap-2.5">
                         <AlertTriangle className="text-amber-600 shrink-0 mt-0.5 sm:mt-0" size={20} />
                         <div>
@@ -2865,7 +2852,7 @@ export function Students() {
                           value={formData.registration_number || ''}
                           onChange={(e) => setFormData({...formData, registration_number: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={1}
                         />
                       </div>
@@ -2877,7 +2864,7 @@ export function Students() {
                           value={formData.name || ''}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={2}
                         />
                       </div>
@@ -2888,7 +2875,7 @@ export function Students() {
                           value={formData.status || 'Ativo'}
                           onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={3}
                         >
                           <option value="Ativo">Ativo</option>
@@ -2925,7 +2912,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                           onKeyDown={handleKeyDown}
                           className={cn(
-                            "w-full px-4 py-2 bg-white border rounded-none text-sm focus:ring-2 disabled:opacity-60 transition-colors",
+                            "w-full px-4 py-2 bg-white border rounded-lg text-sm focus:ring-2 disabled:opacity-60 transition-colors",
                             formData.cpf && cpfValidation.rawLength === 11 && !cpfValidation.isValid
                               ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
                               : "border-slate-200 focus:ring-slate-500/10"
@@ -2943,7 +2930,7 @@ export function Students() {
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">RG / Identidade</label>
                           {formData.rg ? (
-                            <span className={`text-[10px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded-none border ${
+                            <span className={`text-[10px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded-lg border ${
                               rgValidation.statusColor === 'success' 
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
                                 : rgValidation.statusColor === 'warning' 
@@ -2966,7 +2953,7 @@ export function Students() {
                             onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                             onKeyDown={handleKeyDown}
                             maxLength={RG_MAX_FORMATTED_LENGTH}
-                            className={`w-full px-4 py-2 bg-white border rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 transition-colors ${
+                            className={`w-full px-4 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 transition-colors ${
                               !formData.rg 
                                 ? 'border-slate-200' 
                                 : rgValidation.isValid 
@@ -3004,7 +2991,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className={cn(
-                            "w-full px-3 py-2 bg-white border rounded-none text-sm focus:ring-2 disabled:opacity-60 text-slate-900 font-medium",
+                            "w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 disabled:opacity-60 text-slate-900 font-medium",
                             !birthDateValidation.isValid
                               ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
                               : "border-slate-200 focus:ring-slate-500/10"
@@ -3035,7 +3022,7 @@ export function Students() {
                             }
                             placeholder="---"
                             className={cn(
-                              "w-full px-2 py-2 border rounded-none text-sm font-bold text-center select-none disabled:opacity-90 font-mono",
+                              "w-full px-2 py-2 border rounded-lg text-sm font-bold text-center select-none disabled:opacity-90 font-mono",
                               !birthDateValidation.isValid
                                 ? "bg-rose-50 border-rose-300 text-rose-700"
                                 : "bg-slate-100 border-slate-200 text-slate-800"
@@ -3083,7 +3070,7 @@ export function Students() {
                             }
                           }}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={7}
                         >
                           <option value="">
@@ -3112,7 +3099,7 @@ export function Students() {
                             disabled
                             value={effectiveCourseName || ''}
                             placeholder="Vinculado à turma..."
-                            className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-none text-sm font-bold text-slate-800 truncate select-none disabled:opacity-90 pr-8"
+                            className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-800 truncate select-none disabled:opacity-90 pr-8"
                             title={effectiveCourseName ? `Curso: ${effectiveCourseName}` : 'Curso vinculado à turma selecionada'}
                             tabIndex={-1}
                           />
@@ -3137,7 +3124,7 @@ export function Students() {
                             disabled
                             value={effectiveClassStartDate ? formatDateForDisplay(effectiveClassStartDate) : ''}
                             placeholder="DD/MM/AAAA"
-                            className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-none text-sm font-bold text-slate-800 select-none disabled:opacity-90 font-mono pr-8"
+                            className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-800 select-none disabled:opacity-90 font-mono pr-8"
                             title={effectiveClassStartDate ? `Data de início definida no cronograma: ${formatDateForDisplay(effectiveClassStartDate)}` : 'Data definida no cadastro e cronograma da turma'}
                             tabIndex={-1}
                           />
@@ -3192,7 +3179,7 @@ export function Students() {
                       {/* Enrollment Management - Integrated directly */}
                       {selectedStudent?.id ? (
                         <div className={cn(
-                          "col-span-12 p-3.5 sm:p-5 rounded-none space-y-3 sm:space-y-4 mt-2 mb-6 shadow-sm overflow-hidden transition-all",
+                          "col-span-12 p-3.5 sm:p-5 rounded-lg space-y-3 sm:space-y-4 mt-2 mb-6 shadow-sm overflow-hidden transition-all",
                           hasParallelCourses 
                             ? "bg-gradient-to-r from-amber-50/90 via-orange-50/50 to-amber-50/90 border-2 border-amber-400 ring-2 ring-amber-400/20" 
                             : "bg-slate-50/50 border border-slate-200"
@@ -3241,7 +3228,7 @@ export function Students() {
                               value={enrollClassId}
                               onChange={(e) => setEnrollClassId(e.target.value)}
                               className={cn(
-                                "w-full sm:flex-1 px-3 py-2 bg-white border rounded-none text-xs outline-none shadow-sm disabled:opacity-50 min-w-0 font-medium",
+                                "w-full sm:flex-1 px-3 py-2 bg-white border rounded-lg text-xs outline-none shadow-sm disabled:opacity-50 min-w-0 font-medium",
                                 hasParallelCourses ? "border-amber-300 focus:ring-1 focus:ring-amber-500" : "border-slate-200 focus:ring-1 focus:ring-slate-500/10"
                               )}
                             >
@@ -3262,7 +3249,7 @@ export function Students() {
                               }}
                               disabled={!enrollClassId || !isEditing}
                               className={cn(
-                                "w-full sm:w-auto px-4 py-2 rounded-none text-[10px] font-bold uppercase transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap cursor-pointer",
+                                "w-full sm:w-auto px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap cursor-pointer",
                                 hasParallelCourses 
                                   ? "bg-amber-600 hover:bg-amber-700 text-white" 
                                   : "bg-slate-800 hover:bg-slate-900 text-white"
@@ -3275,7 +3262,7 @@ export function Students() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
                             {secondaryEnrollments.length === 0 ? (
-                              <div className="col-span-full py-4 text-center bg-white/70 rounded-none border border-dashed border-slate-200">
+                              <div className="col-span-full py-4 text-center bg-white/70 rounded-lg border border-dashed border-slate-200">
                                 <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">
                                   {primaryClsId ? 'Nenhuma turma adicional vinculada (Aluno matriculado na turma principal acima)' : 'Nenhuma matrícula adicional'}
                                 </p>
@@ -3287,10 +3274,10 @@ export function Students() {
                                 return (
                                   <div 
                                     key={`st-enr-${enrollment.id || enIdx}-${enIdx}`} 
-                                    className="flex items-center justify-between p-3 bg-white rounded-none border-2 border-amber-300 border-l-[6px] border-l-amber-500 shadow-xs group hover:border-amber-400 hover:shadow-sm transition-all"
+                                    className="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-amber-300 border-l-[6px] border-l-amber-500 shadow-xs group hover:border-amber-400 hover:shadow-sm transition-all"
                                   >
                                     <div className="flex items-center gap-3 min-w-0">
-                                      <div className="w-9 h-9 rounded-none bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center shrink-0 font-bold shadow-2xs">
+                                      <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center shrink-0 font-bold shadow-2xs">
                                         <GraduationCap size={16} />
                                       </div>
                                       <div className="leading-tight min-w-0">
@@ -3318,7 +3305,7 @@ export function Students() {
                                     {isEditing && (
                                       <button 
                                         onClick={() => handleRemoveEnrollment(enrollment.id)}
-                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all shrink-0 ml-2 cursor-pointer"
+                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shrink-0 ml-2 cursor-pointer"
                                         title="Remover Matrícula Adicional"
                                       >
                                         <X size={15} />
@@ -3331,7 +3318,7 @@ export function Students() {
                           </div>
                         </div>
                       ) : (
-                        <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-none mb-6 text-center">
+                        <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg mb-6 text-center">
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             Salve o registro para habilitar matrículas em outras turmas
                           </p>
@@ -3373,7 +3360,7 @@ export function Students() {
                             onChange={(e) => handleCepChange(e.target.value)}
                             onKeyDown={handleKeyDown}
                             maxLength={9}
-                            className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-none text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 transition-all"
+                            className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-lg text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 transition-all"
                             placeholder="00000-000"
                             tabIndex={11}
                           />
@@ -3389,7 +3376,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                           onKeyDown={handleKeyDown}
                           placeholder="Rua, Avenida, Praça..."
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={12}
                         />
                       </div>
@@ -3404,7 +3391,7 @@ export function Students() {
                           onKeyDown={handleKeyDown}
                           maxLength={6}
                           placeholder="Nº"
-                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-none text-sm font-mono font-bold focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 text-slate-800 text-center"
+                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 text-slate-800 text-center"
                           tabIndex={13}
                         />
                       </div>
@@ -3419,7 +3406,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, address_complement: e.target.value})}
                           onKeyDown={handleKeyDown}
                           placeholder="Apto, Bloco..."
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={14}
                         />
                       </div>
@@ -3433,7 +3420,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
                           onKeyDown={handleKeyDown}
                           placeholder="Bairro"
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={15}
                         />
                       </div>
@@ -3447,7 +3434,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                           onKeyDown={handleKeyDown}
                           placeholder="Cidade"
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={16}
                         />
                       </div>
@@ -3462,7 +3449,7 @@ export function Students() {
                           onKeyDown={handleKeyDown}
                           maxLength={2}
                           placeholder="SP"
-                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 uppercase text-center font-bold"
+                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 uppercase text-center font-bold"
                           tabIndex={17}
                         />
                       </div>
@@ -3476,7 +3463,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, email: e.target.value})}
                           onKeyDown={handleKeyDown}
                           placeholder="exemplo@email.com"
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={18}
                         />
                       </div>
@@ -3489,7 +3476,7 @@ export function Students() {
                             value={formData.phone_mobile || ''}
                             onChange={(e) => setFormData({...formData, phone_mobile: maskPhone(e.target.value)})}
                             onKeyDown={handleKeyDown}
-                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm font-normal focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-normal focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
                             placeholder="(00) 00000-0000"
                             tabIndex={19}
                           />
@@ -3498,7 +3485,7 @@ export function Students() {
                             disabled={!isEditing}
                             onClick={() => setFormData({ ...formData, phone_mobile_is_whatsapp: !formData.phone_mobile_is_whatsapp })}
                             className={cn(
-                              "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-none",
+                              "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-lg",
                               formData.phone_mobile_is_whatsapp ? "text-green-500 bg-green-50" : "text-slate-300 hover:text-slate-400"
                             )}
                             title={formData.phone_mobile_is_whatsapp ? "Número com WhatsApp" : "Marcar como WhatsApp"}
@@ -3537,7 +3524,7 @@ export function Students() {
                             setFormData({...formData, ...updates});
                           }}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={20}
                         >
                           <option value="">Selecione...</option>
@@ -3553,7 +3540,7 @@ export function Students() {
                           value={formData.forania || ''}
                           onChange={(e) => setFormData({...formData, forania: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={21}
                         >
                           <option value="">Selecione...</option>
@@ -3570,7 +3557,7 @@ export function Students() {
                           value={formData.pastoral_participates || ''}
                           onChange={(e) => setFormData({...formData, pastoral_participates: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={22}
                         />
                       </div>
@@ -3658,7 +3645,7 @@ export function Students() {
                                     onBlur={handleFeeAmountBlur}
                                     onKeyDown={(e) => e.key === 'Enter' && handleFeeAmountBlur()}
                                     className={cn(
-                                      "w-full pl-8 pr-3 py-2 bg-white border rounded-none text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
+                                      "w-full pl-8 pr-3 py-2 bg-white border rounded-lg text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
                                       isFeeAmountIncompatible ? "border-rose-400 bg-rose-50/20" : "border-slate-200"
                                     )}
                                     placeholder="0,00"
@@ -3679,7 +3666,7 @@ export function Students() {
                                   value={enrollmentFeePaymentDate}
                                   onChange={(e) => setEnrollmentFeePaymentDate(e.target.value)}
                                   className={cn(
-                                    "w-full px-3 py-2 bg-white border rounded-none text-sm text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
+                                    "w-full px-3 py-2 bg-white border rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
                                     isFeeDateInFuture ? "border-rose-400 bg-rose-50/20" : "border-slate-200"
                                   )}
                                 />
@@ -3691,7 +3678,7 @@ export function Students() {
                                 <select
                                   value={enrollmentFeePaymentMethod}
                                   onChange={(e) => setEnrollmentFeePaymentMethod(e.target.value as any)}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
                                 >
                                   <option value="Dinheiro">Dinheiro</option>
                                   <option value="PIX">PIX</option>
@@ -3707,7 +3694,7 @@ export function Students() {
                                   placeholder="Ex: Quitado na secretaria"
                                   value={enrollmentFeeObservations}
                                   onChange={(e) => setEnrollmentFeeObservations(e.target.value)}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm text-slate-800 focus:ring-2 focus:ring-slate-500/10 placeholder:text-slate-300"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-slate-500/10 placeholder:text-slate-300"
                                 />
                               </div>
                             </div>
@@ -3731,7 +3718,7 @@ export function Students() {
                                     onBlur={handleFeeAmountBlur}
                                     onKeyDown={(e) => e.key === 'Enter' && handleFeeAmountBlur()}
                                     className={cn(
-                                      "w-full pl-8 pr-3 py-2 bg-white border rounded-none text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
+                                      "w-full pl-8 pr-3 py-2 bg-white border rounded-lg text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-slate-500/10 transition-colors",
                                       isFeeAmountIncompatible ? "border-rose-400 bg-rose-50/20" : "border-slate-200"
                                     )}
                                     placeholder="0,00"
@@ -3752,7 +3739,7 @@ export function Students() {
                                 <select
                                   value={enrollmentFeeExemptionReason}
                                   onChange={(e) => setEnrollmentFeeExemptionReason(e.target.value)}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
                                 >
                                   <option value="Seminarista / Vocacionado">Seminarista / Vocacionado</option>
                                   <option value="Bolsista Integral">Bolsista Integral</option>
@@ -3784,7 +3771,7 @@ export function Students() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 p-6 text-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-lg flex items-center justify-center">
               <GraduationCap size={40} />
             </div>
             <p className="text-sm font-medium">Selecione um aluno para ver os detalhes</p>
@@ -3804,8 +3791,8 @@ export function Students() {
         {/* Delete Confirmation Modal (Apenas para perfis autorizados com canDelete) */}
         {showDeleteConfirm && canDelete && selectedStudent && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
+            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mx-auto">
                 <Trash2 size={32} />
               </div>
               <div className="text-center space-y-2">
@@ -3818,14 +3805,14 @@ export function Students() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
+                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={loading}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
                 >
                   {loading ? 'Excluindo...' : 'Sim, Excluir'}
                 </button>

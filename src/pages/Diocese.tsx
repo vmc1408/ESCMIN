@@ -1332,7 +1332,7 @@ export function Diocese() {
     });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-20">
+    <div className="w-full space-y-3 sm:space-y-3.5 pb-6">
       {currentView === 'reports' ? (
         <DioceseReportsView
           parishes={parishes}
@@ -1367,14 +1367,14 @@ export function Diocese() {
           />
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 print:hidden">
             <SummaryCard label="Foranias" value={foraries.length} icon={<MapIcon size={20} />} color="bg-slate-700" />
             <SummaryCard label="Paróquias" value={parishes.length} icon={<Church size={20} />} color="bg-blue-600" />
             <SummaryCard label="Clero e Diáconos" value={clergy.length} icon={<Users size={20} />} color="bg-slate-800" />
           </div>
 
       {/* Nav Tabs */}
-      <div className="flex flex-col md:flex-row items-center gap-6 print:hidden">
+      <div className="flex flex-col md:flex-row items-center gap-3 sm:gap-4 print:hidden">
         <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-lg border border-slate-200 w-full md:w-fit">
           <button
             onClick={() => { 

@@ -15,7 +15,10 @@ import {
   PlusCircle,
   FileText,
   CreditCard,
-  Printer
+  Printer,
+  Users,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -25,7 +28,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  Legend
+  Legend,
+  Cell
 } from 'recharts';
 
 import { fetchAll } from '../lib/database';
@@ -484,6 +488,42 @@ export function FinancialDashboard() {
 
     const monthlyChartPoints = monthlyChartScope === 'trio' ? trioPoints : monthlyAllPoints;
 
+    // Métricas de Alunos em Dia e Inadimplência do Mês Selecionado
+    const targetMonthNum = selectedMonth.monthNum;
+    const payingStudentIdsInSelectedMonth = new Set<string>();
+    relevantContributions.forEach(c => {
+      let m = Number(c.reference_month);
+      if (m === undefined || isNaN(m)) {
+        if (c.payment_date) {
+          const d = new Date(c.payment_date);
+          if (!isNaN(d.getTime())) m = d.getMonth() + 1;
+        }
+      }
+      const matchesMonth = targetMonthNum === 1 ? (m === 1 || m === 0) : m === targetMonthNum;
+      if (matchesMonth && c.student_id && (Number(c.amount) > 0 || c.is_waived)) {
+        payingStudentIdsInSelectedMonth.add(c.student_id);
+      }
+    });
+
+    const totalActiveStudents = targetStudents.length;
+    const alunosEmDiaCount = payingStudentIdsInSelectedMonth.size;
+    const alunosInadimplentesCount = Math.max(0, totalActiveStudents - alunosEmDiaCount);
+    const taxaAdimplenciaAlunos = totalActiveStudents > 0 
+      ? Number(((alunosEmDiaCount / totalActiveStudents) * 100).toFixed(1))
+      : 0;
+    const taxaInadimplenciaAlunos = totalActiveStudents > 0
+      ? Number((100 - taxaAdimplenciaAlunos).toFixed(1))
+      : 0;
+
+    const monthlyHistoryBars = monthlyPoints.map(p => ({
+      month: p.monthShort,
+      fullName: p.monthName,
+      realizado: p.monthRealizado,
+      previsto: p.monthPrevisto,
+      isCurrent: p.isCurrent,
+      isSelected: p.monthNum === targetMonthNum
+    }));
+
     return {
       monthlyPoints,
       annualChartPoints,
@@ -492,6 +532,12 @@ export function FinancialDashboard() {
       activeSemesterSummary,
       monthlyChartPoints,
       trioPoints,
+      alunosEmDiaCount,
+      alunosInadimplentesCount,
+      taxaAdimplenciaAlunos,
+      taxaInadimplenciaAlunos,
+      totalActiveStudents,
+      monthlyHistoryBars,
       annual: {
         previsto: annualPrevisto,
         realizado: annualRealizado,
@@ -574,7 +620,7 @@ export function FinancialDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-3.5">
       {/* Cabeçalho da Página com Ações Rápidas */}
       <PageHeader
         icon={Wallet}
@@ -630,6 +676,152 @@ export function FinancialDashboard() {
           </button>
         </div>
       </PageHeader>
+
+      {/* Cards de Métricas Reais de Inadimplência e Faturamento Mensal */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        {/* Card 1: Alunos em Dia */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 text-white shadow-xs border border-emerald-500/40 relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-emerald-100 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0"></span>
+              Alunos em Dia
+            </span>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-emerald-100 group-hover:scale-110 transition-transform shrink-0">
+              <Users size={14} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-0.5">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+              {delinquencyMonthlyData.alunosEmDiaCount}
+            </span>
+            <span className="text-[10.5px] font-bold text-emerald-100/90 truncate ml-1">
+              de {delinquencyMonthlyData.totalActiveStudents} ativos ({delinquencyMonthlyData.taxaAdimplenciaAlunos}%)
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-emerald-100/90">
+            <span className="truncate">{delinquencyMonthlyData.comparison.selectedMonth.monthName} / {delinquencyYear}</span>
+            <span className="font-semibold text-white">
+              {delinquencyMonthlyData.alunosInadimplentesCount} pendente(s)
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Total Faturado no Mês */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 text-white shadow-xs border border-blue-600/40 relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-blue-200 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-300 shrink-0"></span>
+              Total Faturado no Mês
+            </span>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-blue-200 group-hover:scale-110 transition-transform shrink-0">
+              <Wallet size={14} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-0.5">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+              {formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthRealizado)}
+            </span>
+            <span className="text-[10.5px] font-bold text-blue-200/90 truncate ml-1">
+              Previsto: {formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthPrevisto)}
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-blue-200/90">
+            <span className="truncate">{delinquencyMonthlyData.comparison.selectedMonth.contribCount} recebimento(s)</span>
+            <span className="font-semibold text-white">
+              {delinquencyMonthlyData.comparison.selectedMonth.rateRealizado}% atingido
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Percentual de Inadimplência */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 text-white shadow-xs border border-amber-500/40 relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-amber-100 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0"></span>
+              Percentual de Inadimplência
+            </span>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-amber-100 group-hover:scale-110 transition-transform shrink-0">
+              <TrendingDown size={14} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-0.5">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+              {delinquencyMonthlyData.comparison.selectedMonth.rateInadimplencia}%
+            </span>
+            <span className="text-[10.5px] font-bold text-amber-100/90 truncate ml-1">
+              Saldo: {formatCurrency(delinquencyMonthlyData.comparison.selectedMonth.monthSaldo > 0 ? delinquencyMonthlyData.comparison.selectedMonth.monthSaldo : 0)}
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-amber-100/90">
+            <span className="truncate">Taxa de Não Quitação</span>
+            <span className="font-semibold text-white">
+              Acumulado no ano: {delinquencyMonthlyData.comparison.selectedMonth.rateInadimplenciaAccum}%
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Histórico de Pagamentos (Mini Gráfico Recharts) */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-white border border-slate-200/90 text-slate-800 shadow-2xs flex flex-col justify-between relative overflow-hidden group">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5 truncate">
+                <BarChart3 size={13} className="text-blue-600 shrink-0" />
+                Histórico de Pagamentos
+              </span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                {delinquencyYear}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between text-xs">
+              <span className="text-[10px] text-slate-500 font-semibold">Total no Ano:</span>
+              <span className="text-sm font-black text-slate-900 tabular-nums">
+                {formatCurrency(delinquencyMonthlyData.annual.realizado)}
+              </span>
+            </div>
+          </div>
+
+          {/* Mini Gráfico de Barras Mensal com Recharts */}
+          <div className="w-full h-[62px] mt-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={delinquencyMonthlyData.monthlyHistoryBars} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
+                <RechartsTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const d = payload[0].payload;
+                      return (
+                        <div className="bg-slate-900/95 backdrop-blur-xs text-white p-2 rounded-lg shadow-lg border border-slate-700 text-[10px] z-50">
+                          <p className="font-bold text-slate-100">{d.fullName} / {delinquencyYear}</p>
+                          <p className="text-emerald-400 font-bold">Faturado: {formatCurrency(d.realizado)}</p>
+                          <p className="text-slate-300 text-[9px]">Previsto: {formatCurrency(d.previsto)}</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="realizado" radius={[3, 3, 0, 0]}>
+                  {delinquencyMonthlyData.monthlyHistoryBars.map((entry, index) => (
+                    <Cell
+                      key={`bar-cell-${index}`}
+                      fill={entry.isSelected ? '#00174b' : entry.realizado > 0 ? '#10b981' : '#cbd5e1'}
+                      cursor="pointer"
+                      onClick={() => setSelectedComparisonMonth(index + 1)}
+                    />
+                  ))}
+                </Bar>
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 8, fill: '#64748b' }} interval={0} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-500">
+            <span>Clique na barra para focar o mês</span>
+            <span className="font-bold text-blue-700 hover:text-blue-900 cursor-pointer" onClick={() => setSelectedComparisonMonth(new Date().getMonth() + 1)}>
+              Mês Vigente
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Bloco Completo do Quadro Previsto vs Realizado */}
       <div className="bg-white rounded-xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs flex flex-col justify-between">

@@ -474,7 +474,7 @@ export const Assessments: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="w-full space-y-3 sm:space-y-3.5">
       {/* Notifications Banner */}
       <AnimatePresence>
         {notification && (
@@ -523,13 +523,13 @@ export const Assessments: React.FC = () => {
         description="Planejamento e controle de atividades avaliativas de uso exclusivo da escola."
         icon={FileText}
       >
-        <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200">
+        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
           <button
             onClick={() => {
               setActiveTab('consult');
               setEditingId(null);
             }}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'consult'
                 ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
                 : 'text-slate-500 hover:text-slate-800'
@@ -552,7 +552,7 @@ export const Assessments: React.FC = () => {
                 description: ''
               });
             }}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'register'
                 ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
                 : 'text-slate-500 hover:text-slate-800'

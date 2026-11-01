@@ -54,10 +54,10 @@ export function Layout() {
           <Navbar />
         </div>
         <main 
-          className="flex-1 overflow-y-auto px-2.5 sm:px-4 lg:px-6 pb-8 pt-0 custom-scrollbar print:block print:w-full print:overflow-visible print:p-0 [overflow-anchor:none]"
+          className="flex-1 overflow-y-auto px-2 sm:px-3.5 lg:px-5 pb-6 pt-2 custom-scrollbar print:block print:w-full print:overflow-visible print:p-0 [overflow-anchor:none]"
           style={{ overflowAnchor: 'none' }}
         >
-          <div className="max-w-[1440px] w-full mx-auto print:block print:w-full print:max-w-none">
+          <div className="max-w-[1560px] w-full mx-auto print:block print:w-full print:max-w-none">
             <Outlet />
           </div>
         </main>

@@ -974,10 +974,10 @@ export function Documents() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 px-4 py-3 pb-20">
+    <div className="w-full space-y-3 sm:space-y-3.5 pb-10">
       {/* Toast Notification Container */}
       {notification && (
-        <div className="fixed top-5 right-5 z-[10000] p-4 bg-slate-900 text-white rounded-none border border-slate-700 shadow-2xl space-y-1 animate-in slide-in-from-top-12 duration-305 flex flex-col">
+        <div className="fixed top-5 right-5 z-[10000] p-4 bg-slate-900 text-white rounded-lg border border-slate-700 shadow-2xl space-y-1 animate-in slide-in-from-top-12 duration-305 flex flex-col">
           <p className="text-xs font-extrabold uppercase tracking-widest text-[#00174b] bg-amber-400 px-2 py-0.5 self-start mb-1">
             {notification.type === 'success' ? 'Sucesso' : 'Falha'}
           </p>
@@ -997,7 +997,7 @@ export function Documents() {
               setActiveTab('issue');
             }}
             className={cn(
-              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
+              "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'issue'
                 ? "bg-slate-900 text-white border border-slate-905"
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
@@ -1010,7 +1010,7 @@ export function Documents() {
               setActiveTab('student_file');
             }}
             className={cn(
-              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
+              "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'student_file'
                 ? "bg-slate-900 text-white border border-slate-905"
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
@@ -1021,7 +1021,7 @@ export function Documents() {
           <button
             onClick={() => setActiveTab('list')}
             className={cn(
-              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
+              "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'list'
                 ? "bg-slate-900 text-white border border-slate-905"
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
@@ -1056,7 +1056,7 @@ export function Documents() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:hidden">
               {/* Left Selector Side: Class select */}
               <div className="lg:col-span-4 space-y-4">
-                <div className="bg-white border border-slate-200 p-5 rounded-none space-y-4 shadow-sm">
+                <div className="bg-white border border-slate-200 p-5 rounded-lg space-y-4 shadow-sm">
                   <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
                     <BookOpen size={12} className="text-amber-500" /> Selecione a Turma
                   </h4>
@@ -1069,7 +1069,7 @@ export function Documents() {
                     <select
                       value={selectedClassId}
                       onChange={e => setSelectedClassId(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                     >
                       <option value="">Selecione a turma...</option>
                       {scopedClasses.map((c, cIdx) => <option key={`doc-cls-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>)}
@@ -1078,7 +1078,7 @@ export function Documents() {
                 </div>
 
                 {selectedClassId && (
-                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-none space-y-3">
+                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg space-y-3">
                     <h5 className="text-[9.5px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                       <Info size={11} className="text-slate-500" /> Critérios de Liberação
                     </h5>
@@ -1099,8 +1099,8 @@ export function Documents() {
               {/* Right Side: Eligible Student Listing */}
               <div className="lg:col-span-8">
                 {!selectedClassId ? (
-                  <div className="bg-white border-2 border-dashed border-slate-200 py-16 text-center space-y-4 rounded-none">
-                    <div className="w-14 h-14 bg-slate-50 text-slate-300 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
+                  <div className="bg-white border-2 border-dashed border-slate-200 py-16 text-center space-y-4 rounded-lg">
+                    <div className="w-14 h-14 bg-slate-50 text-slate-300 border border-slate-100 rounded-lg flex items-center justify-center mx-auto">
                       <School size={24} />
                     </div>
                     <div>
@@ -1109,7 +1109,7 @@ export function Documents() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
+                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
                       <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
                         Status de Elegibilidade para Certificação ({calculatedClassStudents.length})
@@ -1195,7 +1195,7 @@ export function Documents() {
                                     setIssuingStudentData(cs);
                                     setIsIssuing(true);
                                   }}
-                                  className="px-3.5 py-1.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-none text-[8.5px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                                  className="px-3.5 py-1.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-lg text-[8.5px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
                                 >
                                   Emitir Doc
                                 </button>
@@ -1226,7 +1226,7 @@ export function Documents() {
                       // Better to clear or not? Let's keep the query clear on return, so starting next search is fresh.
                       setSearchQuery('');
                     }}
-                    className="px-4 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all select-none shadow-sm"
+                    className="px-4 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all select-none shadow-sm"
                   >
                     <ArrowLeft size={14} />
                     Voltar para Emissão (Lista de Alunos)
@@ -1253,7 +1253,7 @@ export function Documents() {
               </div>
 
               {/* Filter Row */}
-              <div className="bg-white border border-slate-200 p-4 rounded-none flex items-center justify-between gap-4 shadow-sm flex-col md:flex-row">
+              <div className="bg-white border border-slate-200 p-4 rounded-lg flex items-center justify-between gap-4 shadow-sm flex-col md:flex-row">
                 <div className="relative w-full max-w-sm">
                   <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -1279,7 +1279,7 @@ export function Documents() {
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       key={`doc-cert-${cert.id || certIdx}-${certIdx}`} 
-                      className="bg-white border border-slate-220 rounded-none shadow-sm hover:shadow-md transition-all group p-5 relative flex flex-col justify-between"
+                      className="bg-white border border-slate-220 rounded-lg shadow-sm hover:shadow-md transition-all group p-5 relative flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-4">
@@ -1295,14 +1295,14 @@ export function Documents() {
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={() => setViewingCertificate(cert)}
-                              className="p-1.5 text-slate-405 hover:text-slate-900 border border-slate-200 hover:border-slate-400 rounded-none bg-white shadow-sm flex items-center justify-center"
+                              className="p-1.5 text-slate-405 hover:text-slate-900 border border-slate-200 hover:border-slate-400 rounded-lg bg-white shadow-sm flex items-center justify-center"
                               title="Visualizar e Imprimir"
                             >
                               <Printer size={13} />
                             </button>
                             <button 
                               onClick={() => handleDelete(cert.id, cert.student_name || 'Estudante')}
-                              className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-none bg-white shadow-sm flex items-center justify-center ml-0.5"
+                              className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-lg bg-white shadow-sm flex items-center justify-center ml-0.5"
                               title="Cancelar/Excluir"
                             >
                               <Trash2 size={13} />
@@ -1330,8 +1330,8 @@ export function Documents() {
                     </motion.div>
                   ))
                 ) : (
-                  <div className="col-span-full py-16 text-center bg-white border border-slate-200 rounded-none space-y-4">
-                    <div className="w-16 h-16 bg-slate-50 text-slate-300 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
+                  <div className="col-span-full py-16 text-center bg-white border border-slate-200 rounded-lg space-y-4">
+                    <div className="w-16 h-16 bg-slate-50 text-slate-300 border border-slate-100 rounded-lg flex items-center justify-center mx-auto">
                       <FileCheck size={32} />
                     </div>
                     <div>
@@ -1347,8 +1347,8 @@ export function Documents() {
           {/* TAB 3: FICHA DE ALUNO INTEGRADA */}
           {activeTab === 'student_file' && (
             <div className="space-y-6 print:hidden">
-              <div className="bg-white border border-slate-200 p-8 rounded-none text-center space-y-6 shadow-sm max-w-2xl mx-auto my-12">
-                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-none flex items-center justify-center mx-auto border border-indigo-100">
+              <div className="bg-white border border-slate-200 p-8 rounded-lg text-center space-y-6 shadow-sm max-w-2xl mx-auto my-12">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center mx-auto border border-indigo-100">
                   <User size={32} />
                 </div>
                 <div className="space-y-2">
@@ -1373,7 +1373,7 @@ export function Documents() {
 
           {false && activeTab === 'student_file' && (
             <div className="space-y-6 print:hidden">
-              <div className="bg-white border border-slate-200 p-6 rounded-none space-y-4 shadow-sm">
+              <div className="bg-white border border-slate-200 p-6 rounded-lg space-y-4 shadow-sm">
                 <div className="max-w-md space-y-1">
                   <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
                     <User size={13} className="text-amber-500" /> Selecionar Aluno
@@ -1384,7 +1384,7 @@ export function Documents() {
                   <select
                     value={selectedFichaStudentId}
                     onChange={e => setSelectedFichaStudentId(e.target.value)}
-                    className="w-full mt-2 px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
+                    className="w-full mt-2 px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                   >
                     <option value="">Selecione um aluno...</option>
                     {students.map((s, sIdx) => (
@@ -1397,8 +1397,8 @@ export function Documents() {
               </div>
 
               {!studentFichaData ? (
-                <div className="bg-white border-2 border-dashed border-slate-200 py-16 text-center space-y-4 rounded-none">
-                  <div className="w-14 h-14 bg-slate-50 text-slate-350 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
+                <div className="bg-white border-2 border-dashed border-slate-200 py-16 text-center space-y-4 rounded-lg">
+                  <div className="w-14 h-14 bg-slate-50 text-slate-350 border border-slate-100 rounded-lg flex items-center justify-center mx-auto">
                     <User size={24} />
                   </div>
                   <div>
@@ -1413,7 +1413,7 @@ export function Documents() {
                   {/* Left Column: Cadastral Info & Attendance Summary */}
                   <div className="lg:col-span-4 space-y-6">
                     {/* Cadastral Info Card */}
-                    <div className="bg-white border border-slate-200 p-5 rounded-none space-y-4 shadow-sm">
+                    <div className="bg-white border border-slate-200 p-5 rounded-lg space-y-4 shadow-sm">
                       <div className="border-b border-slate-100 pb-3">
                         <span className="text-[8px] font-bold text-[#00174b] bg-amber-400 px-2 py-0.5 uppercase tracking-widest">
                           Ficha Acadêmica
@@ -1451,7 +1451,7 @@ export function Documents() {
                     </div>
 
                     {/* Attendance Analysis Card */}
-                    <div className="bg-white border border-slate-200 p-5 rounded-none space-y-4 shadow-sm">
+                    <div className="bg-white border border-slate-200 p-5 rounded-lg space-y-4 shadow-sm">
                       <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-150 pb-2">
                         Controle de Frequência
                       </h4>
@@ -1480,7 +1480,7 @@ export function Documents() {
                           </span>
                         </div>
                         
-                        <div className="w-full bg-slate-100 h-2 rounded-none overflow-hidden border border-slate-200/50">
+                        <div className="w-full bg-slate-100 h-2 rounded-lg overflow-hidden border border-slate-200/50">
                           <div 
                             className={cn(
                               "h-full transition-all duration-500",
@@ -1502,7 +1502,7 @@ export function Documents() {
                   {/* Right Column: Grades and Generated Documents */}
                   <div className="lg:col-span-8 space-y-6">
                     {/* Grades Card */}
-                    <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
+                    <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                       <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/50">
                         <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
                           Aproveitamento Acadêmico (Notas Gerais por Disciplina)
@@ -1520,7 +1520,7 @@ export function Documents() {
                               <span className="text-xs font-bold text-slate-700 uppercase">{rec.subject.name}</span>
                               <div className="flex items-center gap-4">
                                 <span className={cn(
-                                  "text-xs font-black font-mono px-2 py-0.5 rounded-none border",
+                                  "text-xs font-black font-mono px-2 py-0.5 rounded-lg border",
                                   rec.grade !== null 
                                     ? rec.grade >= (academicParams.approval_grade || 7.0)
                                       ? "text-emerald-700 bg-emerald-50 border-emerald-250" 
@@ -1544,7 +1544,7 @@ export function Documents() {
                     </div>
 
                     {/* Generated Documents Card */}
-                    <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
+                    <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                       <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
                         <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
                           Documentos Emitidos (Certificados & Diplomas)
@@ -1614,7 +1614,7 @@ export function Documents() {
                                 </button>
                                 <button 
                                   onClick={() => handleDelete(doc.id, doc.student_name || doc.student_id)}
-                                  className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-300 hover:border-rose-450 rounded-none bg-white shadow-sm flex items-center justify-center transition-colors"
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-300 hover:border-rose-450 rounded-lg bg-white shadow-sm flex items-center justify-center transition-colors"
                                   title="Excluir Registro"
                                 >
                                   <Trash2 size={12} />
@@ -1641,11 +1641,11 @@ export function Documents() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white max-w-md w-full rounded-none border border-slate-200 shadow-2xl overflow-hidden"
+              className="bg-white max-w-md w-full rounded-lg border border-slate-200 shadow-2xl overflow-hidden"
             >
               <div className="bg-slate-900 text-white p-6 border-b border-b-amber-400">
                 <h3 className="text-sm font-extrabold uppercase tracking-widest flex items-center gap-3 text-white">
-                  <div className="w-8 h-8 bg-slate-800 rounded-none flex items-center justify-center text-amber-400 border border-slate-700">
+                  <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-amber-400 border border-slate-700">
                     <Award size={16} />
                   </div>
                   Emitir Documento Oficial
@@ -1654,7 +1654,7 @@ export function Documents() {
 
               <form onSubmit={handleIssueSubmit} className="p-6 space-y-4 font-sans">
                 {issuingStudentData && (
-                  <div className="bg-emerald-50 border border-emerald-250 p-4 rounded-none space-y-1.5 text-slate-800 text-[11px] font-medium leading-normal">
+                  <div className="bg-emerald-50 border border-emerald-250 p-4 rounded-lg space-y-1.5 text-slate-800 text-[11px] font-medium leading-normal">
                     <h5 className="font-bold text-emerald-805 text-xs text-slate-900 uppercase">Estudante Validado e Elegível:</h5>
                     <p>Nome: <strong className="font-extrabold">{issuingStudentData.student.name}</strong></p>
                     <p>Média Final: <strong className="font-extrabold">{issuingStudentData.averageGrade.toFixed(1).replace('.', ',')}</strong></p>
@@ -1701,7 +1701,7 @@ export function Documents() {
                   
                   if (fStatus !== 'Aprovado') {
                     return (
-                      <div className="bg-rose-50 border border-rose-300 p-4 rounded-none space-y-1 text-rose-800 text-[10.5px] font-medium leading-normal">
+                      <div className="bg-rose-50 border border-rose-300 p-4 rounded-lg space-y-1 text-rose-800 text-[10.5px] font-medium leading-normal">
                         <h5 className="font-bold text-rose-805 text-xs uppercase flex items-center gap-1">
                           <AlertCircle size={14} /> IMPEDIMENTO DETECTADO
                         </h5>
@@ -1713,7 +1713,7 @@ export function Documents() {
 
                   if (formData.type === 'honra' && !diplomaRequirementsMet) {
                     return (
-                      <div className="bg-amber-50 border border-amber-300 p-4 rounded-none space-y-1.5 text-amber-800 text-[10.5px] font-medium leading-normal">
+                      <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg space-y-1.5 text-amber-800 text-[10.5px] font-medium leading-normal">
                         <h5 className="font-bold text-amber-805 text-xs uppercase flex items-center gap-1">
                           <AlertCircle size={14} /> REPOSITÓRIO: DIPLOMA PENDENTE
                         </h5>
@@ -1750,7 +1750,7 @@ export function Documents() {
                         required
                         value={formData.student_id}
                         onChange={e => setFormData({...formData, student_id: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                       >
                         <option value="">Selecione o aluno...</option>
                         {students.map((s, sIdx) => <option key={`doc-form-st-${s.id || sIdx}-${sIdx}`} value={s.id}>{s.name} ({formatRegistrationNumber(s.registration_number)})</option>)}
@@ -1771,7 +1771,7 @@ export function Documents() {
                           type="button"
                           onClick={() => setFormData({...formData, type: item.type as any})}
                           className={cn(
-                            "p-2.5 rounded-none border text-center transition-all flex flex-col justify-center items-center gap-1",
+                            "p-2.5 rounded-lg border text-center transition-all flex flex-col justify-center items-center gap-1",
                             formData.type === item.type 
                               ? "bg-slate-900 border-slate-905 text-white" 
                               : "bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-350"
@@ -1792,7 +1792,7 @@ export function Documents() {
                       value={formData.course}
                       onChange={e => setFormData({...formData, course: e.target.value})}
                       placeholder="Curso Conciliar de Teologia"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                     />
                   </div>
 
@@ -1803,7 +1803,7 @@ export function Documents() {
                       type="date"
                       value={formData.issuance_date}
                       onChange={e => setFormData({...formData, issuance_date: e.target.value})}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                     />
                   </div>
                 </div>
@@ -1815,7 +1815,7 @@ export function Documents() {
                       setIsIssuing(false);
                       setIssuingStudentData(null);
                     }}
-                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-650 border border-slate-250 text-[10px] font-bold uppercase tracking-widest rounded-none text-center"
+                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-650 border border-slate-250 text-[10px] font-bold uppercase tracking-widest rounded-lg text-center"
                   >
                     Cancelar
                   </button>
@@ -1866,7 +1866,7 @@ export function Documents() {
                       }
                       return false;
                     })()}
-                    className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 text-white border border-slate-905 text-[10px] font-bold uppercase tracking-widest rounded-none text-center disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 text-white border border-slate-905 text-[10px] font-bold uppercase tracking-widest rounded-lg text-center disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Emitir & Registrar
                   </button>
@@ -1884,7 +1884,7 @@ export function Documents() {
              {/* Toolbar Controls */}
              <div className="w-full max-w-5xl flex items-center justify-between border-b border-slate-205 pb-4 mb-6 print:hidden">
                 <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 bg-slate-900 flex items-center justify-center text-white rounded-none border-b-2 border-amber-400 shadow-sm">
+                   <div className="w-10 h-10 bg-slate-900 flex items-center justify-center text-white rounded-lg border-b-2 border-amber-400 shadow-sm">
                       <Trophy size={18} className="text-amber-400" />
                    </div>
                    <div>
@@ -1896,13 +1896,13 @@ export function Documents() {
                 <div className="flex gap-2 font-sans">
                    <button
                      onClick={printCertificate}
-                     className="px-5 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-2 cursor-pointer"
+                     className="px-5 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-2 cursor-pointer"
                    >
                      <Printer size={13} className="text-amber-400" /> Imprimir Documento (Lote/Aba)
                    </button>
                    <button
                      onClick={() => setViewingCertificate(null)}
-                     className="px-5 py-2.5 bg-white border border-slate-350 hover:bg-slate-50 text-slate-700 rounded-none text-[10px] font-bold uppercase tracking-widest shadow-sm cursor-pointer"
+                     className="px-5 py-2.5 bg-white border border-slate-350 hover:bg-slate-50 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm cursor-pointer"
                    >
                      Fechar Painel
                    </button>

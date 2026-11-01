@@ -330,7 +330,7 @@ export function AcademicCalendar() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Coluna 1: Status de Aula */}
-        <div className="space-y-3 bg-slate-50/40 p-4 border border-slate-100 rounded-none">
+        <div className="space-y-3 bg-slate-50/40 p-4 border border-slate-100 rounded-lg">
           <h6 className="text-[9px] font-extrabold text-slate-700 uppercase tracking-widest pb-1 border-b border-slate-150">
             Estrutura & Status de Aula
           </h6>
@@ -404,13 +404,13 @@ export function AcademicCalendar() {
         </div>
 
         {/* Coluna 2: Anos Litúrgicos Católicos */}
-        <div className="space-y-3 bg-slate-50/40 p-4 border border-slate-100 rounded-none">
+        <div className="space-y-3 bg-slate-50/40 p-4 border border-slate-100 rounded-lg">
           <h6 className="text-[9px] font-extrabold text-slate-700 uppercase tracking-widest pb-1 border-b border-slate-150">
             Contornos do Ano Litúrgico (Passar Mouse ou Visualizar Dia)
           </h6>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-4 h-4 rounded-none border-[2px] border-[#10b981] bg-white shrink-0 shadow-sm" />
+              <div className="w-4 h-4 rounded-lg border-[2px] border-[#10b981] bg-white shrink-0 shadow-sm" />
               <div className="text-[10px]">
                 <span className="font-bold text-slate-700 block">Tempo Comum (Verde)</span>
                 <span className="text-slate-400 text-[9px] font-medium">Esperança, maturidade e caminhada da Igreja</span>
@@ -418,7 +418,7 @@ export function AcademicCalendar() {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-4 h-4 rounded-none border-[2px] border-[#8b5cf6] bg-white shrink-0 shadow-sm" />
+              <div className="w-4 h-4 rounded-lg border-[2px] border-[#8b5cf6] bg-white shrink-0 shadow-sm" />
               <div className="text-[10px]">
                 <span className="font-bold text-slate-700 block">Quaresma / Advento (Roxo)</span>
                 <span className="text-slate-400 text-[9px] font-medium">Preparação espiritual, conversão e expectativa</span>
@@ -426,7 +426,7 @@ export function AcademicCalendar() {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-4 h-4 rounded-none border-[2px] border-[#f59e0b] bg-white shrink-0 shadow-sm" />
+              <div className="w-4 h-4 rounded-lg border-[2px] border-[#f59e0b] bg-white shrink-0 shadow-sm" />
               <div className="text-[10px]">
                 <span className="font-bold text-slate-700 block">Natal / Páscoa / Corpus Christi (Branco)</span>
                 <span className="text-slate-400 text-[9px] font-medium">Glória divina, comemoração e Ressurreição</span>
@@ -434,7 +434,7 @@ export function AcademicCalendar() {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-4 h-4 rounded-none border-[2px] border-[#ef4444] bg-white shrink-0 shadow-sm" />
+              <div className="w-4 h-4 rounded-lg border-[2px] border-[#ef4444] bg-white shrink-0 shadow-sm" />
               <div className="text-[10px]">
                 <span className="font-bold text-slate-700 block">Sexta-feira da Paixão / Pentecostes (Vermelho)</span>
                 <span className="text-slate-400 text-[9px] font-medium">Martírio, fogo do Espírito Santo e amor extremo</span>
@@ -1475,7 +1475,7 @@ export function AcademicCalendar() {
           message: (
             <span>
               Atenção: este procedimento irá excluir todos os registros de dia aula gerados para{" "}
-              <span className="mx-1 px-3 py-1 bg-indigo-600 text-white font-sans font-bold text-[10px] uppercase tracking-wider inline-block select-all rounded-none shadow-sm animate-pulse">
+              <span className="mx-1 px-3 py-1 bg-indigo-600 text-white font-sans font-bold text-[10px] uppercase tracking-wider inline-block select-all rounded-lg shadow-sm animate-pulse">
                 {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][selectedWeekdayDetail]}
               </span>{" "}
               no calendário. Aulas canceladas e abonadas neste dia também serão excluídas do sistema.
@@ -2262,9 +2262,9 @@ export function AcademicCalendar() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto px-4 pt-0 pb-8 space-y-6 no-print">
+      <div className="w-full space-y-3 sm:space-y-3.5 pb-6 no-print">
         {/* Sticky Header Wrapper */}
-        <div className="sticky top-0 z-[50] bg-slate-100/90 backdrop-blur-md pt-3 sm:pt-4 pb-3 md:pb-5 border-b border-slate-200/90 w-[calc(100%+2rem)] -mx-4 px-4 space-y-2 md:space-y-4 shadow-2xs mb-4 sm:mb-6">
+        <div className="sticky top-0 z-[40] bg-white/95 backdrop-blur-md py-2 sm:py-2.5 border-b border-slate-200/90 -mx-2 sm:-mx-3.5 lg:-mx-5 px-2 sm:px-3.5 lg:px-5 space-y-2 md:space-y-2.5 shadow-2xs mb-2.5 sm:mb-3.5">
           {/* Row 1: Title and Action Buttons */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4 pb-1">
             <div className="space-y-0.5 md:space-y-1">
@@ -2278,7 +2278,7 @@ export function AcademicCalendar() {
             <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
               <button 
                 onClick={() => setShowPrintOptions(true)}
-                className="flex items-center gap-1.5 px-2.5 md:px-4 py-2 bg-slate-100 text-slate-700 rounded-none text-[9px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all active:scale-95 border border-slate-200 h-[36px]"
+                className="flex items-center gap-1.5 px-2.5 md:px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all active:scale-95 border border-slate-200 h-[36px]"
               >
                 <Printer size={14} />
                 <span className="hidden sm:inline">Imprimir Relatórios</span>
@@ -2301,7 +2301,7 @@ export function AcademicCalendar() {
                       });
                       setIsEditing(true);
                     }}
-                    className="h-[36px] px-2.5 md:px-4 flex items-center gap-1.5 bg-slate-800 text-white hover:bg-slate-900 transition-all rounded-none text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm"
+                    className="h-[36px] px-2.5 md:px-4 flex items-center gap-1.5 bg-slate-800 text-white hover:bg-slate-900 transition-all rounded-lg text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm"
                     title="Novo Registro"
                   >
                     <Plus size={14} />
@@ -2313,7 +2313,7 @@ export function AcademicCalendar() {
                       setParametersTab('annual');
                       setShowSettings(true);
                     }}
-                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-[#00174b] text-white hover:bg-blue-900 transition-all rounded-none text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm cursor-pointer"
+                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-[#00174b] text-white hover:bg-blue-900 transition-all rounded-lg text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm cursor-pointer"
                     title="Geração Automática do Calendário Anual de Aulas"
                   >
                     <CalendarDays size={14} className="text-amber-400" />
@@ -2324,7 +2324,7 @@ export function AcademicCalendar() {
                       setParametersTab('weekly');
                       setShowSettings(true);
                     }}
-                    className="h-[36px] w-[36px] flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-200 shadow-xs active:scale-95 cursor-pointer"
+                    className="h-[36px] w-[36px] flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-lg border border-slate-200 shadow-xs active:scale-95 cursor-pointer"
                     title="Parâmetros Semanais e Ciclos"
                   >
                     <Settings size={14} />
@@ -2341,10 +2341,10 @@ export function AcademicCalendar() {
               {/* Row 2.1: Navigation, View selectors and Toggle Button */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 w-full lg:w-auto order-1 lg:order-2">
                 {/* Navegação de Data Dinâmica */}
-                <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 shadow-sm w-fit animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 shadow-sm w-fit animate-in fade-in zoom-in-95 duration-200">
                   <button 
                     onClick={viewMode === 'month' ? prevMonth : prevYear}
-                    className="p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
+                    className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-slate-800 active:scale-90"
                   >
                     <ChevronLeft size={14} />
                   </button>
@@ -2365,18 +2365,18 @@ export function AcademicCalendar() {
 
                   <button 
                     onClick={viewMode === 'month' ? nextMonth : nextYear}
-                    className="p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
+                    className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-slate-800 active:scale-90"
                   >
                     <ChevronRight size={14} />
                   </button>
                 </div>
 
                 {/* Seletor de Visão */}
-                <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200/50 shadow-inner w-fit">
+                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200/50 shadow-inner w-fit">
                   <button 
                     onClick={() => setViewMode('month')}
                     className={cn(
-                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-none text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
+                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
                       viewMode === 'month' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-700"
                     )}
                   >
@@ -2385,7 +2385,7 @@ export function AcademicCalendar() {
                   <button 
                     onClick={() => setViewMode('year')}
                     className={cn(
-                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-none text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
+                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
                       viewMode === 'year' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-700"
                     )}
                   >
@@ -2394,7 +2394,7 @@ export function AcademicCalendar() {
                   <button 
                     onClick={() => setViewMode('list')}
                     className={cn(
-                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-none text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
+                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
                       viewMode === 'list' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-700"
                     )}
                   >
@@ -2405,7 +2405,7 @@ export function AcademicCalendar() {
                 {/* Botão de Resumo (Apenas Visível no Mobile/Tablet) */}
                 <button
                   onClick={() => setShowStats(!showStats)}
-                  className="lg:hidden h-[34px] px-2.5 flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-none text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all active:scale-95"
+                  className="lg:hidden h-[34px] px-2.5 flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all active:scale-95"
                   title="Exibir Resumo de Aulas"
                 >
                   <Filter size={12} className="text-slate-500" />
@@ -2419,7 +2419,7 @@ export function AcademicCalendar() {
                 showStats ? "flex animate-in slide-in-from-top-2 duration-200" : "hidden lg:flex"
               )}>
                 {/* Painel de Aulas Quarta */}
-                <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
+                <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Quarta</span>
                   <div className="w-px h-3.5 bg-slate-200" />
                   <div className="flex items-baseline gap-1 bg-slate-50 px-1.5 py-0.5 border border-slate-100">
@@ -2446,7 +2446,7 @@ export function AcademicCalendar() {
                 <div className="hidden sm:block w-[1.5px] h-[34px] bg-purple-500 mx-1" />
 
                 {/* Painel de Aulas Quinta */}
-                <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
+                <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Quinta</span>
                   <div className="w-px h-3.5 bg-slate-200" />
                   <div className="flex items-baseline gap-1 bg-slate-50 px-1.5 py-0.5 border border-slate-100">
@@ -2490,7 +2490,7 @@ export function AcademicCalendar() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-none p-8 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center"
+              className="bg-white rounded-lg p-8 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center"
             >
               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-6 relative">
                 <RefreshCw size={24} className="text-slate-800 animate-spin" />
@@ -2557,7 +2557,7 @@ export function AcademicCalendar() {
               initial={{ opacity: 0, y: -20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className={cn(
-                "px-8 py-4 rounded-none text-[10px] font-bold uppercase tracking-widest flex items-center gap-3 shadow-2xl",
+                "px-8 py-4 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-3 shadow-2xl",
                 notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
               )}
             >
@@ -2581,7 +2581,7 @@ export function AcademicCalendar() {
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={() => setInspectingClassId(null)}
-                        className="w-10 h-10 flex items-center justify-center bg-white text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-200"
+                        className="w-10 h-10 flex items-center justify-center bg-white text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-lg border border-slate-200"
                       >
                         <ChevronLeft size={18} />
                       </button>
@@ -2601,7 +2601,7 @@ export function AcademicCalendar() {
                           }));
                           setShowSettings(true);
                         }}
-                        className="px-4 py-2 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
+                        className="px-4 py-2 bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
                       >
                         <Settings size={14} />
                         Ajustar Regras
@@ -2611,7 +2611,7 @@ export function AcademicCalendar() {
 
                   <div className="grid grid-cols-1 gap-4">
                     {/* Lista Cronológica */}
-                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-x-auto min-h-[400px]">
+                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto min-h-[400px]">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200">
@@ -2744,7 +2744,7 @@ export function AcademicCalendar() {
                                             fetchData();
                                           }}
                                           className={cn(
-                                            "p-2 rounded-none transition-all",
+                                            "p-2 rounded-lg transition-all",
                                             ev.type === 'class_day' ? "bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white" : 
                                             ev.type === 'cancelled_class' ? "bg-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
                                             "bg-blue-100 text-slate-800 hover:bg-slate-800 hover:text-white"
@@ -2756,7 +2756,7 @@ export function AcademicCalendar() {
                                         {canDelete && (
                                           <button 
                                             onClick={() => handleDelete(ev.id)}
-                                            className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-none transition-all"
+                                            className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-all"
                                             title="Remover Data"
                                           >
                                             <Trash2 size={16} />
@@ -2784,7 +2784,7 @@ export function AcademicCalendar() {
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-x-auto">
+                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200">
@@ -2903,7 +2903,7 @@ export function AcademicCalendar() {
                                   <div className="flex items-center justify-end gap-2">
                                     <button 
                                       onClick={() => setInspectingClassId(cls.id)}
-                                      className="px-4 py-2 bg-white text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200"
+                                      className="px-4 py-2 bg-white text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200"
                                     >
                                       Ver Lista
                                     </button>
@@ -2916,7 +2916,7 @@ export function AcademicCalendar() {
                                         setLastLoadedKey('custom'); // Prevents override from useEffect
                                         setShowSettings(true);
                                       }}
-                                      className="p-2 bg-slate-100 text-slate-400 rounded-none hover:bg-slate-900 hover:text-white transition-all border border-slate-200"
+                                      className="p-2 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-900 hover:text-white transition-all border border-slate-200"
                                       title="Configurações"
                                     >
                                       <Settings2 size={16} />
@@ -3008,9 +3008,9 @@ export function AcademicCalendar() {
                         const completionRate = totalTurmasAulas > 0 ? Math.round((totalTurmasAulasConcluidas / totalTurmasAulas) * 100) : 0;
 
                         return (
-                          <div className="bg-white p-6 rounded-none border border-slate-200 shadow-sm space-y-4">
+                          <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-800">
+                              <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-800">
                                 <Bookmark size={24} />
                               </div>
                               <div>
@@ -3021,7 +3021,7 @@ export function AcademicCalendar() {
                             <div className="h-px bg-slate-100 w-full" />
                             <div className="grid grid-cols-2 gap-4">
                               <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-emerald-50 rounded-none flex items-center justify-center text-emerald-600">
+                                <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
                                   <Calendar size={24} />
                                 </div>
                                 <div>
@@ -3030,7 +3030,7 @@ export function AcademicCalendar() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-800">
+                                <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-800">
                                   <GraduationCap size={24} />
                                 </div>
                                 <div>
@@ -3073,7 +3073,7 @@ export function AcademicCalendar() {
                             setLastLoadedKey('custom'); // Prevents override from useEffect
                             setShowSettings(true);
                           }}
-                          className="w-full py-4 bg-white text-slate-900 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-xl shadow-black/20"
+                          className="w-full py-4 bg-white text-slate-900 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-xl shadow-black/20"
                         >
                           Abrir Ferramenta de Geração
                         </button>
@@ -3085,9 +3085,9 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'month' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-white p-2 sm:p-4 md:p-8 rounded-none shadow-sm overflow-visible border border-slate-100">
+              <div className="bg-white p-2 sm:p-4 md:p-8 rounded-lg shadow-sm overflow-visible border border-slate-100">
                 {/* Calendário Mensal Estilizado */}
-                <div className="grid grid-cols-7 gap-px bg-slate-300 border border-slate-300 rounded-none overflow-visible shadow-xs">
+                <div className="grid grid-cols-7 gap-px bg-slate-300 border border-slate-300 rounded-lg overflow-visible shadow-xs">
                   {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
                     <div key={day} className="bg-slate-100/90 py-2.5 sm:py-3 text-center border-b border-slate-300">
                       <span className="text-[9px] sm:text-[10px] font-extrabold text-slate-600 uppercase tracking-[0.1em] sm:tracking-[0.2em]">{day.substring(0, 3)}</span>
@@ -3197,7 +3197,7 @@ export function AcademicCalendar() {
                         <div className="flex justify-between items-start">
                           <div className="relative group/date">
                             <span className={cn(
-                              "w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-none text-[10px] sm:text-xs font-bold transition-all",
+                              "w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-[10px] sm:text-xs font-bold transition-all",
                               isToday ? "bg-slate-800 text-white shadow-lg shadow-none" : "text-slate-500 group-hover/cell:text-slate-800"
                             )}>
                               {day}
@@ -3206,7 +3206,7 @@ export function AcademicCalendar() {
                             {/* Tooltip do Dia (Resumo) - Agora vinculado apenas ao número do dia */}
                             {dayEvents.length > 0 && (
                               <div className="absolute left-0 bottom-full mb-2 w-max min-w-[160px] max-w-[240px] z-[250] pointer-events-none hidden group-hover/date:block animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div className="bg-white border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] rounded-none p-4 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                <div className="bg-white border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] rounded-lg p-4 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
                                   <div className="text-slate-400 text-[8px] uppercase tracking-[0.2em] mb-3 pb-2 border-b border-slate-50 flex justify-between items-center">
                                     <span>Resumo do Dia {day}</span>
                                     <Calendar size={10} />
@@ -3258,7 +3258,7 @@ export function AcademicCalendar() {
                                 });
                                 setIsEditing(true);
                               }}
-                              className="hidden md:block opacity-0 group-hover/cell:opacity-100 p-1 text-slate-800 hover:bg-blue-100 rounded-none transition-all"
+                              className="hidden md:block opacity-0 group-hover/cell:opacity-100 p-1 text-slate-800 hover:bg-blue-100 rounded-lg transition-all"
                             >
                               <Plus size={14} />
                             </button>
@@ -3277,7 +3277,7 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                                 className={cn(
-                                  "relative group px-1.5 py-0.5 rounded-none text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border hover:z-30",
+                                  "relative group px-1.5 py-0.5 rounded-lg text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border hover:z-30",
                                   getTypeStyle(event.type, event.start_date, event.title)
                                 )}
                             >
@@ -3329,7 +3329,7 @@ export function AcademicCalendar() {
 
                               {/* Tooltip Detalhado no Calendar Grid */}
                               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[140px] max-w-[220px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                <div className="bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] rounded-none p-3.5 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                <div className="bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] rounded-lg p-3.5 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
                                   <div className="text-slate-800 mb-2.5 border-b border-blue-50 pb-2 flex items-center gap-2">
                                     <div className={cn(
                                       "w-2 h-2 rounded-full shrink-0 shadow-sm", 
@@ -3437,7 +3437,7 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'year' ? (
             <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="bg-white p-8 rounded-none border border-slate-100 shadow-sm">
+              <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-sm">
                 <div className="space-y-12">
                       {/* Primeiro Semestre */}
                   <div className="space-y-6">
@@ -3447,7 +3447,7 @@ export function AcademicCalendar() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {[0, 1, 2, 3, 4, 5].map(monthIndex => (
-                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-none border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
+                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-lg border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
                           <h5 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest text-center mb-6 border-b border-slate-200 pb-4">
                             {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                           </h5>
@@ -3475,7 +3475,7 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-30",
+                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-30",
                                     holiday 
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
@@ -3507,7 +3507,7 @@ export function AcademicCalendar() {
                                   {/* Tooltip no Year View */}
                                   {dayEvents.length > 0 && (
                                     <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[125px] max-w-[185px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-none p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-lg p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
                                         <div className="space-y-2.5">
                                           {dayEvents.slice(0, 3).map(de => (
                                             <div key={de.id} className="border-b border-slate-50 last:border-0 pb-2 last:pb-0">
@@ -3548,7 +3548,7 @@ export function AcademicCalendar() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                        {[6, 7, 8, 9, 10, 11].map(monthIndex => (
-                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-none border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
+                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-lg border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
                           <h5 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest text-center mb-6 border-b border-slate-200 pb-4">
                             {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                           </h5>
@@ -3576,7 +3576,7 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-30",
+                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-30",
                                     holiday 
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
@@ -3608,7 +3608,7 @@ export function AcademicCalendar() {
                                   {/* Tooltip no Year View (Semestre 2) */}
                                   {dayEvents.length > 0 && (
                                     <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[125px] max-w-[185px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-none p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-lg p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
                                         <div className="space-y-2.5">
                                           {dayEvents.slice(0, 3).map(de => (
                                             <div key={de.id} className="border-b border-slate-50 last:border-0 pb-2 last:pb-0">
@@ -3647,9 +3647,9 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'list' && Object.keys(groupedEvents).length > 0 ? (
             <div className="space-y-12 animate-in fade-in duration-500">
-              <div className="bg-white p-6 rounded-none border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="bg-white p-6 rounded-lg border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-slate-50 text-slate-800 rounded-none border border-slate-200/50">
+                  <div className="p-2.5 bg-slate-50 text-slate-800 rounded-lg border border-slate-200/50">
                     <ListFilter size={18} />
                   </div>
                   <div>
@@ -3658,11 +3658,11 @@ export function AcademicCalendar() {
                 </div>
                 
                 <div className="flex items-center gap-4">
-                  <div className="flex bg-slate-50 p-1 rounded-none border border-slate-100">
+                  <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
                     <button 
                       onClick={() => setSortBy('date')}
                       className={cn(
-                        "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                        "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                         sortBy === 'date' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
@@ -3671,7 +3671,7 @@ export function AcademicCalendar() {
                     <button 
                       onClick={() => setSortBy('title')}
                       className={cn(
-                        "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                        "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                         sortBy === 'title' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
@@ -3683,7 +3683,7 @@ export function AcademicCalendar() {
                     <button 
                       onClick={() => setSortOrder('asc')}
                       className={cn(
-                        "p-2.5 rounded-none transition-all border",
+                        "p-2.5 rounded-lg transition-all border",
                         sortOrder === 'asc' ? "bg-slate-800 border-blue-700 text-white shadow-lg shadow-none scale-105" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
                       )}
                       title="Ordem Crescente"
@@ -3693,7 +3693,7 @@ export function AcademicCalendar() {
                     <button 
                       onClick={() => setSortOrder('desc')}
                       className={cn(
-                        "p-2.5 rounded-none transition-all border",
+                        "p-2.5 rounded-lg transition-all border",
                         sortOrder === 'desc' ? "bg-slate-800 border-blue-700 text-white shadow-lg shadow-none scale-105" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
                       )}
                       title="Ordem Decrescente"
@@ -3717,7 +3717,7 @@ export function AcademicCalendar() {
                     if (manualEvents.length === 0) return null;
 
                     return (
-                      <div key={`manual-${month}`} className="bg-white rounded-none border border-slate-100 shadow-sm overflow-hidden">
+                      <div key={`manual-${month}`} className="bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden">
                         <div className="bg-slate-50/50 px-6 py-3 border-b border-slate-100">
                           <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                             <CalendarIcon size={12} className="text-slate-700" />
@@ -3736,7 +3736,7 @@ export function AcademicCalendar() {
                             >
                               <div className="flex items-center gap-6 flex-1 min-w-0">
                                 {/* Data Compacta */}
-                                <div className="flex flex-col items-center justify-center min-w-[50px] py-1 bg-slate-50 rounded-none border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-colors">
+                                <div className="flex flex-col items-center justify-center min-w-[50px] py-1 bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-colors">
                                   <span className="text-[14px] font-bold text-slate-800 leading-none">
                                     {new Date(event.start_date + 'T00:00:00').getDate()}
                                   </span>
@@ -3748,7 +3748,7 @@ export function AcademicCalendar() {
                                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                                   <div className="flex items-center gap-3">
                                     <span className={cn(
-                                      "px-2 py-0.5 rounded-none text-[8px] font-bold uppercase tracking-widest border shrink-0",
+                                      "px-2 py-0.5 rounded-lg text-[8px] font-bold uppercase tracking-widest border shrink-0",
                                       getTypeStyle(event.type, event.start_date, event.title)
                                     )}>
                                       {getTypeText(event.type, event.description)}
@@ -3794,7 +3794,7 @@ export function AcademicCalendar() {
                                       e.stopPropagation();
                                       handleEdit(event);
                                     }}
-                                    className="p-2 text-slate-400 hover:text-slate-800 hover:bg-white rounded-none transition-all border border-transparent hover:border-slate-200 shadow-sm hover:shadow-md"
+                                    className="p-2 text-slate-400 hover:text-slate-800 hover:bg-white rounded-lg transition-all border border-transparent hover:border-slate-200 shadow-sm hover:shadow-md"
                                   >
                                     <Edit2 size={14} />
                                   </button>
@@ -3805,7 +3805,7 @@ export function AcademicCalendar() {
                                         handleDelete(event.id, confirmDeleteId === event.id);
                                       }}
                                       className={cn(
-                                        "p-2 rounded-none transition-all border border-transparent",
+                                        "p-2 rounded-lg transition-all border border-transparent",
                                         confirmDeleteId === event.id 
                                           ? "bg-red-600 text-white animate-pulse shadow-lg" 
                                           : "text-slate-400 hover:text-red-600 hover:bg-white hover:border-red-100 hover:shadow-md"
@@ -3838,7 +3838,7 @@ export function AcademicCalendar() {
                     if (autoEvents.length === 0) return null;
 
                     return (
-                      <div key={`auto-${month}`} className="bg-white rounded-none border border-slate-100 shadow-sm overflow-hidden">
+                      <div key={`auto-${month}`} className="bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden">
                         <div className="bg-slate-50/50 px-6 py-3 border-b border-slate-100">
                           <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                             <BookOpen size={12} />
@@ -3857,7 +3857,7 @@ export function AcademicCalendar() {
                                 className="p-4 hover:bg-slate-50 transition-all group cursor-pointer flex items-center gap-4"
                                 onClick={() => handleEdit(event)}
                               >
-                              <div className="w-10 h-10 flex flex-col items-center justify-center bg-slate-100 border border-slate-200 p-0.5 rounded-none group-hover:bg-white group-hover:border-slate-200 transition-all">
+                              <div className="w-10 h-10 flex flex-col items-center justify-center bg-slate-100 border border-slate-200 p-0.5 rounded-lg group-hover:bg-white group-hover:border-slate-200 transition-all">
                                 <span className="text-[13px] font-bold text-slate-700 leading-none">
                                   {new Date(event.start_date + 'T00:00:00').getDate()}
                                 </span>
@@ -3888,8 +3888,8 @@ export function AcademicCalendar() {
               )}
             </div>
           ) : (
-            <div className="bg-white p-8 rounded-none border-2 border-dashed border-slate-200 text-center flex flex-col items-center gap-4">
-              <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-none flex items-center justify-center">
+            <div className="bg-white p-8 rounded-lg border-2 border-dashed border-slate-200 text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-lg flex items-center justify-center">
                 <CalendarIcon size={24} />
               </div>
               <div>
@@ -3909,19 +3909,19 @@ export function AcademicCalendar() {
               initial={{ scale: 0.95, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
-              className="bg-white max-w-lg w-full rounded-none shadow-2xl overflow-hidden border border-slate-200 max-h-[96vh] flex flex-col"
+              className="bg-white max-w-lg w-full rounded-lg shadow-2xl overflow-hidden border border-slate-200 max-h-[96vh] flex flex-col"
             >
               <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 relative shrink-0">
                 <button 
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="absolute top-4 sm:top-5 right-4 sm:right-6 p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-600"
+                  className="absolute top-4 sm:top-5 right-4 sm:right-6 p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-slate-600"
                 >
                   <X size={18} />
                 </button>
                 <div className="flex items-center gap-3">
                   <div className={cn(
-                    "w-8 h-8 sm:w-10 sm:h-10 rounded-none flex items-center justify-center shadow-sm border",
+                    "w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-sm border",
                     getTypeStyle(formData.type)
                   )}>
                     <CalendarPlus size={16} className="sm:size-5" />
@@ -3937,7 +3937,7 @@ export function AcademicCalendar() {
 
               <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 custom-scrollbar">
                 {!canManageCalendar && (
-                  <div className="bg-amber-50 border border-amber-200 p-2.5 sm:p-3 rounded-none flex items-start gap-2">
+                  <div className="bg-amber-50 border border-amber-200 p-2.5 sm:p-3 rounded-lg flex items-start gap-2">
                     <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
                     <p className="text-[10px] font-bold text-amber-800 leading-tight text-left">Somente leitura. Apenas administradores podem fazer alterações.</p>
                   </div>
@@ -3984,14 +3984,14 @@ export function AcademicCalendar() {
                               }
                             }}
                             className={cn(
-                              "relative flex flex-col p-2 sm:p-2.5 rounded-none border-2 transition-all text-left group",
+                              "relative flex flex-col p-2 sm:p-2.5 rounded-lg border-2 transition-all text-left group",
                               formData.type === type.id 
                                 ? `bg-${type.color === 'red' ? 'rose' : type.color}-50 border-${type.color === 'red' ? 'rose' : type.color}-600 ring-2 ring-${type.color === 'red' ? 'rose' : type.color}-50` 
                                 : "bg-white border-slate-100 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:border-slate-200"
                             )}
                           >
                             <div className={cn(
-                              "w-6 h-6 sm:w-7 sm:h-7 rounded-none flex items-center justify-center mb-1 sm:mb-1.5 transition-transform group-hover:scale-110",
+                              "w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center mb-1 sm:mb-1.5 transition-transform group-hover:scale-110",
                               formData.type === type.id ? `bg-${type.color === 'red' ? 'rose' : type.color}-600 text-white` : "bg-slate-100 text-slate-400"
                             )}>
                               {type.icon}
@@ -4039,7 +4039,7 @@ export function AcademicCalendar() {
                               class_id: updatedClassId
                             });
                           }}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                         />
                         <span className="absolute -top-1.5 left-2 px-1 bg-white text-[6.5px] font-bold text-slate-400 uppercase border border-slate-100 rounded font-sans">Início</span>
                       </div>
@@ -4049,7 +4049,7 @@ export function AcademicCalendar() {
                           type="date"
                           value={formData.end_date}
                           onChange={e => setFormData({...formData, end_date: e.target.value})}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                         />
                         <span className="absolute -top-1.5 left-2 px-1 bg-white text-[6.5px] font-bold text-slate-400 uppercase border border-slate-100 rounded font-sans">Término</span>
                       </div>
@@ -4067,7 +4067,7 @@ export function AcademicCalendar() {
                         placeholder="Título do evento..."
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                       />
                     </div>
 
@@ -4083,7 +4083,7 @@ export function AcademicCalendar() {
                               setFormData(prev => ({ ...prev, class_id: '' }));
                             }}
                             className={cn(
-                              "py-2 sm:py-2.5 px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border rounded-none transition-all flex items-center justify-center gap-1",
+                              "py-2 sm:py-2.5 px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border rounded-lg transition-all flex items-center justify-center gap-1",
                               editScope === 'all'
                                 ? "bg-slate-900 border-slate-900 text-white shadow-md"
                                 : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100",
@@ -4100,7 +4100,7 @@ export function AcademicCalendar() {
                               setFormData(prev => ({ ...prev, class_id: '' }));
                             }}
                             className={cn(
-                              "py-2 sm:py-2.5 px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border rounded-none transition-all flex items-center justify-center gap-1",
+                              "py-2 sm:py-2.5 px-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border rounded-lg transition-all flex items-center justify-center gap-1",
                               editScope === 'specific'
                                 ? "bg-slate-900 border-slate-900 text-white shadow-md"
                                 : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
@@ -4116,7 +4116,7 @@ export function AcademicCalendar() {
                           {editScope === 'all' ? 'Dia de Aula Afetado' : 'Vincular Turma'}
                         </label>
                         {editScope === 'all' ? (
-                          <div className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-100 rounded-none text-xs font-bold text-slate-400 cursor-not-allowed uppercase">
+                          <div className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-400 cursor-not-allowed uppercase">
                             Todas as Turmas ({getWeekdayName(formData.start_date) || 'Dia Selecionado'})
                           </div>
                         ) : (
@@ -4125,7 +4125,7 @@ export function AcademicCalendar() {
                             disabled={!canManageCalendar}
                             value={formData.class_id}
                             onChange={e => setFormData({...formData, class_id: e.target.value})}
-                            className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
+                            className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                           >
                             <option value="">Selecione a Turma...</option>
                             {getFilteredClassesForDate(formData.start_date, formData.class_id).map(c => (
@@ -4144,7 +4144,7 @@ export function AcademicCalendar() {
                     <button 
                       type="button"
                       onClick={() => handleDelete(selectedEvent.id)}
-                      className="p-2 sm:p-3 rounded-none transition-all border bg-white text-red-500 border-red-100 hover:bg-red-50 hover:border-red-200 shadow-sm"
+                      className="p-2 sm:p-3 rounded-lg transition-all border bg-white text-red-500 border-red-100 hover:bg-red-50 hover:border-red-200 shadow-sm"
                       title="Excluir Lançamento"
                     >
                       <Trash2 size={16} />
@@ -4153,7 +4153,7 @@ export function AcademicCalendar() {
                   <button 
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 py-2 sm:py-3 px-3 bg-white border border-slate-200 text-slate-500 rounded-none text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                    className="flex-1 py-2 sm:py-3 px-3 bg-white border border-slate-200 text-slate-500 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
                   >
                     Fechar
                   </button>
@@ -4163,7 +4163,7 @@ export function AcademicCalendar() {
                       type="submit"
                       disabled={isSyncing || !isFormChanged}
                       className={cn(
-                        "flex-[2] py-2 sm:py-3 px-3 rounded-none text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
+                        "flex-[2] py-2 sm:py-3 px-3 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
                         (isSyncing || !isFormChanged)
                           ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
                           : "bg-slate-800 text-white hover:bg-slate-900 shadow-xl"
@@ -4188,7 +4188,7 @@ export function AcademicCalendar() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.99, opacity: 0 }}
               className={cn(
-                "bg-white w-full h-auto max-h-[96vh] rounded-none shadow-2xl overflow-hidden border border-slate-200 flex flex-col transition-all print:max-h-none print:h-auto print:overflow-visible print:border-none print:shadow-none print:max-w-none print:w-full print:p-0",
+                "bg-white w-full h-auto max-h-[96vh] rounded-lg shadow-2xl overflow-hidden border border-slate-200 flex flex-col transition-all print:max-h-none print:h-auto print:overflow-visible print:border-none print:shadow-none print:max-w-none print:w-full print:p-0",
                 parametersTab === 'annual' ? "lg:max-w-6xl max-w-5xl" : "lg:max-w-4xl max-w-2xl"
               )}
             >
@@ -4280,7 +4280,7 @@ export function AcademicCalendar() {
                 <>
                   <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 bg-slate-50/30">
                 {/* Seletor de Unidade / Polo e Gestão de Cronograma Integrado */}
-                <div className="mb-4 bg-white border border-slate-200/90 rounded-none p-3 shadow-xs space-y-3">
+                <div className="mb-4 bg-white border border-slate-200/90 rounded-lg p-3 shadow-xs space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Building2 size={16} className="text-slate-500 shrink-0" />
@@ -4295,7 +4295,7 @@ export function AcademicCalendar() {
                         type="button"
                         onClick={() => switchSettingsUnit('matriz')}
                         className={cn(
-                          "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-none border transition-all cursor-pointer",
+                          "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg border transition-all cursor-pointer",
                           settingsTargetUnitId === 'matriz'
                             ? "bg-slate-900 text-white border-slate-900 shadow-xs"
                             : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -4312,7 +4312,7 @@ export function AcademicCalendar() {
                             type="button"
                             onClick={() => switchSettingsUnit(unit.id)}
                             className={cn(
-                              "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-none border transition-all cursor-pointer inline-flex items-center gap-1.5",
+                              "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg border transition-all cursor-pointer inline-flex items-center gap-1.5",
                               settingsTargetUnitId === unit.id
                                 ? "bg-blue-900 text-white border-blue-900 shadow-xs"
                                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -4334,7 +4334,7 @@ export function AcademicCalendar() {
                   {/* Status e Ações do Polo Selecionado */}
                   {settingsTargetUnitId !== 'matriz' ? (
                     <div className={cn(
-                      "p-2.5 border rounded-none flex flex-wrap items-center justify-between gap-3 text-xs transition-colors",
+                      "p-2.5 border rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs transition-colors",
                       isTargetCustom 
                         ? "bg-indigo-50/70 border-indigo-200 text-indigo-950"
                         : "bg-slate-50 border-slate-200 text-slate-700"
@@ -4374,7 +4374,7 @@ export function AcademicCalendar() {
                           <button
                             type="button"
                             onClick={handleEnableCustomForUnit}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-[10px] font-extrabold uppercase tracking-wider rounded-none shadow-xs transition-all cursor-pointer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-[10px] font-extrabold uppercase tracking-wider rounded-lg shadow-xs transition-all cursor-pointer"
                           >
                             <Sparkles size={13} className="text-blue-300" />
                             Personalizar Cronograma Deste Polo
@@ -4384,7 +4384,7 @@ export function AcademicCalendar() {
                             <button
                               type="button"
                               onClick={handleCopyMatrizDates}
-                              className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-none transition-all cursor-pointer shadow-2xs"
+                              className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer shadow-2xs"
                               title="Preenche as datas semestrais com os valores atuais da Matriz"
                             >
                               <Copy size={12} className="text-slate-500" />
@@ -4393,7 +4393,7 @@ export function AcademicCalendar() {
                             <button
                               type="button"
                               onClick={handleResetToMatriz}
-                              className="flex items-center gap-1 px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-wider rounded-none transition-all cursor-pointer shadow-2xs"
+                              className="flex items-center gap-1 px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer shadow-2xs"
                               title="Exclui o cronograma personalizado e volta a herdar o calendário geral da Matriz"
                             >
                               <RotateCcw size={12} className="text-red-500" />
@@ -4487,7 +4487,7 @@ export function AcademicCalendar() {
                                 setSelectedWeekdayDetail(nextActiveDay);
                               }}
                               className={cn(
-                                "py-2 px-1.5 rounded-none border flex flex-col items-center gap-1 transition-all relative cursor-pointer",
+                                "py-2 px-1.5 rounded-lg border flex flex-col items-center gap-1 transition-all relative cursor-pointer",
                                 isSelected 
                                   ? "bg-slate-900 text-white border-slate-900 shadow-md z-10" 
                                   : isAlreadyRegistered
@@ -4598,7 +4598,7 @@ export function AcademicCalendar() {
                                             weekday_terms: updatedTerms
                                           });
                                         }}
-                                        className="un-styled-input w-full border border-slate-200 rounded-none py-1.5 px-2 text-xs font-bold bg-white text-slate-700 focus:border-indigo-300 outline-none transition-all"
+                                        className="un-styled-input w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold bg-white text-slate-700 focus:border-indigo-300 outline-none transition-all"
                                       />
                                     </div>
                                     <div className="space-y-0.5">
@@ -4618,7 +4618,7 @@ export function AcademicCalendar() {
                                             weekday_terms: updatedTerms
                                           });
                                         }}
-                                        className="un-styled-input w-full border border-slate-200 rounded-none py-1.5 px-2 text-xs font-bold bg-white text-slate-700 focus:border-indigo-300 outline-none transition-all"
+                                        className="un-styled-input w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold bg-white text-slate-700 focus:border-indigo-300 outline-none transition-all"
                                       />
                                     </div>
                                   </div>
@@ -4655,7 +4655,7 @@ export function AcademicCalendar() {
                             const isDayActiveInForm = (settingsForm.class_weekdays || []).includes(activeDay);
                             return (
                               <div className={cn(
-                                "p-3 rounded-none flex items-center justify-between gap-3 border transition-all duration-300",
+                                "p-3 rounded-lg flex items-center justify-between gap-3 border transition-all duration-300",
                                 isDayActiveInForm 
                                   ? "bg-indigo-50/40 border-indigo-150/80 shadow-inner" 
                                   : "bg-slate-50 border-slate-200"
@@ -4752,7 +4752,7 @@ export function AcademicCalendar() {
                                     });
                                   }}
                                   className={cn(
-                                    "font-bold py-1.5 px-3 rounded-none text-[9px] uppercase tracking-wider transition-all border cursor-pointer shrink-0",
+                                    "font-bold py-1.5 px-3 rounded-lg text-[9px] uppercase tracking-wider transition-all border cursor-pointer shrink-0",
                                     isDayActiveInForm
                                       ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
                                       : "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-md shadow-indigo-100/30"
@@ -4806,7 +4806,7 @@ export function AcademicCalendar() {
                                          [activeDay]: e.target.value 
                                        }
                                      })}
-                                     className="w-full bg-slate-50 border border-slate-200 rounded-none py-1.5 px-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-300 transition-all font-sans"
+                                     className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-300 transition-all font-sans"
                                    />
                                  </div>
 
@@ -4927,7 +4927,7 @@ export function AcademicCalendar() {
                            })()}
                         </div>
                       ) : (
-                        <div className="h-auto min-h-[160px] py-6 flex flex-col items-center justify-center border border-dashed border-slate-200 bg-white text-center space-y-1.5 shadow-sm rounded-none">
+                        <div className="h-auto min-h-[160px] py-6 flex flex-col items-center justify-center border border-dashed border-slate-200 bg-white text-center space-y-1.5 shadow-sm rounded-lg">
                           <CalendarDays className="text-slate-200 animate-pulse" size={32} />
                           <div>
                             <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest leading-normal">
@@ -4952,9 +4952,9 @@ export function AcademicCalendar() {
                       const countHolidays = holidaysForYear.length;
 
                       return (
-                        <div className="border border-slate-200 bg-white p-3 space-y-2.5 shadow-xs rounded-none">
+                        <div className="border border-slate-200 bg-white p-3 space-y-2.5 shadow-xs rounded-lg">
                           <div className="flex items-center gap-2 border-b border-slate-100 pb-1.5">
-                            <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-none flex items-center justify-center border border-indigo-100">
+                            <div className="w-5 h-5 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center border border-indigo-100">
                               <RefreshCw size={10} />
                             </div>
                             <div>
@@ -4967,7 +4967,7 @@ export function AcademicCalendar() {
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 p-2 border border-slate-100 rounded-none">
+                          <div className="bg-slate-50 p-2 border border-slate-100 rounded-lg">
                             <p className="text-[10px] text-slate-500 leading-normal font-sans">
                               {countHolidays > 0 ? (
                                 <>
@@ -5020,7 +5020,7 @@ export function AcademicCalendar() {
                         setSearchParams({ view: 'month' });
                       }
                     }}
-                    className="w-full sm:w-auto px-4 py-2 sm:px-5 sm:py-2.5 bg-white border border-slate-350 hover:bg-slate-100 text-slate-700 hover:text-slate-900 rounded-none text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    className="w-full sm:w-auto px-4 py-2 sm:px-5 sm:py-2.5 bg-white border border-slate-350 hover:bg-slate-100 text-slate-700 hover:text-slate-900 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <X size={12} className="text-slate-500" />
                     Fechar Ajustes
@@ -5032,7 +5032,7 @@ export function AcademicCalendar() {
                     <button 
                       onClick={() => clearClassDays()}
                       disabled={isSyncing}
-                      className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 rounded-none text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm cursor-pointer"
+                      className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm cursor-pointer"
                     >
                       <Trash2 size={12} />
                       Excluir Registros
@@ -5233,7 +5233,7 @@ export function AcademicCalendar() {
                       setShowConfirmModal(true);
                     }}
                     disabled={isSyncing}
-                    className="px-3 py-2 sm:px-5 sm:py-2.5 bg-slate-900 text-white rounded-none text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-md shadow-slate-100 cursor-pointer"
+                    className="px-3 py-2 sm:px-5 sm:py-2.5 bg-slate-900 text-white rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-md shadow-slate-100 cursor-pointer"
                   >
                     {isSyncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                     Salvar e Atualizar Calendário
@@ -5266,7 +5266,7 @@ export function AcademicCalendar() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white max-w-sm w-full rounded-none shadow-2xl overflow-hidden border border-slate-100"
+              className="bg-white max-w-sm w-full rounded-lg shadow-2xl overflow-hidden border border-slate-100"
             >
               <div className="p-8 text-center space-y-6">
                 <div className={cn(
@@ -5299,7 +5299,7 @@ export function AcademicCalendar() {
                               }
                             }}
                             className={cn(
-                              "px-3 py-2 rounded-none flex items-center justify-center text-[9px] font-bold uppercase transition-all shadow-sm border",
+                              "px-3 py-2 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase transition-all shadow-sm border",
                               isSelected 
                                 ? "bg-red-600 border-red-600 text-white shadow-red-100" 
                                 : "bg-white border-slate-100 text-slate-400"
@@ -5319,7 +5319,7 @@ export function AcademicCalendar() {
                   {confirmModalConfig.id === 'no_weekday_selected' ? (
                     <button 
                       onClick={() => setShowConfirmModal(false)}
-                      className="w-full py-4 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center shadow-md shadow-slate-100"
+                      className="w-full py-4 bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center shadow-md shadow-slate-100"
                     >
                       Entendido, Voltar
                     </button>
@@ -5330,7 +5330,7 @@ export function AcademicCalendar() {
                           setShowConfirmModal(false);
                           setIsClassDeletionMode(false);
                         }}
-                        className="py-4 bg-slate-50 text-slate-400 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95"
+                        className="py-4 bg-slate-50 text-slate-400 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95"
                       >
                         Cancelar
                       </button>
@@ -5347,7 +5347,7 @@ export function AcademicCalendar() {
                           }
                         }}
                         className={cn(
-                          "py-4 text-white rounded-none text-[10px] font-bold uppercase tracking-widest shadow-lg transition-all active:scale-95",
+                          "py-4 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-lg transition-all active:scale-95",
                           confirmModalConfig.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-100" : "bg-slate-800 hover:bg-slate-900 shadow-none"
                         )}
                       >
@@ -5370,11 +5370,11 @@ export function AcademicCalendar() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-none p-4 sm:p-6 md:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 my-auto"
+              className="bg-white rounded-lg p-4 sm:p-6 md:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 my-auto"
             >
               <div className="flex items-center justify-between mb-6 sm:mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-slate-50 text-slate-800 rounded-none">
+                  <div className="p-3 bg-slate-50 text-slate-800 rounded-lg">
                     <Printer size={24} />
                   </div>
                   <div>
@@ -5390,7 +5390,7 @@ export function AcademicCalendar() {
                       setSearchParams({ view: 'month' });
                     }
                   }}
-                  className="p-2 hover:bg-slate-50 rounded-none transition-all"
+                  className="p-2 hover:bg-slate-50 rounded-lg transition-all"
                 >
                   <X size={20} className="text-slate-400" />
                 </button>
@@ -5409,7 +5409,7 @@ export function AcademicCalendar() {
                     key={option.id}
                     onClick={() => setPrintType(option.id as any)}
                     className={cn(
-                      "p-4 sm:p-5 rounded-none border-2 transition-all text-left flex flex-col gap-2.5 group",
+                      "p-4 sm:p-5 rounded-lg border-2 transition-all text-left flex flex-col gap-2.5 group",
                       printType === option.id 
                         ? "bg-slate-800 border-blue-600 text-white shadow-xl scale-[1.02]" 
                         : "bg-slate-50 border-slate-100 hover:border-slate-300 text-slate-600"
@@ -5430,7 +5430,7 @@ export function AcademicCalendar() {
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 p-4 sm:p-6 bg-slate-50 rounded-none border border-slate-100 mb-6 sm:mb-8"
+                  className="space-y-4 p-4 sm:p-6 bg-slate-50 rounded-lg border border-slate-100 mb-6 sm:mb-8"
                 >
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <Filter size={14} /> Filtros de Relatório
@@ -5445,7 +5445,7 @@ export function AcademicCalendar() {
                         <select 
                           value={printFilters.class_id}
                           onChange={(e) => setPrintFilters(prev => ({ ...prev, class_id: e.target.value }))}
-                          className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                         >
                           <option value="all">Todas as Turmas Ativas</option>
                           {classes.map(c => (
@@ -5459,7 +5459,7 @@ export function AcademicCalendar() {
                       <select 
                         value={printFilters.month}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, month: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
-                        className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todo o Ano Letivo</option>
                         {Array.from({ length: 12 }, (_, i) => (
@@ -5474,7 +5474,7 @@ export function AcademicCalendar() {
                       <select 
                         value={printFilters.weekday}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, weekday: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
-                        className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todos os Dias de Aula</option>
                         <option value="1">Segunda-feira</option>
@@ -5497,7 +5497,7 @@ export function AcademicCalendar() {
                       setSearchParams({ view: 'month' });
                     }
                   }}
-                  className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                  className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
                 >
                   Cancelar
                 </button>
@@ -5514,7 +5514,7 @@ export function AcademicCalendar() {
                       });
                     }
                   }}
-                  className="flex-3 py-4 px-6 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-none transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
+                  className="flex-3 py-4 px-6 bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-none transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
                 >
                   Gerar Impressão Agora
                 </button>
@@ -5825,7 +5825,7 @@ export function AcademicCalendar() {
             <div className="flex flex-col h-full max-h-[85vh]">
               <div className="grid grid-cols-3 gap-x-4 gap-y-2 mb-2">
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(monthIndex => (
-                  <div key={`poster-${monthIndex}`} className="avoid-break p-2 border-2 border-slate-100 rounded-none bg-white shadow-sm">
+                  <div key={`poster-${monthIndex}`} className="avoid-break p-2 border-2 border-slate-100 rounded-lg bg-white shadow-sm">
                     <h4 className="text-[9px] font-bold text-center uppercase tracking-[0.15em] mb-1.5 border-b border-slate-50 pb-0.5 text-slate-900">
                       {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                     </h4>
@@ -5910,27 +5910,27 @@ export function AcademicCalendar() {
                   {/* Legenda Estilo Screenshot Detalhada - No Rodapé */}
                   <div className="mt-4 border-t border-slate-200 pt-3 flex flex-wrap justify-center gap-x-6 gap-y-2 pb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-none bg-red-50 border border-red-100 bg-stripes-red shadow-sm" />
+                      <div className="w-3.5 h-3.5 rounded-lg bg-red-50 border border-red-100 bg-stripes-red shadow-sm" />
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Feriado</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-none bg-sky-50 border border-sky-100 shadow-sm" />
+                      <div className="w-3.5 h-3.5 rounded-lg bg-sky-50 border border-sky-100 shadow-sm" />
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Quarta-feira (Azul)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-none bg-amber-50 border border-amber-100 shadow-sm" />
+                      <div className="w-3.5 h-3.5 rounded-lg bg-amber-50 border border-amber-100 shadow-sm" />
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Quinta-feira (Laranja)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-none bg-amber-400 border border-amber-500 shadow-sm" />
+                      <div className="w-3.5 h-3.5 rounded-lg bg-amber-400 border border-amber-500 shadow-sm" />
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Avaliação</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-none border-[1.2px] border-slate-800 ring-1 ring-inset ring-slate-800 bg-white shadow-sm" />
+                      <div className="w-3.5 h-3.5 rounded-lg border-[1.2px] border-slate-800 ring-1 ring-inset ring-slate-800 bg-white shadow-sm" />
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Início/Final de Semestre</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-none bg-white border border-slate-200 relative shadow-sm overflow-hidden flex items-center justify-center text-[7px]">
+                      <div className="w-3.5 h-3.5 rounded-lg bg-white border border-slate-200 relative shadow-sm overflow-hidden flex items-center justify-center text-[7px]">
                         X
                         <div className="absolute inset-0 flex items-center justify-center">
                           <svg className="w-full h-full stroke-rose-500" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -5964,7 +5964,7 @@ export function AcademicCalendar() {
                     </h2>
                     
                     {/* Grade do Calendário Mensal - Idêntica à exibição em tela com bordas bem nítidas */}
-                    <div className="grid grid-cols-7 gap-px bg-slate-300 border border-slate-300 rounded-none overflow-visible shadow-xs">
+                    <div className="grid grid-cols-7 gap-px bg-slate-300 border border-slate-300 rounded-lg overflow-visible shadow-xs">
                       {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
                         <div key={day} className="bg-slate-50 py-3 text-center border-b border-slate-200">
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">{day}</span>
@@ -6070,7 +6070,7 @@ export function AcademicCalendar() {
                                     <div 
                                       key={event.id}
                                       className={cn(
-                                        "px-1.5 py-1 rounded-none text-[8px] font-bold whitespace-normal break-words leading-[1.15] border shadow-xs",
+                                        "px-1.5 py-1 rounded-lg text-[8px] font-bold whitespace-normal break-words leading-[1.15] border shadow-xs",
                                         getTypeStyle(event.type, event.start_date, event.title)
                                       )}
                                     >

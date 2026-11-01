@@ -749,7 +749,7 @@ export function ArchivePage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="w-full space-y-3 sm:space-y-3.5 pb-6">
       {/* Title section */}
       <PageHeader
         title="Gestão do Arquivo Morto"

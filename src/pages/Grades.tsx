@@ -1051,7 +1051,7 @@ export function Grades() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full space-y-3 sm:space-y-3.5">
       <PageHeader
         title="Apontamento de Notas"
         description="Registro interno de avaliação e aproveitamento escolar."
@@ -1062,7 +1062,7 @@ export function Grades() {
             {selectedPeriod === 'Resultado Final' && (
               <button 
                 onClick={calculateFinalResults}
-                className="flex items-center gap-1.5 px-4 h-10 bg-amber-600 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-amber-700 transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-4 h-10 bg-amber-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-amber-700 transition-all cursor-pointer shadow-sm"
               >
                 <RefreshCw size={14} />
                 Calcular Médias
@@ -1071,7 +1071,7 @@ export function Grades() {
             {selectedPeriod === 'Resultado Final' ? (
               <button 
                 onClick={handleFinalPrint}
-                className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
               >
                 <Printer size={14} />
                 Imprimir Resultado Final
@@ -1080,14 +1080,14 @@ export function Grades() {
               <>
                 <button 
                   onClick={handleClearAll}
-                  className="flex items-center gap-1.5 px-4 h-10 bg-white text-red-600 border border-slate-200 rounded-none text-xs font-bold uppercase tracking-wider hover:bg-red-50 transition-all cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-4 h-10 bg-white text-red-600 border border-slate-200 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-50 transition-all cursor-pointer shadow-sm"
                 >
                   <Eraser size={14} />
                   Limpar Tudo
                 </button>
                 <button 
                   onClick={handlePrint}
-                  className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
                 >
                   <Printer size={14} />
                   Imprimir
@@ -1095,7 +1095,7 @@ export function Grades() {
                 <button 
                   disabled={saving}
                   onClick={saveGrades}
-                  className="flex items-center gap-1.5 px-5 h-10 bg-indigo-600 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-5 h-10 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   Salvar Notas

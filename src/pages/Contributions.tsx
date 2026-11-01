@@ -2545,7 +2545,7 @@ export function Contributions() {
   return (
     <>
       <div className={cn(
-        "lg:h-[calc(100vh-8rem)] h-auto flex flex-col gap-2 sm:gap-2.5 print:hidden lg:overflow-hidden",
+        "lg:h-[calc(100vh-4.75rem)] h-auto flex flex-col gap-2 sm:gap-2.5 print:hidden lg:overflow-hidden",
         isPrinting && "hidden"
       )}>
       <PageHeader

@@ -1911,7 +1911,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         }
       `}</style>
 
-      <div className="w-full space-y-6 no-print">
+      <div className="w-full space-y-3 sm:space-y-3.5 no-print">
       {/* Page Header */}
       <PageHeader
         title={activeTab === 'marking' ? 'Chamada Diária' : 'Lista de Chamada'}
@@ -1923,14 +1923,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           {selectedClass && (
             <div className="flex flex-wrap items-center gap-3">
               {activeTab === 'monthly' && (
-                <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-none text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
+                <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
                    <span className="relative flex h-1.5 w-1.5">
                      <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                    </span>
                    <span>{monthlyClassDays.filter(d => !d.isCancelled).length} Aulas Agendadas</span>
                 </div>
               )}
-              <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-none text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
+              <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
                  <span className="relative flex h-1.5 w-1.5">
                    <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                  </span>
@@ -1940,7 +1940,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           )}
 
           {!initialMode && (
-            <div className="flex bg-slate-150 p-1 rounded-none border border-slate-200/60 shadow-inner">
+            <div className="flex bg-slate-150 p-1 rounded-lg border border-slate-200/60 shadow-inner">
               {[
                 { id: 'marking', label: 'Chamada' },
                 { id: 'monthly', label: 'Mensal' }
@@ -1949,7 +1949,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={cn(
-                    "px-5 py-2 rounded-none text-[10px] font-bold uppercase tracking-[0.1em] transition-all duration-300",
+                    "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] transition-all duration-300",
                     activeTab === tab.id 
                       ? "bg-slate-800 text-white shadow border border-slate-700" 
                       : "text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
@@ -1970,7 +1970,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <button 
                       disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
                       onClick={saveAttendance}
-                      className="group relative flex items-center gap-2 h-10 px-4 bg-slate-100 text-slate-700 border border-slate-350 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50"
+                      className="group relative flex items-center gap-2 h-10 px-4 bg-slate-100 text-slate-700 border border-slate-350 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50"
                     >
                       {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                       <span>Salvar Rascunho</span>
@@ -1978,7 +1978,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <button 
                       disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
                       onClick={closeAttendance}
-                      className="group relative flex items-center gap-2 h-10 px-5 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 border border-slate-800 transition-all active:scale-95 disabled:opacity-50"
+                      className="group relative flex items-center gap-2 h-10 px-5 bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 border border-slate-800 transition-all active:scale-95 disabled:opacity-50"
                     >
                       {closing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                       <span>Fechar Lançamentos</span>
@@ -1986,7 +1986,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   </>
                 ) : (
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 h-10 px-5 bg-slate-100 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-200 select-none">
+                    <div className="flex items-center gap-2 h-10 px-5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-slate-200 select-none">
                       <Check size={14} className="text-emerald-600" />
                       <span>Lançamentos Finalizados</span>
                     </div>
@@ -1996,7 +1996,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         type="button"
                         disabled={closing}
                         onClick={() => setReopenConfirm(true)}
-                        className="group flex items-center gap-1.5 h-10 px-4 bg-rose-50 text-rose-700 hover:bg-rose-100/80 border border-rose-200 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-200 hover:shadow-sm"
+                        className="group flex items-center gap-1.5 h-10 px-4 bg-rose-50 text-rose-700 hover:bg-rose-100/80 border border-rose-200 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-200 hover:shadow-sm"
                         title="Reabrir chamada finalizada para novas edições"
                       >
                         <Unlock size={13} className="transition-transform group-hover:rotate-12" />
@@ -2011,7 +2011,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           type="button"
                           disabled={closing}
                           onClick={reopenAttendance}
-                          className="h-8 px-3 bg-rose-700 hover:bg-rose-800 text-white rounded-none text-[9px] font-bold uppercase tracking-widest transition-all"
+                          className="h-8 px-3 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all"
                         >
                           {closing ? <Loader2 size={10} className="animate-spin" /> : "Reabrir"}
                         </button>
@@ -2019,7 +2019,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           type="button"
                           disabled={closing}
                           onClick={() => setReopenConfirm(false)}
-                          className="h-8 px-2.5 bg-white hover:bg-slate-100 text-slate-600 rounded-none text-[9px] font-bold uppercase tracking-widest border border-slate-200 transition-all"
+                          className="h-8 px-2.5 bg-white hover:bg-slate-100 text-slate-600 rounded-lg text-[9px] font-bold uppercase tracking-widest border border-slate-200 transition-all"
                         >
                           Cancelar
                         </button>
@@ -2037,7 +2037,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       <TeacherScopeBanner scope={teacherScope} availableClassesCount={availableClasses.length} />
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-none border border-slate-200 shadow-sm text-slate-900">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm text-slate-900">
         {/* Filter Bar */}
         <div className="p-3 md:p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-md transition-all duration-300">
           {isFiltersCollapsed && selectedClass ? (
@@ -2149,7 +2149,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 <div className="space-y-2">
                   <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Turma</label>
                   <div className="relative group">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-205">
                       <School size={16} />
                     </div>
                     <select
@@ -2158,7 +2158,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         setSelectedClass(e.target.value);
                         setSelectedSubject('');
                       }}
-                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
+                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                     >
                       <option value="">
                         {availableClasses.length === 0
@@ -2182,14 +2182,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Disciplina</label>
                     <div className="relative group">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-205">
                         <BookOpen size={16} />
                       </div>
                       <select
                         value={selectedSubject}
                         onChange={e => setSelectedSubject(e.target.value)}
                         disabled={!selectedClass}
-                        className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
+                        className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
                       >
                         <option value="">SELECIONAR DISCIPLINA...</option>
                         {filteredSubjects.map((s, idx) => {
@@ -2215,7 +2215,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <select
                           value={selectedMonth}
                           onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none"
+                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-805 appearance-none outline-none"
                         >
                           {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
                             <option key={i} value={i}>{m.toUpperCase()}</option>
@@ -2227,7 +2227,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <select
                           value={selectedYear}
                           onChange={e => setSelectedYear(parseInt(e.target.value))}
-                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none text-center"
+                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-805 appearance-none outline-none text-center"
                         >
                           {availableYears.map(y => (
                             <option key={y} value={y}>{y}</option>
@@ -2277,7 +2277,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <div className="grid grid-cols-4 gap-3">
                       <div className="col-span-3 relative group">
                         <div className={cn(
-                          "absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-none flex items-center justify-center border transition-colors",
+                          "absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center border transition-colors",
                           isDateLockedByRule ? "bg-amber-50 border-amber-200 text-amber-700" :
                           isDateUnlockedByPin ? "bg-indigo-50 border-indigo-200 text-indigo-600" :
                           "bg-white border-slate-205 text-slate-400"
@@ -2295,7 +2295,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           value={parseDateToDB(selectedDate)}
                           onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
                           className={cn(
-                            "w-full pl-13 pr-8 py-3 bg-white border rounded-none text-[12px] font-semibold appearance-none outline-none transition-all",
+                            "w-full pl-13 pr-8 py-3 bg-white border rounded-lg text-[12px] font-semibold appearance-none outline-none transition-all",
                             !selectedClass || !selectedSubject ? "border-slate-200 text-slate-400 bg-slate-100/50 cursor-not-allowed" :
                             isDateLockedByRule ? "border-amber-300 text-amber-950 bg-amber-50/10" :
                             isDateUnlockedByPin ? "border-indigo-300 text-indigo-950 bg-indigo-50/10" :
@@ -2338,7 +2338,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <select
                           value={selectedYear}
                           onChange={e => setSelectedYear(parseInt(e.target.value))}
-                          className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
+                          className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
                         >
                           {availableYears.map(y => (
                             <option key={y} value={y}>{y}</option>
@@ -2430,7 +2430,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 className="py-12 md:py-16 flex flex-col items-center text-center space-y-4"
               >
                 <div className="relative">
-                  <div className="relative w-20 h-20 bg-white text-slate-300 rounded-none flex items-center justify-center border border-slate-200 group hover:border-slate-300 transition-colors duration-500">
+                  <div className="relative w-20 h-20 bg-white text-slate-300 rounded-lg flex items-center justify-center border border-slate-200 group hover:border-slate-300 transition-colors duration-500">
                     {teacherScope.hasUnitConflict ? (
                       <AlertTriangle size={32} className="text-amber-500" />
                     ) : (
@@ -2477,20 +2477,20 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={cn(
-                      "p-4 rounded-none flex items-center gap-4 border shadow-sm",
+                      "p-4 rounded-lg flex items-center gap-4 border shadow-sm",
                       notification.type === 'success' 
                         ? "bg-slate-900 text-white border-slate-800" 
                         : "bg-rose-950 text-white border-rose-900"
                     )}
                   >
-                    <div className="w-8 h-8 rounded-none bg-slate-800 flex items-center justify-center flex-shrink-0 text-white">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0 text-white">
                       {notification.type === 'success' ? <Check size={16} /> : <X size={16} />}
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Notificação do Sistema</p>
                       <p className="text-xs font-semibold uppercase tracking-wide">{notification.message}</p>
                     </div>
-                    <button onClick={() => setNotification(null)} className="ml-auto w-8 h-8 rounded-none bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                    <button onClick={() => setNotification(null)} className="ml-auto w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
                       <X size={16} />
                     </button>
                   </motion.div>
@@ -2499,8 +2499,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 {activeTab === 'marking' ? (
                   <div className="space-y-4">
                     {!selectedSubject && (
-                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-none flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
-                        <div className="w-10 h-10 bg-slate-100 rounded-none flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
+                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-lg flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
+                        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
                           <Info size={18} />
                         </div>
                         <div className="space-y-0.5">
@@ -2511,9 +2511,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     )}
 
                     {selectedSubject && isDateLockedByRule && (
-                      <div className="bg-amber-50/90 border border-amber-300 p-4 rounded-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950 shadow-xs mb-4">
+                      <div className="bg-amber-50/90 border border-amber-300 p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950 shadow-xs mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-amber-200/80 border border-amber-300 rounded-none flex items-center justify-center text-amber-900 shrink-0">
+                          <div className="w-9 h-9 bg-amber-200/80 border border-amber-300 rounded-lg flex items-center justify-center text-amber-900 shrink-0">
                             <Lock size={18} />
                           </div>
                           <div>
@@ -2532,7 +2532,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             setEnteredPin('');
                             setIsPinModalOpen(true);
                           }}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-900 hover:bg-amber-950 text-white text-[10px] font-bold uppercase tracking-widest transition-all rounded-none shrink-0 shadow-xs cursor-pointer w-full sm:w-auto justify-center"
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-900 hover:bg-amber-950 text-white text-[10px] font-bold uppercase tracking-widest transition-all rounded-lg shrink-0 shadow-xs cursor-pointer w-full sm:w-auto justify-center"
                         >
                           <KeyRound size={13} />
                           <span>Desbloquear via PIN</span>
@@ -2541,9 +2541,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     )}
 
                     {selectedSubject && isDateUnlockedByPin && (
-                      <div className="bg-emerald-50/90 border border-emerald-300 p-3.5 rounded-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 shadow-xs mb-4">
+                      <div className="bg-emerald-50/90 border border-emerald-300 p-3.5 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 shadow-xs mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-emerald-100 border border-emerald-300 rounded-none flex items-center justify-center text-emerald-800 shrink-0">
+                          <div className="w-8 h-8 bg-emerald-100 border border-emerald-300 rounded-lg flex items-center justify-center text-emerald-800 shrink-0">
                             <Unlock size={16} />
                           </div>
                           <div>
@@ -2566,8 +2566,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     )}
 
                     {selectedSubject && !isDateValidForSubject && (
-                      <div className="bg-amber-50 border border-amber-200 p-5 rounded-none flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300 mb-4">
-                        <div className="w-10 h-10 bg-amber-100 rounded-none flex items-center justify-center text-amber-700 flex-shrink-0 shadow-sm">
+                      <div className="bg-amber-50 border border-amber-200 p-5 rounded-lg flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300 mb-4">
+                        <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-700 flex-shrink-0 shadow-sm">
                           <AlertTriangle size={20} />
                         </div>
                         <div className="space-y-0.5">
@@ -2589,7 +2589,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           transition={{ delay: idx * 0.02 }}
                           key={`att-st-${student.id || idx}-${idx}`} 
                           className={cn(
-                            "group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-none border transition-all duration-200 relative overflow-hidden",
+                            "group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border transition-all duration-200 relative overflow-hidden",
                             attendance[student.id]?.status === 'P' ? "bg-slate-50/50 border-slate-300 shadow-none" :
                             attendance[student.id]?.status === 'F' ? "bg-rose-50/20 border-rose-200 shadow-none" :
                             attendance[student.id]?.status === 'J' ? "bg-amber-50/20 border-amber-200 shadow-none" :
@@ -2598,7 +2598,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         >
                           <div className="flex items-center gap-4 mb-4 md:mb-0 relative z-10">
                             <div className={cn(
-                              "w-8 h-8 rounded-none flex items-center justify-center text-xs font-bold transition-all duration-300",
+                              "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-300",
                               attendance[student.id]?.status === 'P' ? "bg-slate-800 text-white" :
                               attendance[student.id]?.status === 'F' ? "bg-rose-700 text-white" :
                               attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white" :
@@ -2609,7 +2609,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             <div>
                               <p className="text-sm font-semibold text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
                               <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                <span className="text-[10px] font-mono font-bold text-slate-800 uppercase tracking-wider px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-none shadow-2xs">
+                                <span className="text-[10px] font-mono font-bold text-slate-800 uppercase tracking-wider px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-lg shadow-2xs">
                                   Matrícula: {formatRegistrationNumber(student.registration_number)}
                                 </span>
                                 {attendance[student.id]?.status === 'J' ? (
@@ -2670,7 +2670,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                 ) : (
                                   attendance[student.id]?.status && (
                                     <span className={cn(
-                                      "text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-none border shadow-sm",
+                                      "text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-lg border shadow-sm",
                                       attendance[student.id]?.status === 'P' ? "bg-slate-100 text-slate-700 border-slate-300" :
                                       "bg-rose-50 text-rose-700 border-rose-200"
                                     )}>
@@ -2759,7 +2759,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                   });
                                 }}
                                 className={cn(
-                                  "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all duration-200 border select-none",
+                                  "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all duration-200 border select-none",
                                   attendance[student.id]?.status === btn.id
                                     ? `bg-slate-800 text-white border-slate-800 shadow-sm`
                                     : `bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800`,
@@ -2779,8 +2779,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 ) : (
                   <div className="space-y-6">
                     {!selectedSubject ? (
-                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-none flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
-                        <div className="w-10 h-10 bg-slate-100 rounded-none flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
+                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-lg flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
+                        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
                           <Info size={18} />
                         </div>
                         <div className="space-y-0.5">
@@ -2791,8 +2791,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     ) : (
                       <>
                         {!isMonthValidForSubject && (
-                          <div className="bg-amber-50 border border-amber-200 p-5 rounded-none flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300">
-                            <div className="w-10 h-10 bg-amber-100 rounded-none flex items-center justify-center text-amber-700 flex-shrink-0 shadow-sm">
+                          <div className="bg-amber-50 border border-amber-200 p-5 rounded-lg flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300">
+                            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-700 flex-shrink-0 shadow-sm">
                               <AlertTriangle size={20} />
                             </div>
                             <div className="space-y-0.5">
@@ -2806,9 +2806,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Card 1: Relatório de Lançamentos */}
-                          <div className="bg-white border border-slate-200 p-6 rounded-none flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
+                          <div className="bg-white border border-slate-200 p-6 rounded-lg flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
                             <div className="relative z-10">
-                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
+                              <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
                                 <FileText size={24} />
                               </div>
                               <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Frequência Consolidada</h4>
@@ -2821,7 +2821,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <button 
                                 onClick={() => processPrint('report')}
                                 disabled={isPrinting}
-                                className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
                                   <>
@@ -2839,9 +2839,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           </div>
 
                           {/* Card 2: Lista Chamada em Branco (Gabarito) */}
-                          <div className="bg-white border border-slate-200 p-6 rounded-none flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
+                          <div className="bg-white border border-slate-200 p-6 rounded-lg flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
                             <div className="relative z-10">
-                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
+                              <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
                                 <ClipboardCheck size={24} />
                               </div>
                               <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Ficha para Visto Manual</h4>
@@ -2854,7 +2854,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <button 
                                 onClick={() => processPrint('marking')}
                                 disabled={isPrinting}
-                                className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
                                   <>
@@ -2885,8 +2885,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     {/* PDF Printing Overlay Backdrop */}
       {isPrinting && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
-          <div className="bg-white px-6 py-8 rounded-none shadow-xl flex flex-col items-center justify-center max-w-sm w-full text-center border border-slate-200">
-            <div className="w-12 h-12 rounded-none bg-slate-50 text-slate-800 flex items-center justify-center mb-4 border border-slate-200">
+          <div className="bg-white px-6 py-8 rounded-lg shadow-xl flex flex-col items-center justify-center max-w-sm w-full text-center border border-slate-200">
+            <div className="w-12 h-12 rounded-lg bg-slate-50 text-slate-800 flex items-center justify-center mb-4 border border-slate-200">
               <Loader2 size={24} className="animate-spin" />
             </div>
             <h3 className="text-sm font-bold text-slate-900 tracking-tight uppercase">Gerando Relatório</h3>
@@ -2901,10 +2901,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       {/* Modal de Desbloqueio por PIN de Segurança */}
       {isPinModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[700] flex items-center justify-center p-4">
-          <div className="bg-white p-6 max-w-md w-full border border-slate-200 shadow-2xl rounded-none flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white p-6 max-w-md w-full border border-slate-200 shadow-2xl rounded-lg flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-100 border border-amber-300 rounded-none flex items-center justify-center text-amber-800 shrink-0">
+                <div className="w-10 h-10 bg-amber-100 border border-amber-300 rounded-lg flex items-center justify-center text-amber-800 shrink-0">
                   <KeyRound size={20} />
                 </div>
                 <div>
@@ -2962,7 +2962,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     if (pinError) setPinError('');
                   }}
                   placeholder="••••"
-                  className="w-full text-center tracking-[1em] text-2xl font-mono font-bold py-3 bg-white border-2 border-slate-300 focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all rounded-none"
+                  className="w-full text-center tracking-[1em] text-2xl font-mono font-bold py-3 bg-white border-2 border-slate-300 focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all rounded-lg"
                 />
 
                 {pinError && (
@@ -2986,14 +2986,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     setEnteredPin('');
                     setPinError('');
                   }}
-                  className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-none transition-all cursor-pointer"
+                  className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={pinSubmitting || enteredPin.length < 4}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-md disabled:opacity-50 cursor-pointer"
                 >
                   {pinSubmitting ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
                   <span>Autorizar Lançamento</span>
@@ -3007,7 +3007,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       {/* Abono/Justification Modal (Atraso ou Ausencia) */}
       {abonoModal && abonoModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-          <div className="bg-white p-6 max-w-sm w-full border border-slate-200 shadow-2xl rounded-none flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white p-6 max-w-sm w-full border border-slate-200 shadow-2xl rounded-lg flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
             <div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Justificar Abono de Falta</h3>
               <p className="text-[10px] font-semibold text-slate-400 uppercase mt-0.5 tracking-wider">Aluno(a): {abonoModal.studentName}</p>
@@ -3027,7 +3027,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     type="button"
                     onClick={() => setAbonoModal(prev => prev ? { ...prev, type: opt.id as any } : null)}
                     className={cn(
-                      "flex items-center gap-2.5 p-3 border text-[10px] font-bold uppercase tracking-widest transition-all duration-200 rounded-none w-full text-left",
+                      "flex items-center gap-2.5 p-3 border text-[10px] font-bold uppercase tracking-widest transition-all duration-200 rounded-lg w-full text-left",
                       abonoModal.type === opt.id
                         ? "bg-slate-800 text-white border-slate-800 shadow-sm"
                         : "bg-slate-50 border-slate-205 text-slate-600 hover:bg-slate-100/80"
@@ -3057,7 +3057,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 }}
                 maxLength={120}
                 placeholder="Exemplo: Apresentou atestado de saúde ou justificativa oficial de trabalho..."
-                className="w-full h-24 p-3 bg-slate-50 border border-slate-205 rounded-none text-xs text-slate-850 focus:bg-white focus:border-slate-400 outline-none resize-none transition-all placeholder:text-slate-400"
+                className="w-full h-24 p-3 bg-slate-50 border border-slate-205 rounded-lg text-xs text-slate-850 focus:bg-white focus:border-slate-400 outline-none resize-none transition-all placeholder:text-slate-400"
               />
             </div>
 
@@ -3065,7 +3065,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               <button
                 type="button"
                 onClick={() => setAbonoModal(null)}
-                className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all"
+                className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all"
               >
                 Cancelar
               </button>
@@ -3087,7 +3087,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   }));
                   setAbonoModal(null);
                 }}
-                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md"
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-md"
               >
                 Confirmar Abono
               </button>

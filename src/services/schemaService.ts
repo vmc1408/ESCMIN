@@ -408,8 +408,12 @@ CREATE INDEX IF NOT EXISTS idx_attendances_unit_id ON public.attendances(unit_id
 
 -- Índices de Notas e Avaliações
 CREATE INDEX IF NOT EXISTS idx_grades_student_id ON public.grades(student_id);
-CREATE INDEX IF NOT EXISTS idx_grades_assessment_id ON public.grades(assessment_id);
+CREATE INDEX IF NOT EXISTS idx_grades_class_id ON public.grades(class_id);
+CREATE INDEX IF NOT EXISTS idx_grades_subject_id ON public.grades(subject_id);
 CREATE INDEX IF NOT EXISTS idx_grades_unit_id ON public.grades(unit_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_class_id ON public.assessments(class_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_subject_id ON public.assessments(subject_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_unit_id ON public.assessments(unit_id);
 
 -- Índices Financeiros e Contribuições
 CREATE INDEX IF NOT EXISTS idx_contributions_student_id ON public.contributions(student_id);

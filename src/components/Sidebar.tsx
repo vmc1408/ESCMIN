@@ -35,12 +35,14 @@ import {
   Archive as ArchiveIcon,
   Sparkles,
   DollarSign,
-  CalendarDays
+  CalendarDays,
+  Star
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getInstitutionSettings } from '../lib/database';
 import { motion, AnimatePresence } from 'motion/react';
+import { getFavoritePaths, toggleFavoritePath, subscribeToFavorites } from '../lib/favoriteShortcuts';
 
 import { useAuth } from '../contexts/AuthContext';
 import { SidebarUnitSwitcher } from './SidebarUnitSwitcher';
@@ -212,6 +214,24 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       clearInterval(interval);
     };
   }, []);
+
+  // Gerenciamento de Atalhos Favoritos (conectado ao Acesso Rápido do Dashboard)
+  const [favorites, setFavorites] = useState<string[]>(() => getFavoritePaths());
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    return subscribeToFavorites((paths) => {
+      setFavorites(paths);
+    });
+  }, []);
+
+  const handleToggleFavorite = (path: string) => {
+    const res = toggleFavoritePath(path);
+    if (!res.success && res.message) {
+      setNotice(res.message);
+      setTimeout(() => setNotice(null), 4000);
+    }
+  };
 
   const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma', 'Impressos', 'Guia Diocese']);
 
@@ -546,29 +566,55 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       }
 
       const theme = getItemTheme(item, parentLabel);
+      const isFav = item.path ? favorites.includes(item.path) : false;
+
       return (
-        <Link
+        <div
           key={item.path}
-          to={item.path}
-          onClick={() => onClose?.()}
-          className={cn(
-            "flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200",
-            isActive 
-              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/15" 
-              : "text-slate-300 hover:text-white hover:bg-white/5"
-          )}
+          className="flex items-center group relative rounded-md overflow-hidden"
         >
-          {item.icon && (
-            <item.icon 
-              size={15} 
+          <Link
+            to={item.path}
+            onClick={() => onClose?.()}
+            className={cn(
+              "flex-1 flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200 min-w-0",
+              isActive 
+                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/15" 
+                : "text-slate-300 hover:text-white hover:bg-white/5"
+            )}
+          >
+            {item.icon && (
+              <item.icon 
+                size={15} 
+                className={cn(
+                  "transition-colors duration-200 shrink-0",
+                  isActive ? "text-white" : theme.iconColor
+                )} 
+              />
+            )}
+            <span className="text-[13px] font-medium truncate flex-1">{item.label}</span>
+          </Link>
+
+          {item.path && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleToggleFavorite(item.path);
+              }}
               className={cn(
-                "transition-colors duration-200 shrink-0",
-                isActive ? "text-white" : theme.iconColor
-              )} 
-            />
+                "p-1.5 transition-all shrink-0 cursor-pointer rounded hover:bg-white/10 mr-1.5",
+                isFav 
+                  ? "text-amber-400 opacity-100 hover:scale-125" 
+                  : "text-slate-500 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-amber-400 hover:scale-125"
+              )}
+              title={isFav ? "Remover da barra de acesso rápido do Dashboard" : "Fixar na barra de acesso rápido do Dashboard (máx. 10)"}
+            >
+              <Star size={13} className={cn(isFav ? "fill-amber-400" : "")} />
+            </button>
           )}
-          <span className="text-[13px] font-medium">{item.label}</span>
-        </Link>
+        </div>
       );
     });
   };
@@ -592,6 +638,13 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Switcher de Seleção de Unidade / Polo Operacional */}
       <SidebarUnitSwitcher />
+
+      {/* Aviso de Limite de Atalhos (se tentar ultrapassar 10) */}
+      {notice && (
+        <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-[10px] text-amber-300 font-semibold text-center shrink-0 animate-fade-in">
+          {notice}
+        </div>
+      )}
 
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto custom-scrollbar">
         {renderNavItems(filteredNavItems)}

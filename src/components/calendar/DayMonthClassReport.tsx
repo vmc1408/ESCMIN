@@ -269,7 +269,7 @@ export function DayMonthClassReport({
           </span>
         </div>
 
-        <div className="overflow-x-auto border border-slate-300 rounded-none shadow-2xs">
+        <div className="overflow-x-auto border border-slate-300 rounded-lg shadow-2xs">
           <table className="w-full text-center border-collapse text-slate-800 text-[10px]">
             <thead>
               <tr className="bg-slate-100 border-b border-slate-300 text-[9px] font-black uppercase tracking-wider text-slate-700">
@@ -357,7 +357,7 @@ export function DayMonthClassReport({
         {weekdaySections.map(wSection => (
           <div 
             key={`wsec-${wSection.weekday}`}
-            className="page-break border-2 border-slate-300 rounded-none bg-white shadow-2xs overflow-hidden"
+            className="page-break border-2 border-slate-300 rounded-lg bg-white shadow-2xs overflow-hidden"
           >
             {/* Header da Seção: Dia da Semana */}
             <div className={cn(
@@ -459,7 +459,7 @@ export function DayMonthClassReport({
       )}
 
       {/* 3. RESUMO GERAL CONSOLIDADO NO FINAL DO RELATÓRIO */}
-      <div className="avoid-break bg-slate-900 text-white p-4 sm:p-5 rounded-none shadow-md flex flex-wrap items-center justify-between gap-4">
+      <div className="avoid-break bg-slate-900 text-white p-4 sm:p-5 rounded-lg shadow-md flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 block mb-1">
             Consolidação do Ano Letivo {currentYear}

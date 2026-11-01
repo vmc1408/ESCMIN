@@ -1475,7 +1475,7 @@ export function Bulletin() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-750">
+    <div className="space-y-3 sm:space-y-3.5 animate-in fade-in duration-300">
       
       {/* Page Core Header Frame */}
       <PageHeader 
@@ -1489,7 +1489,7 @@ export function Bulletin() {
             <button
               onClick={() => setViewMode('student')}
               className={cn(
-                "px-4 py-2 border rounded-none text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
+                "px-4 py-2 border rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
                 viewMode === 'student' 
                   ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -1500,7 +1500,7 @@ export function Bulletin() {
             <button
               onClick={() => setViewMode('class')}
               className={cn(
-                "px-4 py-2 border rounded-none text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
+                "px-4 py-2 border rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
                 viewMode === 'class' 
                   ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -1533,7 +1533,7 @@ export function Bulletin() {
           </div>
 
           {/* Filtering parameters section */}
-          <div className="bg-white rounded-none border border-slate-200 shadow-sm p-4 md:p-5 print:hidden">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 md:p-5 print:hidden">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
               
               {/* Select target class */}
@@ -1549,7 +1549,7 @@ export function Bulletin() {
                       setSelectedClassId(e.target.value);
                       setSelectedStudentId('');
                     }}
-                    className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-none text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
+                    className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                   >
                     <option value="">SELECIONAR TURMA...</option>
                     {scopedClasses.map((c, idx) => (
@@ -1571,7 +1571,7 @@ export function Bulletin() {
                     <select
                       value={selectedStudentId}
                       onChange={(e) => setSelectedStudentId(e.target.value)}
-                      className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-none text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
+                      className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                     >
                       {classStudents.length === 0 ? (
                         <option value="">Nenhum Aluno Ativo Encontrado</option>
@@ -1600,7 +1600,7 @@ export function Bulletin() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="FILTRAR POR NOME OU MATRÍCULA..."
-                      className="w-full pl-12 pr-4 py-2.5 bg-white border border-slate-200 rounded-none text-[11px] font-semibold text-slate-800 placeholder:text-slate-400 focus:border-slate-400 outline-none transition-colors"
+                      className="w-full pl-12 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 placeholder:text-slate-400 focus:border-slate-400 outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -1611,7 +1611,7 @@ export function Bulletin() {
                 <div className="md:col-span-3">
                   <button
                     onClick={handlePrint}
-                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 border border-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 border border-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
                   >
                     <Printer size={13} />
                     Imprimir
@@ -1622,7 +1622,7 @@ export function Bulletin() {
           </div>
 
           {!selectedClassId ? (
-            <div className="bg-white border border-slate-200 shadow-sm p-8 text-center rounded-none print:hidden">
+            <div className="bg-white border border-slate-200 shadow-sm p-8 text-center rounded-lg print:hidden">
               <div className="w-12 h-12 bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center mx-auto mb-4">
                  <Info size={20} />
               </div>
@@ -1652,7 +1652,7 @@ export function Bulletin() {
                           className="w-16 h-16 object-contain"
                         />
                       ) : (
-                        <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-none flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
+                        <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-lg flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
                           <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
                           <School size={16} className="text-slate-350 my-1" />
                           <span className="text-[5px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
@@ -1787,7 +1787,7 @@ export function Bulletin() {
                                       <span className="truncate text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
                                         {sp.subjectCode} - {sp.subjectName}
                                       </span>
-                                      <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-none shrink-0">FALTAS</span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-lg shrink-0">FALTAS</span>
                                     </div>
                                   </td>
                                   {monthsList.map(m => {
@@ -1820,7 +1820,7 @@ export function Bulletin() {
                                       <span className="truncate text-slate-450 text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
                                         {sp.subjectCode} - {sp.subjectName}
                                       </span>
-                                      <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-none shrink-0 font-bold">PRESENÇAS</span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-lg shrink-0 font-bold">PRESENÇAS</span>
                                     </div>
                                   </td>
                                   {monthsList.map(m => {
@@ -1964,7 +1964,7 @@ export function Bulletin() {
                     </div>
 
                     {/* Justification / Explanation panel (represented as Pink highlighted card area) */}
-                    <div className="border border-rose-250 bg-rose-50/10 p-3 mt-4 text-left rounded-none break-inside-avoid page-break-inside-avoid">
+                    <div className="border border-rose-250 bg-rose-50/10 p-3 mt-4 text-left rounded-lg break-inside-avoid page-break-inside-avoid">
                       <p className="text-[8.5px] font-black text-rose-700 uppercase tracking-widest mb-1.5">
                         Justificativa do Resultado / Parecer da Secretaria
                       </p>
@@ -1992,7 +1992,7 @@ export function Bulletin() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 p-8 text-center rounded-none print:hidden">
+              <div className="bg-white border border-slate-200 p-8 text-center rounded-lg print:hidden">
                 <AlertTriangle className="text-amber-500 mx-auto mb-3" size={24} />
                 <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Nenhum Aluno Ativo</h3>
                 <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Essa turma não possui alunos regularmente matriculados.</p>
@@ -2003,29 +2003,29 @@ export function Bulletin() {
             <div className="space-y-6">
               {/* Class Summary widgets */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 print:hidden">
-                 <div className="bg-slate-50 border border-slate-200 p-5 rounded-none shadow-none">
+                 <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg shadow-none">
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
                    <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
                  </div>
-                 <div className="bg-blue-50/50 border border-blue-250 p-5 rounded-none shadow-none border-l-4 border-l-blue-600">
+                 <div className="bg-blue-50/50 border border-blue-250 p-5 rounded-lg shadow-none border-l-4 border-l-blue-600">
                    <p className="text-[10px] font-bold text-blue-805 uppercase tracking-widest">Informativos</p>
                    <h4 className="text-2xl font-bold text-blue-600 mt-1">{informative}</h4>
                  </div>
-                 <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-none shadow-none border-l-4 border-l-emerald-600">
+                 <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-lg shadow-none border-l-4 border-l-emerald-600">
                    <p className="text-[10px] font-bold text-emerald-805 uppercase tracking-widest">Aprovados</p>
                    <h4 className="text-2xl font-bold text-emerald-600 mt-1">{approved}</h4>
                  </div>
-                 <div className="bg-amber-50/50 border border-amber-250 p-5 rounded-none shadow-none border-l-4 border-l-amber-600">
+                 <div className="bg-amber-50/50 border border-amber-250 p-5 rounded-lg shadow-none border-l-4 border-l-amber-600">
                    <p className="text-[10px] font-bold text-amber-805 uppercase tracking-widest">Em Recuperação</p>
                    <h4 className="text-2xl font-bold text-amber-500 mt-1">{recuperation}</h4>
                  </div>
-                 <div className="bg-rose-50/50 border border-rose-250 p-5 rounded-none shadow-none border-l-4 border-l-rose-600">
+                 <div className="bg-rose-50/50 border border-rose-250 p-5 rounded-lg shadow-none border-l-4 border-l-rose-600">
                    <p className="text-[10px] font-bold text-rose-805 uppercase tracking-widest">Reprovados / Pendentes</p>
                    <h4 className="text-2xl font-bold text-rose-500 mt-1">{failed + pending}</h4>
                  </div>
               </div>
 
-              <div id="printable-class-bulletin" className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
+              <div id="printable-class-bulletin" className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
                 <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
                   <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
                     Quadro Geral de Rendimento e Presença ({classes.find(c => c.id === selectedClassId)?.name})
@@ -2139,7 +2139,7 @@ export function Bulletin() {
                                   <td key={`blt-cls-td-${res.student.id || rIdx}-${sub.id || sIdx}-${sIdx}`} className="px-6 py-3.5 text-center">
                                     {gradeValue !== null ? (
                                       <span className={cn(
-                                        "px-2 py-1 text-xs font-bold font-mono inline-block min-w-10 text-center rounded-none border shadow-sm",
+                                        "px-2 py-1 text-xs font-bold font-mono inline-block min-w-10 text-center rounded-lg border shadow-sm",
                                         isApproved ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
                                       )}>
                                         {formatGrade(gradeValue).replace('.', ',')}

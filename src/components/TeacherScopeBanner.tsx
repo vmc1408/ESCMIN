@@ -19,7 +19,7 @@ export const TeacherScopeBanner: React.FC<TeacherScopeBannerProps> = ({
     <div className={`space-y-3 ${className}`}>
       {/* Banner Padrão de Modo Docente (quando não há conflito total) */}
       {(!scope.hasUnitConflict || scope.hasAccess) && (
-        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-none sm:rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950">
+        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-lg sm:rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
               <GraduationCap size={18} />

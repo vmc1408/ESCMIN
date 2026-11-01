@@ -1932,13 +1932,13 @@ export function PixConference() {
         </div>
       )}
 
-      <div className="max-w-[1920px] mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+      <div className="w-full space-y-3 sm:space-y-3.5 animate-in fade-in duration-300 pb-6">
         <PageHeader
           title="Conferência de Pix"
           description="Conciliação financeira e lançamento automático de contribuições para controle de uso interno."
           icon={CreditCard}
         >
-          <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200">
+          <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button 
               onClick={() => {
                 setActiveTab('new');
@@ -1947,7 +1947,7 @@ export function PixConference() {
                 setSelectedIds(new Set());
               }}
               className={cn(
-                "px-5 py-2 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
+                "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
                 activeTab === 'new' ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
               )}
             >
@@ -1957,7 +1957,7 @@ export function PixConference() {
             <button 
               onClick={() => setActiveTab('history')}
               className={cn(
-                "px-5 py-2 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
+                "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
                 activeTab === 'history' ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
               )}
             >
@@ -1967,7 +1967,7 @@ export function PixConference() {
             <button 
               onClick={() => setActiveTab('extrato')}
               className={cn(
-                "px-5 py-2 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
+                "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
                 activeTab === 'extrato' ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
               )}
             >
@@ -2479,8 +2479,8 @@ export function PixConference() {
                 <p className="text-slate-400 font-bold">Carregando histórico de arquivos...</p>
               </div>
             ) : history.length === 0 ? (
-              <div className="bg-white rounded-none p-24 text-center border border-slate-200 shadow-sm animate-in fade-in zoom-in duration-500">
-                <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center mx-auto mb-8 text-slate-300 border border-dashed border-slate-200">
+              <div className="bg-white rounded-lg p-24 text-center border border-slate-200 shadow-sm animate-in fade-in zoom-in duration-500">
+                <div className="w-20 h-20 bg-slate-50 rounded-lg flex items-center justify-center mx-auto mb-8 text-slate-300 border border-dashed border-slate-200">
                   <RotateCcw size={36} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight mb-2">Sem histórico disponível</h3>
@@ -2488,9 +2488,9 @@ export function PixConference() {
               </div>
             ) : (
               <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="bg-white p-6 rounded-none border border-slate-200 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-none bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shadow-sm">
+                    <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shadow-sm">
                       <HistoryIcon size={22} className="text-slate-600" />
                     </div>
                     <div>
@@ -2505,7 +2505,7 @@ export function PixConference() {
                         <button 
                           onClick={handleBulkDeleteHistory}
                           disabled={isDeleting}
-                          className="h-10 px-4 bg-red-650 hover:bg-red-700 text-white rounded-none text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+                          className="h-10 px-4 bg-red-650 hover:bg-red-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                           Excluir ({selectedHistoryIds.size})
@@ -2516,7 +2516,7 @@ export function PixConference() {
                     <button 
                       onClick={handleResetDatabase}
                       disabled={isDeleting}
-                      className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-wider hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                      className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
                     >
                       <RotateCcw size={14} />
                       Limpar Tudo
@@ -2525,7 +2525,7 @@ export function PixConference() {
                     <button 
                       onClick={toggleHistorySelectAll}
                       className={cn(
-                        "h-10 px-4 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all border shadow-sm active:scale-95 cursor-pointer",
+                        "h-10 px-4 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border shadow-sm active:scale-95 cursor-pointer",
                         selectedHistoryIds.size > 0 && selectedHistoryIds.size === historyByMonth.flatMap(m => m.batches.flatMap((b: any) => b.transactions)).length
                           ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800"
                           : "bg-white text-slate-600 border-slate-200 hover:border-slate-350 hover:text-slate-900"
@@ -2544,19 +2544,19 @@ export function PixConference() {
                         placeholder="Buscar lote ou ID..."
                         value={historySearchQuery}
                         onChange={(e) => setHistorySearchQuery(e.target.value)}
-                        className="h-10 pl-10 pr-4 bg-white border border-slate-200 rounded-none text-xs focus:ring-4 focus:ring-slate-500/10 focus:border-slate-400 w-64 transition-all outline-none font-medium text-slate-700"
+                        className="h-10 pl-10 pr-4 bg-white border border-slate-200 rounded-lg text-xs focus:ring-4 focus:ring-slate-500/10 focus:border-slate-400 w-64 transition-all outline-none font-medium text-slate-700"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200 w-fit">
+                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 w-fit">
                   {(['all', 'matched', 'multiple', 'unmatched'] as const).map((f) => (
                     <button
                       key={f}
                       onClick={() => setHistoryFilter(f)}
                       className={cn(
-                        "px-5 py-2 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer",
+                        "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer",
                         historyFilter === f ? "bg-white text-slate-900 shadow-sm border border-slate-250/30" : "text-slate-500 hover:text-slate-700 font-medium"
                       )}
                     >
@@ -2577,7 +2577,7 @@ export function PixConference() {
 
                     <div className="space-y-4">
                       {monthGroup.batches.map((batch: any) => (
-                        <div key={batch.batch_id} className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden transition-all hover:border-slate-350 group/batch">
+                        <div key={batch.batch_id} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden transition-all hover:border-slate-350 group/batch">
                           <div 
                             onClick={() => toggleBatch(batch.batch_id)}
                             className="p-6 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-slate-50/30 transition-colors gap-6"
@@ -2588,16 +2588,16 @@ export function PixConference() {
                                   e.stopPropagation();
                                   toggleBatchSelect(batch.transactions);
                                 }}
-                                className="flex items-center justify-center p-2 hover:bg-slate-100 rounded-none transition-all"
+                                className="flex items-center justify-center p-2 hover:bg-slate-100 rounded-lg transition-all"
                               >
                                 <input 
                                   type="checkbox" 
                                   checked={batch.transactions.every((t: any) => selectedHistoryIds.has(String(t.id)))}
                                   onChange={() => {}} // Controlled by parent div click
-                                  className="w-5 h-5 rounded-none border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
+                                  className="w-5 h-5 rounded-lg border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
                                 />
                               </div>
-                              <div className="w-12 h-12 rounded-none bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-200 group-hover/batch:bg-slate-900 group-hover/batch:text-white group-hover/batch:border-slate-900 transition-all shadow-sm">
+                              <div className="w-12 h-12 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-200 group-hover/batch:bg-slate-900 group-hover/batch:text-white group-hover/batch:border-slate-900 transition-all shadow-sm">
                                 <FileSpreadsheet size={22} />
                               </div>
                               <div>
@@ -2611,7 +2611,7 @@ export function PixConference() {
                                   </div>
                                   <span className="w-1 h-1 rounded-full bg-slate-200" />
                                   <div className="flex items-center gap-2">
-                                    <span className="px-2 py-0.5 bg-slate-100 text-[10px] font-bold text-slate-700 uppercase rounded-none tracking-wider border border-slate-200">
+                                    <span className="px-2 py-0.5 bg-slate-100 text-[10px] font-bold text-slate-700 uppercase rounded-lg tracking-wider border border-slate-200">
                                       {batch.transactions.length} Lançamentos
                                     </span>
                                     {batch.transactions.length > 1 && (() => {
@@ -2621,9 +2621,9 @@ export function PixConference() {
                                       }, {} as any);
                                       return (
                                         <div className="flex gap-1.5">
-                                          {counts.matched > 0 && <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-none border border-emerald-100/50 uppercase">{counts.matched} OK</span>}
-                                          {counts.multiple > 0 && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-none border border-amber-100/50 uppercase">{counts.multiple} Confl.</span>}
-                                          {counts.unmatched > 0 && <span className="text-[8px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-none border border-slate-200/50 uppercase">{counts.unmatched} Pend.</span>}
+                                          {counts.matched > 0 && <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-lg border border-emerald-100/50 uppercase">{counts.matched} OK</span>}
+                                          {counts.multiple > 0 && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-100/50 uppercase">{counts.multiple} Confl.</span>}
+                                          {counts.unmatched > 0 && <span className="text-[8px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-lg border border-slate-200/50 uppercase">{counts.unmatched} Pend.</span>}
                                         </div>
                                       );
                                     })()}
@@ -2642,7 +2642,7 @@ export function PixConference() {
                               
                               <div className="flex items-center gap-2">
                                 {deleteConfirmId === batch.batch_id ? (
-                                  <div className="flex items-center gap-2 bg-red-50 p-2 rounded-none border border-red-200 animate-in fade-in slide-in-from-right-4">
+                                  <div className="flex items-center gap-2 bg-red-50 p-2 rounded-lg border border-red-200 animate-in fade-in slide-in-from-right-4">
                                     <div className="flex items-center gap-1.5 px-2">
                                       <AlertCircle size={14} className="text-red-500" />
                                       <p className="text-[9px] font-bold text-red-600 uppercase">Confirmar?</p>
@@ -2654,13 +2654,13 @@ export function PixConference() {
                                         <>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); handleDeleteHistory(batch.batch_id); }}
-                                            className="px-3 h-8 bg-red-650 text-white text-[9px] font-bold uppercase rounded-none hover:bg-red-700 transition-all shadow-sm cursor-pointer"
+                                            className="px-3 h-8 bg-red-650 text-white text-[9px] font-bold uppercase rounded-lg hover:bg-red-700 transition-all shadow-sm cursor-pointer"
                                           >
                                             Sim
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                                            className="px-3 h-8 bg-white text-slate-500 border border-slate-200 text-[9px] font-bold uppercase rounded-none hover:bg-slate-50 transition-all cursor-pointer"
+                                            className="px-3 h-8 bg-white text-slate-500 border border-slate-200 text-[9px] font-bold uppercase rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
                                           >
                                             Não
                                           </button>
@@ -2671,14 +2671,14 @@ export function PixConference() {
                                 ) : (
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(batch.batch_id); }}
-                                    className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-none transition-all outline-none cursor-pointer"
+                                    className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg transition-all outline-none cursor-pointer"
                                     title="Remover este lote"
                                   >
                                     <Trash2 size={16} />
                                   </button>
                                 )}
                                 <div className={cn(
-                                  "w-10 h-10 rounded-none flex items-center justify-center transition-all bg-slate-50 border border-slate-200 text-slate-400",
+                                  "w-10 h-10 rounded-lg flex items-center justify-center transition-all bg-slate-50 border border-slate-200 text-slate-400",
                                   expandedBatches.includes(batch.batch_id) ? "bg-slate-100 text-slate-800 rotate-180 border-slate-300" : "group-hover/batch:bg-slate-100 group-hover/batch:text-slate-600 group-hover/batch:border-slate-300"
                                 )}>
                                   <ChevronDown size={20} />
@@ -2696,13 +2696,13 @@ export function PixConference() {
                                       <th className="px-5 py-3 text-center w-16">
                                         <div 
                                           onClick={() => toggleBatchSelect(batch.transactions)}
-                                          className="flex items-center justify-center p-1.5 cursor-pointer hover:bg-slate-200 rounded-none transition-all"
+                                          className="flex items-center justify-center p-1.5 cursor-pointer hover:bg-slate-200 rounded-lg transition-all"
                                         >
                                           <input 
                                             type="checkbox" 
                                             checked={batch.transactions.every((t: any) => selectedHistoryIds.has(String(t.id)))}
                                             onChange={() => {}}
-                                            className="w-4 h-4 rounded-none border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
+                                            className="w-4 h-4 rounded-lg border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
                                           />
                                         </div>
                                       </th>
@@ -2728,7 +2728,7 @@ export function PixConference() {
                                             type="checkbox" 
                                             checked={selectedHistoryIds.has(String(t.id))}
                                             onChange={() => toggleHistorySelect(String(t.id))}
-                                            className="w-4 h-4 rounded-none border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
+                                            className="w-4 h-4 rounded-lg border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
                                           />
                                         </td>
                                         <td className="px-6 py-3.5">
@@ -2739,7 +2739,7 @@ export function PixConference() {
                                           </div>
                                         </td>
                                         <td className="px-6 py-3.5">
-                                          <span className="px-2 py-0.5 bg-white border border-slate-200 text-[9px] font-bold text-slate-500 rounded-none uppercase tracking-wide">
+                                          <span className="px-2 py-0.5 bg-white border border-slate-200 text-[9px] font-bold text-slate-500 rounded-lg uppercase tracking-wide">
                                             {t.origin_bank || '---'}
                                           </span>
                                         </td>
@@ -2754,7 +2754,7 @@ export function PixConference() {
                                         <td className="px-6 py-3.5">
                                           {t.status === 'matched' ? (
                                             <div className="flex items-center gap-2.5">
-                                              <div className="w-8 h-8 rounded-none bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 shadow-sm">
+                                              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 shadow-sm">
                                                 <UserCheck size={14} />
                                               </div>
                                               <div>
@@ -2781,7 +2781,7 @@ export function PixConference() {
                                             </div>
                                           ) : (
                                             <div className="flex items-center gap-2.5 opacity-60">
-                                              <div className="w-8 h-8 rounded-none bg-slate-50 text-slate-300 flex items-center justify-center border border-slate-200/60">
+                                              <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-300 flex items-center justify-center border border-slate-200/60">
                                                 <UserX size={14} />
                                               </div>
                                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Pendente</p>
@@ -2794,14 +2794,14 @@ export function PixConference() {
                                               <button 
                                                 onClick={() => setRegisteringContribution(t)}
                                                 className={cn(
-                                                  "p-2 rounded-none transition-all shadow-sm border relative group focus:ring-4 focus:ring-slate-500/10 outline-none cursor-pointer",
+                                                  "p-2 rounded-lg transition-all shadow-sm border relative group focus:ring-4 focus:ring-slate-500/10 outline-none cursor-pointer",
                                                   registeredPixIds.has(String(t.transaction_id))
                                                     ? "bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-700"
                                                     : "bg-white border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-350"
                                                 )}
                                               >
                                                 <DownloadCloud size={14} />
-                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] py-1 px-2.5 rounded-none opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 whitespace-nowrap pointer-events-none z-10 shadow-lg font-bold uppercase tracking-wide">
+                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] py-1 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 whitespace-nowrap pointer-events-none z-10 shadow-lg font-bold uppercase tracking-wide">
                                                   {registeredPixIds.has(String(t.transaction_id)) ? "Ver Lançamento" : "Lançar no Extrato"}
                                                 </div>
                                               </button>
@@ -2812,7 +2812,7 @@ export function PixConference() {
                                                   handleDeleteHistoryItem(t.id);
                                                 }
                                               }}
-                                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-none transition-all border border-transparent hover:border-red-200 cursor-pointer"
+                                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-200 cursor-pointer"
                                             >
                                               <Trash2 size={14} />
                                             </button>

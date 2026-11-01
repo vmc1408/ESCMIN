@@ -149,7 +149,7 @@ const ClassItem = React.memo(({
     <button
       onClick={() => onSelect(cls)}
       className={cn(
-        "w-full flex items-center gap-4 p-4 rounded-none transition-all text-left relative overflow-hidden group",
+        "w-full flex items-center gap-4 p-4 rounded-lg transition-all text-left relative overflow-hidden group",
         isSelected 
           ? "bg-slate-800 text-white shadow-xl ring-1 ring-slate-400" 
           : "hover:bg-slate-50 text-slate-600 border border-transparent hover:border-slate-200",
@@ -157,12 +157,12 @@ const ClassItem = React.memo(({
       )}
     >
       <div className={cn(
-        "w-12 h-12 rounded-none flex items-center justify-center font-bold text-xs relative flex-shrink-0 transition-transform group-hover:scale-110",
+        "w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xs relative flex-shrink-0 transition-transform group-hover:scale-110",
         isSelected ? "bg-white/20 text-white shadow-inner" : "bg-slate-100 text-slate-500 border border-slate-200"
       )}>
         {cls.code}
         <div className={cn(
-          "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2",
+          "absolute -top-1 -right-1 w-3 h-3 rounded-lg border-2",
           isSelected ? "border-slate-500 shadow-sm" : "border-white",
           isInactive ? "bg-amber-500" : isClosed ? "bg-slate-400" : "bg-emerald-500"
         )} title={isInactive ? "Turma Inativa (Planejamento)" : isClosed ? "Turma Encerrada" : "Turma Ativa"} />
@@ -175,7 +175,7 @@ const ClassItem = React.memo(({
           )}>{cls.name}</p>
           {unitName && (
             <span className={cn(
-              "px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-none leading-none tracking-normal border flex-shrink-0",
+              "px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-lg leading-none tracking-normal border flex-shrink-0",
               isSelected 
                 ? "bg-blue-500/30 text-blue-200 border-blue-400/40" 
                 : "bg-blue-50 text-blue-800 border-blue-200"
@@ -185,7 +185,7 @@ const ClassItem = React.memo(({
           )}
           {isInactive && (
             <span className={cn(
-              "px-1.5 py-0.5 text-[8px] font-black uppercase rounded-none leading-none tracking-normal border flex-shrink-0",
+              "px-1.5 py-0.5 text-[8px] font-black uppercase rounded-lg leading-none tracking-normal border flex-shrink-0",
               isSelected 
                 ? "bg-amber-500/30 text-amber-200 border-amber-400/40" 
                 : "bg-amber-100 text-amber-900 border-amber-300"
@@ -195,7 +195,7 @@ const ClassItem = React.memo(({
           )}
           {(cls as any).is_special && (
             <span className={cn(
-              "px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase rounded-none leading-none tracking-normal border flex-shrink-0",
+              "px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase rounded-lg leading-none tracking-normal border flex-shrink-0",
               isSelected 
                 ? "bg-amber-500/20 text-amber-200 border-amber-500/35" 
                 : "bg-amber-55 text-amber-600 border-amber-200"
@@ -2338,21 +2338,8 @@ export function Classes() {
 
   return (
     <>
-      <div className="pt-3 sm:pt-4 mb-3 print:hidden">
-        <UnitConflictBanner
-          moduleName="Turmas"
-          entityNameSingular="turma"
-          entityNamePlural="turmas"
-          totalRecordsAllUnits={classes.length}
-          recordsInActiveUnit={classesInActiveUnitCount}
-          selectedItemUnit={selectedClass ? getItemUnitId(selectedClass) : undefined}
-          selectedItemName={selectedClass?.name}
-          onAddNewInActiveUnit={handleNew}
-        />
-      </div>
-
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        "print:hidden h-auto lg:h-[calc(100vh-4.5rem)] min-h-[calc(100vh-4.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-2.5 sm:gap-3 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
@@ -2368,7 +2355,7 @@ export function Classes() {
           <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
           
           {/* Hover instruction tooltip */}
-          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
             ➔ Lista de Turmas <span className="text-slate-300">(Passe o mouse)</span>
           </div>
         </div>
@@ -2382,7 +2369,7 @@ export function Classes() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
+          "bg-white rounded-lg shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
@@ -2406,7 +2393,7 @@ export function Classes() {
               <div className="flex items-center gap-1.5">
                 <button 
                   onClick={handleOpenImportModal}
-                  className="px-2.5 py-1.5 bg-blue-800 text-white rounded-none hover:bg-blue-900 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer text-[10px] font-bold uppercase tracking-wider"
+                  className="px-2.5 py-1.5 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer text-[10px] font-bold uppercase tracking-wider"
                   title="IMPORTAR / PROMOVER TURMA DE UM ANO A OUTRO"
                 >
                   <RefreshCw size={13} />
@@ -2414,7 +2401,7 @@ export function Classes() {
                 </button>
                 <button 
                   onClick={handleNew}
-                  className="px-3 py-1.5 bg-slate-800 text-white rounded-none hover:bg-slate-900 transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer active:scale-95 text-[10px] font-bold uppercase tracking-wider"
+                  className="px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer active:scale-95 text-[10px] font-bold uppercase tracking-wider"
                   title="NOVA TURMA"
                 >
                   <Plus size={14} />
@@ -2709,7 +2696,7 @@ export function Classes() {
       {/* Main Content Area (Class Details or Registration Form or Overview Dashboard) */}
       <div 
         className={cn(
-          "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+          "bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
           actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
         )}
       >
@@ -2717,10 +2704,10 @@ export function Classes() {
           <>
             {notification && (
               <div className={cn(
-                "fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-none shadow-2xl animate-in fade-in slide-in-from-top-12 duration-500 flex items-center gap-4 border",
+                "fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-lg shadow-2xl animate-in fade-in slide-in-from-top-12 duration-500 flex items-center gap-4 border",
                 notification.type === 'success' ? "bg-emerald-600 text-white border-emerald-500" : "bg-red-600 text-white border-red-500"
               )}>
-                <div className="w-8 h-8 rounded-none bg-white/20 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
                   {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
                 </div>
                 <p className="text-xs font-bold uppercase tracking-[0.1em]">{notification.message}</p>
@@ -2740,7 +2727,7 @@ export function Classes() {
               </button>
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-none bg-slate-800 text-white shadow-md flex items-center justify-center flex-shrink-0">
+                <div className="w-14 h-14 rounded-lg bg-slate-800 text-white shadow-md flex items-center justify-center flex-shrink-0">
                   <School size={28} />
                 </div>
                 <div>
@@ -2748,11 +2735,11 @@ export function Classes() {
                     {isEditing ? (selectedClass ? 'Edição da Turma' : 'Cadastro de Nova Turma') : formData.name}
                   </h3>
                   <div className="flex items-center gap-2.5 mt-2.5">
-                    <span className="px-2.5 py-0.5 bg-white border border-slate-200 rounded-none text-[10px] font-bold text-slate-500 uppercase tracking-widest shadow-xs">
+                    <span className="px-2.5 py-0.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest shadow-xs">
                       ID: {formData.code || '---'}
                     </span>
                     <div className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest border shadow-xs",
+                      "flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-widest border shadow-xs",
                       formData.status === 'Inativo' 
                         ? "bg-amber-50 text-amber-800 border-amber-300" 
                         : formData.status === 'Encerrada'
@@ -2800,7 +2787,7 @@ export function Classes() {
                       <button
                         type="button"
                         onClick={() => handleOpenStudentsModal()}
-                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-[9px] font-extrabold uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 transition-all cursor-pointer shadow-xs group"
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 transition-all cursor-pointer shadow-xs group"
                         title="Clique para ver a lista de alunos matriculados nesta turma"
                       >
                         <Users size={12} className="text-blue-700 group-hover:scale-110 transition-transform" />
@@ -2823,7 +2810,7 @@ export function Classes() {
                             e.stopPropagation();
                             handleRequestDeleteClass(selectedClass);
                           }}
-                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto cursor-pointer"
+                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto cursor-pointer"
                           title="Excluir Turma"
                         >
                           <Trash2 size={16} />
@@ -2838,7 +2825,7 @@ export function Classes() {
                             handleToggleClassStatus(selectedClass, e);
                           }}
                           className={cn(
-                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto cursor-pointer",
+                            "h-10 px-4 border rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto cursor-pointer",
                             formData.status === 'Inativo' || formData.status === 'Encerrada'
                               ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                               : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
@@ -2852,14 +2839,14 @@ export function Classes() {
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
                       <X size={15} />
                       <span>Cancelar</span>
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
+                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
                       <Save size={16} />
                       <span>Salvar Cadastro</span>
@@ -2873,7 +2860,7 @@ export function Classes() {
                           setSelectedClass(null);
                           setIsEditing(false);
                         }}
-                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-none hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-lg hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Fechar Ficha (Voltar à lista)"
                         aria-label="Fechar Ficha"
                       >
@@ -2892,7 +2879,7 @@ export function Classes() {
                             });
                           }
                         }}
-                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-lg hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Imprimir Ficha"
                         aria-label="Imprimir Ficha"
                       >
@@ -2902,7 +2889,7 @@ export function Classes() {
                       {canManipulateClass(selectedClass) ? (
                         <button 
                           onClick={() => setIsEditing(true)}
-                          className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                          className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                           title="Editar Turma"
                           aria-label="Editar Turma"
                         >
@@ -2925,7 +2912,7 @@ export function Classes() {
                 {/* Basic Info */}
                 <section className="space-y-6">
                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-400">
+                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">
                       <School size={20} />
                      </div>
                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest">
@@ -3157,7 +3144,7 @@ export function Classes() {
                                   disabled={!isEditing}
                                   onClick={() => toggleDay(day.value)}
                                   className={cn(
-                                    "px-3 py-1.5 rounded-none text-[10px] font-extrabold uppercase tracking-wider transition-all border flex items-center gap-1.5 cursor-pointer group",
+                                    "px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all border flex items-center gap-1.5 cursor-pointer group",
                                     isSelected
                                       ? "bg-blue-900 border-blue-900 text-white shadow-xs"
                                       : "bg-white border-slate-300 text-slate-700 hover:border-slate-400 disabled:opacity-50"
@@ -3429,7 +3416,7 @@ export function Classes() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenStudentsModal()}
-                                className="w-full flex items-center justify-between px-3 bg-white hover:bg-blue-50/70 border border-slate-300 hover:border-blue-500 transition-all h-[42px] text-left cursor-pointer group shadow-2xs rounded-none"
+                                className="w-full flex items-center justify-between px-3 bg-white hover:bg-blue-50/70 border border-slate-300 hover:border-blue-500 transition-all h-[42px] text-left cursor-pointer group shadow-2xs rounded-lg"
                                 title="Clique para gerenciar ou visualizar os alunos matriculados nesta turma"
                               >
                                 <div className="flex items-center gap-2 min-w-0">
@@ -3459,7 +3446,7 @@ export function Classes() {
                                     message: 'Salve a nova turma primeiro no botão "Salvar Cadastro" para poder matricular e gerenciar alunos.'
                                   });
                                 }}
-                                className="w-full flex items-center justify-between px-3 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 transition-all h-[42px] text-left cursor-pointer group shadow-2xs rounded-none"
+                                className="w-full flex items-center justify-between px-3 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 transition-all h-[42px] text-left cursor-pointer group shadow-2xs rounded-lg"
                                 title="Disponível após salvar o cadastro da nova turma"
                               >
                                 <div className="flex items-center gap-2 min-w-0">
@@ -3502,7 +3489,7 @@ export function Classes() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* 1º SEMESTRE */}
-                        <div className="p-4 bg-blue-50/40 border border-blue-100/80 rounded-none space-y-4">
+                        <div className="p-4 bg-blue-50/40 border border-blue-100/80 rounded-lg space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-bold text-blue-800 bg-blue-100/90 px-2 py-0.5 uppercase tracking-wider border border-blue-200/60">
                               1º Semestre
@@ -3523,7 +3510,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem1H1SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(1, 1, e.target.value)}
-                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 1º Horário (1º Semestre)...</option>
                                 {getSemOptions(1, sem1H1SubjectId).map((subject, idx) => (
@@ -3551,7 +3538,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem1H2SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(1, 2, e.target.value)}
-                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 2º Horário (1º Semestre)...</option>
                                 {getSemOptions(1, sem1H2SubjectId).map((subject, idx) => (
@@ -3570,7 +3557,7 @@ export function Classes() {
                         </div>
 
                         {/* 2º SEMESTRE */}
-                        <div className="p-4 bg-emerald-50/40 border border-emerald-100/80 rounded-none space-y-4">
+                        <div className="p-4 bg-emerald-50/40 border border-emerald-100/80 rounded-lg space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 uppercase tracking-wider border border-emerald-200/60">
                               2º Semestre
@@ -3591,7 +3578,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem2H1SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(2, 1, e.target.value)}
-                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 1º Horário (2º Semestre)...</option>
                                 {getSemOptions(2, sem2H1SubjectId).map((subject, idx) => (
@@ -3619,7 +3606,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem2H2SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(2, 2, e.target.value)}
-                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 2º Horário (2º Semestre)...</option>
                                 {getSemOptions(2, sem2H2SubjectId).map((subject, idx) => (
@@ -3756,14 +3743,14 @@ export function Classes() {
                         disabled={!isEditing}
                         onClick={() => setFormData({ ...formData, is_special: !formData.is_special })}
                         className={cn(
-                          "w-full p-4 border rounded-none text-left flex items-start gap-4 transition-all shadow-sm outline-none",
+                          "w-full p-4 border rounded-lg text-left flex items-start gap-4 transition-all shadow-sm outline-none",
                           formData.is_special
                             ? "bg-amber-50/50 border-amber-300 text-amber-900"
                             : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                         )}
                       >
                         <div className={cn(
-                          "w-5 h-5 border mt-0.5 rounded-none flex items-center justify-center flex-shrink-0 transition-all",
+                          "w-5 h-5 border mt-0.5 rounded-lg flex items-center justify-center flex-shrink-0 transition-all",
                           formData.is_special
                             ? "bg-amber-600 border-amber-600 text-white"
                             : "border-slate-300 bg-white"
@@ -3786,7 +3773,7 @@ export function Classes() {
                 {/* Additional Info */}
                 <section className="space-y-6">
                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-400">
+                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">
                       <FileText size={20} />
                      </div>
                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest">
@@ -3804,7 +3791,7 @@ export function Classes() {
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={6}
-                    className="w-full px-8 py-6 bg-white border border-slate-200 rounded-none text-sm font-medium text-slate-700 focus:ring-8 focus:ring-slate-500/5 focus:border-slate-400 disabled:bg-slate-100/50 outline-none transition-all resize-none shadow-sm placeholder:text-slate-300"
+                    className="w-full px-8 py-6 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-8 focus:ring-slate-500/5 focus:border-slate-400 disabled:bg-slate-100/50 outline-none transition-all resize-none shadow-sm placeholder:text-slate-300"
                     tabIndex={6}
                   />
                 </section>
@@ -3813,7 +3800,7 @@ export function Classes() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 p-8">
-            <div className="w-20 h-20 bg-slate-50 border border-slate-200/60 rounded-none flex items-center justify-center text-slate-300">
+            <div className="w-20 h-20 bg-slate-50 border border-slate-200/60 rounded-lg flex items-center justify-center text-slate-300">
               <School size={40} />
             </div>
             <div className="text-center space-y-1">
@@ -3829,10 +3816,10 @@ export function Classes() {
       {/* Modal de Validação de Segurança Acadêmica para Exclusão de Turma */}
       {classSecurityModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-none shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300 max-h-[90vh] overflow-y-auto">
             {!classSecurityModal.safety.canDelete ? (
               <>
-                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-none flex items-center justify-center mx-auto border border-rose-200">
+                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center mx-auto border border-rose-200">
                   <ShieldAlert size={28} />
                 </div>
                 <div className="text-center space-y-2">
@@ -3878,7 +3865,7 @@ export function Classes() {
                     type="button"
                     onClick={() => handleInactivateClassFromModal(classSecurityModal.classItem)}
                     disabled={isProcessingClassSecurityAction}
-                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <Clock className="w-3.5 h-3.5" />
                     <span>{isProcessingClassSecurityAction ? 'Processando...' : 'Inativar Turma (Recomendado)'}</span>
@@ -3891,14 +3878,14 @@ export function Classes() {
                       setupImportModalDefaults(cls);
                       setShowImportModal(true);
                     }}
-                    className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-none font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                    className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                   >
                     Transferir Alunos
                   </button>
                   <button
                     type="button"
                     onClick={() => setClassSecurityModal(null)}
-                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
                   >
                     Fechar
                   </button>
@@ -3906,7 +3893,7 @@ export function Classes() {
               </>
             ) : (
               <>
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-none flex items-center justify-center mx-auto border border-emerald-200">
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center mx-auto border border-emerald-200">
                   <ShieldCheck size={28} />
                 </div>
                 <div className="text-center space-y-2">
@@ -3953,7 +3940,7 @@ export function Classes() {
                     type="button"
                     onClick={() => setClassSecurityModal(null)}
                     disabled={isProcessingClassSecurityAction || loading}
-                    className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
+                    className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
                   >
                     Cancelar
                   </button>
@@ -3961,7 +3948,7 @@ export function Classes() {
                     type="button"
                     onClick={handleDelete}
                     disabled={isProcessingClassSecurityAction || loading}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-none font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                   >
                     {isProcessingClassSecurityAction || loading ? 'Excluindo...' : 'Confirmar Exclusão'}
                   </button>
@@ -3976,7 +3963,7 @@ export function Classes() {
       {showImportModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className={cn(
-            "bg-white rounded-none shadow-2xl p-6 sm:p-8 w-full space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto border border-slate-300 transition-all duration-300",
+            "bg-white rounded-lg shadow-2xl p-6 sm:p-8 w-full space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto border border-slate-300 transition-all duration-300",
             !importMigrateStudents ? "max-w-5xl" : "max-w-3xl"
           )}>
             {/* Header */}
@@ -4015,7 +4002,7 @@ export function Classes() {
                       const srcCls = classes.find(c => c.id === srcId);
                       if (srcCls) setupImportModalDefaults(srcCls);
                     }}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none font-bold text-slate-800 uppercase focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-800 uppercase focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
                   >
                     <option value="">-- SELECIONE A TURMA DE ORIGEM --</option>
                     {classes.map((c, cIdx) => (
@@ -4183,7 +4170,7 @@ export function Classes() {
                           setSelectedStudentIds([]);
                         }
                       }}
-                      className="w-4 h-4 text-blue-800 rounded-none focus:ring-0 cursor-pointer mt-0.5"
+                      className="w-4 h-4 text-blue-800 rounded-lg focus:ring-0 cursor-pointer mt-0.5"
                     />
                     <div>
                       <span className="font-bold text-slate-800 text-xs block">
@@ -4304,7 +4291,7 @@ export function Classes() {
                                       setSelectedStudentIds(selectedStudentIds.filter(id => id !== student.id));
                                     }
                                   }}
-                                  className="w-4 h-4 text-blue-800 rounded-none focus:ring-0 cursor-pointer shrink-0"
+                                  className="w-4 h-4 text-blue-800 rounded-lg focus:ring-0 cursor-pointer shrink-0"
                                 />
                                 <span className={cn("truncate font-medium", isSelected ? "font-bold text-slate-900" : "text-slate-700")}>
                                   {student.name}
@@ -4349,7 +4336,7 @@ export function Classes() {
                 type="button"
                 disabled={isImporting}
                 onClick={() => setShowImportModal(false)}
-                className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold uppercase text-xs tracking-wider border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer rounded-none disabled:opacity-50"
+                className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold uppercase text-xs tracking-wider border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer rounded-lg disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -4357,7 +4344,7 @@ export function Classes() {
                 type="button"
                 onClick={handleExecuteImport}
                 disabled={isImporting || !importSourceClassId || !importNewName || classes.find(c => c.id === importSourceClassId)?.year === '4º Ano'}
-                className="px-6 py-2.5 bg-blue-800 text-white font-bold uppercase text-xs tracking-wider border border-blue-900 hover:bg-blue-900 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer rounded-none"
+                className="px-6 py-2.5 bg-blue-800 text-white font-bold uppercase text-xs tracking-wider border border-blue-900 hover:bg-blue-900 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer rounded-lg"
                 title={classes.find(c => c.id === importSourceClassId)?.year === '4º Ano' ? 'Turmas no 4º ano já completaram o ciclo acadêmico e não progridem mais.' : ''}
               >
                 {isImporting ? (
@@ -4390,7 +4377,7 @@ export function Classes() {
                 <div>
                   <h3 className="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2">
                     Alunos Matriculados
-                    <span className="text-[10px] bg-blue-700 text-white px-2 py-0.5 rounded-none font-black">
+                    <span className="text-[10px] bg-blue-700 text-white px-2 py-0.5 rounded-lg font-black">
                       {modalStudents.length} ALUNO(S)
                     </span>
                   </h3>
@@ -4426,7 +4413,7 @@ export function Classes() {
                     type="checkbox"
                     checked={includeEmissionDate}
                     onChange={(e) => setIncludeEmissionDate(e.target.checked)}
-                    className="w-3.5 h-3.5 text-blue-900 focus:ring-blue-500 rounded-none border-slate-300 cursor-pointer"
+                    className="w-3.5 h-3.5 text-blue-900 focus:ring-blue-500 rounded-lg border-slate-300 cursor-pointer"
                   />
                   <span>Data/Hora de Emissão</span>
                 </label>
@@ -4731,7 +4718,7 @@ export function Classes() {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => {}} // Handled by parent container click
-                            className="w-4 h-4 text-amber-600 rounded-none focus:ring-0 cursor-pointer shrink-0"
+                            className="w-4 h-4 text-amber-600 rounded-lg focus:ring-0 cursor-pointer shrink-0"
                           />
                           <div className="w-9 h-9 bg-slate-800 text-white font-black text-xs flex items-center justify-center shrink-0 uppercase border border-slate-700">
                             {s.name ? s.name.substring(0, 2) : 'AL'}
@@ -4966,7 +4953,7 @@ export function Classes() {
             </div>
 
             {/* MATRIZ CURRICULAR */}
-            <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-none space-y-1.5">
+            <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg space-y-1.5">
               <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1 tracking-wider text-slate-800">
                 Matriz Curricular Vinculada
               </h4>

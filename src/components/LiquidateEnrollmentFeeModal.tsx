@@ -122,7 +122,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-none border border-slate-300 shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-lg border border-slate-300 shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CreditCard size={18} className="text-amber-400" />
@@ -166,7 +166,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                   onChange={(e) => handleAmountChange(e.target.value)}
                   onBlur={handleAmountBlur}
                   onKeyDown={(e) => e.key === 'Enter' && handleAmountBlur()}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-none text-sm font-black text-slate-900 focus:ring-2 focus:ring-amber-500/20"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-amber-500/20"
                   placeholder="0,00"
                 />
               </div>
@@ -179,7 +179,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                 required
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 h-[38px]"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 h-[38px]"
               />
             </div>
 
@@ -192,7 +192,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                     type="button"
                     onClick={() => setPaymentMethod(method)}
                     className={cn(
-                      "py-2 px-3 rounded-none text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
+                      "py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
                       paymentMethod === method
                         ? "bg-[#00174b] border-[#00174b] text-white shadow-xs"
                         : "bg-white border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-800"
@@ -210,7 +210,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                 type="text"
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/20"
                 placeholder="Ex: Recebido na secretaria"
               />
             </div>

@@ -1016,7 +1016,7 @@ export function Settings() {
 
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 relative">
+    <div className="w-full space-y-3 sm:space-y-3.5 pb-6 relative">
       {/* Module Header */}
       <PageHeader
         title="Configurações"
@@ -1027,7 +1027,7 @@ export function Settings() {
           <button
             onClick={handleTopSave}
             disabled={saving}
-            className="px-6 py-2 bg-[#00174b] text-white rounded-none font-bold flex items-center gap-2 hover:bg-blue-900 transition-all shadow-xs active:scale-95 disabled:opacity-50 text-[10px] uppercase tracking-wider"
+            className="px-6 py-2 bg-[#00174b] text-white rounded-lg font-bold flex items-center gap-2 hover:bg-blue-900 transition-all shadow-xs active:scale-95 disabled:opacity-50 text-[10px] uppercase tracking-wider"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             Salvar Configurações
@@ -1049,7 +1049,7 @@ export function Settings() {
       )}
 
       {/* Grid Layout for Side Menu + Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 items-start">
         {/* Left Column: Vertical Menu */}
         <div className="lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-1 lg:sticky lg:top-[80px] z-10">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1.5">Módulos</p>

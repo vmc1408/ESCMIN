@@ -18,11 +18,17 @@ export const getMatrizUnitFromInstitution = (institution?: Partial<InstitutionSe
       city = institution.city_uf.trim();
     }
   } else {
-    city = institution?.city || '';
-    state = institution?.state || '';
+    city = institution?.city || 'Guarulhos';
+    state = institution?.state || 'SP';
   }
 
-  const name = institution?.name?.trim() || 'Sede / Matriz';
+  // Nome padrão da Unidade Matriz é Matriz - Itapegica
+  let name = 'Matriz - Itapegica';
+  if (institution?.unit_name?.trim() && institution.unit_name.trim() !== 'Sede / Matriz' && institution.unit_name.trim() !== 'Sede - Matriz') {
+    name = institution.unit_name.trim();
+  } else if (institution?.unit?.trim() && institution.unit.trim() !== 'Sede / Matriz' && institution.unit.trim() !== 'Sede - Matriz') {
+    name = institution.unit.trim();
+  }
 
   return {
     id: 'matriz',
@@ -30,10 +36,10 @@ export const getMatrizUnitFromInstitution = (institution?: Partial<InstitutionSe
     name,
     is_main: true,
     active: true,
-    address: institution?.address?.trim() || '',
-    city: city || '',
-    state: state || '',
-    cep: institution?.cep?.trim() || '',
+    address: institution?.address?.trim() || 'Av. Venus, 195 - Itapegica',
+    city: city || 'Guarulhos',
+    state: state || 'SP',
+    cep: institution?.cep?.trim() || '07044-170',
     cnpj: institution?.cnpj?.trim() || '',
     phone: institution?.phone?.trim() || institution?.whatsapp?.trim() || '',
     email: institution?.email?.trim() || '',
@@ -306,10 +312,13 @@ export const getUnits = async (): Promise<Unit[]> => {
       if (u.id === 'matriz' || u.is_main) {
         // Matriz sempre preserva as informações mais recentes da Instituição, mantendo o nome customizado caso definido pelo usuário
         const customName = u?.name?.trim();
+        const resolvedName = (customName && customName !== 'Sede / Matriz' && customName !== 'Sede - Matriz' && customName !== '') 
+          ? customName 
+          : (dynamicMatriz.name || 'Matriz - Itapegica');
         mergedMap.set('matriz', {
           ...dynamicMatriz,
           ...u,
-          name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
+          name: resolvedName,
           id: 'matriz',
           code: 'MAT',
           is_main: true,
@@ -329,10 +338,13 @@ export const getUnits = async (): Promise<Unit[]> => {
         if (u && u.id) {
           if (u.id === 'matriz' || u.is_main) {
             const customName = u?.name?.trim();
+            const resolvedName = (customName && customName !== 'Sede / Matriz' && customName !== 'Sede - Matriz' && customName !== '') 
+              ? customName 
+              : (dynamicMatriz.name || 'Matriz - Itapegica');
             mergedMap.set('matriz', {
               ...dynamicMatriz,
               ...u,
-              name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
+              name: resolvedName,
               id: 'matriz',
               code: 'MAT',
               is_main: true,
@@ -382,10 +394,13 @@ export const getUnits = async (): Promise<Unit[]> => {
         if (u && u.id) {
           if (u.id === 'matriz' || u.is_main) {
             const customName = u?.name?.trim();
+            const resolvedName = (customName && customName !== 'Sede / Matriz' && customName !== 'Sede - Matriz' && customName !== '') 
+              ? customName 
+              : (dynamicMatriz.name || 'Matriz - Itapegica');
             mergedMap.set('matriz', {
               ...dynamicMatriz,
               ...u,
-              name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
+              name: resolvedName,
               id: 'matriz',
               code: 'MAT',
               is_main: true,
@@ -889,10 +904,13 @@ export const getInitialUnitsFromCache = (): Unit[] => {
         const matrizIdx = filtered.findIndex(u => u.id === 'matriz' || u.is_main);
         if (matrizIdx >= 0) {
           const customName = filtered[matrizIdx]?.name?.trim();
+          const resolvedName = (customName && customName !== 'Sede / Matriz' && customName !== 'Sede - Matriz' && customName !== '') 
+            ? customName 
+            : (dynamicMatriz.name || 'Matriz - Itapegica');
           filtered[matrizIdx] = { 
             ...dynamicMatriz, 
             ...filtered[matrizIdx], 
-            name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
+            name: resolvedName,
             id: 'matriz', 
             is_main: true, 
             active: true 
@@ -911,16 +929,16 @@ export const getInitialUnitsFromCache = (): Unit[] => {
 export const getUnitName = (units: Unit[], unitId?: string): string => {
   if (!unitId || unitId === 'matriz' || unitId === 'MAT') {
     const main = units?.find(u => u.is_main || u.id === 'matriz');
-    if (main?.name) return main.name;
+    if (main?.name && main.name !== 'Sede / Matriz' && main.name !== 'Sede - Matriz') return main.name;
     try {
       const cached = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
       if (cached) {
         const parsed: Unit[] = JSON.parse(cached);
         const cachedMain = parsed.find(u => u.is_main || u.id === 'matriz');
-        if (cachedMain?.name) return cachedMain.name;
+        if (cachedMain?.name && cachedMain.name !== 'Sede / Matriz' && cachedMain.name !== 'Sede - Matriz') return cachedMain.name;
       }
     } catch {}
-    return 'Sede / Matriz';
+    return 'Matriz - Itapegica';
   }
   if (unitId === 'all' || unitId === 'todas') {
     return 'Todas as Unidades';

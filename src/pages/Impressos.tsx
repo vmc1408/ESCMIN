@@ -560,18 +560,18 @@ export function Impressos() {
         <button
           onClick={handlePrint}
           disabled={selectedType === 'declaracao' && !selectedStudentId}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-blue-600/10"
+          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs"
         >
           <Printer size={13} />
           Imprimir Documento
         </button>
       </PageHeader>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start print:block print:p-0 print:m-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start print:block print:p-0 print:m-0">
         {/* Left Control Column (35%) */}
-        <div className="lg:col-span-4 space-y-6 print:hidden lg:sticky lg:top-0 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar">
+        <div className="lg:col-span-4 space-y-3 sm:space-y-4 print:hidden lg:sticky lg:top-0 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto pr-1 custom-scrollbar">
           {/* Context-Based Selector (Student or Class) */}
-          <div className="bg-white border border-slate-200 p-5 space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-3.5 sm:p-4 space-y-3 shadow-2xs">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configurações do Documento</h3>
             
             {/* Data de Emissão do Documento - Only show where logically used (Declarations/Discharge) */}
@@ -1201,7 +1201,7 @@ export function Impressos() {
             )}
           </div>
 
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-none flex items-start gap-3">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
             <Info className="text-amber-600 shrink-0 mt-0.5" size={16} />
             <div className="space-y-1">
               <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Dica de Impressão</p>
@@ -1224,7 +1224,7 @@ export function Impressos() {
           </div>
 
           {/* Standard Page Container - Mocking Real A4 Sheet with 1:1 screen-to-print parity */}
-          <div className="bg-slate-200/60 p-2 sm:p-4 md:p-6 flex justify-center items-start min-h-[calc(100vh-250px)] overflow-x-auto rounded-none print:p-0 print:m-0 print:bg-transparent print:min-h-0 print:overflow-visible">
+          <div className="bg-slate-200/60 p-2 sm:p-4 md:p-6 flex justify-center items-start min-h-[calc(100vh-250px)] overflow-x-auto rounded-lg print:p-0 print:m-0 print:bg-transparent print:min-h-0 print:overflow-visible">
             <div 
               id="printable-impressos" 
               className={cn(
@@ -1693,7 +1693,7 @@ export function Impressos() {
                     </div>
 
                     {/* Right: Requirements Callout Box */}
-                    <div className="col-span-7 bg-slate-50 border border-slate-300 p-4 rounded-none font-sans text-left space-y-1.5">
+                    <div className="col-span-7 bg-slate-50 border border-slate-300 p-4 rounded-lg font-sans text-left space-y-1.5">
                       <h4 className="text-[9.5px] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1 mb-1">
                         Para efetivar a matrícula,
                       </h4>

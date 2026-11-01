@@ -45,6 +45,12 @@ import {
   Minus,
   Layers
 } from 'lucide-react';
+import { 
+  getFavoritePaths, 
+  subscribeToFavorites, 
+  ALL_SHORTCUT_REGISTRY, 
+  resetToDefaultFavorites 
+} from '../lib/favoriteShortcuts';
 
 const CHART_COLORS = [
   '#2563eb', // Blue 600
@@ -166,6 +172,22 @@ export function Dashboard() {
   const [selectedContributionMonth, setSelectedContributionMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedContributionYear, setSelectedContributionYear] = useState<number>(() => new Date().getFullYear());
   const [academicViewMode, setAcademicViewMode] = useState<'charts' | 'cards'>('charts');
+
+  // Atalhos favoritos dinâmicos (selecionados via estrelas da sidebar)
+  const [favoritePaths, setFavoritePaths] = useState<string[]>(() => getFavoritePaths());
+
+  useEffect(() => {
+    return subscribeToFavorites((paths) => {
+      setFavoritePaths(paths);
+    });
+  }, []);
+
+  const activeShortcuts = useMemo(() => {
+    return favoritePaths
+      .filter(path => canAccess(path.split('?')[0]))
+      .map(path => ALL_SHORTCUT_REGISTRY[path])
+      .filter(Boolean);
+  }, [favoritePaths, canAccess]);
 
   const teacherScope = useMemo(() => {
     if (!isTeacher) return null;
@@ -1334,6 +1356,53 @@ export function Dashboard() {
     setSelectedContributionYear(now.getFullYear());
   };
 
+  // Métricas financeiras em tempo real do mês vigente para o Card de Gestão Financeira
+  const currentFinancialStats = useMemo(() => {
+    const now = new Date();
+    const currM = now.getMonth() + 1;
+    const currY = now.getFullYear();
+
+    // Contribuições do mês corrente para o escopo da unidade ativa
+    const currentMonthContribs = contributions.filter(c => {
+      if (selectedUnitId !== 'all' && !isItemInUnit(getItemUnitId(c), selectedUnitId, units)) return false;
+      let m = Number(c.reference_month);
+      let y = Number(c.reference_year);
+      if (!m || !y) {
+        if (c.payment_date) {
+          const d = new Date(c.payment_date);
+          if (!isNaN(d.getTime())) {
+            m = m || (d.getMonth() + 1);
+            y = y || d.getFullYear();
+          }
+        }
+      }
+      return m === currM && y === currY;
+    });
+
+    const totalRevenue = currentMonthContribs.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+    const payingStudentIds = new Set<string>();
+    currentMonthContribs.forEach(c => {
+      if (c.student_id && (Number(c.amount) > 0 || c.is_waived)) {
+        payingStudentIds.add(c.student_id);
+      }
+    });
+
+    const activeStudents = scopedStudents.filter(isStudentActive);
+    const totalActiveCount = activeStudents.length;
+    const payingCount = payingStudentIds.size;
+    const adimplenciaRate = totalActiveCount > 0 ? Math.round((payingCount / totalActiveCount) * 100) : 0;
+    const currentMonthName = MONTH_NAMES_LIST[currM - 1] || 'Mês Atual';
+
+    return {
+      totalRevenue,
+      payingCount,
+      totalActiveCount,
+      adimplenciaRate,
+      currentMonthName,
+      totalReceipts: currentMonthContribs.length
+    };
+  }, [contributions, selectedUnitId, units, scopedStudents]);
+
   // ==========================================
   // TELA DEDICADA EXCLUSIVA PARA PROFESSOR / DOCENTE
   // 2 botões grandes e elegantes ao centro
@@ -1532,7 +1601,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 p-1">
+    <div className="space-y-3 sm:space-y-3.5 lg:space-y-4 p-0.5">
 
       {(syncError || !isConnected) && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
@@ -1618,159 +1687,178 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Module Header for Admin Dashboard */}
-      <PageHeader
-        title="Painel de Controle"
-        description="Indicadores acadêmicos, estatísticas e visão operacional da instituição."
-        icon={Activity}
-        badge="Administração"
-      />
-
-      {/* Acesso Rápido - Botões com Estilo Leve, Limpo e Moderno */}
+      {/* Barra de Ações Rápidas - Estilo Ribbon Eclesial (Theos) */}
       <motion.div
-        initial={{ opacity: 0, y: -5 }}
+        initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-2.5"
+        className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden"
       >
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-3.5 bg-blue-600 rounded-full inline-block" />
-            <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Acesso Rápido</h4>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-start gap-3 sm:gap-3.5">
-          {(isTeacher ? [
-            { 
-              label: 'Lançar Chamada', 
-              subtitle: 'Frequência diária',
-              icon: UserCheck, 
-              path: '/attendance', 
-              iconColor: 'text-emerald-700', 
-              iconBg: 'bg-emerald-50 border border-emerald-100',
-              hoverBorder: 'hover:border-emerald-300',
-            },
-            { 
-              label: 'Lista de Frequência', 
-              subtitle: 'Controle mensal',
-              icon: Calendar, 
-              path: '/monthly-attendance', 
-              iconColor: 'text-blue-700', 
-              iconBg: 'bg-blue-50 border border-blue-100',
-              hoverBorder: 'hover:border-blue-300',
-            },
-            { 
-              label: 'Apontamento de Notas', 
-              subtitle: 'Médias e notas',
-              icon: BookOpen, 
-              path: '/grades', 
-              iconColor: 'text-indigo-700', 
-              iconBg: 'bg-indigo-50 border border-indigo-100',
-              hoverBorder: 'hover:border-indigo-300',
-            },
-            { 
-              label: 'Cadastrar Avaliações', 
-              subtitle: 'Provas e trabalhos',
-              icon: GraduationCap, 
-              path: '/assessments', 
-              iconColor: 'text-amber-700', 
-              iconBg: 'bg-amber-50 border border-amber-100',
-              hoverBorder: 'hover:border-amber-300',
-            }
-          ] : [
-            { 
-              label: 'Matricular', 
-              subtitle: 'Novo aluno',
-              icon: UserPlus, 
-              path: '/students', 
-              state: { action: 'new' },
-              iconColor: 'text-blue-700', 
-              iconBg: 'bg-blue-50 border border-blue-100',
-              hoverBorder: 'hover:border-blue-300',
-            },
-            { 
-              label: 'Controle e Histórico', 
-              subtitle: 'Ficha acadêmica',
-              icon: UserCircle, 
-              path: '/student-ficha', 
-              iconColor: 'text-rose-700', 
-              iconBg: 'bg-rose-50 border border-rose-100',
-              hoverBorder: 'hover:border-rose-300',
-            },
-            { 
-              label: 'Gerar Impressos', 
-              subtitle: 'Relatórios e listas',
-              icon: Printer, 
-              path: '/impressos', 
-              iconColor: 'text-sky-700', 
-              iconBg: 'bg-sky-50 border border-sky-100',
-              hoverBorder: 'hover:border-sky-300',
-            },
-            { 
-              label: 'Turmas / Classes', 
-              subtitle: 'Gestão escolar',
-              icon: GraduationCap, 
-              path: '/classes', 
-              iconColor: 'text-emerald-700', 
-              iconBg: 'bg-emerald-50 border border-emerald-100',
-              hoverBorder: 'hover:border-emerald-300',
-            },
-            { 
-              label: 'Calendário', 
-              subtitle: 'Cronograma letivo',
-              icon: Calendar, 
-              path: '/calendar', 
-              iconColor: 'text-amber-700', 
-              iconBg: 'bg-amber-50 border border-amber-100',
-              hoverBorder: 'hover:border-amber-300',
-            },
-            { 
-              label: 'Contribuições', 
-              subtitle: 'Financeiro e taxas',
-              icon: Wallet, 
-              path: '/contributions', 
-              iconColor: 'text-violet-700', 
-              iconBg: 'bg-violet-50 border border-violet-100',
-              hoverBorder: 'hover:border-violet-300',
-            },
-            { 
-              label: 'Rel. Financeiro', 
-              subtitle: 'Previsto e efetuado',
-              icon: DollarSign, 
-              path: '/financial-report', 
-              iconColor: 'text-emerald-700', 
-              iconBg: 'bg-emerald-50 border border-emerald-100',
-              hoverBorder: 'hover:border-emerald-300',
-            }
-          ].filter(item => canAccess(item.path))).map((item, i) => (
-            <button 
-              key={i}
-              onClick={() => {
-                if (item.path !== '#') {
-                  navigate(item.path, item.state ? { state: item.state } : undefined);
-                }
-              }}
-              style={{ borderRadius: '20px' }}
-              className={cn(
-                "flex flex-col items-center justify-center p-2 sm:p-2.5 w-[100px] h-[100px] sm:w-[108px] sm:h-[108px] shrink-0 rounded-2xl sm:rounded-3xl transition-all duration-200 text-center group cursor-pointer bg-white border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-1 active:scale-[0.98]",
-                item.hoverBorder
-              )}
-            >
-              <div 
-                style={{ borderRadius: '12px' }}
-                className={cn("w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shrink-0 shadow-2xs mb-1.5", item.iconBg)}
+
+        {/* Faixa de Botões em Ribbon estilo Eclesial - Customizável com até 10 atalhos favoritos via Sidebar */}
+        <div className="p-1.5 sm:p-2 flex items-stretch gap-1 sm:gap-1.5 overflow-x-auto custom-scrollbar">
+          {activeShortcuts.length > 0 ? (
+            activeShortcuts.map((item, i) => (
+              <button 
+                key={item.path || i}
+                onClick={() => {
+                  if (item.path !== '#') {
+                    navigate(item.path, item.state ? { state: item.state } : undefined);
+                  }
+                }}
+                className="flex flex-col items-center justify-start p-1.5 sm:p-2 min-w-[82px] sm:min-w-[92px] max-w-[108px] rounded-lg transition-all duration-150 hover:bg-slate-50 hover:border-slate-200 border border-transparent active:bg-slate-100 group cursor-pointer text-center shrink-0 select-none"
+                title={`${item.label} - ${item.subtitle}`}
               >
-                <item.icon size={18} className={cn("shrink-0", item.iconColor)} />
-              </div>
-              <div className="min-w-0 w-full px-1">
-                <span className="text-[10.5px] sm:text-[11px] font-bold text-slate-800 group-hover:text-blue-900 transition-colors leading-tight block truncate">
+                <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center mb-1 transition-transform duration-150 group-hover:scale-105 shadow-2xs", item.iconBg)}>
+                  <item.icon size={15} className={cn("shrink-0", item.iconColor)} />
+                </div>
+                <span className="text-[10.5px] font-bold text-slate-800 group-hover:text-blue-900 transition-colors leading-tight text-center line-clamp-2">
                   {item.label}
                 </span>
-                <span className="text-[8.5px] sm:text-[9px] text-slate-400 font-medium leading-tight block truncate mt-0.5">
+                <span className="text-[8.5px] text-slate-400 font-medium leading-tight text-center mt-0.5 truncate w-full">
                   {item.subtitle}
                 </span>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))
+          ) : (
+            <div className="w-full py-2.5 px-3.5 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-slate-500">
+              <span className="text-xs">
+                Nenhum atalho favorito marcado. Clique na estrela (⭐) ao lado dos módulos na barra lateral para fixá-los aqui (até 10 atalhos).
+              </span>
+              <button 
+                onClick={() => resetToDefaultFavorites()}
+                className="px-3 py-1 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors shrink-0 cursor-pointer"
+              >
+                Restaurar Atalhos Padrão
+              </button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Indicadores Principais Diocesanos - Estilo Eclesial (Theos) */}
+      <motion.div
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3"
+      >
+        {/* Card 1: Alunos / Matrículas (Oceanic Royal Blue) */}
+        <div 
+          onClick={() => navigate('/students')}
+          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 text-white shadow-xs border border-blue-600/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-blue-200 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-300 shrink-0"></span>
+              Alunos Inscritos
+            </span>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-blue-200 group-hover:scale-110 transition-transform shrink-0">
+              <Users size={14} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-0.5">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+              {displayStats.students.active}
+            </span>
+            <span className="text-[10.5px] font-bold text-blue-200/90 truncate ml-1">
+              {displayStats.students.total} total
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-blue-200/80">
+            <span className="truncate">Matrículas Ativas</span>
+            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
+              Ver alunos <ArrowUpRight size={11} />
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Turmas Acadêmicas (Vibrant Emerald) */}
+        <div 
+          onClick={() => navigate('/classes')}
+          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-xs border border-emerald-500/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-emerald-100 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0"></span>
+              Turmas / Polos
+            </span>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-emerald-100 group-hover:scale-110 transition-transform shrink-0">
+              <GraduationCap size={14} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-0.5">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+              {displayStats.classes.active}
+            </span>
+            <span className="text-[10.5px] font-bold text-emerald-100/90 truncate ml-1">
+              {displayStats.classes.total} ativas
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-emerald-100/90">
+            <span className="truncate">Ciclo Letivo 2026</span>
+            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
+              Ver turmas <ArrowUpRight size={11} />
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Corpo Docente (Deep Indigo / Violet) */}
+        <div 
+          onClick={() => navigate('/teachers')}
+          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-indigo-700 via-indigo-800 to-indigo-900 text-white shadow-xs border border-indigo-600/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-indigo-200 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-300 shrink-0"></span>
+              Corpo Docente
+            </span>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-indigo-200 group-hover:scale-110 transition-transform shrink-0">
+              <UserCheck size={14} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-0.5">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+              {displayStats.teachers.active}
+            </span>
+            <span className="text-[10.5px] font-bold text-indigo-200/90 truncate ml-1">
+              Professores
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-indigo-200/90">
+            <span className="truncate">Regência Pedagógica</span>
+            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
+              Ver docentes <ArrowUpRight size={11} />
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Gestão Financeira (Warm Amber / Gold como no Eclesial) */}
+        <div 
+          onClick={() => navigate('/financial')}
+          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 text-white shadow-xs border border-amber-500/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-amber-100 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0"></span>
+              Gestão Financeira
+            </span>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-amber-100 group-hover:scale-110 transition-transform shrink-0">
+              <Wallet size={14} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-0.5">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
+              {formatCurrency(currentFinancialStats.totalRevenue)}
+            </span>
+            <span className="text-[10.5px] font-bold text-amber-100/90 truncate ml-1">
+              {currentFinancialStats.payingCount} em dia ({currentFinancialStats.adimplenciaRate}%)
+            </span>
+          </div>
+          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-amber-100/90">
+            <span className="truncate">{currentFinancialStats.currentMonthName}: {currentFinancialStats.totalReceipts} {currentFinancialStats.totalReceipts === 1 ? 'recebimento' : 'recebimentos'}</span>
+            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
+              Painel Financeiro <ArrowUpRight size={11} />
+            </span>
+          </div>
         </div>
       </motion.div>
 
@@ -1789,18 +1877,18 @@ export function Dashboard() {
         style={{ overflowAnchor: 'none' }}
       >
         <div className={cn(
-          "px-5 py-3.5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-20 rounded-t-xl bg-white/95 backdrop-blur-xs transition-colors",
+          "px-3.5 sm:px-4 py-2 sm:py-2.5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 relative z-20 rounded-t-xl bg-white/95 backdrop-blur-xs transition-colors",
           unitTheme.frameBorder
         )}>
-          <div className="flex items-center gap-3">
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-2xs", unitTheme.iconBox)}>
-              <Activity size={16} />
+          <div className="flex items-center gap-2.5">
+            <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 shadow-2xs", unitTheme.iconBox)}>
+              <Activity size={15} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className={cn("text-sm font-bold", unitTheme.textDark)}>Ocupação Acadêmica & Indicadores Financeiros</h3>
+                <h3 className={cn("text-xs sm:text-sm font-bold", unitTheme.textDark)}>Ocupação Acadêmica & Indicadores Financeiros</h3>
               </div>
-              <p className="text-[9.5px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
                 {studentsByClass.filter(c => !c.unallocated).length} Turmas {selectedAcademicYear === 'Todos' ? '(Todos os Anos)' : selectedAcademicYear === 'ATUAL' ? '(Ciclo Atual 2026)' : `(Ano Letivo ${selectedAcademicYear})`}
               </p>
             </div>
@@ -2168,38 +2256,38 @@ export function Dashboard() {
         {academicViewMode === 'charts' ? (
           <div 
             className={cn(
-              "p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 [overflow-anchor:none] rounded-b-xl transition-colors",
+              "p-3 sm:p-3.5 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3.5 [overflow-anchor:none] rounded-b-xl transition-colors",
               unitTheme.frameBg
             )}
             style={{ overflowAnchor: 'none' }}
           >
             {/* Metade 1: Gráfico Tipo Pizza (Distribuição e Ocupação das Turmas) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white rounded-xl border border-slate-200/90 p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between">
               <div>
                 {/* Cabeçalho do Card Pizza */}
-                <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100">
-                      <PieChartIcon size={15} />
+                      <PieChartIcon size={14} />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      <h4 className="text-[11.5px] font-bold text-slate-800 uppercase tracking-wider">
                         Ocupação por Turma
                       </h4>
-                      <p className="text-[10px] text-slate-500 font-medium">
+                      <p className="text-[9.5px] text-slate-500 font-medium">
                         Distribuição de alunos matriculados
                       </p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                  <span className="text-[9.5px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
                     {studentsByClass.filter(c => !c.unallocated).length} {studentsByClass.filter(c => !c.unallocated).length === 1 ? 'Turma' : 'Turmas'}
                   </span>
                 </div>
 
                 {/* Gráfico Tipo Pizza / Donut com Indicador Central */}
                 {pieOccupationData.length > 0 ? (
-                  <div className="relative flex items-center justify-center py-2">
-                    <ResponsiveContainer width="100%" height={230}>
+                  <div className="relative flex items-center justify-center py-1">
+                    <ResponsiveContainer width="100%" height={190}>
                       <PieChart>
                         <RechartsTooltip
                           content={({ active, payload }) => {
@@ -2233,8 +2321,8 @@ export function Dashboard() {
                           nameKey="code"
                           cx="50%"
                           cy="50%"
-                          innerRadius={58}
-                          outerRadius={88}
+                          innerRadius={50}
+                          outerRadius={78}
                           paddingAngle={3}
                           stroke="#ffffff"
                           strokeWidth={2}
@@ -2248,44 +2336,44 @@ export function Dashboard() {
 
                     {/* Rótulo Central do Donut */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-2xl font-black text-slate-800 tracking-tight leading-none">
+                      <span className="text-xl font-black text-slate-800 tracking-tight leading-none">
                         {pieOccupationData.reduce((acc, c) => acc + c.count, 0)}
                       </span>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">
+                      <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
                         Alunos
                       </span>
                     </div>
                   </div>
                 ) : (
-                  <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  <div className="py-10 text-center text-slate-400 text-xs font-medium">
                     Nenhum aluno alocado para exibir no gráfico.
                   </div>
                 )}
 
                 {/* Legenda Detalhada e Clicável das Turmas */}
-                <div className="mt-2 pt-2.5 border-t border-slate-100">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                <div className="mt-1.5 pt-2 border-t border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-32 overflow-y-auto pr-1">
                     {pieOccupationData.map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => handleViewStudents(item.id, item.name, !!item.unallocated)}
-                        className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 text-left group cursor-pointer"
+                        className="flex items-center justify-between p-1 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 text-left group cursor-pointer"
                         title={`Clique para ver os alunos da turma ${item.name}`}
                       >
                         <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="text-[11px] font-bold text-slate-700 truncate group-hover:text-blue-900 transition-colors">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="text-[10.5px] font-bold text-slate-700 truncate group-hover:text-blue-900 transition-colors">
                             {item.code}
                           </span>
-                          <span className="text-[9.5px] text-slate-400 truncate">
+                          <span className="text-[9px] text-slate-400 truncate">
                             {item.name}
                           </span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 ml-1.5">
-                          <span className="text-[11px] font-bold text-slate-800">{item.count}</span>
-                          <span className="text-[9.5px] text-slate-400">({item.percentage}%)</span>
-                          <Eye size={11} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
+                          <span className="text-[10.5px] font-bold text-slate-800">{item.count}</span>
+                          <span className="text-[9px] text-slate-400">({item.percentage}%)</span>
+                          <Eye size={10} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
                         </div>
                       </button>
                     ))}
@@ -2294,7 +2382,7 @@ export function Dashboard() {
               </div>
 
               {/* Rodapé do Card Pizza */}
-              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+              <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[9.5px] text-slate-500">
                 <span>Clique em qualquer turma para listar seus alunos</span>
                 <span className="font-semibold text-slate-600">
                   {displayStats.students.active} ativos no total
@@ -2303,40 +2391,40 @@ export function Dashboard() {
             </div>
 
             {/* Metade 2: Gráfico Tipo Torres (Contribuições do Mês por Turma com Navegador Mensal) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white rounded-xl border border-slate-200/90 p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between">
               <div>
                 {/* Cabeçalho do Card Torres com Navegador Mensal */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">
-                      <BarChart3 size={15} />
+                      <BarChart3 size={14} />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      <h4 className="text-[11.5px] font-bold text-slate-800 uppercase tracking-wider">
                         Contribuições do Mês por Turma
                       </h4>
-                      <p className="text-[10px] text-slate-500 font-medium">
+                      <p className="text-[9.5px] text-slate-500 font-medium">
                         Arrecadação mensal por coorte
                       </p>
                     </div>
                   </div>
 
                   {/* Navegador Mensal Interativo com Anterior, Seletor e Próximo */}
-                  <div className="flex items-center gap-0.5 bg-slate-100/90 p-1 rounded-xl shrink-0 self-start sm:self-auto border border-slate-200/60 shadow-2xs">
+                  <div className="flex items-center gap-0.5 bg-slate-100/90 p-0.5 rounded-xl shrink-0 self-start sm:self-auto border border-slate-200/60 shadow-2xs">
                     <button
                       type="button"
                       onClick={handlePrevContributionMonth}
                       className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-lg transition-colors cursor-pointer select-none"
                       title="Mês anterior"
                     >
-                      <ChevronLeft size={14} />
+                      <ChevronLeft size={13} />
                     </button>
 
                     <div className="flex items-center gap-1 px-1">
                       <select
                         value={selectedContributionMonth}
                         onChange={(e) => setSelectedContributionMonth(Number(e.target.value))}
-                        className="bg-transparent text-[11px] font-bold text-slate-800 cursor-pointer focus:outline-hidden py-0.5"
+                        className="bg-transparent text-[10.5px] font-bold text-slate-800 cursor-pointer focus:outline-hidden py-0.5"
                         aria-label="Selecionar mês de referência"
                       >
                         {MONTH_NAMES_LIST.map((name, idx) => (
@@ -2347,7 +2435,7 @@ export function Dashboard() {
                       <select
                         value={selectedContributionYear}
                         onChange={(e) => setSelectedContributionYear(Number(e.target.value))}
-                        className="bg-transparent text-[11px] font-bold text-slate-800 cursor-pointer focus:outline-hidden py-0.5"
+                        className="bg-transparent text-[10.5px] font-bold text-slate-800 cursor-pointer focus:outline-hidden py-0.5"
                         aria-label="Selecionar ano de referência"
                       >
                         {availableContributionYears.map(yr => (
@@ -2362,30 +2450,30 @@ export function Dashboard() {
                       className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-lg transition-colors cursor-pointer select-none"
                       title="Próximo mês"
                     >
-                      <ChevronRight size={14} />
+                      <ChevronRight size={13} />
                     </button>
                   </div>
                 </div>
 
                 {/* Faixa com Resumo Financeiro do Mês Selecionado */}
-                <div className="flex items-center justify-between p-2.5 bg-slate-50/90 rounded-lg border border-slate-100 mb-2.5">
+                <div className="flex items-center justify-between p-2 bg-slate-50/90 rounded-lg border border-slate-100 mb-2">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">
                       Total no Mês:
                     </span>
-                    <span className="text-sm font-black text-emerald-700 tabular-nums">
+                    <span className="text-xs sm:text-sm font-black text-emerald-700 tabular-nums">
                       {formatCurrency(monthlyClassContributions.totalAmount)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[9.5px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200/80 shadow-2xs">
+                    <span className="text-[9px] font-bold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 shadow-2xs">
                       {monthlyClassContributions.totalCount} {monthlyClassContributions.totalCount === 1 ? 'recebimento' : 'recebimentos'}
                     </span>
                     {!isCurrentContributionMonth && (
                       <button
                         type="button"
                         onClick={handleCurrentContributionMonth}
-                        className="text-[9px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                        className="text-[8.5px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                       >
                         Mês Atual
                       </button>
@@ -2395,10 +2483,10 @@ export function Dashboard() {
 
                 {/* Gráfico de Torres / Colunas */}
                 <div className="w-full">
-                  <ResponsiveContainer width="100%" height={215}>
+                  <ResponsiveContainer width="100%" height={190}>
                     <BarChart
                       data={monthlyClassContributions.bars}
-                      margin={{ top: 12, right: 10, left: -10, bottom: 5 }}
+                      margin={{ top: 8, right: 10, left: -10, bottom: 2 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis
@@ -2480,7 +2568,7 @@ export function Dashboard() {
         ) : (
           <div 
             className={cn(
-              "p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 [overflow-anchor:none] rounded-b-xl transition-colors",
+              "p-3 sm:p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 [overflow-anchor:none] rounded-b-xl transition-colors",
               unitTheme.frameBg
             )}
             style={{ overflowAnchor: 'none' }}

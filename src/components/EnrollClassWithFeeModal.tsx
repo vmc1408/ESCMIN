@@ -144,7 +144,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-none border border-slate-300 shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-lg border border-slate-300 shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen size={18} className="text-amber-400" />
@@ -267,7 +267,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
                       type="button"
                       onClick={() => setPaymentMethod(method)}
                       className={cn(
-                        "py-1.5 px-2 rounded-none text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
+                        "py-1.5 px-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
                         paymentMethod === method
                           ? "bg-[#00174b] border-[#00174b] text-white shadow-xs"
                           : "bg-white border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-800"

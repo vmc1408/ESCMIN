@@ -1166,7 +1166,7 @@ export function Courses() {
   };
 
   return (
-    <div id="courses-page-container" className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div id="courses-page-container" className="w-full space-y-3 sm:space-y-3.5 pb-6">
       {/* Toast Notification */}
       {notification && (
         <div 
@@ -2278,10 +2278,10 @@ export function Courses() {
       {/* Modal de Validação de Segurança Acadêmica para Exclusão de Curso */}
       {courseSecurityModal && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-none shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300 max-h-[90vh] overflow-y-auto">
             {!courseSecurityModal.safety.canDelete ? (
               <>
-                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-none flex items-center justify-center mx-auto border border-rose-200">
+                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center mx-auto border border-rose-200">
                   <ShieldAlert size={28} />
                 </div>
                 <div className="text-center space-y-2">
@@ -2331,7 +2331,7 @@ export function Courses() {
                     type="button"
                     onClick={() => handleInactivateFromModal(courseSecurityModal.course)}
                     disabled={isProcessingSecurityAction}
-                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <Power className="w-3.5 h-3.5" />
                     <span>{isProcessingSecurityAction ? 'Processando...' : 'Inativar Curso (Recomendado)'}</span>
@@ -2342,14 +2342,14 @@ export function Courses() {
                       setCourseSecurityModal(null);
                       navigate('/classes');
                     }}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer"
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer"
                   >
                     Ver Turmas
                   </button>
                   <button
                     type="button"
                     onClick={() => setCourseSecurityModal(null)}
-                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
                   >
                     Fechar
                   </button>
@@ -2357,7 +2357,7 @@ export function Courses() {
               </>
             ) : (
               <>
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-none flex items-center justify-center mx-auto border border-emerald-200">
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center mx-auto border border-emerald-200">
                   <ShieldCheck size={28} />
                 </div>
                 <div className="text-center space-y-2">
@@ -2396,7 +2396,7 @@ export function Courses() {
                     type="button"
                     onClick={() => setCourseSecurityModal(null)}
                     disabled={isProcessingSecurityAction}
-                    className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
+                    className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
                   >
                     Cancelar
                   </button>
@@ -2404,7 +2404,7 @@ export function Courses() {
                     type="button"
                     onClick={() => handleDelete(courseSecurityModal.course.id)}
                     disabled={isProcessingSecurityAction}
-                    className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-none font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                    className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                   >
                     {isProcessingSecurityAction ? 'Excluindo...' : 'Confirmar Exclusão'}
                   </button>

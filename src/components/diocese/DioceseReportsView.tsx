@@ -128,7 +128,7 @@ export function DioceseReportsView({
         <div className="flex items-center gap-3">
           <button
             onClick={handlePrint}
-            className="h-10 px-4 bg-white border border-slate-200 text-slate-700 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            className="h-10 px-4 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
             title="Imprimir documento via navegador"
           >
             <Printer size={14} className="text-slate-600" />
@@ -136,7 +136,7 @@ export function DioceseReportsView({
           </button>
           <button
             onClick={handleExportPDF}
-            className="h-10 px-4 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            className="h-10 px-4 bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
             title="Baixar arquivo PDF formatado"
           >
             <FileDown size={14} className="text-blue-400" />
@@ -177,7 +177,7 @@ export function DioceseReportsView({
             key={`dio-rep-opt-${option.id || optIdx}-${optIdx}`}
             onClick={() => setReportType(option.id)}
             className={cn(
-              "p-4 sm:p-5 rounded-none border-2 transition-all text-left flex flex-col gap-2.5 group cursor-pointer",
+              "p-4 sm:p-5 rounded-lg border-2 transition-all text-left flex flex-col gap-2.5 group cursor-pointer",
               reportType === option.id 
                 ? "bg-slate-800 border-blue-600 text-white shadow-xl scale-[1.02]" 
                 : "bg-white border-slate-200 hover:border-slate-300 text-slate-600 shadow-sm"
@@ -195,7 +195,7 @@ export function DioceseReportsView({
       </div>
 
       {/* Filters Configuration Box */}
-      <div className="space-y-4 p-4 sm:p-6 bg-white rounded-none border border-slate-200 shadow-sm print:hidden">
+      <div className="space-y-4 p-4 sm:p-6 bg-white rounded-lg border border-slate-200 shadow-sm print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
             <Filter size={14} /> Filtros e Personalização do Relatório
@@ -212,7 +212,7 @@ export function DioceseReportsView({
             <select 
               value={reportForaniaFilter}
               onChange={(e) => setReportForaniaFilter(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
             >
               <option value="all">Todas as Foranias ({foraries.length})</option>
               {foraries.map((f, fIdx) => (
@@ -233,7 +233,7 @@ export function DioceseReportsView({
               <select
                 value={reportParishesByForaniaSort}
                 onChange={(e) => setReportParishesByForaniaSort(e.target.value as 'name' | 'cnpj')}
-                className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
               >
                 <option value="name">Ordem Alfabética (Nome A-Z)</option>
                 <option value="cnpj">Ordem por Número de CNPJ</option>
@@ -251,7 +251,7 @@ export function DioceseReportsView({
                 <select
                   value={reportClergyRoleFilter}
                   onChange={(e) => setReportClergyRoleFilter(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
                 >
                   <option value="all">Todas as Funções ({clergy.length})</option>
                   {distinctRoles.map((role, rIdx) => (
@@ -270,7 +270,7 @@ export function DioceseReportsView({
                 <select
                   value={reportClergyGroupBy}
                   onChange={(e) => setReportClergyGroupBy(e.target.value as 'none' | 'forania' | 'role')}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
                 >
                   <option value="none">Lista Geral Corrida (A-Z)</option>
                   <option value="forania">Separar por Forania</option>
@@ -289,7 +289,7 @@ export function DioceseReportsView({
               <select
                 value={reportParishesCnpjSort}
                 onChange={(e) => setReportParishesCnpjSort(e.target.value as 'name' | 'cnpj')}
-                className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
               >
                 <option value="name">Por Nome da Paróquia (A-Z)</option>
                 <option value="cnpj">Por Número do CNPJ (0-9)</option>
@@ -312,7 +312,7 @@ export function DioceseReportsView({
                 placeholder="Nome, CNPJ, Padre, Diácono..."
                 value={reportSearch}
                 onChange={(e) => setReportSearch(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-none pl-9 pr-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-200"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-200"
               />
             </div>
           </div>
@@ -321,7 +321,7 @@ export function DioceseReportsView({
 
       {/* Live Document Preview */}
       <div className="bg-slate-100 border border-slate-200 p-4 md:p-8 print:hidden shadow-inner">
-        <div className="max-w-5xl mx-auto bg-white rounded-none shadow-xl border border-slate-300 p-6 md:p-10 text-slate-900">
+        <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-xl border border-slate-300 p-6 md:p-10 text-slate-900">
           {/* Header Banner */}
           <div className="bg-white border-b-2 border-slate-900 pb-5 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4">
@@ -382,7 +382,7 @@ export function DioceseReportsView({
                 if (filteredForaniaParishes.length === 0 && reportSearch.trim()) return null;
 
                 return (
-                  <div key={`dio-rep-for-${forania.id || fIdx}-${fIdx}`} className="border border-slate-300 rounded-none overflow-hidden">
+                  <div key={`dio-rep-for-${forania.id || fIdx}-${fIdx}`} className="border border-slate-300 rounded-lg overflow-hidden">
                     <div className="bg-slate-100 text-slate-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-300">
                       <div className="flex items-center gap-3">
                         <MapIcon size={18} className="text-slate-700" />
@@ -401,7 +401,7 @@ export function DioceseReportsView({
                         <span className="text-[10px] text-slate-500 uppercase font-semibold">
                           Ordem: {reportParishesByForaniaSort === 'cnpj' ? 'CNPJ' : 'Nome'}
                         </span>
-                        <span className="text-[11px] font-bold uppercase tracking-wider bg-white px-2.5 py-1 rounded-none text-slate-800 border border-slate-300">
+                        <span className="text-[11px] font-bold uppercase tracking-wider bg-white px-2.5 py-1 rounded-lg text-slate-800 border border-slate-300">
                           {filteredForaniaParishes.length} {filteredForaniaParishes.length === 1 ? 'Paróquia' : 'Paróquias'}
                         </span>
                       </div>
@@ -445,7 +445,7 @@ export function DioceseReportsView({
                                     </div>
                                   </td>
                                   <td className="py-3 px-4 align-top border-r border-slate-200">
-                                    <span className="font-mono font-semibold text-slate-800 text-[11px] bg-slate-100 px-2 py-0.5 rounded-none border border-slate-200 inline-block">
+                                    <span className="font-mono font-semibold text-slate-800 text-[11px] bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 inline-block">
                                       {formatCNPJ(parish.cnpj)}
                                     </span>
                                   </td>
@@ -455,7 +455,7 @@ export function DioceseReportsView({
                                         {clergyData.priests.map((p, idx) => (
                                           <div key={`dio-priest-${p.name}-${idx}`} className="leading-tight">
                                             <p className="font-bold text-slate-800 text-xs">{p.name}</p>
-                                            <span className="inline-block text-[9px] font-semibold uppercase px-1.5 py-0.2 bg-blue-50 text-blue-700 rounded-none border border-blue-100">
+                                            <span className="inline-block text-[9px] font-semibold uppercase px-1.5 py-0.2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100">
                                               {p.role}
                                             </span>
                                           </div>
@@ -497,7 +497,7 @@ export function DioceseReportsView({
 
           {/* Model 2: forania_summary */}
           {reportType === 'forania_summary' && (
-            <div className="border border-slate-300 rounded-none overflow-hidden">
+            <div className="border border-slate-300 rounded-lg overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold uppercase text-[10px]">
@@ -551,7 +551,7 @@ export function DioceseReportsView({
                     if (clergyInForania.length === 0 && reportSearch.trim()) return null;
 
                     return (
-                      <div key={`dio-rep-c-for-${forania.id || fIdx}-${fIdx}`} className="border border-slate-300 rounded-none overflow-hidden">
+                      <div key={`dio-rep-c-for-${forania.id || fIdx}-${fIdx}`} className="border border-slate-300 rounded-lg overflow-hidden">
                         <div className="bg-slate-100 text-slate-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-300">
                           <div className="flex items-center gap-3">
                             <MapIcon size={18} className="text-slate-700" />
@@ -566,7 +566,7 @@ export function DioceseReportsView({
                               )}
                             </div>
                           </div>
-                          <span className="text-[11px] font-bold uppercase tracking-wider bg-white px-2.5 py-1 rounded-none text-slate-800 border border-slate-300">
+                          <span className="text-[11px] font-bold uppercase tracking-wider bg-white px-2.5 py-1 rounded-lg text-slate-800 border border-slate-300">
                             {clergyInForania.length} {clergyInForania.length === 1 ? 'Clérigo' : 'Clérigos'}
                           </span>
                         </div>
@@ -589,7 +589,7 @@ export function DioceseReportsView({
                                     <tr key={`dio-rep-c-row-${c.id || cIdx}-${cIdx}`} className="hover:bg-slate-50">
                                       <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{c.name}</td>
                                       <td className="py-3 px-4 font-semibold text-slate-700 uppercase text-[10px] border-r border-slate-200">
-                                        <span className="inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded-none border border-blue-100">
+                                        <span className="inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded-lg border border-blue-100">
                                           {c.role || 'Membro do Clero'}
                                         </span>
                                       </td>
@@ -641,7 +641,7 @@ export function DioceseReportsView({
                   {rolesList.map((roleName, rIdx) => {
                     const clergyInRole = filteredClergy.filter(c => (c.role || 'Outros') === roleName).sort((a, b) => a.name.localeCompare(b.name));
                     return (
-                      <div key={`dio-rep-role-box-${roleName || rIdx}-${rIdx}`} className="border border-slate-300 rounded-none overflow-hidden">
+                      <div key={`dio-rep-role-box-${roleName || rIdx}-${rIdx}`} className="border border-slate-300 rounded-lg overflow-hidden">
                         <div className="bg-slate-100 text-slate-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-300">
                           <div className="flex items-center gap-3">
                             <ShieldCheck size={18} className="text-blue-700" />
@@ -649,7 +649,7 @@ export function DioceseReportsView({
                               {roleName.toUpperCase()}
                             </span>
                           </div>
-                          <span className="text-[11px] font-bold uppercase tracking-wider bg-white px-2.5 py-1 rounded-none text-slate-800 border border-slate-300">
+                          <span className="text-[11px] font-bold uppercase tracking-wider bg-white px-2.5 py-1 rounded-lg text-slate-800 border border-slate-300">
                             {clergyInRole.length} {clergyInRole.length === 1 ? 'Membro' : 'Membros'}
                           </span>
                         </div>
@@ -695,7 +695,7 @@ export function DioceseReportsView({
 
             // 3. Default: Flat List (No Grouping)
             return (
-              <div className="border border-slate-300 rounded-none overflow-hidden">
+              <div className="border border-slate-300 rounded-lg overflow-hidden">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold uppercase text-[10px]">
@@ -735,7 +735,7 @@ export function DioceseReportsView({
 
           {/* Model 4: parishes_cnpj_list */}
           {reportType === 'parishes_cnpj_list' && (
-            <div className="border border-slate-300 rounded-none overflow-hidden">
+            <div className="border border-slate-300 rounded-lg overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold uppercase text-[10px]">

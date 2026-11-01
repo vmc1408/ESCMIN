@@ -636,7 +636,7 @@ export function Users() {
   const suspendedUsers = users.filter(u => u.status === 'inactive').length;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-6">
+    <div className="w-full space-y-3 sm:space-y-3.5 pb-6">
       {/* Dynamic Header */}
       <PageHeader
         title={(isAdmin || isDirector) ? 'Controle de Acessos' : 'Meu Perfil'}
@@ -646,7 +646,7 @@ export function Users() {
         {(isAdmin || isDirector) && (
           <button
             onClick={handleAddNew}
-            className="px-5 py-2.5 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-sm active:scale-95 group"
+            className="px-5 py-2.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-sm active:scale-95 group"
           >
             <Plus size={14} className="group-hover:rotate-90 transition-transform" />
             Novo Gestor
@@ -654,7 +654,7 @@ export function Users() {
         )}
       </PageHeader>
 
-      <div className="max-w-4xl mx-auto flex flex-col gap-6">
+      <div className="w-full flex flex-col gap-3 sm:gap-3.5">
         {/* Operational Indicators - Compact */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
@@ -732,7 +732,7 @@ export function Users() {
       </AnimatePresence>
 
       {/* Tabs de Visualização */}
-      <div className="max-w-4xl mx-auto w-full flex border-b border-slate-200">
+      <div className="w-full flex border-b border-slate-200">
         <button
           onClick={() => setActiveTab('directory')}
           className={cn(

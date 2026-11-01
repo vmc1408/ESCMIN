@@ -986,12 +986,22 @@ export const autoIdentifyAllStudentsCourses = async (): Promise<{ totalStudents:
  */
 export const getInstitutionSettings = async () => {
   try {
+    let cachedInst: any = null;
+    try {
+      const raw = localStorage.getItem('cached_institution_settings');
+      if (raw) cachedInst = JSON.parse(raw);
+    } catch {}
+
+    const defaultFallback = {
+      id: '1',
+      name: 'Escola Diocesana de Ministério',
+      city: 'Diocese de Guarulhos',
+      admission_norms: '',
+      presentation_info: ''
+    };
+
     if (!isSupabaseConfigured) {
-      return {
-        id: '1',
-        admission_norms: '',
-        presentation_info: ''
-      };
+      return cachedInst || defaultFallback;
     }
     const result = await fetchWithTimeout(
       supabase
@@ -1004,15 +1014,28 @@ export const getInstitutionSettings = async () => {
     
     if (result?.error) {
       if (result.error.code === 'PGRST116') {
-        return { id: '1', admission_norms: '', presentation_info: '' };
+        return cachedInst || defaultFallback;
       }
       throw result.error;
     }
-    return result?.data || { id: '1', admission_norms: '', presentation_info: '' };
+
+    const data = result?.data || cachedInst || defaultFallback;
+    if (data && data.name) {
+      try {
+        localStorage.setItem('cached_institution_settings', JSON.stringify(data));
+      } catch {}
+    }
+    return data;
   } catch (err: any) {
     console.warn('[Supabase] Aviso ao buscar configurações da instituição:', err?.message || err);
+    try {
+      const raw = localStorage.getItem('cached_institution_settings');
+      if (raw) return JSON.parse(raw);
+    } catch {}
     return {
       id: '1',
+      name: 'Escola Diocesana de Ministério',
+      city: 'Diocese de Guarulhos',
       admission_norms: '',
       presentation_info: ''
     };

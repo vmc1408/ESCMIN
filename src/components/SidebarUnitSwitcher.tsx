@@ -63,7 +63,10 @@ export function SidebarUnitSwitcher() {
   }
 
   const currentUnitTheme = getUnitColorTheme(selectedUnit || selectedUnitId);
-  const currentUnitDisplayName = getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz';
+  const rawUnitName = getUnitName(selectedUnitId) || selectedUnit?.name || 'Matriz - Itapegica';
+  const currentUnitDisplayName = (rawUnitName === 'Sede / Matriz' || rawUnitName === 'Sede - Matriz') 
+    ? 'Matriz - Itapegica' 
+    : rawUnitName;
 
   return (
     <div className="px-3 pt-2 pb-2 border-b border-slate-800/80 shrink-0 select-none relative" ref={dropdownRef}>

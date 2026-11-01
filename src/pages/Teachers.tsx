@@ -132,21 +132,21 @@ const TeacherItem = React.memo(({
     <button
       onClick={() => onSelect(teacher)}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-none transition-all text-left",
+        "w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left",
         isSelected 
           ? "bg-slate-50 border-slate-200" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200 relative">
+      <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200 relative">
         {teacher.photo_url ? (
           <img src={teacher.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
           teacher.code || '---'
         )}
         <div className={cn(
-          "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2 border-white",
+          "absolute -top-1 -right-1 w-3 h-3 rounded-lg border-2 border-white",
           teacher.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
         )} />
       </div>
@@ -1079,7 +1079,7 @@ export function Teachers() {
           </div>
 
           {/* DISCIPLINAS POR SEMESTRE */}
-          <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-none space-y-1.5">
+          <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg space-y-1.5">
             <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1 tracking-wider text-slate-800">
               Disciplinas Ministradas
             </h4>
@@ -1238,21 +1238,8 @@ export function Teachers() {
 
   return (
     <>
-      <div className="pt-3 sm:pt-4 mb-3 print:hidden">
-        <UnitConflictBanner
-          moduleName="Professores"
-          entityNameSingular="professor"
-          entityNamePlural="professores"
-          totalRecordsAllUnits={teachers.length}
-          recordsInActiveUnit={teachersInActiveUnitCount}
-          selectedItemUnit={selectedTeacher ? getItemUnitId(selectedTeacher) : undefined}
-          selectedItemName={selectedTeacher?.name}
-          onAddNewInActiveUnit={handleNew}
-        />
-      </div>
-
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        "print:hidden h-auto lg:h-[calc(100vh-4.5rem)] min-h-[calc(100vh-4.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-2.5 sm:gap-3 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
@@ -1268,7 +1255,7 @@ export function Teachers() {
           <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
           
           {/* Hover instruction tooltip */}
-          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
             ➔ Lista de Professores <span className="text-slate-300">(Passe o mouse)</span>
           </div>
         </div>
@@ -1282,7 +1269,7 @@ export function Teachers() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
+          "bg-white rounded-lg shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
@@ -1296,12 +1283,12 @@ export function Teachers() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-[#131b2e]">Professores</h2>
               <div className="flex gap-2">
-                <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-none border border-slate-200 flex items-center">
+                <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-lg border border-slate-200 flex items-center">
                   {filteredTeachers.length}
                 </div>
                 <button 
                   onClick={generateTeacherListPDF}
-                  className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
+                  className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
                   title="Imprimir Listagem Completa"
                 >
                   <Printer size={16} />
@@ -1309,7 +1296,7 @@ export function Teachers() {
                 </button>
                 <button 
                   onClick={handleNew}
-                  className="p-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-colors"
+                  className="p-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
                   title="Novo Professor"
                 >
                   <Plus size={18} />
@@ -1323,16 +1310,16 @@ export function Teachers() {
                 placeholder="Buscar professor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10"
               />
             </div>
-            <div className="flex bg-slate-50 p-1 rounded-none">
+            <div className="flex bg-slate-50 p-1 rounded-lg">
               {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
                   className={cn(
-                    "flex-1 py-1.5 text-[10px] font-bold rounded-none transition-all",
+                    "flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all",
                     statusFilter === status 
                       ? "bg-white text-slate-800 shadow-sm" 
                       : "text-slate-500 hover:text-slate-700"
@@ -1347,7 +1334,7 @@ export function Teachers() {
               <select
                 value={semesterFilter}
                 onChange={(e) => setSemesterFilter(e.target.value)}
-                className="px-2 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
+                className="px-2 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
                 <option value="all">Semestres (Todos)</option>
                 <option value="1º Semestre">1º Semestre</option>
@@ -1356,7 +1343,7 @@ export function Teachers() {
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
-                className="px-2 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
+                className="px-2 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
                 <option value="all">Disciplinas (Todas)</option>
                 {subjects.filter(s => s.status === 'Ativo').map((s, sIdx) => (
@@ -1366,7 +1353,7 @@ export function Teachers() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-2 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
+                className="px-2 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
                 <option value="name">Por Nome</option>
                 <option value="code">Por Código</option>
@@ -1395,7 +1382,7 @@ export function Teachers() {
 
       {/* Main Content */}
       <div className={cn(
-        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+        "bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
         actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
       )}>
         {selectedTeacher || isEditing ? (
@@ -1415,7 +1402,7 @@ export function Teachers() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
                 <div className="relative group">
-                  <div className="w-20 h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
+                  <div className="w-20 h-28 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
                     {formData.photo_url ? (
                       <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -1429,7 +1416,7 @@ export function Teachers() {
                     )}
                   </div>
                   {isEditing && !uploadingPhoto && (
-                    <div className="absolute inset-0 bg-black/40 rounded-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                        <button 
                          type="button"
                          onClick={() => setShowWebcam(true)}
@@ -1472,7 +1459,7 @@ export function Teachers() {
                             e.stopPropagation();
                             setShowDeleteConfirm(true);
                           }}
-                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
                           title="Excluir Professor"
                         >
                           <Trash2 size={16} />
@@ -1487,7 +1474,7 @@ export function Teachers() {
                             handleToggleTeacherStatus();
                           }}
                           className={cn(
-                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
+                            "h-10 px-4 border rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
                             formData.status === 'Inativo'
                               ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                               : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
@@ -1501,14 +1488,14 @@ export function Teachers() {
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
                       <X size={15} />
                       <span>Cancelar</span>
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
+                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
                       <Save size={16} />
                       <span>Salvar Professor</span>
@@ -1522,7 +1509,7 @@ export function Teachers() {
                           setSelectedTeacher(null);
                           setIsEditing(false);
                         }}
-                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-none hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-lg hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Fechar Ficha (Voltar à lista)"
                         aria-label="Fechar Ficha"
                       >
@@ -1531,7 +1518,7 @@ export function Teachers() {
 
                       <button 
                         onClick={handlePrint}
-                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-lg hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Imprimir Ficha"
                         aria-label="Imprimir Ficha"
                       >
@@ -1540,7 +1527,7 @@ export function Teachers() {
 
                       <button 
                         onClick={() => setIsEditing(true)}
-                        className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Editar Ficha"
                         aria-label="Editar Ficha"
                       >
@@ -1557,7 +1544,7 @@ export function Teachers() {
               <div className="p-3 pb-24">
                 {showWebcam ? (
                 <div className="max-w-md mx-auto space-y-4">
-                  <div className="aspect-video bg-black rounded-none overflow-hidden relative">
+                  <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
                     <Webcam
                       audio={false}
                       ref={webcamRef}
@@ -1576,14 +1563,14 @@ export function Teachers() {
                     <button 
                       type="button"
                       onClick={() => setShowWebcam(false)}
-                      className="px-4 py-2 bg-slate-100 text-slate-600 rounded-none font-bold text-sm"
+                      className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm"
                     >
                       Cancelar
                     </button>
                     <button 
                       type="button"
                       onClick={capturePhoto}
-                      className="px-6 py-2 bg-slate-800 text-white rounded-none font-bold text-sm flex items-center gap-2"
+                      className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm flex items-center gap-2"
                     >
                       <Camera size={18} />
                       Capturar Foto
@@ -1607,7 +1594,7 @@ export function Teachers() {
                         value={formData.name || ''}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={1}
                       />
                     </div>
@@ -1619,7 +1606,7 @@ export function Teachers() {
                         value={formData.email || ''}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={2}
                       />
                     </div>
@@ -1631,7 +1618,7 @@ export function Teachers() {
                         value={formData.cpf || ''}
                         onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="000.000.000-00"
                         tabIndex={3}
                       />
@@ -1652,7 +1639,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                         onKeyDown={handleKeyDown}
                         maxLength={RG_MAX_FORMATTED_LENGTH}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="00.000.000-0"
                         tabIndex={4}
                       />
@@ -1664,7 +1651,7 @@ export function Teachers() {
                         value={formData.status || 'Ativo'}
                         onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={5}
                       >
                         <option value="Ativo">Ativo</option>
@@ -1682,7 +1669,7 @@ export function Teachers() {
                           value={formData.unit_id || 'matriz'}
                           onChange={(e) => setFormData({...formData, unit_id: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
                           tabIndex={6}
                         >
                           {activeUnits.map(u => (
@@ -1729,7 +1716,7 @@ export function Teachers() {
                           onChange={(e) => handleCepChange(e.target.value)}
                           onKeyDown={handleKeyDown}
                           maxLength={9}
-                          className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-none text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 transition-all"
+                          className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-lg text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 transition-all"
                           placeholder="00000-000"
                           tabIndex={7}
                         />
@@ -1745,7 +1732,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Rua, Av, etc..."
-                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={8}
                       />
                     </div>
@@ -1760,7 +1747,7 @@ export function Teachers() {
                         onKeyDown={handleKeyDown}
                         maxLength={6}
                         placeholder="Nº"
-                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm font-mono font-bold focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 text-slate-800 text-center"
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono font-bold focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 text-slate-800 text-center"
                         tabIndex={9}
                       />
                     </div>
@@ -1775,7 +1762,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_complement: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Apto, Bloco..."
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={10}
                       />
                     </div>
@@ -1789,7 +1776,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Bairro"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={11}
                       />
                     </div>
@@ -1803,7 +1790,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Cidade"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={12}
                       />
                     </div>
@@ -1818,7 +1805,7 @@ export function Teachers() {
                         onKeyDown={handleKeyDown}
                         maxLength={2}
                         placeholder="SP"
-                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 uppercase text-center font-bold"
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 uppercase text-center font-bold"
                         tabIndex={13}
                       />
                     </div>
@@ -1831,7 +1818,7 @@ export function Teachers() {
                           value={formData.phone_mobile || ''}
                           onChange={(e) => setFormData({...formData, phone_mobile: maskPhone(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
                           placeholder="(00) 00000-0000"
                           tabIndex={14}
                         />
@@ -1840,7 +1827,7 @@ export function Teachers() {
                           disabled={!isEditing}
                           onClick={() => setFormData({ ...formData, phone_mobile_is_whatsapp: !formData.phone_mobile_is_whatsapp })}
                           className={cn(
-                            "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-none",
+                            "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-lg",
                             formData.phone_mobile_is_whatsapp ? "text-green-500 bg-green-50" : "text-slate-300 hover:text-slate-400"
                           )}
                           title={formData.phone_mobile_is_whatsapp ? "Número com WhatsApp" : "Marcar como WhatsApp"}
@@ -1871,7 +1858,7 @@ export function Teachers() {
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={4}
-                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
+                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
                     tabIndex={15}
                   />
                 </section>
@@ -1882,7 +1869,7 @@ export function Teachers() {
                     <BookOpen size={14} />
                     Disciplinas Lecionadas
                   </h4>
-                  <div className="bg-slate-50 rounded-none p-4 border border-slate-100">
+                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
                     {subjects.length === 0 ? (
                       <p className="text-xs text-slate-500 py-4 text-center">Nenhuma disciplina cadastrada no sistema.</p>
                     ) : (
@@ -1906,7 +1893,7 @@ export function Teachers() {
                                     <label 
                                       key={`tsub-${subject.id || subject.code || sIdx}-${sIdx}`}
                                       className={cn(
-                                        "flex items-center gap-2 p-2 rounded-none cursor-pointer transition-all border",
+                                        "flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border",
                                         isSelected 
                                           ? "bg-white border-slate-300 shadow-sm text-slate-900 font-bold" 
                                           : "bg-slate-50 border-transparent hover:bg-white hover:border-slate-200 text-slate-600",
@@ -1969,7 +1956,7 @@ export function Teachers() {
       </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-lg flex items-center justify-center">
               <UserIcon size={40} />
             </div>
             <p className="text-sm font-medium">Selecione um professor para ver os detalhes</p>
@@ -1979,8 +1966,8 @@ export function Teachers() {
         {/* Delete Confirmation Modal (Apenas para canDelete) */}
         {showDeleteConfirm && canDelete && selectedTeacher && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
+            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mx-auto">
                 <Trash2 size={32} />
               </div>
               <div className="text-center space-y-2">
@@ -1993,14 +1980,14 @@ export function Teachers() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
+                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={loading}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
                 >
                   {loading ? 'Excluindo...' : 'Sim, Excluir'}
                 </button>
@@ -2011,7 +1998,7 @@ export function Teachers() {
         {/* Notification Toast */}
         {notification && (
           <div className={cn(
-            "fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-none shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-[300]",
+            "fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-[300]",
             notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
           )}>
             {notification.type === 'success' ? <Loader2 className="animate-spin" size={20} /> : <X size={20} />}

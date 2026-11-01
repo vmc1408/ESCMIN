@@ -2203,7 +2203,7 @@ export function Reports() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-20">
+    <div className="w-full space-y-3 sm:space-y-3.5 pb-6">
       {/* Notification */}
       {notification && (
         <div className={cn(
@@ -2225,7 +2225,7 @@ export function Reports() {
         icon={BarChart3}
       >
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200">
+          <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
             {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
               <button
                 key={cat}
@@ -2234,7 +2234,7 @@ export function Reports() {
                   setSearchParams({ tab: cat });
                 }}
                 className={cn(
-                  "px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
+                  "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
                   activeCategory === cat 
                     ? "bg-white text-slate-900 border border-slate-200 shadow-sm" 
                     : "text-slate-500 hover:text-slate-700"
@@ -2246,14 +2246,14 @@ export function Reports() {
           </div>
           <button 
             onClick={handlePrint}
-            className="h-10 w-10 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+            className="h-10 w-10 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
             title="Imprimir Relatório"
           >
             <Printer size={16} />
           </button>
           <button 
             onClick={() => generateReport(activeCategory)}
-            className="h-10 px-5 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider rounded-none flex items-center gap-2 hover:opacity-95 transition-all shadow-sm cursor-pointer"
+            className="h-10 px-5 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-2 hover:opacity-95 transition-all shadow-sm cursor-pointer"
           >
             <FileDown size={14} />
             Exportar Relatório
@@ -2261,7 +2261,7 @@ export function Reports() {
         </div>
       </PageHeader>
 
-      <div className="max-w-[1920px] mx-auto px-8 space-y-4 print:hidden">
+      <div className="w-full space-y-3 sm:space-y-3.5 print:hidden">
         {/* Unit Conflict Banner */}
         <UnitConflictBanner
           moduleName="Relatórios Estratégicos"
@@ -2927,7 +2927,7 @@ export function Reports() {
              {/* Unified Style Header */}
              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200 no-print">
                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 p-2 bg-white rounded-none border border-slate-200 no-print flex items-center justify-center group overflow-hidden relative">
+                   <div className="w-12 h-12 p-2 bg-white rounded-lg border border-slate-200 no-print flex items-center justify-center group overflow-hidden relative">
                       {institution?.logo_url ? (
                          <img src={institution.logo_url} alt="Logo" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 relative z-10" referrerPolicy="no-referrer" />
                       ) : (
@@ -2944,14 +2944,14 @@ export function Reports() {
                             <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{institution?.name || 'CENTRO DE ENSINO'}</p>
                          </div>
                          <div className="hidden sm:block w-1 h-1 bg-slate-300" />
-                         <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest bg-slate-100/60 px-3 py-1 rounded-none border border-slate-200/50">Boletim Escolar & Rendimento</p>
+                         <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest bg-slate-100/60 px-3 py-1 rounded-lg border border-slate-200/50">Boletim Escolar & Rendimento</p>
                       </div>
                    </div>
                 </div>
 
                 {selectedDiarioClass && (
                    <div className="flex flex-wrap items-center gap-4">
-                      <div className="px-4 py-2 bg-slate-100/60 border border-slate-200 text-slate-700 rounded-none text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm leading-none">
+                      <div className="px-4 py-2 bg-slate-100/60 border border-slate-200 text-slate-700 rounded-lg text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm leading-none">
                          <span className="relative flex h-1.5 w-1.5">
                             <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                          </span>
@@ -2962,14 +2962,14 @@ export function Reports() {
              </div>
 
              {/* Main Content Card Frame */}
-             <div className="bg-white rounded-none border border-slate-200 shadow-sm text-slate-900 overflow-hidden">
+             <div className="bg-white rounded-lg border border-slate-200 shadow-sm text-slate-900 overflow-hidden">
                 {/* Filter Bar */}
                 <div className="p-4 md:p-5 border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-none">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                          <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Turma</label>
                          <div className="relative group">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-205">
                                <School size={16} />
                             </div>
                             <select
@@ -2978,7 +2978,7 @@ export function Reports() {
                                 setSelectedDiarioClass(e.target.value);
                                 setDiarioSearch('');
                               }}
-                              className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
+                              className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                             >
                               <option value="">SELECIONAR TURMA...</option>
                               {scopedClasses.filter(c => c.status === 'Ativo' || !c.status).map((c, cIdx) => (
@@ -2993,7 +2993,7 @@ export function Reports() {
                          <div className="space-y-2">
                             <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Buscar Aluno</label>
                             <div className="relative group">
-                               <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                               <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-205">
                                   <Search size={16} />
                                </div>
                                <input
@@ -3001,7 +3001,7 @@ export function Reports() {
                                  value={diarioSearch}
                                  onChange={(e) => setDiarioSearch(e.target.value)}
                                  placeholder="BUSCAR POR NOME OU RA..."
-                                 className="w-full pl-13 pr-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 appearance-none outline-none transition-all placeholder:text-slate-400"
+                                 className="w-full pl-13 pr-4 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-850 appearance-none outline-none transition-all placeholder:text-slate-400"
                                />
                             </div>
                          </div>
@@ -3012,8 +3012,8 @@ export function Reports() {
                 {/* Display Body */}
                 {!selectedDiarioClass ? (
                    <div className="p-8">
-                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-none flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
-                         <div className="w-10 h-10 bg-slate-100 rounded-none flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
+                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-lg flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
+                         <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
                             <Info size={18} />
                          </div>
                          <div>
@@ -3123,29 +3123,29 @@ export function Reports() {
                       <div className="p-6 space-y-6">
                         {/* Class Summary widgets */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                           <div className="bg-slate-50 border border-slate-200 p-5 rounded-none shadow-none">
+                           <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg shadow-none">
                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
                              <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
                            </div>
-                           <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-none shadow-none border-l-4 border-l-emerald-600">
+                           <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-lg shadow-none border-l-4 border-l-emerald-600">
                              <p className="text-[10px] font-bold text-emerald-805 uppercase tracking-widest">Aprovados</p>
                              <h4 className="text-2xl font-bold text-emerald-600 mt-1">{approved}</h4>
                            </div>
-                           <div className="bg-amber-50/50 border border-amber-250 p-5 rounded-none shadow-none border-l-4 border-l-amber-600">
+                           <div className="bg-amber-50/50 border border-amber-250 p-5 rounded-lg shadow-none border-l-4 border-l-amber-600">
                              <p className="text-[10px] font-bold text-amber-805 uppercase tracking-widest">Em Recuperação</p>
                              <h4 className="text-2xl font-bold text-amber-500 mt-1">{recuperation}</h4>
                            </div>
-                           <div className="bg-rose-50/50 border border-rose-250 p-5 rounded-none shadow-none border-l-4 border-l-rose-600">
+                           <div className="bg-rose-50/50 border border-rose-250 p-5 rounded-lg shadow-none border-l-4 border-l-rose-600">
                              <p className="text-[10px] font-bold text-rose-805 uppercase tracking-widest">Reprovados</p>
                              <h4 className="text-2xl font-bold text-rose-500 mt-1">{failed + pending}</h4>
                            </div>
                         </div>
 
                         {/* Diário de Classe Table */}
-                        <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                               <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">Quadro Geral de Rendimento e Presença</h4>
-                              <span className="text-[9px] font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-none border border-slate-300 uppercase tracking-widest">
+                              <span className="text-[9px] font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-lg border border-slate-300 uppercase tracking-widest">
                                 {classSubjects.length} Disciplinas Ativas nesta Turma
                               </span>
                            </div>
@@ -3181,7 +3181,7 @@ export function Reports() {
                                               <td key={i} className="px-6 py-4 text-center">
                                                  {sg.grade !== null ? (
                                                    <span className={cn(
-                                                     "px-2 py-1 text-xs font-bold font-mono inline-block min-w-10 text-center rounded-none border shadow-sm",
+                                                     "px-2 py-1 text-xs font-bold font-mono inline-block min-w-10 text-center rounded-lg border shadow-sm",
                                                      sg.isApproved ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
                                                    )}>
                                                      {sg.grade.toFixed(1).replace('.', ',')}
@@ -3204,7 +3204,7 @@ export function Reports() {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                <span className={cn(
-                                                  "px-2.5 py-1 rounded-none text-[9px] font-bold uppercase tracking-widest inline-block w-28 text-center border shadow-sm",
+                                                  "px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest inline-block w-28 text-center border shadow-sm",
                                                   res.finalStatus === 'Aprovado' ? "bg-emerald-50 text-emerald-600 border-emerald-200" :
                                                   res.finalStatus === 'Recuperação' ? "bg-amber-50 text-amber-600 border-amber-200" :
                                                   res.finalStatus === 'Pendente' ? "bg-slate-50 text-slate-550 border-slate-200" :
@@ -3218,19 +3218,19 @@ export function Reports() {
                                             <td className="px-6 py-4 text-right hidden">
                                                {res.certificate ? (
                                                  <div className="flex items-center justify-end gap-2">
-                                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-none border border-emerald-200 uppercase tracking-widest flex items-center gap-1 shadow-sm select-none">
+                                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 uppercase tracking-widest flex items-center gap-1 shadow-sm select-none">
                                                        <CheckCircle2 size={10} /> Emitido
                                                     </span>
                                                     <button
                                                       onClick={() => setViewingCertificate({ ...res.certificate, student_name: res.certificate.student_name || res.student.name })}
-                                                      className="p-1.5 text-slate-600 bg-white border border-slate-200 hover:border-slate-400 rounded-none transition-all cursor-pointer shadow-sm"
+                                                      className="p-1.5 text-slate-600 bg-white border border-slate-200 hover:border-slate-400 rounded-lg transition-all cursor-pointer shadow-sm"
                                                       title="Reimprimir Diploma"
                                                     >
                                                        <Printer size={13} />
                                                     </button>
                                                      <button
                                                        onClick={() => handleDeleteCertificate(res.certificate.id, res.student.name)}
-                                                       className="p-1.5 text-rose-600 bg-white border border-rose-200 hover:border-rose-450 hover:bg-rose-50 rounded-none transition-all cursor-pointer shadow-sm ml-1"
+                                                       className="p-1.5 text-rose-600 bg-white border border-rose-200 hover:border-rose-450 hover:bg-rose-50 rounded-lg transition-all cursor-pointer shadow-sm ml-1"
                                                        title="Desfazer/Excluir Diploma"
                                                      >
                                                         <Trash2 size={13} />
@@ -3248,7 +3248,7 @@ export function Reports() {
                                                      setSelectedStudentId(res.student.id); setIssuingStudent(res);
                                                    }}
                                                    className={cn(
-                                                     "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
+                                                     "px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all",
                                                      res.finalStatus === 'Aprovado' 
                                                        ? "bg-slate-800 text-white hover:bg-slate-900 border border-slate-800 cursor-pointer shadow-sm text-center relative tracking-widest active:scale-95" 
                                                        : "bg-slate-50 text-slate-300 border border-slate-200 cursor-not-allowed select-none"
@@ -3278,10 +3278,10 @@ export function Reports() {
       {/* Interactive Modal: Issue Certificate (issuingStudent) */}
       {issuingStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300">
-           <div className="bg-white rounded-none shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-200 text-slate-850">
+           <div className="bg-white rounded-lg shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-200 text-slate-850">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-none bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700">
                        <Award size={16} />
                     </div>
                     <div>
@@ -3301,7 +3301,7 @@ export function Reports() {
                     <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Estudante Destinatário</label>
                     <select
                        required
-                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none font-sans"
+                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none font-sans"
                        value={selectedStudentId}
                        onChange={(e) => setSelectedStudentId(e.target.value)}
                      >
@@ -3351,7 +3351,7 @@ export function Reports() {
 
                      if (fStatus !== 'Aprovado') {
                        return (
-                         <div className="bg-rose-50 border border-rose-300 p-4 rounded-none space-y-1.5 text-rose-800 text-[10.5px] font-medium leading-normal">
+                         <div className="bg-rose-50 border border-rose-300 p-4 rounded-lg space-y-1.5 text-rose-800 text-[10.5px] font-medium leading-normal">
                            <h5 className="font-bold text-rose-850 text-xs font-sans uppercase flex items-center gap-1">
                              <AlertCircle size={14} /> IMPEDIMENTO ACADÊMICO
                            </h5>
@@ -3363,7 +3363,7 @@ export function Reports() {
 
                      if (certificateForm.type === 'honra' && !diplomaRequirementsMet) {
                        return (
-                         <div className="bg-amber-50 border border-amber-300 p-4 rounded-none space-y-2 text-amber-800 text-[10.5px] font-medium leading-normal">
+                         <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg space-y-2 text-amber-800 text-[10.5px] font-medium leading-normal">
                            <h5 className="font-bold text-amber-855 text-xs font-sans uppercase flex items-center gap-1">
                              <AlertCircle size={14} /> CRITÉRIOS DE DIPLOMA PENDENTES
                            </h5>
@@ -3397,7 +3397,7 @@ export function Reports() {
                     <input
                       type="text"
                       required
-                      className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 transition-all outline-none"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 transition-all outline-none"
                       value={certificateForm.course}
                       onChange={(e) => setCertificateForm({ ...certificateForm, course: e.target.value })}
                     />
@@ -3408,7 +3408,7 @@ export function Reports() {
                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Tipo do Documento</label>
                        <select
                          required
-                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 outline-none"
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 outline-none"
                          value={certificateForm.type}
                          onChange={(e) => setCertificateForm({ ...certificateForm, type: e.target.value as 'conclusão' | 'participação' | 'honra' })}
                        >
@@ -3423,7 +3423,7 @@ export function Reports() {
                        <input
                          type="date"
                          required
-                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none"
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none"
                          value={certificateForm.issuance_date}
                          onChange={(e) => setCertificateForm({ ...certificateForm, issuance_date: e.target.value })}
                        />
@@ -3434,7 +3434,7 @@ export function Reports() {
                     <button
                       type="button"
                       onClick={() => setIssuingStudent(null)}
-                      className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all"
+                      className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all"
                     >
                       Fechar
                     </button>
@@ -3480,7 +3480,7 @@ export function Reports() {
                         }
                         return false;
                       })()}
-                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                        <Printer size={12} /> Imprimir
                     </button>
@@ -3526,7 +3526,7 @@ export function Reports() {
                         return false;
                       })()}
                       className={cn(
-                        "flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer",
+                        "flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer",
                         isSubmittingCert && "opacity-50 cursor-not-allowed"
                       )}
                     >
@@ -3539,10 +3539,10 @@ export function Reports() {
       )}
       {viewingCertificate && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300 print:hidden">
-           <div className="bg-white rounded-none shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-200 text-slate-850">
+           <div className="bg-white rounded-lg shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-200 text-slate-850">
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-none bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-705">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-705">
                        <Printer size={16} />
                     </div>
                     <div>
@@ -3569,7 +3569,7 @@ export function Reports() {
                     <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Estudante Destinatário</label>
                     <select
                        required
-                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none font-sans"
+                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none font-sans"
                        value={printFormStudentId}
                        onChange={(e) => setPrintFormStudentId(e.target.value)}
                      >
@@ -3586,7 +3586,7 @@ export function Reports() {
                     <input
                       type="text"
                       required
-                      className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 transition-all outline-none font-sans"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 transition-all outline-none font-sans"
                       value={printFormCourse}
                       onChange={(e) => setPrintFormCourse(e.target.value)}
                     />
@@ -3597,7 +3597,7 @@ export function Reports() {
                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Tipo do Documento</label>
                        <select
                          required
-                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 outline-none font-sans"
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 outline-none font-sans"
                          value={printFormType}
                          onChange={(e) => setPrintFormType(e.target.value as 'conclusão' | 'participação' | 'honra')}
                        >
@@ -3612,7 +3612,7 @@ export function Reports() {
                        <input
                          type="date"
                          required
-                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none font-sans"
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none font-sans"
                          value={printFormDate}
                          onChange={(e) => setPrintFormDate(e.target.value)}
                        />
@@ -3623,13 +3623,13 @@ export function Reports() {
                     <button
                       type="button"
                       onClick={() => setViewingCertificate(null)}
-                      className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all cursor-pointer"
+                      className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all cursor-pointer"
                     >
                       Fechar
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm active:scale-95"
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm active:scale-95"
                     >
                        <Printer size={12} /> Imprimir
                     </button>

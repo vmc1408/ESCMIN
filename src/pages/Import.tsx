@@ -652,7 +652,7 @@ export function Import() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+    <div className="w-full space-y-3 sm:space-y-3.5 pb-6">
       {/* Toast Notification */}
       {notification && (
         <div className={cn(
