@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Wallet,
@@ -296,8 +296,48 @@ export function FinancialDashboard() {
   const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
   const [validationTargetGroup, setValidationTargetGroup] = useState<any | null>(null);
   const [validatedContacts, setValidatedContacts] = useState<any[]>([]);
-  const [validationFilter, setValidationFilter] = useState<'all' | 'valid' | 'warning' | 'invalid'>('all');
+  const [validationFilter, setValidationFilter] = useState<'all' | 'valid' | 'warning' | 'invalid' | 'selected'>('all');
   const [validationSearch, setValidationSearch] = useState<string>('');
+  const validationListRef = useRef<HTMLDivElement | null>(null);
+
+  // Registro mensal persistente de mensagens disparadas por aluno pelo sistema
+  const [monthlyNotificationLog, setMonthlyNotificationLog] = useState<Record<string, { count: number; lastSentAt: string }>>(() => {
+    try {
+      const now = new Date();
+      const storageKey = `diocese_notif_log_${now.getFullYear()}_${now.getMonth() + 1}`;
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const registerStudentMessageSent = (studentId: string) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const fullStamp = `${dateStr} às ${timeStr}`;
+    const storageKey = `diocese_notif_log_${now.getFullYear()}_${now.getMonth() + 1}`;
+
+    setMonthlyNotificationLog(prev => {
+      const current = prev[studentId] || { count: 0, lastSentAt: '' };
+      const updated = {
+        ...prev,
+        [studentId]: {
+          count: (current.count || 0) + 1,
+          lastSentAt: fullStamp
+        }
+      };
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch {
+        // storage fallback
+      }
+      return updated;
+    });
+
+    setSentStudentIds(prev => new Set(prev).add(studentId));
+  };
 
   // Carrega configurações financeiras
   useEffect(() => {
@@ -1088,14 +1128,18 @@ export function FinancialDashboard() {
   // Abre o Modal de Conferência e Validação Prévia de Contatos antes de iniciar a fila
   const handleOpenContactValidation = (group: any) => {
     setValidationTargetGroup(group);
+    let autoSelectedCount = 0;
     const contacts = (group.students || []).map((student: any) => {
       const rawPhone = student.phone || student.phone_mobile || student.phone_residential || '';
       const val = validateWhatsAppPhone(rawPhone);
+      // Auto-seleciona inicialmente até 5 contatos válidos (lote seguro anti-bloqueio)
+      const shouldSelect = val.status !== 'invalid' && autoSelectedCount < 5;
+      if (shouldSelect) autoSelectedCount++;
       return {
         student,
         rawPhone,
         ...val,
-        isSelected: val.status !== 'invalid' // auto-seleciona válidos e com alerta
+        isSelected: shouldSelect
       };
     });
     setValidatedContacts(contacts);
@@ -1108,6 +1152,81 @@ export function FinancialDashboard() {
     setValidatedContacts(prev =>
       prev.map(c => (c.student.id === studentId ? { ...c, isSelected: !c.isSelected } : c))
     );
+  };
+
+  // Rola suavemente a lista do modal para exibir o primeiro contato selecionado
+  const scrollToContactRow = (targetStudentId: string) => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const container = validationListRef.current;
+        if (!container) return;
+        const targetEl = document.getElementById(`validation-contact-row-${targetStudentId}`);
+        if (!targetEl) return;
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = targetEl.getBoundingClientRect();
+        const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+        container.scrollTo({
+          top: Math.max(0, relativeTop - 12),
+          behavior: 'smooth'
+        });
+      }, 40);
+    });
+  };
+
+  // Seleciona os primeiros N alunos válidos (padrão: 5 para lote seguro) e rola para exibi-los
+  const handleSelectSafeBatch = (batchSize: number = 5) => {
+    let firstSelectedStudentId: string | null = null;
+    let count = 0;
+    setValidatedContacts(prev =>
+      prev.map(c => {
+        if (c.status === 'invalid') return { ...c, isSelected: false };
+        if (count < batchSize) {
+          count++;
+          if (!firstSelectedStudentId) {
+            firstSelectedStudentId = c.student.id;
+          }
+          return { ...c, isSelected: true };
+        }
+        return { ...c, isSelected: false };
+      })
+    );
+
+    if (firstSelectedStudentId) {
+      scrollToContactRow(firstSelectedStudentId);
+    } else if (validationListRef.current) {
+      validationListRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Seleciona os próximos N alunos válidos seguintes e rola automaticamente para exibi-los sempre
+  const handleSelectNextSafeBatch = (batchSize: number = 5) => {
+    let firstSelectedStudentId: string | null = null;
+    setValidatedContacts(prev => {
+      const validIndices: number[] = [];
+      prev.forEach((c, idx) => {
+        if (c.status !== 'invalid') validIndices.push(idx);
+      });
+
+      if (validIndices.length === 0) return prev;
+
+      const lastSelectedIndex = prev.reduce((last, c, idx) => (c.isSelected ? idx : last), -1);
+      const nextCandidates = validIndices.filter(idx => idx > lastSelectedIndex);
+      const targetIndicesArray = (nextCandidates.length > 0 ? nextCandidates : validIndices).slice(0, batchSize);
+      const targetIndices = new Set(targetIndicesArray);
+
+      if (targetIndicesArray.length > 0) {
+        firstSelectedStudentId = prev[targetIndicesArray[0]]?.student?.id || null;
+      }
+
+      return prev.map((c, idx) => ({
+        ...c,
+        isSelected: targetIndices.has(idx)
+      }));
+    });
+
+    if (firstSelectedStudentId) {
+      scrollToContactRow(firstSelectedStudentId);
+    }
   };
 
   const handleSelectAllValidInValidation = () => {
@@ -1187,7 +1306,7 @@ export function FinancialDashboard() {
   };
 
   const handleDirectWhatsAppClick = (student: any) => {
-    setSentStudentIds(prev => new Set(prev).add(student.id));
+    registerStudentMessageSent(student.id);
   };
 
   // Copia o comunicado oficial da turma para colar diretamente no grupo de WhatsApp da turma
@@ -1218,7 +1337,7 @@ export function FinancialDashboard() {
 
   const handleAdvanceCurrentQueue = () => {
     if (currentQueueStudent) {
-      setSentStudentIds(prev => new Set(prev).add(currentQueueStudent.id));
+      registerStudentMessageSent(currentQueueStudent.id);
     }
 
     if (queueIndex + 1 < selectedQueueStudents.length) {
@@ -3878,6 +3997,7 @@ export function FinancialDashboard() {
               const selectedApprovedCount = validatedContacts.filter(c => c.isSelected && c.status !== 'invalid').length;
 
               const filteredContacts = validatedContacts.filter(c => {
+                if (validationFilter === 'selected' && (!c.isSelected || c.status === 'invalid')) return false;
                 if (validationFilter === 'valid' && c.status !== 'valid') return false;
                 if (validationFilter === 'warning' && c.status !== 'warning') return false;
                 if (validationFilter === 'invalid' && c.status !== 'invalid') return false;
@@ -3893,155 +4013,217 @@ export function FinancialDashboard() {
 
               return (
                 <>
-                  <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-center shadow-2xs">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total</span>
-                      <span className="text-base font-black text-slate-800">{totalContacts}</span>
-                    </div>
+                  {/* Métricas Interativas no Topo: Funcionam como Filtros Diretos (elimina barra duplicada) */}
+                  <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setValidationFilter('all')}
+                      className={cn(
+                        "p-2 rounded-xl border text-center shadow-2xs transition-all cursor-pointer text-left sm:text-center",
+                        validationFilter === 'all'
+                          ? "bg-slate-900 text-white border-slate-900 ring-2 ring-slate-400"
+                          : "bg-white border-slate-200 text-slate-800 hover:bg-slate-100/70"
+                      )}
+                      title="Exibir todos os contatos da turma"
+                    >
+                      <span className={cn(
+                        "text-[9.5px] font-bold uppercase tracking-wider block",
+                        validationFilter === 'all' ? "text-slate-300" : "text-slate-400"
+                      )}>
+                        Total
+                      </span>
+                      <span className="text-sm sm:text-base font-black">{totalContacts}</span>
+                    </button>
 
-                    <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 text-center shadow-2xs">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Válidos (11d)</span>
-                      <span className="text-base font-black text-emerald-800 flex items-center justify-center gap-1">
-                        <CheckCircle2 size={14} className="text-emerald-600" />
+                    <button
+                      type="button"
+                      onClick={() => setValidationFilter(prev => prev === 'valid' ? 'all' : 'valid')}
+                      className={cn(
+                        "p-2 rounded-xl border text-center shadow-2xs transition-all cursor-pointer text-left sm:text-center",
+                        validationFilter === 'valid'
+                          ? "bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-400"
+                          : "bg-emerald-50/70 border-emerald-200 text-emerald-800 hover:bg-emerald-100/70"
+                      )}
+                      title="Filtrar contatos válidos (11 dígitos com DDD)"
+                    >
+                      <span className={cn(
+                        "text-[9.5px] font-bold uppercase tracking-wider block",
+                        validationFilter === 'valid' ? "text-emerald-100" : "text-emerald-700"
+                      )}>
+                        Válidos (11d)
+                      </span>
+                      <span className="text-sm sm:text-base font-black flex items-center justify-start sm:justify-center gap-1">
+                        <CheckCircle2 size={13} className={validationFilter === 'valid' ? "text-white" : "text-emerald-600"} />
                         {validContacts}
                       </span>
-                    </div>
+                    </button>
 
-                    <div className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 text-center shadow-2xs">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Atenção (10d)</span>
-                      <span className="text-base font-black text-amber-800 flex items-center justify-center gap-1">
-                        <AlertTriangle size={14} className="text-amber-600" />
+                    <button
+                      type="button"
+                      onClick={() => setValidationFilter(prev => prev === 'warning' ? 'all' : 'warning')}
+                      className={cn(
+                        "p-2 rounded-xl border text-center shadow-2xs transition-all cursor-pointer text-left sm:text-center",
+                        validationFilter === 'warning'
+                          ? "bg-amber-600 text-white border-amber-700 ring-2 ring-amber-400"
+                          : "bg-amber-50/70 border-amber-200 text-amber-800 hover:bg-amber-100/70"
+                      )}
+                      title="Filtrar contatos com 10 dígitos (requer atenção)"
+                    >
+                      <span className={cn(
+                        "text-[9.5px] font-bold uppercase tracking-wider block",
+                        validationFilter === 'warning' ? "text-amber-100" : "text-amber-700"
+                      )}>
+                        Atenção (10d)
+                      </span>
+                      <span className="text-sm sm:text-base font-black flex items-center justify-start sm:justify-center gap-1">
+                        <AlertTriangle size={13} className={validationFilter === 'warning' ? "text-white" : "text-amber-600"} />
                         {warningContacts}
                       </span>
-                    </div>
+                    </button>
 
-                    <div className="bg-rose-50/70 p-2.5 rounded-xl border border-rose-200 text-center shadow-2xs">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 block">Inválidos / Ausentes</span>
-                      <span className="text-base font-black text-rose-800 flex items-center justify-center gap-1">
-                        <AlertCircle size={14} className="text-rose-600" />
+                    <button
+                      type="button"
+                      onClick={() => setValidationFilter(prev => prev === 'invalid' ? 'all' : 'invalid')}
+                      className={cn(
+                        "p-2 rounded-xl border text-center shadow-2xs transition-all cursor-pointer text-left sm:text-center",
+                        validationFilter === 'invalid'
+                          ? "bg-rose-600 text-white border-rose-700 ring-2 ring-rose-400"
+                          : "bg-rose-50/70 border-rose-200 text-rose-800 hover:bg-rose-100/70"
+                      )}
+                      title="Filtrar contatos inválidos ou sem número"
+                    >
+                      <span className={cn(
+                        "text-[9.5px] font-bold uppercase tracking-wider block",
+                        validationFilter === 'invalid' ? "text-rose-100" : "text-rose-700"
+                      )}>
+                        Inválidos / Ausentes
+                      </span>
+                      <span className="text-sm sm:text-base font-black flex items-center justify-start sm:justify-center gap-1">
+                        <AlertCircle size={13} className={validationFilter === 'invalid' ? "text-white" : "text-rose-600"} />
                         {invalidContacts}
                       </span>
-                    </div>
+                    </button>
 
-                    <div className="bg-blue-50/70 p-2.5 rounded-xl border border-blue-200 text-center shadow-2xs col-span-2 sm:col-span-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">Para Envio</span>
-                      <span className="text-base font-black text-blue-800 flex items-center justify-center gap-1">
-                        <UserCheck size={14} className="text-blue-600" />
+                    <button
+                      type="button"
+                      onClick={() => setValidationFilter(prev => prev === 'selected' ? 'all' : 'selected')}
+                      className={cn(
+                        "p-2 rounded-xl border text-center shadow-2xs col-span-2 sm:col-span-1 transition-all cursor-pointer",
+                        validationFilter === 'selected'
+                          ? "bg-blue-600 text-white border-blue-700 ring-2 ring-blue-400 shadow-sm"
+                          : "bg-blue-50/70 border-blue-200 text-blue-900 hover:bg-blue-100/70"
+                      )}
+                      title="Exibir apenas os alunos selecionados para o lote atual"
+                    >
+                      <span className={cn(
+                        "text-[9.5px] font-bold uppercase tracking-wider block",
+                        validationFilter === 'selected' ? "text-blue-100" : "text-blue-700"
+                      )}>
+                        Para Fila em Lote
+                      </span>
+                      <span className={cn(
+                        "text-sm sm:text-base font-black flex items-center justify-center gap-1",
+                        validationFilter === 'selected' ? "text-white" : "text-blue-800"
+                      )}>
+                        <UserCheck size={13} className={validationFilter === 'selected' ? "text-white" : "text-blue-600"} />
                         {selectedApprovedCount}
                       </span>
-                    </div>
+                      <span className={cn(
+                        "text-[9px] font-bold block mt-0.5",
+                        validationFilter === 'selected'
+                          ? "text-blue-100 underline font-extrabold"
+                          : selectedApprovedCount === 0
+                          ? "text-slate-400"
+                          : selectedApprovedCount <= 5
+                          ? "text-emerald-700"
+                          : "text-amber-700"
+                      )}>
+                        {validationFilter === 'selected'
+                          ? "Exibindo selecionados"
+                          : selectedApprovedCount === 0
+                          ? "Nenhum marcado"
+                          : selectedApprovedCount <= 5
+                          ? "✓ Lote Seguro (≤5)"
+                          : `${selectedApprovedCount} alunos (Max 5)`}
+                      </span>
+                    </button>
                   </div>
 
-                  {/* Barra de Filtros, Busca e Seleção Rápida */}
-                  <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
-                        <Filter size={12} /> Filtro:
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setValidationFilter('all')}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                          validationFilter === 'all'
-                            ? "bg-slate-900 text-white"
-                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                        )}
-                      >
-                        Todos ({totalContacts})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setValidationFilter('valid')}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                          validationFilter === 'valid'
-                            ? "bg-emerald-600 text-white"
-                            : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"
-                        )}
-                      >
-                        Válidos ({validContacts})
-                      </button>
-                      {warningContacts > 0 && (
+                  {/* Barra Única e Compacta: Busca e Ações Rápidas (Sem a barra duplicada de filtros) */}
+                  <div className="px-5 py-2 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+                    <div className="relative flex-1 sm:max-w-xs">
+                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={validationSearch}
+                        onChange={e => setValidationSearch(e.target.value)}
+                        placeholder="Buscar por nome, RA ou telefone..."
+                        className="w-full text-xs pl-7 pr-7 py-1 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-white"
+                      />
+                      {validationSearch && (
                         <button
                           type="button"
-                          onClick={() => setValidationFilter('warning')}
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                            validationFilter === 'warning'
-                              ? "bg-amber-600 text-white"
-                              : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
-                          )}
+                          onClick={() => setValidationSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                         >
-                          Atenção ({warningContacts})
-                        </button>
-                      )}
-                      {invalidContacts > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setValidationFilter('invalid')}
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                            validationFilter === 'invalid'
-                              ? "bg-rose-600 text-white"
-                              : "bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200"
-                          )}
-                        >
-                          Inválidos ({invalidContacts})
+                          <X size={12} />
                         </button>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1 sm:w-56">
-                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          value={validationSearch}
-                          onChange={e => setValidationSearch(e.target.value)}
-                          placeholder="Buscar nome, RA ou número..."
-                          className="w-full text-xs pl-7 pr-7 py-1 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-white"
-                        />
-                        {validationSearch && (
-                          <button
-                            type="button"
-                            onClick={() => setValidationSearch('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSafeBatch(5)}
+                        className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Selecionar até 5 alunos válidos para lote seguro sem risco de bloqueio"
+                      >
+                        <Users size={12} className="text-emerald-700" />
+                        <span>Lote Seguro (5)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectNextSafeBatch(5)}
+                        className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Avançar, selecionar e rolar para os próximos 5 alunos da lista"
+                      >
+                        <SkipForward size={11} className="text-slate-500" />
+                        <span>Próximos 5</span>
+                      </button>
 
                       <button
                         type="button"
                         onClick={handleSelectAllValidInValidation}
-                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
-                        title="Marcar todos os contatos que possuem número válido para receber mensagem"
+                        className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Marcar todos os contatos válidos"
                       >
-                        <CheckSquare size={13} className="text-emerald-600" />
-                        <span>Marcar Válidos</span>
+                        <CheckSquare size={12} className="text-slate-600" />
+                        <span>Todos</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={handleDeselectAllInValidation}
-                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
+                        className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
                         title="Desmarcar todos os contatos"
                       >
-                        <Square size={13} className="text-slate-400" />
-                        <span>Desmarcar</span>
+                        <Square size={12} className="text-slate-400" />
+                        <span>Limpar</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Lista de Contatos para Conferência */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[50vh] bg-slate-50/50">
+                  {/* Lista de Contatos Otimizada: Compacta para que os 5 selecionados fiquem 100% visíveis */}
+                  <div
+                    ref={validationListRef}
+                    className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5 max-h-[62vh] min-h-[360px] bg-slate-50/50 scroll-smooth"
+                  >
                     {filteredContacts.length === 0 ? (
                       <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
                         <Info size={28} className="mx-auto mb-2 text-slate-400" />
                         <p className="text-xs font-bold text-slate-700">Nenhum contato encontrado no filtro atual.</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Tente alterar os filtros de status ou a busca.</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Clique nas métricas acima para alternar os filtros.</p>
                       </div>
                     ) : (
                       filteredContacts.map(contact => {
@@ -4066,80 +4248,93 @@ export function FinancialDashboard() {
                         return (
                           <div
                             key={contact.student.id}
+                            id={`validation-contact-row-${contact.student.id}`}
+                            data-selected={isChecked ? 'true' : 'false'}
                             className={cn(
-                              "p-3 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs",
+                              "px-3.5 py-2 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-2 shadow-2xs scroll-mt-3",
                               isInvalid
                                 ? "bg-rose-50/40 border-rose-200 opacity-75"
                                 : isChecked
-                                ? "bg-white border-emerald-300 hover:border-emerald-400"
-                                : "bg-white border-slate-200 opacity-60"
+                                ? "bg-emerald-50/35 border-emerald-400 ring-2 ring-emerald-500/30 hover:border-emerald-500 shadow-xs"
+                                : "bg-white border-slate-200 opacity-70 hover:opacity-100"
                             )}
                           >
                             {/* Checkbox e Identificação do Aluno */}
-                            <div className="flex items-start gap-3 min-w-0 flex-1">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
                               <button
                                 type="button"
                                 disabled={isInvalid}
                                 onClick={() => handleToggleValidationContact(contact.student.id)}
                                 className={cn(
-                                  "mt-1 transition-colors shrink-0",
+                                  "transition-colors shrink-0",
                                   isInvalid ? "cursor-not-allowed opacity-30" : "cursor-pointer text-slate-400 hover:text-emerald-600"
                                 )}
-                                title={isInvalid ? "Número inválido - não pode ser enviado" : isChecked ? "Desmarcar este contato" : "Marcar para envio"}
+                                title={isInvalid ? "Número inválido - não pode ser enviado" : isChecked ? "Desmarcar este contato" : "Marcar para envio na fila em lote"}
                               >
                                 {isChecked ? (
-                                  <CheckSquare size={17} className="text-emerald-600" />
+                                  <CheckSquare size={16} className="text-emerald-600" />
                                 ) : (
-                                  <Square size={17} className="text-slate-400" />
+                                  <Square size={16} className="text-slate-400" />
                                 )}
                               </button>
 
                               <div className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 border",
+                                "w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0 border",
                                 isInvalid
                                   ? "bg-rose-100 text-rose-800 border-rose-200"
                                   : isWarning
                                   ? "bg-amber-100 text-amber-800 border-amber-200"
+                                  : isChecked
+                                  ? "bg-emerald-600 text-white border-emerald-700 shadow-2xs"
                                   : "bg-emerald-100 text-emerald-800 border-emerald-200"
                               )}>
                                 {contact.student.name.charAt(0).toUpperCase()}
                               </div>
 
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                   <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">
                                     {contact.student.name}
                                   </h4>
-                                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                                  <span className="text-[9.5px] font-mono text-slate-500 bg-slate-100 px-1 py-0.2 rounded border border-slate-200">
                                     RA: {contact.student.registration_number || 'N/D'}
                                   </span>
                                   {contact.student.className && (
-                                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 truncate max-w-[140px]">
+                                    <span className="text-[9.5px] font-bold text-slate-600 bg-slate-100 px-1 py-0.2 rounded border border-slate-200 truncate max-w-[130px]">
                                       {contact.student.className}
+                                    </span>
+                                  )}
+                                  {isChecked && (
+                                    <span className="text-[9px] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded-full border border-emerald-300 flex items-center gap-0.5 shrink-0 animate-in fade-in duration-150">
+                                      <Check size={8} /> No Lote
                                     </span>
                                   )}
                                 </div>
 
-                                <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px]">
-                                  <span className="font-extrabold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[11px]">
+                                  <span className="font-extrabold text-amber-900 bg-amber-50 px-1.5 py-0.1 rounded border border-amber-200 text-[10.5px]">
                                     {formatCurrency(debtAmount)}
                                   </span>
-                                  <div className="flex items-center gap-1 flex-wrap">
-                                    {periodsChips && periodsChips.map((p: string, idx: number) => (
-                                      <span key={idx} className="text-[9.5px] font-bold px-1.2 py-0.1 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                        {p}
-                                      </span>
-                                    ))}
-                                  </div>
+                                  {periodsChips && periodsChips.length > 0 && (
+                                    <span
+                                      className="text-[9.5px] text-slate-500 font-medium truncate max-w-[280px]"
+                                      title={periodsChips.join(', ')}
+                                    >
+                                      {periodsChips.length <= 4
+                                        ? `(${periodsChips.join(', ')})`
+                                        : `(${periodsChips.length} períodos: ${periodsChips.slice(0, 3).join(', ')}... +${periodsChips.length - 3})`}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
 
-                            {/* Coluna de Telefone & Badge de Validação */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0 self-end md:self-center">
-                              <div className="text-right sm:text-left min-w-[160px]">
-                                <div className="flex items-center justify-end sm:justify-start gap-1.5">
-                                  <MessageCircle size={13} className={isValid ? "text-emerald-600" : isWarning ? "text-amber-500" : "text-rose-500"} />
+                            {/* Coluna Direita: Telefone, Badges e Botão Enviar Individual */}
+                            <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+                              {/* Telefone */}
+                              <div className="text-right sm:text-left min-w-[125px]">
+                                <div className="flex items-center justify-end sm:justify-start gap-1">
+                                  <MessageCircle size={12} className={isValid ? "text-emerald-600" : isWarning ? "text-amber-500" : "text-rose-500"} />
                                   <span className={cn(
                                     "font-mono text-xs font-bold",
                                     isInvalid ? "text-rose-700 line-through" : "text-slate-800"
@@ -4148,46 +4343,84 @@ export function FinancialDashboard() {
                                   </span>
                                 </div>
                                 {contact.rawPhone && contact.rawPhone !== contact.formattedDisplay && (
-                                  <span className="text-[10px] text-slate-400 font-mono block">
+                                  <span className="text-[9px] text-slate-400 font-mono block">
                                     Orig: {contact.rawPhone}
                                   </span>
                                 )}
                               </div>
 
-                              {/* Badge de Validação */}
-                              <div className="shrink-0">
+                              {/* Badges de Validação e Indicador Mensal de Envios */}
+                              <div className="flex flex-col items-end sm:items-start gap-0.5 shrink-0 min-w-[120px]">
                                 {isValid && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                    <CheckCircle2 size={11} className="text-emerald-600" />
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    <CheckCircle2 size={10} className="text-emerald-600" />
                                     <span>Válido (11d)</span>
                                   </span>
                                 )}
                                 {isWarning && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title={contact.reason}>
-                                    <AlertTriangle size={11} className="text-amber-600" />
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9.5px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title={contact.reason}>
+                                    <AlertTriangle size={10} className="text-amber-600" />
                                     <span>{contact.reason}</span>
                                   </span>
                                 )}
                                 {isInvalid && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title={contact.reason}>
-                                    <AlertCircle size={11} className="text-rose-600" />
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9.5px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title={contact.reason}>
+                                    <AlertCircle size={10} className="text-rose-600" />
                                     <span>{contact.reason}</span>
                                   </span>
                                 )}
+
+                                {/* Indicador Mensal de Mensagens Enviadas a este Aluno */}
+                                {(() => {
+                                  const studentLog = monthlyNotificationLog[contact.student.id];
+                                  const count = studentLog?.count || 0;
+                                  if (count > 0) {
+                                    return (
+                                      <div
+                                        className="inline-flex items-center gap-1 text-[9px] font-extrabold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-300/80 shadow-2xs"
+                                        title={`Disparos no mês corrente: ${count} mensagem(ns) enviada(s)${studentLog?.lastSentAt ? ` • Último envio: ${studentLog.lastSentAt}` : ''}`}
+                                      >
+                                        <Check size={9} className="text-emerald-600 shrink-0" />
+                                        <span>{count} {count === 1 ? 'envio no mês' : 'envios no mês'}</span>
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <div
+                                      className="inline-flex items-center gap-1 text-[8.5px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-100/80 border border-slate-200"
+                                      title="Nenhuma mensagem disparada para este aluno pelo sistema no mês corrente"
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                                      <span>0 envios no mês</span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
 
-                              {/* Link de Teste Rápido */}
-                              {testUrl && !isInvalid && (
+                              {/* Botão Enviar Individual */}
+                              {testUrl && !isInvalid ? (
                                 <a
                                   href={testUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-bold flex items-center gap-1 transition-colors shrink-0"
-                                  title="Testar abertura deste número no WhatsApp Web em nova aba"
+                                  onClick={() => registerStudentMessageSent(contact.student.id)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer"
+                                  title={`Disparo Individual: Abrir WhatsApp Web para ${contact.student.name} e registrar envio mensal`}
                                 >
-                                  <span>Testar</span>
-                                  <ExternalLink size={10} />
+                                  <MessageCircle size={12} />
+                                  <span>Enviar</span>
+                                  <ExternalLink size={9} className="opacity-75" />
                                 </a>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-xs font-semibold flex items-center gap-1 cursor-not-allowed shrink-0"
+                                  title={contact.reason || "Número indisponível para envio"}
+                                >
+                                  <MessageCircle size={11} />
+                                  <span>Sem Envio</span>
+                                </button>
                               )}
                             </div>
                           </div>
@@ -4201,7 +4434,7 @@ export function FinancialDashboard() {
                     <div className="flex items-center gap-2">
                       <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
                       <span className="text-[11px] leading-tight text-slate-500">
-                        Contatos inválidos foram desmarcados automaticamente para preservar a integridade do seu WhatsApp.
+                        <strong>Individual:</strong> Clique em <span className="text-emerald-700 font-bold">"Enviar"</span> na linha do aluno. <strong>Em Lote:</strong> Marque até 5 alunos e clique em <span className="text-emerald-700 font-bold">"Confirmar e Enviar Fila"</span>.
                       </span>
                     </div>
 
@@ -4219,10 +4452,10 @@ export function FinancialDashboard() {
                         onClick={handleConfirmValidationAndStartQueue}
                         disabled={selectedApprovedCount === 0}
                         className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        title={selectedApprovedCount === 0 ? "Selecione pelo menos um contato válido para iniciar a fila" : "Iniciar fila assistida com os contatos conferidos"}
+                        title={selectedApprovedCount === 0 ? "Selecione pelo menos um contato para iniciar a fila de envio" : `Disparar fila sequencial para os ${selectedApprovedCount} alunos selecionados`}
                       >
                         <Play size={12} fill="currentColor" />
-                        <span>Confirmar e Iniciar Fila ({selectedApprovedCount})</span>
+                        <span>Confirmar e Enviar Fila ({selectedApprovedCount} {selectedApprovedCount === 1 ? 'aluno' : 'alunos'})</span>
                         <ArrowRight size={12} />
                       </button>
                     </div>
