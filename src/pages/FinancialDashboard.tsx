@@ -39,7 +39,8 @@ import {
   UserCheck,
   SendHorizontal,
   ShieldCheck,
-  Info
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -105,6 +106,129 @@ const DEFAULT_COLLECTIVE_EMAIL_SUBJECT =
 const DEFAULT_CLASS_GROUP_WHATSAPP_ANNOUNCEMENT =
   '📢 *COMUNICADO DA SECRETARIA - ESCOLA DIOCESANA*\n\nPrezados alunos da turma *{TURMA}*,\n\nPaz e Bem! Solicitamos a gentileza de conferir a regularização de suas contribuições/mensalidades letivas de {ANO} junto à secretaria acadêmica. Caso já tenha realizado o pagamento via Pix ou transferência recentemente, favor encaminhar o comprovante para a baixa no sistema.\n\nContamos com a fraterna colaboração de todos!\n\n_Secretaria da Escola Diocesana de Ministério_';
 
+export interface PhoneValidationResult {
+  isValid: boolean;
+  isWarning: boolean;
+  status: 'valid' | 'warning' | 'invalid';
+  reason: string;
+  formattedDisplay: string;
+  whatsappNumber: string;
+  digits: string;
+}
+
+export function validateWhatsAppPhone(rawPhone: string | null | undefined): PhoneValidationResult {
+  if (!rawPhone || !String(rawPhone).trim()) {
+    return {
+      isValid: false,
+      isWarning: false,
+      status: 'invalid',
+      reason: 'Telefone ausente / não cadastrado',
+      formattedDisplay: 'Não informado',
+      whatsappNumber: '',
+      digits: ''
+    };
+  }
+
+  const str = String(rawPhone).trim();
+  let digits = str.replace(/\D/g, '');
+
+  // Remove prefixo 55 se já existir em números de 12 ou 13 dígitos
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+
+  // Remove zero à esquerda no DDD (ex: 011...)
+  if (digits.startsWith('0') && (digits.length === 11 || digits.length === 12)) {
+    digits = digits.slice(1);
+  }
+
+  if (digits.length < 10) {
+    return {
+      isValid: false,
+      isWarning: false,
+      status: 'invalid',
+      reason: `Número incompleto (${digits.length} dígitos)`,
+      formattedDisplay: str,
+      whatsappNumber: '',
+      digits
+    };
+  }
+
+  if (digits.length > 11) {
+    return {
+      isValid: false,
+      isWarning: false,
+      status: 'invalid',
+      reason: `Excesso de dígitos (${digits.length} dígitos)`,
+      formattedDisplay: str,
+      whatsappNumber: '',
+      digits
+    };
+  }
+
+  const dddNum = parseInt(digits.slice(0, 2), 10);
+  if (isNaN(dddNum) || dddNum < 11 || dddNum > 99) {
+    return {
+      isValid: false,
+      isWarning: false,
+      status: 'invalid',
+      reason: `DDD inválido (${digits.slice(0, 2)})`,
+      formattedDisplay: str,
+      whatsappNumber: '',
+      digits
+    };
+  }
+
+  const phoneBody = digits.slice(2);
+  if (/^(\d)\1+$/.test(phoneBody)) {
+    return {
+      isValid: false,
+      isWarning: false,
+      status: 'invalid',
+      reason: 'Número repetido / teste',
+      formattedDisplay: str,
+      whatsappNumber: '',
+      digits
+    };
+  }
+
+  if (digits.length === 11) {
+    const ninthDigit = digits[2];
+    if (ninthDigit !== '9') {
+      return {
+        isValid: true,
+        isWarning: true,
+        status: 'warning',
+        reason: 'Celular sem dígito 9 (pode falhar)',
+        formattedDisplay: `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`,
+        whatsappNumber: `55${digits}`,
+        digits
+      };
+    }
+
+    return {
+      isValid: true,
+      isWarning: false,
+      status: 'valid',
+      reason: 'Celular válido para WhatsApp',
+      formattedDisplay: `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`,
+      whatsappNumber: `55${digits}`,
+      digits
+    };
+  }
+
+  // 10 dígitos (Fixo ou Celular antigo)
+  return {
+    isValid: true,
+    isWarning: true,
+    status: 'warning',
+    reason: '10 dígitos (Fixo ou sem 9)',
+    formattedDisplay: `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`,
+    whatsappNumber: `55${digits}`,
+    digits
+  };
+}
+
 export function FinancialDashboard() {
   const navigate = useNavigate();
   const { 
@@ -167,6 +291,13 @@ export function FinancialDashboard() {
   const [sentStudentIds, setSentStudentIds] = useState<Set<string>>(new Set());
   const [activeQueueGroupTitle, setActiveQueueGroupTitle] = useState<string>('');
   const [activeQueueStudentsOverride, setActiveQueueStudentsOverride] = useState<any[] | null>(null);
+
+  // Modal de Conferência e Validação Prévia de Contatos para WhatsApp
+  const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
+  const [validationTargetGroup, setValidationTargetGroup] = useState<any | null>(null);
+  const [validatedContacts, setValidatedContacts] = useState<any[]>([]);
+  const [validationFilter, setValidationFilter] = useState<'all' | 'valid' | 'warning' | 'invalid'>('all');
+  const [validationSearch, setValidationSearch] = useState<string>('');
 
   // Carrega configurações financeiras
   useEffect(() => {
@@ -954,14 +1085,71 @@ export function FinancialDashboard() {
     setTimeout(() => setBatchCopiedFeedback(null), 3500);
   };
 
-  // Disparo de Fila WhatsApp de uma Turma Específica (ideal para contas gratuitas)
-  const handleStartQueueForClass = (group: any) => {
-    const classStudents = group.students.filter((s: any) => s.hasWhatsapp);
-    if (classStudents.length === 0) return;
-    setActiveQueueStudentsOverride(classStudents);
-    setActiveQueueGroupTitle(group.className);
+  // Abre o Modal de Conferência e Validação Prévia de Contatos antes de iniciar a fila
+  const handleOpenContactValidation = (group: any) => {
+    setValidationTargetGroup(group);
+    const contacts = (group.students || []).map((student: any) => {
+      const rawPhone = student.phone || student.phone_mobile || student.phone_residential || '';
+      const val = validateWhatsAppPhone(rawPhone);
+      return {
+        student,
+        rawPhone,
+        ...val,
+        isSelected: val.status !== 'invalid' // auto-seleciona válidos e com alerta
+      };
+    });
+    setValidatedContacts(contacts);
+    setValidationFilter('all');
+    setValidationSearch('');
+    setShowValidationModal(true);
+  };
+
+  const handleToggleValidationContact = (studentId: string) => {
+    setValidatedContacts(prev =>
+      prev.map(c => (c.student.id === studentId ? { ...c, isSelected: !c.isSelected } : c))
+    );
+  };
+
+  const handleSelectAllValidInValidation = () => {
+    setValidatedContacts(prev =>
+      prev.map(c => ({
+        ...c,
+        isSelected: c.status !== 'invalid'
+      }))
+    );
+  };
+
+  const handleDeselectAllInValidation = () => {
+    setValidatedContacts(prev =>
+      prev.map(c => ({
+        ...c,
+        isSelected: false
+      }))
+    );
+  };
+
+  const handleConfirmValidationAndStartQueue = () => {
+    const approvedStudents = validatedContacts
+      .filter(c => c.isSelected && c.status !== 'invalid')
+      .map(c => ({
+        ...c.student,
+        phone: c.formattedDisplay,
+        whatsappNumber: c.whatsappNumber,
+        hasWhatsapp: true
+      }));
+
+    if (approvedStudents.length === 0) return;
+
+    setActiveQueueStudentsOverride(approvedStudents);
+    setActiveQueueGroupTitle(validationTargetGroup?.className || 'Turma');
     setIsQueueActive(true);
     setQueueIndex(0);
+    setShowValidationModal(false);
+  };
+
+  // Disparo de Fila WhatsApp de uma Turma Específica (abre a conferência prévia)
+  const handleStartQueueForClass = (group: any) => {
+    handleOpenContactValidation(group);
   };
 
   // Alunos selecionados elegíveis para a fila de WhatsApp
@@ -989,11 +1177,13 @@ export function FinancialDashboard() {
   }, [currentQueueStudent, currentQueueStudentMessage]);
 
   const handleStartQueue = () => {
-    setActiveQueueStudentsOverride(null);
-    setActiveQueueGroupTitle(activeLoadedClassGroup ? activeLoadedClassGroup.className : 'Alunos Selecionados');
-    if (selectedQueueStudents.length === 0) return;
-    setIsQueueActive(true);
-    setQueueIndex(0);
+    const studentsToValidate = selectedQueueStudents.length > 0
+      ? selectedQueueStudents
+      : (filteredPendingStudents.length > 0 ? filteredPendingStudents : activeScopeStudents);
+    handleOpenContactValidation({
+      className: activeLoadedClassGroup ? activeLoadedClassGroup.className : 'Alunos Selecionados',
+      students: studentsToValidate
+    });
   };
 
   const handleDirectWhatsAppClick = (student: any) => {
@@ -3404,8 +3594,12 @@ export function FinancialDashboard() {
                           const isSelected = selectedStudentIds.has(student.id);
                           const isAlreadySent = sentStudentIds.has(student.id);
 
-                          const whatsappUrl = student.whatsappNumber
-                            ? `https://api.whatsapp.com/send?phone=${student.whatsappNumber}&text=${encodeURIComponent(studentMessage)}`
+                          const rawPhone = student.phone || student.phone_mobile || student.phone_residential || '';
+                          const phoneVal = validateWhatsAppPhone(rawPhone);
+                          const isPhoneSendable = phoneVal.status !== 'invalid' && Boolean(phoneVal.whatsappNumber);
+
+                          const whatsappUrl = isPhoneSendable
+                            ? `https://api.whatsapp.com/send?phone=${phoneVal.whatsappNumber}&text=${encodeURIComponent(studentMessage)}`
                             : null;
                           const mailtoUrl = student.hasEmail
                             ? `mailto:${student.email}?subject=${encodeURIComponent(studentEmailSubject)}&body=${encodeURIComponent(studentMessage)}`
@@ -3489,12 +3683,33 @@ export function FinancialDashboard() {
                                     </span>
                                   </div>
 
-                                  {/* Contatos */}
+                                  {/* Contatos com Selo de Validação */}
                                   <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 flex-wrap">
-                                    {student.phone && (
-                                      <span className="flex items-center gap-1">
-                                        <MessageCircle size={11} className={student.hasWhatsapp ? "text-emerald-600" : "text-slate-400"} />
-                                        {student.phone}
+                                    {rawPhone ? (
+                                      <span className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="flex items-center gap-1">
+                                          <MessageCircle size={11} className={phoneVal.status === 'valid' ? "text-emerald-600" : phoneVal.status === 'warning' ? "text-amber-500" : "text-rose-500"} />
+                                          <span className={phoneVal.status === 'invalid' ? "text-rose-600 line-through" : "text-slate-700"}>
+                                            {phoneVal.formattedDisplay}
+                                          </span>
+                                        </span>
+                                        {phoneVal.status === 'valid' ? (
+                                          <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold flex items-center gap-0.5">
+                                            <Check size={8} /> Válido
+                                          </span>
+                                        ) : phoneVal.status === 'warning' ? (
+                                          <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold flex items-center gap-0.5" title={phoneVal.reason}>
+                                            <AlertTriangle size={8} /> {phoneVal.reason}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold flex items-center gap-0.5" title={phoneVal.reason}>
+                                            <AlertCircle size={8} /> {phoneVal.reason}
+                                          </span>
+                                        )}
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center gap-1 text-slate-400">
+                                        <MessageCircle size={11} /> Sem telefone
                                       </span>
                                     )}
                                     {student.email && (
@@ -3528,10 +3743,10 @@ export function FinancialDashboard() {
                                     type="button"
                                     disabled
                                     className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-[11px] font-medium flex items-center gap-1 cursor-not-allowed"
-                                    title="Aluno sem número de celular/WhatsApp cadastrado"
+                                    title={phoneVal.status === 'invalid' ? `Telefone inválido: ${phoneVal.reason}` : "Aluno sem número de celular/WhatsApp cadastrado"}
                                   >
                                     <MessageCircle size={12} />
-                                    <span>Sem WhatsApp</span>
+                                    <span>{phoneVal.status === 'invalid' ? 'Número Inválido' : 'Sem WhatsApp'}</span>
                                   </button>
                                 )}
 
@@ -3614,6 +3829,407 @@ export function FinancialDashboard() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Conferência e Validação Prévia de Contatos para WhatsApp */}
+      {showValidationModal && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] my-auto flex flex-col border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Cabeçalho do Modal */}
+            <div className="px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between gap-3 shrink-0 border-b border-slate-700">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm sm:text-base font-black text-white truncate">
+                      Conferência e Validação de Contatos WhatsApp
+                    </h3>
+                    {validationTargetGroup?.className && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold">
+                        {validationTargetGroup.className}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-tight mt-0.5 truncate">
+                    Verificação automática de DDD, quantidade de dígitos e prefixo celular brasileiro para evitar falhas de envio
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowValidationModal(false)}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="Fechar conferência"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Faixa de Métricas e Status dos Contatos */}
+            {(() => {
+              const totalContacts = validatedContacts.length;
+              const validContacts = validatedContacts.filter(c => c.status === 'valid').length;
+              const warningContacts = validatedContacts.filter(c => c.status === 'warning').length;
+              const invalidContacts = validatedContacts.filter(c => c.status === 'invalid').length;
+              const selectedApprovedCount = validatedContacts.filter(c => c.isSelected && c.status !== 'invalid').length;
+
+              const filteredContacts = validatedContacts.filter(c => {
+                if (validationFilter === 'valid' && c.status !== 'valid') return false;
+                if (validationFilter === 'warning' && c.status !== 'warning') return false;
+                if (validationFilter === 'invalid' && c.status !== 'invalid') return false;
+                if (validationSearch.trim()) {
+                  const q = validationSearch.toLowerCase().trim();
+                  const matchName = c.student?.name?.toLowerCase().includes(q);
+                  const matchRa = c.student?.registration_number?.toLowerCase().includes(q);
+                  const matchDigits = c.digits?.includes(q) || c.formattedDisplay?.toLowerCase().includes(q);
+                  if (!matchName && !matchRa && !matchDigits) return false;
+                }
+                return true;
+              });
+
+              return (
+                <>
+                  <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-center shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total</span>
+                      <span className="text-base font-black text-slate-800">{totalContacts}</span>
+                    </div>
+
+                    <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 text-center shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Válidos (11d)</span>
+                      <span className="text-base font-black text-emerald-800 flex items-center justify-center gap-1">
+                        <CheckCircle2 size={14} className="text-emerald-600" />
+                        {validContacts}
+                      </span>
+                    </div>
+
+                    <div className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 text-center shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Atenção (10d)</span>
+                      <span className="text-base font-black text-amber-800 flex items-center justify-center gap-1">
+                        <AlertTriangle size={14} className="text-amber-600" />
+                        {warningContacts}
+                      </span>
+                    </div>
+
+                    <div className="bg-rose-50/70 p-2.5 rounded-xl border border-rose-200 text-center shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 block">Inválidos / Ausentes</span>
+                      <span className="text-base font-black text-rose-800 flex items-center justify-center gap-1">
+                        <AlertCircle size={14} className="text-rose-600" />
+                        {invalidContacts}
+                      </span>
+                    </div>
+
+                    <div className="bg-blue-50/70 p-2.5 rounded-xl border border-blue-200 text-center shadow-2xs col-span-2 sm:col-span-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">Para Envio</span>
+                      <span className="text-base font-black text-blue-800 flex items-center justify-center gap-1">
+                        <UserCheck size={14} className="text-blue-600" />
+                        {selectedApprovedCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Barra de Filtros, Busca e Seleção Rápida */}
+                  <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
+                        <Filter size={12} /> Filtro:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setValidationFilter('all')}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                          validationFilter === 'all'
+                            ? "bg-slate-900 text-white"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                        )}
+                      >
+                        Todos ({totalContacts})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setValidationFilter('valid')}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                          validationFilter === 'valid'
+                            ? "bg-emerald-600 text-white"
+                            : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        )}
+                      >
+                        Válidos ({validContacts})
+                      </button>
+                      {warningContacts > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setValidationFilter('warning')}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                            validationFilter === 'warning'
+                              ? "bg-amber-600 text-white"
+                              : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
+                          )}
+                        >
+                          Atenção ({warningContacts})
+                        </button>
+                      )}
+                      {invalidContacts > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setValidationFilter('invalid')}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                            validationFilter === 'invalid'
+                              ? "bg-rose-600 text-white"
+                              : "bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200"
+                          )}
+                        >
+                          Inválidos ({invalidContacts})
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1 sm:w-56">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={validationSearch}
+                          onChange={e => setValidationSearch(e.target.value)}
+                          placeholder="Buscar nome, RA ou número..."
+                          className="w-full text-xs pl-7 pr-7 py-1 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-white"
+                        />
+                        {validationSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setValidationSearch('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSelectAllValidInValidation}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Marcar todos os contatos que possuem número válido para receber mensagem"
+                      >
+                        <CheckSquare size={13} className="text-emerald-600" />
+                        <span>Marcar Válidos</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllInValidation}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-all shadow-2xs flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Desmarcar todos os contatos"
+                      >
+                        <Square size={13} className="text-slate-400" />
+                        <span>Desmarcar</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Lista de Contatos para Conferência */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[50vh] bg-slate-50/50">
+                    {filteredContacts.length === 0 ? (
+                      <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
+                        <Info size={28} className="mx-auto mb-2 text-slate-400" />
+                        <p className="text-xs font-bold text-slate-700">Nenhum contato encontrado no filtro atual.</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Tente alterar os filtros de status ou a busca.</p>
+                      </div>
+                    ) : (
+                      filteredContacts.map(contact => {
+                        const isInvalid = contact.status === 'invalid';
+                        const isWarning = contact.status === 'warning';
+                        const isValid = contact.status === 'valid';
+                        const isChecked = contact.isSelected && !isInvalid;
+
+                        const testMessage = generateStudentMessage(contact.student, customWhatsappTemplate);
+                        const testUrl = contact.whatsappNumber
+                          ? `https://api.whatsapp.com/send?phone=${contact.whatsappNumber}&text=${encodeURIComponent(testMessage)}`
+                          : null;
+
+                        const periodsChips = notificationDebtScope === 'selected_month'
+                          ? [delinquencyMonthlyData.comparison.selectedMonth.monthShort]
+                          : (notificationDebtScope === 'all_year' ? contact.student.allOpenPeriodShorts : contact.student.dueOpenPeriodShorts);
+
+                        const debtAmount = notificationDebtScope === 'selected_month'
+                          ? contact.student.fee
+                          : (notificationDebtScope === 'all_year' ? contact.student.allOpenTotalAmount : contact.student.dueOpenTotalAmount) || contact.student.fee;
+
+                        return (
+                          <div
+                            key={contact.student.id}
+                            className={cn(
+                              "p-3 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs",
+                              isInvalid
+                                ? "bg-rose-50/40 border-rose-200 opacity-75"
+                                : isChecked
+                                ? "bg-white border-emerald-300 hover:border-emerald-400"
+                                : "bg-white border-slate-200 opacity-60"
+                            )}
+                          >
+                            {/* Checkbox e Identificação do Aluno */}
+                            <div className="flex items-start gap-3 min-w-0 flex-1">
+                              <button
+                                type="button"
+                                disabled={isInvalid}
+                                onClick={() => handleToggleValidationContact(contact.student.id)}
+                                className={cn(
+                                  "mt-1 transition-colors shrink-0",
+                                  isInvalid ? "cursor-not-allowed opacity-30" : "cursor-pointer text-slate-400 hover:text-emerald-600"
+                                )}
+                                title={isInvalid ? "Número inválido - não pode ser enviado" : isChecked ? "Desmarcar este contato" : "Marcar para envio"}
+                              >
+                                {isChecked ? (
+                                  <CheckSquare size={17} className="text-emerald-600" />
+                                ) : (
+                                  <Square size={17} className="text-slate-400" />
+                                )}
+                              </button>
+
+                              <div className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 border",
+                                isInvalid
+                                  ? "bg-rose-100 text-rose-800 border-rose-200"
+                                  : isWarning
+                                  ? "bg-amber-100 text-amber-800 border-amber-200"
+                                  : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                              )}>
+                                {contact.student.name.charAt(0).toUpperCase()}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                                    {contact.student.name}
+                                  </h4>
+                                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                                    RA: {contact.student.registration_number || 'N/D'}
+                                  </span>
+                                  {contact.student.className && (
+                                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 truncate max-w-[140px]">
+                                      {contact.student.className}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px]">
+                                  <span className="font-extrabold text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                                    {formatCurrency(debtAmount)}
+                                  </span>
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {periodsChips && periodsChips.map((p: string, idx: number) => (
+                                      <span key={idx} className="text-[9.5px] font-bold px-1.2 py-0.1 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                        {p}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Coluna de Telefone & Badge de Validação */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0 self-end md:self-center">
+                              <div className="text-right sm:text-left min-w-[160px]">
+                                <div className="flex items-center justify-end sm:justify-start gap-1.5">
+                                  <MessageCircle size={13} className={isValid ? "text-emerald-600" : isWarning ? "text-amber-500" : "text-rose-500"} />
+                                  <span className={cn(
+                                    "font-mono text-xs font-bold",
+                                    isInvalid ? "text-rose-700 line-through" : "text-slate-800"
+                                  )}>
+                                    {contact.formattedDisplay}
+                                  </span>
+                                </div>
+                                {contact.rawPhone && contact.rawPhone !== contact.formattedDisplay && (
+                                  <span className="text-[10px] text-slate-400 font-mono block">
+                                    Orig: {contact.rawPhone}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Badge de Validação */}
+                              <div className="shrink-0">
+                                {isValid && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    <CheckCircle2 size={11} className="text-emerald-600" />
+                                    <span>Válido (11d)</span>
+                                  </span>
+                                )}
+                                {isWarning && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title={contact.reason}>
+                                    <AlertTriangle size={11} className="text-amber-600" />
+                                    <span>{contact.reason}</span>
+                                  </span>
+                                )}
+                                {isInvalid && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title={contact.reason}>
+                                    <AlertCircle size={11} className="text-rose-600" />
+                                    <span>{contact.reason}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Link de Teste Rápido */}
+                              {testUrl && !isInvalid && (
+                                <a
+                                  href={testUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-bold flex items-center gap-1 transition-colors shrink-0"
+                                  title="Testar abertura deste número no WhatsApp Web em nova aba"
+                                >
+                                  <span>Testar</span>
+                                  <ExternalLink size={10} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Rodapé do Modal */}
+                  <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
+                      <span className="text-[11px] leading-tight text-slate-500">
+                        Contatos inválidos foram desmarcados automaticamente para preservar a integridade do seu WhatsApp.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowValidationModal(false)}
+                        className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleConfirmValidationAndStartQueue}
+                        disabled={selectedApprovedCount === 0}
+                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={selectedApprovedCount === 0 ? "Selecione pelo menos um contato válido para iniciar a fila" : "Iniciar fila assistida com os contatos conferidos"}
+                      >
+                        <Play size={12} fill="currentColor" />
+                        <span>Confirmar e Iniciar Fila ({selectedApprovedCount})</span>
+                        <ArrowRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
