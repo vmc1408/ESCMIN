@@ -18,7 +18,28 @@ import {
   Printer,
   Users,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Bell,
+  MessageCircle,
+  Mail,
+  Send,
+  Copy,
+  Check,
+  ExternalLink,
+  X,
+  Search,
+  Filter,
+  RotateCcw,
+  Sparkles,
+  CheckSquare,
+  Square,
+  Play,
+  SkipForward,
+  ListChecks,
+  UserCheck,
+  SendHorizontal,
+  ShieldCheck,
+  Info
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -53,6 +74,36 @@ const MONTH_SHORT_LABELS = [
   'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
   'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
 ];
+
+function formatPeriodsList(labels: string[]): string {
+  if (!labels || labels.length === 0) return 'nenhuma pendência';
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} e ${labels[1]}`;
+  const last = labels[labels.length - 1];
+  const rest = labels.slice(0, -1).join(', ');
+  return `${rest} e ${last}`;
+}
+
+const DEFAULT_ALL_PERIODS_WHATSAPP_TEMPLATE =
+  'Olá, {NOME}! Paz e Bem. Lembramos cordialmente que na Escola Diocesana de Ministério (Turma: {TURMA}) constam em aberto {QTD_PERIODOS} contribuição(ões) ({PERIODOS_ABERTO}), totalizando o valor de {VALOR_TOTAL}. Caso já tenha realizado o pagamento via Pix ou transferência bancária, por favor desconsidere este aviso ou nos envie o comprovante. Para quaisquer dúvidas, estamos à disposição na secretaria.';
+
+const DEFAULT_ALL_PERIODS_EMAIL_SUBJECT =
+  'Escola Diocesana - Lembrete de Regularização de Contribuições ({QTD_PERIODOS} em aberto)';
+
+const DEFAULT_SINGLE_MONTH_WHATSAPP_TEMPLATE =
+  'Olá, {NOME}! Paz e Bem. Lembramos cordialmente que a contribuição de {MES}/{ANO} da Escola Diocesana de Ministério (Turma: {TURMA}) no valor de {VALOR} consta em aberto. Caso já tenha realizado o pagamento via Pix ou transferência bancária, por favor desconsidere este aviso ou nos envie o comprovante. Para quaisquer dúvidas, estamos à disposição na secretaria.';
+
+const DEFAULT_SINGLE_MONTH_EMAIL_SUBJECT =
+  'Escola Diocesana - Lembrete da Contribuição de {MES}/{ANO}';
+
+const DEFAULT_COLLECTIVE_EMAIL_BODY =
+  'Prezados alunos e alunas da Escola Diocesana de Ministério,\n\nPaz e Bem!\n\nEntramos em contato cordialmente para solicitar a conferência e regularização das contribuições/mensalidades em aberto do exercício letivo de {ANO}. Caso já tenha efetuado o pagamento via Pix ou transferência bancária recentemente, por favor desconsidere este comunicado ou nos envie o respectivo comprovante.\n\nPara consultar o demonstrativo detalhado de competências e regularizar a situação acadêmica, nossa secretaria permanece à inteira disposição.\n\nFraternalmente,\nSecretaria da Escola Diocesana de Ministério';
+
+const DEFAULT_COLLECTIVE_EMAIL_SUBJECT =
+  'Escola Diocesana de Ministério - Comunicado de Regularização de Contribuições Letivas';
+
+const DEFAULT_CLASS_GROUP_WHATSAPP_ANNOUNCEMENT =
+  '📢 *COMUNICADO DA SECRETARIA - ESCOLA DIOCESANA*\n\nPrezados alunos da turma *{TURMA}*,\n\nPaz e Bem! Solicitamos a gentileza de conferir a regularização de suas contribuições/mensalidades letivas de {ANO} junto à secretaria acadêmica. Caso já tenha realizado o pagamento via Pix ou transferência recentemente, favor encaminhar o comprovante para a baixa no sistema.\n\nContamos com a fraterna colaboração de todos!\n\n_Secretaria da Escola Diocesana de Ministério_';
 
 export function FinancialDashboard() {
   const navigate = useNavigate();
@@ -91,6 +142,31 @@ export function FinancialDashboard() {
   const [semesterDisplayType, setSemesterDisplayType] = useState<'regular' | 'accumulated'>('regular');
 
   const [annualDisplayType, setAnnualDisplayType] = useState<'regular' | 'accumulated'>('regular');
+
+  // Controles do Modal de Notificação de Inadimplência
+  const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
+  const [notificationViewMode, setNotificationViewMode] = useState<'classes' | 'individual'>('classes');
+  const [notificationClassGroupFilter, setNotificationClassGroupFilter] = useState<string>('all');
+  const [notificationSearch, setNotificationSearch] = useState<string>('');
+  const [notificationChannelTab, setNotificationChannelTab] = useState<'whatsapp' | 'email'>('whatsapp');
+  const [notificationDebtScope, setNotificationDebtScope] = useState<'all_due' | 'selected_month' | 'all_year'>('all_due');
+  const [customWhatsappTemplate, setCustomWhatsappTemplate] = useState<string>(DEFAULT_ALL_PERIODS_WHATSAPP_TEMPLATE);
+  const [customEmailSubject, setCustomEmailSubject] = useState<string>(DEFAULT_ALL_PERIODS_EMAIL_SUBJECT);
+  const [customCollectiveEmailBody, setCustomCollectiveEmailBody] = useState<string>(DEFAULT_COLLECTIVE_EMAIL_BODY);
+  const [customCollectiveEmailSubject, setCustomCollectiveEmailSubject] = useState<string>(DEFAULT_COLLECTIVE_EMAIL_SUBJECT);
+  const [copiedStudentId, setCopiedStudentId] = useState<string | null>(null);
+  const [batchCopiedFeedback, setBatchCopiedFeedback] = useState<string | null>(null);
+  const [showTemplateEditor, setShowTemplateEditor] = useState<boolean>(false);
+
+  // Seleção múltipla para disparo em lote
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+
+  // Assistente de Fila Sequencial para WhatsApp
+  const [isQueueActive, setIsQueueActive] = useState<boolean>(false);
+  const [queueIndex, setQueueIndex] = useState<number>(0);
+  const [sentStudentIds, setSentStudentIds] = useState<Set<string>>(new Set());
+  const [activeQueueGroupTitle, setActiveQueueGroupTitle] = useState<string>('');
+  const [activeQueueStudentsOverride, setActiveQueueStudentsOverride] = useState<any[] | null>(null);
 
   // Carrega configurações financeiras
   useEffect(() => {
@@ -208,14 +284,18 @@ export function FinancialDashboard() {
         return y === targetYear;
       });
 
-      const paidMonths = studentContribs.map(c => Number(c.reference_month));
+      const paidMonths = studentContribs
+        .filter(c => Number(c.amount) > 0 || c.is_waived)
+        .map(c => Number(c.reference_month));
       const plan = getStudentContributionPlan(student, studentClass, targetYear, paidMonths, activeAcad);
 
       return {
         student,
         studentClass,
         fee,
-        plan
+        plan,
+        paidMonths,
+        studentContribs
       };
     });
 
@@ -515,6 +595,73 @@ export function FinancialDashboard() {
       ? Number((100 - taxaAdimplenciaAlunos).toFixed(1))
       : 0;
 
+    // Relação enriquecida de alunos com mapeamento de todos os períodos em aberto e vencidos
+    const enrichedStudentsList = studentPlans.map(({ student, studentClass, fee, plan, paidMonths }) => {
+      const rawPhone = student.phone_mobile || student.phone_residential || student.phone_commercial || (student as any).phone || '';
+      const digits = rawPhone.replace(/\D/g, '');
+      let whatsappNumber = digits;
+      if (digits.length === 10 || digits.length === 11) {
+        whatsappNumber = `55${digits}`;
+      }
+
+      // 1. Todos os períodos acadêmicos em aberto no ano letivo
+      const allOpenPeriodNumbers = plan.expectedPeriods.filter(p => !paidMonths.includes(p));
+
+      // 2. Períodos vencidos até o momento atual
+      const dueOpenPeriodNumbers = allOpenPeriodNumbers.filter(p => {
+        if (!isCurrentYear) return targetYear < currentYear;
+        if (p === 0) return true; // Matrícula
+        return p <= currentMonth;
+      });
+
+      // 3. Pendente no mês selecionado em foco
+      const isPendingInSelectedMonth = (
+        !payingStudentIdsInSelectedMonth.has(student.id) &&
+        (targetMonthNum === 1
+          ? (plan.expectedPeriods.includes(0) || plan.expectedPeriods.includes(1))
+          : plan.expectedPeriods.includes(targetMonthNum))
+      );
+
+      const getPeriodLabel = (p: number) => (p === 0 ? 'Matrícula' : `${MONTH_NAMES_LIST[p - 1]}/${targetYear}`);
+      const getPeriodShort = (p: number) => (p === 0 ? 'Matr.' : `${MONTH_SHORT_LABELS[p - 1]}`);
+
+      const allOpenPeriodLabels = allOpenPeriodNumbers.map(getPeriodLabel);
+      const allOpenPeriodShorts = allOpenPeriodNumbers.map(getPeriodShort);
+
+      const dueOpenPeriodLabels = dueOpenPeriodNumbers.map(getPeriodLabel);
+      const dueOpenPeriodShorts = dueOpenPeriodNumbers.map(getPeriodShort);
+
+      return {
+        id: student.id,
+        name: student.name,
+        registration_number: student.registration_number,
+        email: student.email || '',
+        phone: rawPhone || '',
+        whatsappNumber: digits.length >= 10 ? whatsappNumber : '',
+        hasWhatsapp: digits.length >= 10,
+        hasEmail: Boolean(student.email && student.email.includes('@')),
+        className: studentClass?.name || 'Turma não atribuída',
+        classId: studentClass?.id,
+        fee: fee || 0,
+        paidMonths,
+        isPendingInSelectedMonth,
+        allOpenPeriodNumbers,
+        allOpenPeriodLabels,
+        allOpenPeriodShorts,
+        allOpenPeriodsFormatted: formatPeriodsList(allOpenPeriodLabels),
+        allOpenTotalAmount: allOpenPeriodNumbers.length * (fee || 0),
+        dueOpenPeriodNumbers,
+        dueOpenPeriodLabels,
+        dueOpenPeriodShorts,
+        dueOpenPeriodsFormatted: formatPeriodsList(dueOpenPeriodLabels),
+        dueOpenTotalAmount: dueOpenPeriodNumbers.length * (fee || 0)
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+    const pendingStudentsList = enrichedStudentsList.filter(s => s.isPendingInSelectedMonth);
+    const allDuePendingStudentsList = enrichedStudentsList.filter(s => s.dueOpenPeriodNumbers.length > 0);
+    const allYearPendingStudentsList = enrichedStudentsList.filter(s => s.allOpenPeriodNumbers.length > 0);
+
     const monthlyHistoryBars = monthlyPoints.map(p => ({
       month: p.monthShort,
       fullName: p.monthName,
@@ -538,6 +685,10 @@ export function FinancialDashboard() {
       taxaInadimplenciaAlunos,
       totalActiveStudents,
       monthlyHistoryBars,
+      pendingStudentsList,
+      allDuePendingStudentsList,
+      allYearPendingStudentsList,
+      enrichedStudentsList,
       annual: {
         previsto: annualPrevisto,
         realizado: annualRealizado,
@@ -602,6 +753,370 @@ export function FinancialDashboard() {
     units,
     studentToClassIdMap
   ]);
+
+  // Lista ativa de alunos inadimplentes conforme o escopo de débitos escolhido
+  const activeScopeStudents = useMemo(() => {
+    if (notificationDebtScope === 'all_due') {
+      return delinquencyMonthlyData.allDuePendingStudentsList || [];
+    }
+    if (notificationDebtScope === 'all_year') {
+      return delinquencyMonthlyData.allYearPendingStudentsList || [];
+    }
+    return delinquencyMonthlyData.pendingStudentsList || [];
+  }, [delinquencyMonthlyData, notificationDebtScope]);
+
+  // Agrupamento dos alunos inadimplentes por Turma / Grupo
+  const classGroups = useMemo(() => {
+    const map = new Map<string, {
+      classId: string;
+      className: string;
+      classCode?: string;
+      students: any[];
+      totalDebtAmount: number;
+      totalWhatsAppCount: number;
+      totalEmailCount: number;
+    }>();
+
+    activeScopeStudents.forEach(student => {
+      const cId = student.classId || 'sem_turma';
+      const cName = student.className || 'Turma não atribuída';
+      
+      if (!map.has(cId)) {
+        const foundClass = classes.find(c => c.id === cId);
+        map.set(cId, {
+          classId: cId,
+          className: cName,
+          classCode: foundClass?.code || '',
+          students: [],
+          totalDebtAmount: 0,
+          totalWhatsAppCount: 0,
+          totalEmailCount: 0
+        });
+      }
+
+      const group = map.get(cId)!;
+      group.students.push(student);
+      
+      const debt = notificationDebtScope === 'selected_month'
+        ? student.fee
+        : (notificationDebtScope === 'all_year' ? student.allOpenTotalAmount : student.dueOpenTotalAmount) || student.fee;
+      
+      group.totalDebtAmount += debt;
+      if (student.hasWhatsapp) group.totalWhatsAppCount += 1;
+      if (student.hasEmail) group.totalEmailCount += 1;
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.students.length - a.students.length);
+  }, [activeScopeStudents, classes, notificationDebtScope]);
+
+  // Turma atualmente carregada em foco (se houver)
+  const activeLoadedClassGroup = useMemo(() => {
+    if (notificationClassGroupFilter === 'all') return null;
+    return classGroups.find(g => g.classId === notificationClassGroupFilter) || null;
+  }, [classGroups, notificationClassGroupFilter]);
+
+  // Alunos individuais filtrados pela turma e barra de busca
+  // Regra solicitada: não carregar todos os 98 alunos de uma vez!
+  // Carrega apenas quando uma turma específica for selecionada ou quando houver busca nominal digitada.
+  const filteredPendingStudents = useMemo(() => {
+    const query = notificationSearch.trim().toLowerCase();
+
+    // 1. Se uma turma específica foi selecionada para carregar
+    if (notificationClassGroupFilter !== 'all') {
+      const classStudents = activeScopeStudents.filter(s => s.classId === notificationClassGroupFilter);
+      if (!query) return classStudents;
+      return classStudents.filter(s =>
+        s.name.toLowerCase().includes(query) ||
+        s.registration_number.toLowerCase().includes(query) ||
+        s.className.toLowerCase().includes(query)
+      );
+    }
+
+    // 2. Se nenhuma turma foi selecionada, mas o usuário digitou uma busca por nome ou RA
+    if (query) {
+      return activeScopeStudents.filter(s =>
+        s.name.toLowerCase().includes(query) ||
+        s.registration_number.toLowerCase().includes(query) ||
+        s.className.toLowerCase().includes(query)
+      );
+    }
+
+    // 3. Nenhuma turma selecionada e nenhuma busca: retorna vazio para não despejar todos os alunos
+    return [];
+  }, [activeScopeStudents, notificationClassGroupFilter, notificationSearch]);
+
+  // Total acumulado em aberto no escopo ativo
+  const totalPendingAmount = useMemo(() => {
+    return activeScopeStudents.reduce((sum, s) => {
+      if (notificationDebtScope === 'all_due') return sum + (s.dueOpenTotalAmount || s.fee);
+      if (notificationDebtScope === 'all_year') return sum + (s.allOpenTotalAmount || s.fee);
+      return sum + s.fee;
+    }, 0);
+  }, [activeScopeStudents, notificationDebtScope]);
+
+  // Sincroniza a seleção quando a turma carregada ou os alunos mudam
+  useEffect(() => {
+    if (filteredPendingStudents.length > 0) {
+      setSelectedStudentIds(new Set(filteredPendingStudents.map(s => s.id)));
+    } else {
+      setSelectedStudentIds(new Set());
+    }
+    setIsQueueActive(false);
+    setQueueIndex(0);
+    setActiveQueueStudentsOverride(null);
+  }, [notificationClassGroupFilter, activeScopeStudents]);
+
+  const handleSelectClassToLoad = (classId: string) => {
+    setNotificationClassGroupFilter(classId);
+    setNotificationViewMode('individual');
+    setNotificationSearch('');
+    const classStudents = activeScopeStudents.filter(s => s.classId === classId);
+    setSelectedStudentIds(new Set(classStudents.map(s => s.id)));
+  };
+
+  const handleClearClassFilter = () => {
+    setNotificationClassGroupFilter('all');
+    setNotificationSearch('');
+    setSelectedStudentIds(new Set());
+  };
+
+  // Gerador de Mensagem Personalizada com suporte a todos os períodos em aberto
+  const generateStudentMessage = (student: any, template: string) => {
+    const selectedMonth = delinquencyMonthlyData.comparison.selectedMonth;
+
+    let periodosTexto = '';
+    let qtdPeriodos = '1';
+    let valorTotal = formatCurrency(student.fee);
+
+    if (notificationDebtScope === 'all_due') {
+      periodosTexto = student.dueOpenPeriodsFormatted || `${selectedMonth.monthName} de ${delinquencyYear}`;
+      qtdPeriodos = String(student.dueOpenPeriodNumbers?.length || 1);
+      valorTotal = formatCurrency(student.dueOpenTotalAmount || student.fee);
+    } else if (notificationDebtScope === 'all_year') {
+      periodosTexto = student.allOpenPeriodsFormatted || `${selectedMonth.monthName} de ${delinquencyYear}`;
+      qtdPeriodos = String(student.allOpenPeriodNumbers?.length || 1);
+      valorTotal = formatCurrency(student.allOpenTotalAmount || student.fee);
+    } else {
+      periodosTexto = `${selectedMonth.monthName} de ${delinquencyYear}`;
+      qtdPeriodos = '1';
+      valorTotal = formatCurrency(student.fee);
+    }
+
+    return template
+      .replace(/{NOME}/g, student.name || 'Aluno(a)')
+      .replace(/{MES}/g, selectedMonth.monthName)
+      .replace(/{ANO}/g, String(delinquencyYear))
+      .replace(/{VALOR}/g, formatCurrency(student.fee))
+      .replace(/{VALOR_TOTAL}/g, valorTotal)
+      .replace(/{TURMA}/g, student.className || 'Escola Diocesana')
+      .replace(/{PERIODOS_ABERTO}/g, periodosTexto)
+      .replace(/{QTD_PERIODOS}/g, qtdPeriodos);
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedStudentIds.size === filteredPendingStudents.length) {
+      setSelectedStudentIds(new Set());
+    } else {
+      setSelectedStudentIds(new Set(filteredPendingStudents.map(s => s.id)));
+    }
+  };
+
+  const handleToggleSelectStudent = (id: string) => {
+    setSelectedStudentIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Disparo de E-mail Coletivo em Lote (CCO para todos os alunos selecionados)
+  const handleTriggerCollectiveEmail = () => {
+    const selectedStudents = activeScopeStudents.filter(s => selectedStudentIds.has(s.id) && s.hasEmail);
+    if (selectedStudents.length === 0) return;
+    const emails = selectedStudents.map(s => s.email).filter(Boolean);
+    const body = customCollectiveEmailBody.replace(/{ANO}/g, String(delinquencyYear));
+    const mailtoUrl = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(customCollectiveEmailSubject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
+    setBatchCopiedFeedback('collective_email');
+    setTimeout(() => setBatchCopiedFeedback(null), 3500);
+  };
+
+  // Disparo de E-mail Coletivo de uma Turma Específica
+  const handleTriggerCollectiveEmailForClass = (group: any) => {
+    const classEmails = group.students.filter((s: any) => s.hasEmail).map((s: any) => s.email);
+    if (classEmails.length === 0) return;
+    const body = customCollectiveEmailBody.replace(/{ANO}/g, String(delinquencyYear));
+    const subject = `${customCollectiveEmailSubject} - ${group.className}`;
+    const mailtoUrl = `mailto:?bcc=${encodeURIComponent(classEmails.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
+    setBatchCopiedFeedback('collective_email');
+    setTimeout(() => setBatchCopiedFeedback(null), 3500);
+  };
+
+  // Disparo de Fila WhatsApp de uma Turma Específica (ideal para contas gratuitas)
+  const handleStartQueueForClass = (group: any) => {
+    const classStudents = group.students.filter((s: any) => s.hasWhatsapp);
+    if (classStudents.length === 0) return;
+    setActiveQueueStudentsOverride(classStudents);
+    setActiveQueueGroupTitle(group.className);
+    setIsQueueActive(true);
+    setQueueIndex(0);
+  };
+
+  // Alunos selecionados elegíveis para a fila de WhatsApp
+  const selectedQueueStudents = useMemo(() => {
+    if (activeQueueStudentsOverride) return activeQueueStudentsOverride;
+    const baseList = filteredPendingStudents.length > 0 ? filteredPendingStudents : activeScopeStudents;
+    return baseList.filter(s => selectedStudentIds.has(s.id) && s.hasWhatsapp);
+  }, [filteredPendingStudents, activeScopeStudents, selectedStudentIds, activeQueueStudentsOverride]);
+
+  // Aluno e URL do aluno atual na fila de disparo
+  const currentQueueStudent = useMemo(() => {
+    if (!isQueueActive || selectedQueueStudents.length === 0) return null;
+    if (queueIndex < 0 || queueIndex >= selectedQueueStudents.length) return null;
+    return selectedQueueStudents[queueIndex];
+  }, [isQueueActive, selectedQueueStudents, queueIndex]);
+
+  const currentQueueStudentMessage = useMemo(() => {
+    if (!currentQueueStudent) return '';
+    return generateStudentMessage(currentQueueStudent, customWhatsappTemplate);
+  }, [currentQueueStudent, customWhatsappTemplate, notificationDebtScope, delinquencyYear]);
+
+  const currentQueueWhatsappUrl = useMemo(() => {
+    if (!currentQueueStudent?.whatsappNumber) return null;
+    return `https://api.whatsapp.com/send?phone=${currentQueueStudent.whatsappNumber}&text=${encodeURIComponent(currentQueueStudentMessage)}`;
+  }, [currentQueueStudent, currentQueueStudentMessage]);
+
+  const handleStartQueue = () => {
+    setActiveQueueStudentsOverride(null);
+    setActiveQueueGroupTitle(activeLoadedClassGroup ? activeLoadedClassGroup.className : 'Alunos Selecionados');
+    if (selectedQueueStudents.length === 0) return;
+    setIsQueueActive(true);
+    setQueueIndex(0);
+  };
+
+  const handleDirectWhatsAppClick = (student: any) => {
+    setSentStudentIds(prev => new Set(prev).add(student.id));
+  };
+
+  // Copia o comunicado oficial da turma para colar diretamente no grupo de WhatsApp da turma
+  const handleCopyClassGroupAnnouncement = async (group: any) => {
+    const text = DEFAULT_CLASS_GROUP_WHATSAPP_ANNOUNCEMENT
+      .replace(/{TURMA}/g, group.className)
+      .replace(/{ANO}/g, String(delinquencyYear));
+    try {
+      await navigator.clipboard.writeText(text);
+      setBatchCopiedFeedback(`group_announcement_${group.classId}`);
+      setTimeout(() => setBatchCopiedFeedback(null), 3000);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleCopyClassWhatsApp = async (group: any) => {
+    const validPhones = group.students.filter((s: any) => s.phone).map((s: any) => s.phone);
+    if (!validPhones.length) return;
+    try {
+      await navigator.clipboard.writeText(validPhones.join(', '));
+      setBatchCopiedFeedback(`whatsapp_${group.classId}`);
+      setTimeout(() => setBatchCopiedFeedback(null), 2500);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleAdvanceCurrentQueue = () => {
+    if (currentQueueStudent) {
+      setSentStudentIds(prev => new Set(prev).add(currentQueueStudent.id));
+    }
+
+    if (queueIndex + 1 < selectedQueueStudents.length) {
+      setQueueIndex(prev => prev + 1);
+    } else {
+      setIsQueueActive(false);
+      setQueueIndex(0);
+      setActiveQueueStudentsOverride(null);
+    }
+  };
+
+  const handleSkipCurrentInQueue = () => {
+    if (queueIndex + 1 < selectedQueueStudents.length) {
+      setQueueIndex(prev => prev + 1);
+    } else {
+      setIsQueueActive(false);
+      setQueueIndex(0);
+      setActiveQueueStudentsOverride(null);
+    }
+  };
+
+  const handleCloseQueue = () => {
+    setIsQueueActive(false);
+    setQueueIndex(0);
+    setActiveQueueStudentsOverride(null);
+  };
+
+  const handleCopyMessage = async (student: any) => {
+    const msg = generateStudentMessage(student, customWhatsappTemplate);
+    try {
+      await navigator.clipboard.writeText(msg);
+      setCopiedStudentId(student.id);
+      setTimeout(() => setCopiedStudentId(null), 2500);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleCopyBatchWhatsApp = async () => {
+    const validPhones = activeScopeStudents
+      .filter(s => selectedStudentIds.has(s.id) && s.phone)
+      .map(s => s.phone);
+    if (!validPhones.length) return;
+    try {
+      await navigator.clipboard.writeText(validPhones.join(', '));
+      setBatchCopiedFeedback('whatsapp');
+      setTimeout(() => setBatchCopiedFeedback(null), 2500);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleCopyBatchEmail = async () => {
+    const validEmails = activeScopeStudents
+      .filter(s => selectedStudentIds.has(s.id) && s.hasEmail)
+      .map(s => s.email);
+    if (!validEmails.length) return;
+    try {
+      await navigator.clipboard.writeText(validEmails.join(', '));
+      setBatchCopiedFeedback('email');
+      setTimeout(() => setBatchCopiedFeedback(null), 2500);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleCopyBatchSummary = async () => {
+    const list = activeScopeStudents.filter(s => selectedStudentIds.has(s.id));
+    const selectedMonth = delinquencyMonthlyData.comparison.selectedMonth;
+    const lines = list.map((s, idx) => {
+      const periods = notificationDebtScope === 'selected_month'
+        ? `${selectedMonth.monthName}/${delinquencyYear}`
+        : (s.dueOpenPeriodsFormatted || s.allOpenPeriodsFormatted);
+      const val = notificationDebtScope === 'selected_month'
+        ? formatCurrency(s.fee)
+        : formatCurrency(s.dueOpenTotalAmount || s.allOpenTotalAmount || s.fee);
+      return `${idx + 1}. ${s.name} (RA: ${s.registration_number}) - Turma: ${s.className} - Períodos: [${periods}] - Total: ${val} | Tel: ${s.phone || 'Sem telefone'} | E-mail: ${s.email || 'Sem e-mail'}`;
+    });
+
+    const summaryText = `RELATÓRIO DE REGULARIZAÇÃO FINANCEIRA\nCompetência/Exercício: ${delinquencyYear}\nAlunos Selecionados: ${list.length}\nValor Total Acumulado: ${formatCurrency(totalPendingAmount)}\n\n${lines.join('\n')}`;
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      setBatchCopiedFeedback('summary');
+      setTimeout(() => setBatchCopiedFeedback(null), 2500);
+    } catch {
+      // fallback
+    }
+  };
 
   if (isLoading) {
     return (
@@ -740,8 +1255,24 @@ export function FinancialDashboard() {
               <span className="w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0"></span>
               Percentual de Inadimplência
             </span>
-            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-amber-100 group-hover:scale-110 transition-transform shrink-0">
-              <TrendingDown size={14} />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowNotificationModal(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/20 hover:bg-white/30 active:scale-95 text-white text-[9.5px] font-extrabold uppercase tracking-wide backdrop-blur-xs transition-all shadow-xs cursor-pointer border border-white/25 hover:border-white/50"
+                title="Notificar alunos com pagamentos pendentes via WhatsApp ou E-mail"
+              >
+                <Bell size={11} className={cn("text-amber-200 shrink-0", delinquencyMonthlyData.pendingStudentsList.length > 0 && "animate-pulse")} />
+                <span>Notificar</span>
+                {delinquencyMonthlyData.pendingStudentsList.length > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-amber-950/60 text-[9px] font-black text-amber-200">
+                    {delinquencyMonthlyData.pendingStudentsList.length}
+                  </span>
+                )}
+              </button>
+              <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-amber-100 group-hover:scale-110 transition-transform shrink-0">
+                <TrendingDown size={14} />
+              </div>
             </div>
           </div>
           <div className="flex items-baseline justify-between mt-0.5">
@@ -753,10 +1284,17 @@ export function FinancialDashboard() {
             </span>
           </div>
           <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-amber-100/90">
-            <span className="truncate">Taxa de Não Quitação</span>
-            <span className="font-semibold text-white">
-              Acumulado no ano: {delinquencyMonthlyData.comparison.selectedMonth.rateInadimplenciaAccum}%
+            <span className="truncate">
+              {delinquencyMonthlyData.pendingStudentsList.length} aluno(s) a notificar
             </span>
+            <button
+              type="button"
+              onClick={() => setShowNotificationModal(true)}
+              className="font-bold text-white hover:underline cursor-pointer flex items-center gap-0.5 hover:text-amber-100"
+            >
+              <span>Disparar avisos</span>
+              <ArrowRight size={10} />
+            </button>
           </div>
         </div>
 
@@ -2050,6 +2588,1035 @@ export function FinancialDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Notificação de Inadimplência (Disparo em Lote e Individual com Todos os Períodos) */}
+      {showNotificationModal && (
+        <div 
+          className="fixed inset-0 z-[100] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 md:p-8 overflow-y-auto animate-in fade-in duration-200"
+          onClick={() => setShowNotificationModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[88vh] my-auto flex flex-col overflow-hidden text-slate-800"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Cabeçalho do Modal */}
+            <div className="px-5 py-3.5 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white flex items-center justify-between shrink-0 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shadow-xs shrink-0">
+                  <Bell size={20} className="text-amber-100" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-black tracking-tight leading-tight truncate">
+                    Notificar Alunos com Pendências Financeiras
+                  </h3>
+                  <p className="text-xs text-amber-100/90 leading-tight">
+                    Exercício {delinquencyYear} • <strong>{activeScopeStudents.length}</strong> alunos com débitos em <strong>{classGroups.length}</strong> turmas
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNotificationModal(false)}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-2"
+                title="Fechar modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Barra de Navegação Compacta: Abas e Escopo na mesma linha */}
+            <div className="px-4 sm:px-5 py-2.5 bg-slate-100 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
+              {/* Abas */}
+              <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotificationViewMode('classes');
+                    setNotificationClassGroupFilter('all');
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                    notificationViewMode === 'classes'
+                      ? "bg-amber-600 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  )}
+                >
+                  <Users size={14} />
+                  <span>Por Turmas (Lote)</span>
+                  <span className={cn(
+                    "px-1.5 py-0.2 rounded-full text-[10px] font-black",
+                    notificationViewMode === 'classes' ? "bg-amber-800 text-white" : "bg-slate-100 text-slate-600"
+                  )}>
+                    {classGroups.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNotificationViewMode('individual')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                    notificationViewMode === 'individual'
+                      ? "bg-amber-600 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  )}
+                >
+                  <Search size={14} />
+                  <span>Buscar Aluno</span>
+                  <span className={cn(
+                    "px-1.5 py-0.2 rounded-full text-[10px] font-black",
+                    notificationViewMode === 'individual' ? "bg-amber-800 text-white" : "bg-slate-100 text-slate-600"
+                  )}>
+                    {activeScopeStudents.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Escopo de Débitos */}
+              <div className="flex items-center gap-1.5 self-end sm:self-center">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">
+                  Períodos:
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationDebtScope('all_due');
+                      setCustomWhatsappTemplate(DEFAULT_ALL_PERIODS_WHATSAPP_TEMPLATE);
+                      setCustomEmailSubject(DEFAULT_ALL_PERIODS_EMAIL_SUBJECT);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                      notificationDebtScope === 'all_due'
+                        ? "bg-amber-700 text-white shadow-2xs"
+                        : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+                    )}
+                    title="Notificar todos os meses já vencidos até o momento"
+                  >
+                    Vencidos ({delinquencyMonthlyData.allDuePendingStudentsList?.length || 0})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationDebtScope('selected_month');
+                      setCustomWhatsappTemplate(DEFAULT_SINGLE_MONTH_WHATSAPP_TEMPLATE);
+                      setCustomEmailSubject(DEFAULT_SINGLE_MONTH_EMAIL_SUBJECT);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                      notificationDebtScope === 'selected_month'
+                        ? "bg-amber-700 text-white shadow-2xs"
+                        : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+                    )}
+                    title={`Notificar apenas a competência de ${delinquencyMonthlyData.comparison.selectedMonth.monthName}`}
+                  >
+                    Mês Atual ({delinquencyMonthlyData.pendingStudentsList?.length || 0})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationDebtScope('all_year');
+                      setCustomWhatsappTemplate(DEFAULT_ALL_PERIODS_WHATSAPP_TEMPLATE);
+                      setCustomEmailSubject(DEFAULT_ALL_PERIODS_EMAIL_SUBJECT);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                      notificationDebtScope === 'all_year'
+                        ? "bg-amber-700 text-white shadow-2xs"
+                        : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+                    )}
+                    title="Notificar todas as parcelas do ano letivo completo"
+                  >
+                    Ano Todo ({delinquencyMonthlyData.allYearPendingStudentsList?.length || 0})
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Corpo do Modal com Scroll */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3.5">
+              {/* Feedback de E-mail Coletivo Disparado */}
+              {batchCopiedFeedback === 'collective_email' && (
+                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200">
+                  <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
+                  <span>
+                    Aplicativo de e-mail aberto! Os endereços dos alunos foram inseridos em <strong>Cópia Oculta (CCO)</strong> para proteger a privacidade.
+                  </span>
+                </div>
+              )}
+
+              {/* Assistente Interativo de Fila Sequencial para WhatsApp */}
+              {isQueueActive && selectedQueueStudents.length > 0 && (
+                <div className="bg-emerald-950 text-white rounded-xl p-4 border border-emerald-600 shadow-lg animate-in slide-in-from-top-2 duration-200 space-y-3">
+                  <div className="flex items-center justify-between border-b border-emerald-800 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-md bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-xs">
+                        {queueIndex + 1}
+                      </div>
+                      <span className="text-xs font-bold text-emerald-200 uppercase tracking-wider">
+                        Fila WhatsApp da Turma {activeQueueGroupTitle ? `[${activeQueueGroupTitle}]` : ''} — Aluno {queueIndex + 1} de {selectedQueueStudents.length}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCloseQueue}
+                      className="text-xs text-emerald-300 hover:text-white flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      <X size={14} />
+                      <span>Encerrar Fila</span>
+                    </button>
+                  </div>
+
+                  {/* Barra de Progresso Visual */}
+                  <div className="w-full bg-emerald-900/60 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-emerald-400 h-full transition-all duration-300 rounded-full"
+                      style={{ width: `${Math.round(((queueIndex + 1) / selectedQueueStudents.length) * 100)}%` }}
+                    />
+                  </div>
+
+                  {/* Aluno Atual na Fila */}
+                  {currentQueueStudent && (
+                    <div className="bg-emerald-900/60 rounded-xl p-3.5 border border-emerald-700/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-base text-white">
+                            {currentQueueStudent.name}
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-700">
+                            RA: {currentQueueStudent.registration_number || 'N/D'}
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-200 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-700">
+                            {currentQueueStudent.className}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-emerald-200/90 flex-wrap">
+                          <span>WhatsApp: <strong>{currentQueueStudent.phone}</strong></span>
+                          <span>•</span>
+                          <span>Períodos: <strong className="text-amber-300">{notificationDebtScope === 'selected_month' ? `${delinquencyMonthlyData.comparison.selectedMonth.monthName}/${delinquencyYear}` : currentQueueStudent.dueOpenPeriodsFormatted}</strong></span>
+                          <span>•</span>
+                          <span>Total: <strong className="text-white font-bold">{notificationDebtScope === 'selected_month' ? formatCurrency(currentQueueStudent.fee) : formatCurrency(currentQueueStudent.dueOpenTotalAmount || currentQueueStudent.fee)}</strong></span>
+                        </div>
+                        <p className="text-[10.5px] text-emerald-300/80 italic">
+                          Ao clicar no botão verde abaixo, o WhatsApp Web abre com o texto pronto e o próximo aluno é carregado automaticamente.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                        <button
+                          type="button"
+                          onClick={handleSkipCurrentInQueue}
+                          className="px-3 py-2 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-emerald-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <SkipForward size={13} />
+                          <span>Pular</span>
+                        </button>
+
+                        {currentQueueWhatsappUrl ? (
+                          <a
+                            href={currentQueueWhatsappUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={handleAdvanceCurrentQueue}
+                            className="px-4 py-2.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 active:scale-95 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                            title={`Abrir conversa de ${currentQueueStudent.name} no WhatsApp Web e avançar para o próximo`}
+                          >
+                            <MessageCircle size={15} />
+                            <span>Abrir no WhatsApp & Próximo ({queueIndex + 1}/{selectedQueueStudents.length})</span>
+                            <ArrowRight size={14} />
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleAdvanceCurrentQueue}
+                            className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold"
+                          >
+                            Sem WhatsApp - Pular
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MODO 1: RESUMO POR TURMAS / GRUPOS */}
+              {notificationViewMode === 'classes' && (
+                <div className="space-y-3.5">
+                  {/* Card Explicativo e Orientador de Envio em Lote */}
+                  <div className="bg-emerald-50 border border-emerald-200/90 rounded-xl p-3 text-xs text-emerald-950 flex items-start gap-2.5 shadow-2xs">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                      <MessageCircle size={14} />
+                    </div>
+                    <div className="space-y-1 text-[11.5px] leading-relaxed">
+                      <span className="font-extrabold text-emerald-950 block">Como funciona o envio em lote pelo WhatsApp:</span>
+                      <p className="text-emerald-900/90 leading-tight">
+                        Por segurança, links web do WhatsApp só abrem 1 conversa por vez. O sistema oferece <strong>duas maneiras práticas para a diocese</strong>:
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 text-slate-700">
+                        <div className="p-2.5 rounded-lg bg-white border border-emerald-200 shadow-2xs">
+                          <strong className="text-emerald-800 block mb-0.5">▶ 1. Fila Rápida 1-a-1 (Recomendado):</strong>
+                          <span>Clique em <em>"Iniciar Fila WhatsApp"</em> na turma. O sistema coloca os alunos em ordem e abre cada conversa no WhatsApp já com a mensagem personalizada. Ao clicar, o próximo aluno já carrega na tela!</span>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-white border border-emerald-200 shadow-2xs">
+                          <strong className="text-blue-800 block mb-0.5">📢 2. Comunicado para o Grupo da Turma:</strong>
+                          <span>Clique em <em>"Copiar Aviso para Grupo"</em> e cole diretamente no grupo de WhatsApp da turma avisando a todos os alunos de uma só vez.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grade de Cards das Turmas */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
+                      <span className="flex items-center gap-1.5">
+                        <Layers size={14} className="text-amber-600" />
+                        <span>Turmas e Grupos com Inadimplência ({classGroups.length})</span>
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-normal">
+                        Escolha como disparar as notificações da turma
+                      </span>
+                    </div>
+
+                    {classGroups.length === 0 ? (
+                      <div className="bg-slate-50 rounded-xl border border-dashed border-slate-200 p-8 text-center">
+                        <CheckCircle2 size={36} className="text-emerald-500 mx-auto mb-2" />
+                        <h4 className="text-sm font-bold text-slate-800">Parabéns! Nenhuma pendência encontrada</h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                          Todas as turmas e alunos com matrícula ativa no escopo selecionado estão com suas contribuições regulares e em dia.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {classGroups.map(group => (
+                          <div
+                            key={group.classId}
+                            className="p-4 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-amber-300 hover:shadow-xs transition-all flex flex-col justify-between gap-3"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <h4 className="text-sm font-black text-slate-900 truncate">
+                                      {group.className}
+                                    </h4>
+                                    {group.classCode && (
+                                      <span className="text-[10px] font-mono text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                                        {group.classCode}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-slate-600 mt-1 text-[11px]">
+                                    <span className="flex items-center gap-1 font-semibold text-emerald-700">
+                                      <MessageCircle size={12} />
+                                      {group.totalWhatsAppCount} com WhatsApp
+                                    </span>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1 font-semibold text-blue-700">
+                                      <Mail size={12} />
+                                      {group.totalEmailCount} com E-mail
+                                    </span>
+                                  </div>
+                                </div>
+                                <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-black text-xs shrink-0 border border-amber-200">
+                                  {group.students.length} {group.students.length === 1 ? 'pendente' : 'pendentes'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Ações Específicas da Turma */}
+                            <div className="space-y-2 pt-2 border-t border-slate-100">
+                              {/* Botão Principal: Fila WhatsApp da Turma */}
+                              <button
+                                type="button"
+                                onClick={() => handleStartQueueForClass(group)}
+                                disabled={group.totalWhatsAppCount === 0}
+                                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-black transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={`Iniciar envio sequencial via WhatsApp para os ${group.totalWhatsAppCount} alunos`}
+                              >
+                                <Play size={13} fill="currentColor" />
+                                <span>Iniciar Fila WhatsApp da Turma ({group.totalWhatsAppCount} alunos)</span>
+                              </button>
+
+                              {/* Linha de Botões Secundários: Grupo, E-mail e Ver Alunos */}
+                              <div className="grid grid-cols-3 gap-1.5 text-xs">
+                                {/* Botão Copiar Comunicado para o Grupo de WhatsApp da Turma */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyClassGroupAnnouncement(group)}
+                                  className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                                  title="Copiar texto formatado para colar diretamente no grupo de WhatsApp da turma"
+                                >
+                                  {batchCopiedFeedback === `group_announcement_${group.classId}` ? (
+                                    <>
+                                      <Check size={12} className="text-emerald-600" />
+                                      <span className="text-emerald-700 font-bold">Copiado!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy size={12} className="text-slate-500" />
+                                      <span>Aviso Grupo</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                {/* Botão E-mail da Turma */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleTriggerCollectiveEmailForClass(group)}
+                                  disabled={group.totalEmailCount === 0}
+                                  className="px-2 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40"
+                                  title={`Abrir e-mail com os ${group.totalEmailCount} alunos em cópia oculta (CCO)`}
+                                >
+                                  <Mail size={12} />
+                                  <span>E-mail CCO</span>
+                                </button>
+
+                                {/* Botão Ver Alunos desta Turma */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectClassToLoad(group.classId)}
+                                  className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                  title="Ver lista nominal dos alunos desta turma"
+                                >
+                                  <Users size={12} />
+                                  <span>Ver Alunos</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* MODO 2: ENVIO INDIVIDUAL (Carregado por Turma ou Busca Nominal) */}
+              {notificationViewMode === 'individual' && (
+                <div className="space-y-4">
+                  {/* Barra Superior de Navegação e Seletor de Turma */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotificationViewMode('classes');
+                        setNotificationClassGroupFilter('all');
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 transition-colors shadow-2xs cursor-pointer self-start sm:self-center"
+                    >
+                      <ChevronLeft size={14} />
+                      <span>Voltar ao Resumo por Turmas</span>
+                    </button>
+
+                    <div className="flex items-center gap-2 flex-wrap flex-1 justify-end">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
+                        <Filter size={13} className="text-amber-600" />
+                        <span>Turma Carregada:</span>
+                      </div>
+                      <select
+                        value={notificationClassGroupFilter}
+                        onChange={e => {
+                          if (e.target.value === 'all') {
+                            handleClearClassFilter();
+                          } else {
+                            handleSelectClassToLoad(e.target.value);
+                          }
+                        }}
+                        className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                      >
+                        <option value="all">Escolher turma para carregar...</option>
+                        {classGroups.map(g => (
+                          <option key={g.classId} value={g.classId}>
+                            {g.className} ({g.students.length} {g.students.length === 1 ? 'aluno' : 'alunos'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Banner da Turma Carregada em Foco */}
+                  {activeLoadedClassGroup && (
+                    <div className="bg-amber-500/10 border border-amber-200/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                          <Users size={16} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-xs sm:text-sm font-black text-amber-950">
+                              Turma: {activeLoadedClassGroup.className}
+                            </h4>
+                            {activeLoadedClassGroup.classCode && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-200/80 text-amber-900 font-bold">
+                                {activeLoadedClassGroup.classCode}
+                              </span>
+                            )}
+                            <span className="px-2 py-0.2 rounded-full bg-amber-200/80 text-amber-900 text-[10px] font-extrabold">
+                              {filteredPendingStudents.length} {filteredPendingStudents.length === 1 ? 'aluno carregado' : 'alunos carregados'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-amber-900/80 mt-0.5">
+                            {activeLoadedClassGroup.totalWhatsAppCount} com WhatsApp • {activeLoadedClassGroup.totalEmailCount} com E-mail
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => handleStartQueueForClass(activeLoadedClassGroup)}
+                          disabled={activeLoadedClassGroup.totalWhatsAppCount === 0}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                          title="Iniciar fila assistida de envio via WhatsApp com lote seguro desta turma"
+                        >
+                          <Play size={12} fill="currentColor" />
+                          <span>Fila WhatsApp da Turma ({activeLoadedClassGroup.totalWhatsAppCount})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleClearClassFilter}
+                          className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-white hover:bg-amber-50 text-amber-900 text-xs font-bold transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                        >
+                          <RotateCcw size={11} />
+                          <span>Trocar Turma</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botão para Exibir/Ocultar Editor de Modelo de Mensagem Individual */}
+                  <div className="flex items-center justify-between gap-2 bg-white rounded-xl border border-slate-200 px-3.5 py-2 shadow-2xs">
+                    <span className="text-xs text-slate-600 font-semibold flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-amber-600" />
+                      <span>Mensagem formatada com tags automáticas ({'{NOME}'}, {'{PERIODOS_ABERTO}'}, {'{VALOR_TOTAL}'})</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowTemplateEditor(prev => !prev)}
+                      className="text-xs font-bold text-amber-800 hover:text-amber-950 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                    >
+                      <span>{showTemplateEditor ? 'Ocultar Modelo' : 'Personalizar Texto'}</span>
+                    </button>
+                  </div>
+
+                  {showTemplateEditor && (
+                    <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs space-y-3 animate-in fade-in duration-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setNotificationChannelTab('whatsapp')}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                              notificationChannelTab === 'whatsapp'
+                                ? "bg-emerald-600 text-white shadow-2xs"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            )}
+                          >
+                            <MessageCircle size={14} />
+                            <span>Modelo WhatsApp Individual</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNotificationChannelTab('email')}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                              notificationChannelTab === 'email'
+                                ? "bg-blue-600 text-white shadow-2xs"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            )}
+                          >
+                            <Mail size={14} />
+                            <span>Modelo E-mail Individual</span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (notificationDebtScope === 'all_due' || notificationDebtScope === 'all_year') {
+                              setCustomWhatsappTemplate(DEFAULT_ALL_PERIODS_WHATSAPP_TEMPLATE);
+                              setCustomEmailSubject(DEFAULT_ALL_PERIODS_EMAIL_SUBJECT);
+                            } else {
+                              setCustomWhatsappTemplate(DEFAULT_SINGLE_MONTH_WHATSAPP_TEMPLATE);
+                              setCustomEmailSubject(DEFAULT_SINGLE_MONTH_EMAIL_SUBJECT);
+                            }
+                            setCustomCollectiveEmailBody(DEFAULT_COLLECTIVE_EMAIL_BODY);
+                            setCustomCollectiveEmailSubject(DEFAULT_COLLECTIVE_EMAIL_SUBJECT);
+                          }}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer self-start sm:self-center"
+                          title="Restaurar textos institucionais padrão da diocese"
+                        >
+                          <RotateCcw size={12} />
+                          <span>Restaurar Padrão</span>
+                        </button>
+                      </div>
+
+                      {notificationChannelTab === 'email' && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Assunto do E-mail Individual:
+                          </label>
+                          <input
+                            type="text"
+                            value={customEmailSubject}
+                            onChange={e => setCustomEmailSubject(e.target.value)}
+                            className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase">
+                            Texto da Mensagem Individual:
+                          </label>
+                          <div className="flex items-center gap-1 text-[10px] text-slate-500 flex-wrap">
+                            <span>Tags automáticas:</span>
+                            <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{"{NOME}"}</code>
+                            <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-bold text-amber-800">{"{PERIODOS_ABERTO}"}</code>
+                            <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{"{QTD_PERIODOS}"}</code>
+                            <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-bold text-emerald-800">{"{VALOR_TOTAL}"}</code>
+                            <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">{"{TURMA}"}</code>
+                          </div>
+                        </div>
+                        <textarea
+                          rows={3}
+                          value={customWhatsappTemplate}
+                          onChange={e => setCustomWhatsappTemplate(e.target.value)}
+                          className="w-full text-xs font-normal p-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-slate-50/50 leading-relaxed"
+                          placeholder="Digite a mensagem personalizada..."
+                        />
+                      </div>
+
+                      {/* Prévia da Mensagem para o primeiro aluno selecionado */}
+                      {filteredPendingStudents.length > 0 && (
+                        <div className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
+                          <Sparkles size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                          <div className="overflow-hidden">
+                            <span className="font-bold block text-amber-950">Exemplo dinâmico para {filteredPendingStudents[0].name}:</span>
+                            <p className="italic text-amber-900/90 leading-relaxed mt-0.5 line-clamp-2">
+                              "{generateStudentMessage(filteredPendingStudents[0], customWhatsappTemplate)}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Barra de Pesquisa, Seleção Múltipla e Cópia em Lote */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2 flex-1 max-w-md">
+                      <div className="relative flex-1">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={notificationSearch}
+                          onChange={e => setNotificationSearch(e.target.value)}
+                          placeholder={activeLoadedClassGroup ? `Buscar aluno em ${activeLoadedClassGroup.className}...` : "Buscar aluno por nome ou RA..."}
+                          className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-white"
+                        />
+                        {notificationSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setNotificationSearch('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Botão Selecionar Todos */}
+                      {filteredPendingStudents.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleToggleSelectAll}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs shrink-0 cursor-pointer"
+                          title="Alternar seleção dos alunos listados"
+                        >
+                          {selectedStudentIds.size === filteredPendingStudents.length && filteredPendingStudents.length > 0 ? (
+                            <CheckSquare size={13} className="text-blue-600" />
+                          ) : (
+                            <Square size={13} className="text-slate-400" />
+                          )}
+                          <span>{selectedStudentIds.size === filteredPendingStudents.length && filteredPendingStudents.length > 0 ? 'Desmarcar' : 'Todos'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {filteredPendingStudents.length > 0 && (
+                      <div className="flex items-center flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleCopyBatchWhatsApp}
+                          disabled={selectedStudentIds.size === 0}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                          title="Copiar números de WhatsApp dos alunos para Lista de Transmissão"
+                        >
+                          {batchCopiedFeedback === 'whatsapp' ? (
+                            <Check size={12} className="text-emerald-600" />
+                          ) : (
+                            <Copy size={12} className="text-slate-500" />
+                          )}
+                          <span>{batchCopiedFeedback === 'whatsapp' ? 'WhatsApps Copiados!' : 'Copiar WhatsApps'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleCopyBatchEmail}
+                          disabled={selectedStudentIds.size === 0}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                          title="Copiar endereços de e-mail dos alunos para CCO"
+                        >
+                          {batchCopiedFeedback === 'email' ? (
+                            <Check size={12} className="text-blue-600" />
+                          ) : (
+                            <Copy size={12} className="text-slate-500" />
+                          )}
+                          <span>{batchCopiedFeedback === 'email' ? 'E-mails Copiados!' : 'Copiar E-mails'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleCopyBatchSummary}
+                          disabled={selectedStudentIds.size === 0}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                          title="Copiar relatório resumido dos alunos selecionados"
+                        >
+                          {batchCopiedFeedback === 'summary' ? (
+                            <Check size={12} className="text-amber-600" />
+                          ) : (
+                            <FileText size={12} className="text-slate-500" />
+                          )}
+                          <span>{batchCopiedFeedback === 'summary' ? 'Resumo Copiado!' : 'Copiar Resumo'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Relação Individual de Alunos com Detalhamento dos Períodos em Aberto */}
+                  <div className="space-y-2">
+                    {filteredPendingStudents.length > 0 && (
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-600 px-1">
+                        <span>
+                          Relação Nominal ({filteredPendingStudents.length} {filteredPendingStudents.length === 1 ? 'aluno listado' : 'alunos listados'} • {selectedStudentIds.size} selecionados)
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-normal">
+                          Disparo individualizado e fila de WhatsApp por turma
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Caso 1: Nenhuma turma selecionada e nenhuma busca: exibe painel para carregar a turma desejada */}
+                    {notificationClassGroupFilter === 'all' && !notificationSearch.trim() ? (
+                      <div className="bg-slate-50/90 rounded-2xl border border-dashed border-slate-300 p-6 sm:p-8 text-center space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto shadow-2xs">
+                          <Layers size={24} />
+                        </div>
+                        <div className="max-w-md mx-auto space-y-1">
+                          <h4 className="text-sm font-black text-slate-900">
+                            Selecione uma Turma para Carregar os Alunos
+                          </h4>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Para evitar travamentos e proteger sua conta do WhatsApp de bloqueios, os alunos são carregados por turma. Escolha uma turma abaixo ou busque pelo nome:
+                          </p>
+                        </div>
+
+                        {/* Grade de Botões para Selecionar e Carregar a Turma */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-w-3xl mx-auto pt-2 text-left">
+                          {classGroups.map(group => (
+                            <button
+                              key={group.classId}
+                              type="button"
+                              onClick={() => handleSelectClassToLoad(group.classId)}
+                              className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-amber-400 hover:bg-amber-50/40 transition-all shadow-2xs cursor-pointer flex items-center justify-between gap-3 group"
+                            >
+                              <div className="min-w-0">
+                                <span className="font-extrabold text-xs text-slate-900 block truncate group-hover:text-amber-800">
+                                  {group.className}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {group.classCode || 'Sem código'}
+                                </span>
+                                <div className="flex items-center gap-2 text-[10.5px] text-slate-500 mt-1">
+                                  <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+                                    <MessageCircle size={10} />
+                                    {group.totalWhatsAppCount}
+                                  </span>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1 text-blue-700 font-semibold">
+                                    <Mail size={10} />
+                                    {group.totalEmailCount}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-black text-xs border border-amber-200">
+                                  {group.students.length} alunos
+                                </span>
+                                <span className="text-[10px] text-amber-700 font-bold group-hover:underline flex items-center gap-0.5">
+                                  Carregar <ArrowRight size={10} />
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : filteredPendingStudents.length === 0 ? (
+                      <div className="bg-slate-50 rounded-xl border border-dashed border-slate-200 p-8 text-center">
+                        {activeScopeStudents.length === 0 ? (
+                          <div>
+                            <CheckCircle2 size={36} className="text-emerald-500 mx-auto mb-2" />
+                            <h4 className="text-sm font-bold text-slate-800">Parabéns! Nenhuma pendência encontrada</h4>
+                            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                              Todos os alunos com matrícula ativa no escopo selecionado estão com suas contribuições regulares e em dia.
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <AlertCircle size={32} className="text-slate-400 mx-auto mb-2" />
+                            <h4 className="text-sm font-bold text-slate-700">Nenhum aluno encontrado</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {notificationSearch ? `Nenhum resultado para "${notificationSearch}".` : 'Nenhum aluno inadimplente nesta turma.'}
+                            </p>
+                            {notificationSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setNotificationSearch('')}
+                                className="mt-2 px-3 py-1 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                              >
+                                Limpar busca
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                        {filteredPendingStudents.map((student: any) => {
+                          const studentMessage = generateStudentMessage(student, customWhatsappTemplate);
+                          const studentEmailSubject = generateStudentMessage(student, customEmailSubject);
+                          const isSelected = selectedStudentIds.has(student.id);
+                          const isAlreadySent = sentStudentIds.has(student.id);
+
+                          const whatsappUrl = student.whatsappNumber
+                            ? `https://api.whatsapp.com/send?phone=${student.whatsappNumber}&text=${encodeURIComponent(studentMessage)}`
+                            : null;
+                          const mailtoUrl = student.hasEmail
+                            ? `mailto:${student.email}?subject=${encodeURIComponent(studentEmailSubject)}&body=${encodeURIComponent(studentMessage)}`
+                            : null;
+
+                          // Períodos que o aluno deve no escopo ativo
+                          const periodsChips = notificationDebtScope === 'selected_month'
+                            ? [delinquencyMonthlyData.comparison.selectedMonth.monthShort]
+                            : (notificationDebtScope === 'all_year' ? student.allOpenPeriodShorts : student.dueOpenPeriodShorts);
+
+                          const debtAmount = notificationDebtScope === 'selected_month'
+                            ? student.fee
+                            : (notificationDebtScope === 'all_year' ? student.allOpenTotalAmount : student.dueOpenTotalAmount) || student.fee;
+
+                          return (
+                            <div
+                              key={student.id}
+                              className={cn(
+                                "p-3 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs",
+                                isSelected ? "border-amber-300 bg-white hover:bg-amber-50/20" : "border-slate-200 bg-slate-50/60 opacity-80"
+                              )}
+                            >
+                              {/* Checkbox de Seleção + Dados do Aluno */}
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSelectStudent(student.id)}
+                                  className="mt-1 cursor-pointer text-slate-400 hover:text-blue-600 transition-colors"
+                                  title={isSelected ? "Desmarcar para disparo em lote" : "Selecionar para disparo em lote"}
+                                >
+                                  {isSelected ? (
+                                    <CheckSquare size={16} className="text-blue-600" />
+                                  ) : (
+                                    <Square size={16} className="text-slate-400" />
+                                  )}
+                                </button>
+
+                                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center font-black text-xs shrink-0">
+                                  {student.name.charAt(0).toUpperCase()}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                                      {student.name}
+                                    </h4>
+                                    <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 shrink-0">
+                                      RA: {student.registration_number || 'N/D'}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200 shrink-0 truncate max-w-[150px]">
+                                      {student.className}
+                                    </span>
+                                    {isAlreadySent && (
+                                      <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 flex items-center gap-0.5 shrink-0">
+                                        <Check size={10} /> Enviado
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Chips de Períodos em Aberto e Valor Total */}
+                                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                      Períodos em Aberto ({periodsChips?.length || 1}):
+                                    </span>
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                      {periodsChips && periodsChips.length > 0 ? (
+                                        periodsChips.map((chip: string, idx: number) => (
+                                          <span
+                                            key={idx}
+                                            className="text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs"
+                                          >
+                                            {chip}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400">Nenhum</span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs font-black text-amber-800 bg-amber-50/80 px-2 py-0.2 rounded border border-amber-200/80 ml-auto sm:ml-1">
+                                      Total: {formatCurrency(debtAmount)}
+                                    </span>
+                                  </div>
+
+                                  {/* Contatos */}
+                                  <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 flex-wrap">
+                                    {student.phone && (
+                                      <span className="flex items-center gap-1">
+                                        <MessageCircle size={11} className={student.hasWhatsapp ? "text-emerald-600" : "text-slate-400"} />
+                                        {student.phone}
+                                      </span>
+                                    )}
+                                    {student.email && (
+                                      <span className="flex items-center gap-1 truncate max-w-[200px]">
+                                        <Mail size={11} className="text-blue-500" />
+                                        {student.email}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Ações de Disparo Individual */}
+                              <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
+                                {/* Botão WhatsApp Individual */}
+                                {whatsappUrl ? (
+                                  <a
+                                    href={whatsappUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => handleDirectWhatsAppClick(student)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-2xs transition-all active:scale-95"
+                                    title={`Abrir conversa no WhatsApp para ${student.name} com todos os débitos dele`}
+                                  >
+                                    <MessageCircle size={13} />
+                                    <span>WhatsApp</span>
+                                    <ExternalLink size={10} className="opacity-75" />
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-[11px] font-medium flex items-center gap-1 cursor-not-allowed"
+                                    title="Aluno sem número de celular/WhatsApp cadastrado"
+                                  >
+                                    <MessageCircle size={12} />
+                                    <span>Sem WhatsApp</span>
+                                  </button>
+                                )}
+
+                                {/* Botão E-mail Individual */}
+                                {mailtoUrl ? (
+                                  <a
+                                    href={mailtoUrl}
+                                    className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 shadow-2xs transition-all active:scale-95"
+                                    title={`Enviar e-mail para ${student.email} com todos os débitos dele`}
+                                  >
+                                    <Mail size={13} />
+                                    <span>E-mail</span>
+                                    <ExternalLink size={10} className="opacity-75" />
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-[11px] font-medium flex items-center gap-1 cursor-not-allowed"
+                                    title="Aluno sem endereço de e-mail cadastrado"
+                                  >
+                                    <Mail size={12} />
+                                    <span>Sem E-mail</span>
+                                  </button>
+                                )}
+
+                                {/* Botão Copiar Mensagem Individual */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyMessage(student)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Copiar texto personalizado com todos os débitos deste aluno"
+                                >
+                                  {copiedStudentId === student.id ? (
+                                    <>
+                                      <Check size={13} className="text-emerald-600" />
+                                      <span className="text-emerald-700 font-bold">Copiado!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy size={13} className="text-slate-500" />
+                                      <span>Copiar</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="px-4 sm:px-6 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500 shrink-0">
+              <span className="text-[11px] leading-tight">
+                * As notificações em lote agrupam todas as mensalidades e taxas em aberto de acordo com as regras acadêmicas da diocese.
+              </span>
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNotificationModal(false);
+                    navigate('/contributions', { state: { viewMode: 'individual', tab: 'individual' } });
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-2xs flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Registrar Pagamento</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
