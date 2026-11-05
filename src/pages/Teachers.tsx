@@ -919,7 +919,7 @@ export function Teachers() {
     return (
       <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0 box-border printable-single-page">
         {/* TOP SECTION: Header + Control Boxes + Teacher Data */}
-        <div className="flex-1 flex flex-col justify-between pr-1">
+        <div className="flex-1 flex flex-col justify-start pr-1">
           {/* Institutional Header with prominent logo */}
           <div>
             <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
@@ -959,23 +959,23 @@ export function Teachers() {
           </div>
 
           {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-3 mb-2">
-            <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col h-[2.35cm] justify-between bg-white">
-              <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
+          <div className="grid grid-cols-12 gap-3.5 my-2">
+            <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3.2cm] justify-between bg-white">
+              <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                 Controle
               </p>
               <div className="flex-1 flex flex-col justify-center items-center">
-                <p className="text-[6.5pt] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5 text-center">
+                <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-500 mb-1 text-center">
                   Código Registro
                 </p>
-                <p className="font-black text-[12pt] tracking-wider text-slate-950 text-center">
+                <p className="font-black text-[13.5pt] tracking-wider text-slate-950 text-center font-mono">
                   {selectedTeacher.code}
                 </p>
               </div>
             </div>
 
-            <div className="col-span-6 border border-slate-800 p-1.5 h-[2.35cm] flex flex-col justify-between bg-white">
-              <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
+            <div className="col-span-6 border border-slate-800 p-2 h-[3.2cm] flex flex-col justify-between bg-white">
+              <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                 Disciplinas Vinculadas:
               </p>
               <div className="flex-1 overflow-hidden flex items-center py-0.5">

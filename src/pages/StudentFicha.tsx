@@ -1868,7 +1868,7 @@ export function StudentFicha() {
           className="hidden print:flex flex-col justify-between text-slate-900 bg-white overflow-hidden font-sans leading-tight w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0 box-border printable-single-page"
         >
           {/* TOP SECTION: Header + Cadastral + Frequency + Academic */}
-          <div className="flex-1 flex flex-col justify-between">
+          <div className="flex-1 flex flex-col justify-start">
             {/* HEADER SECTION */}
             <div className="flex items-center gap-4 mb-3 pb-2.5 border-b-2 border-slate-900">
               <div className="flex-shrink-0 w-16 h-16 max-h-[18mm] max-w-[18mm] flex items-center justify-center">

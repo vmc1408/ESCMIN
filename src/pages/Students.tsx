@@ -1831,7 +1831,7 @@ export function Students() {
     return (
       <div id="printable-student-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0 box-border printable-single-page">
         {/* TOP SECTION: Header + Control Boxes + Personal Data + Rules + Declaration */}
-        <div className="flex-1 flex flex-col justify-between pr-1">
+        <div className="flex-1 flex flex-col justify-start pr-1">
           {/* Institutional Header with prominent logo */}
           <div>
             <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
@@ -1872,9 +1872,9 @@ export function Students() {
           </div>
 
           {/* TOP CONTROL BOXES: Matrícula + Cursos + Foto 3x4 */}
-          <div className="grid grid-cols-12 gap-3.5 my-1.5">
+          <div className="grid grid-cols-12 gap-3.5 my-2">
             {/* Controle / Matrícula */}
-            <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[2.85cm] justify-between bg-white">
+            <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3.2cm] justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                 Controle da Escola
               </p>
@@ -1889,12 +1889,12 @@ export function Students() {
             </div>
 
             {/* Cursos */}
-            <div className="col-span-6 border border-slate-800 p-2 h-[2.85cm] flex flex-col justify-between bg-white">
+            <div className="col-span-6 border border-slate-800 p-2 h-[3.2cm] flex flex-col justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1 flex items-center justify-between">
                 <span>CURSOS:</span>
                 <span className="text-[6.5pt] text-slate-500 font-semibold lowercase">selecione o curso de ingresso</span>
               </p>
-              <div className="flex-1 grid grid-cols-2 gap-x-3.5 gap-y-1.5 content-center py-1">
+              <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1.5 content-center py-1">
                 {[
                   { key: 'Teologia', name: 'Teologia' },
                   { key: 'Latim', name: 'Latim' },
@@ -1919,11 +1919,11 @@ export function Students() {
                     (selectedStudent.course?.toLowerCase() || '').includes(course.key.toLowerCase());
                   
                   return (
-                    <div key={course.key} className="flex items-center gap-1.5">
-                      <div className="w-[15px] h-[15px] border-[1.5px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white relative shrink-0">
+                    <div key={course.key} className="flex items-start gap-1.5">
+                      <div className="w-[15px] h-[15px] border-[1.5px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white relative shrink-0 mt-0.5">
                         {isChecked && <span className="text-[9pt] font-black leading-none text-slate-950">✕</span>}
                       </div>
-                      <span className="text-[7.5pt] font-bold leading-tight uppercase text-slate-900 truncate">
+                      <span className="text-[7pt] font-bold leading-[1.15] uppercase text-slate-900 break-words">
                         {course.name}
                       </span>
                     </div>
@@ -1949,7 +1949,7 @@ export function Students() {
 
             {/* Foto 3x4 */}
             <div className="col-span-3 flex justify-center">
-              <div className="flex items-center justify-center relative w-[2.4cm] h-[2.85cm] overflow-hidden border border-slate-300">
+              <div className="flex items-center justify-center relative w-[2.4cm] h-[3.2cm] overflow-hidden border border-slate-300">
                 {selectedStudent.photo_url ? (
                   <img
                     src={selectedStudent.photo_url}
@@ -1967,17 +1967,17 @@ export function Students() {
           </div>
 
           {/* PERSONAL DATA - Clean, Well-Spaced Grid with Underlines */}
-          <div className="space-y-2 my-1.5 text-[8.5pt]">
+          <div className="space-y-2.5 my-2.5 text-[8.5pt]">
             <div className="flex items-end gap-2">
               <span className="font-bold uppercase min-w-[70px] text-[8pt] text-slate-800">Nome:</span>
-              <span className="flex-1 border-b border-slate-400 font-black uppercase text-[9pt] text-slate-950 px-1 pb-0.5 min-h-[21px]">
+              <span className="flex-1 border-b border-slate-400 font-black uppercase text-[9pt] text-slate-950 px-1 pb-0.5 min-h-[22px]">
                 {selectedStudent.name}
               </span>
             </div>
 
             <div className="flex items-end gap-2">
               <span className="font-bold uppercase min-w-[70px] text-[8pt] text-slate-800">Endereço:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-900 px-1 pb-0.5 min-h-[21px]">
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-900 px-1 pb-0.5 min-h-[22px]">
                 {selectedStudent.address_street ? `${selectedStudent.address_street}${selectedStudent.address_number ? `, Nº ${selectedStudent.address_number}` : ''}${selectedStudent.address_complement ? ` - ${selectedStudent.address_complement}` : ''}` : ''}
               </span>
             </div>
@@ -1985,19 +1985,19 @@ export function Students() {
             <div className="flex gap-3">
               <div className="flex-[4] flex items-end gap-2">
                 <span className="font-bold uppercase text-[8pt] text-slate-800">Bairro:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px]">
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px]">
                   {selectedStudent.address_neighborhood || (selectedStudent.address_street?.includes(' - ') ? selectedStudent.address_street.split(' - ').pop() : '')}
                 </span>
               </div>
               <div className="flex-[4] flex items-end gap-2">
                 <span className="font-bold uppercase text-[8pt] text-slate-800">Cidade:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px]">
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px]">
                   {selectedStudent.address_city}
                 </span>
               </div>
               <div className="flex-[1.2] flex items-end gap-2">
                 <span className="font-bold uppercase text-[8pt] text-slate-800">UF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[21px]">
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[22px]">
                   {selectedStudent.address_state}
                 </span>
               </div>
@@ -2006,13 +2006,13 @@ export function Students() {
             <div className="flex gap-3">
               <div className="flex-[2.2] flex items-end gap-2">
                 <span className="font-bold uppercase text-[8pt] text-slate-800">CEP:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px] whitespace-nowrap">
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px] whitespace-nowrap">
                   {selectedStudent.address_zip}
                 </span>
               </div>
               <div className="flex-[3.8] flex items-end gap-2">
                 <span className="font-bold uppercase text-[8pt] text-slate-800">Celular:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px] whitespace-nowrap">
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px] whitespace-nowrap">
                   {selectedStudent.phone_mobile}
                 </span>
               </div>
@@ -2042,19 +2042,19 @@ export function Students() {
             <div className="flex gap-3">
               <div className="flex-[2.2] flex items-end gap-2">
                 <span className="font-bold uppercase whitespace-nowrap text-[8pt] text-slate-800">Nasc.:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[21px]">
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[22px]">
                   {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
                 </span>
               </div>
               <div className="flex-[2] flex items-end gap-2">
                 <span className="font-bold uppercase text-[8pt] text-slate-800">RG:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[21px]">
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[22px]">
                   {selectedStudent.rg}
                 </span>
               </div>
               <div className="flex-[2.5] flex items-end gap-2">
                 <span className="font-bold uppercase text-[8pt] text-slate-800">CPF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[21px]">
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8.5pt] text-slate-950 px-1 pb-0.5 text-center min-h-[22px]">
                   {selectedStudent.cpf}
                 </span>
               </div>
@@ -2062,16 +2062,16 @@ export function Students() {
 
             <div className="flex items-end gap-2">
               <span className="font-bold uppercase min-w-[70px] text-[8pt] text-slate-800">E-mail:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold lowercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px]">
+              <span className="flex-1 border-b border-slate-400 font-bold lowercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px]">
                 {selectedStudent.email}
               </span>
             </div>
 
             {/* Pastoral Info Grid */}
-            <div className="space-y-2 pt-2 border-t border-slate-300">
+            <div className="space-y-2.5 pt-2.5 border-t border-slate-300">
               <div className="flex items-end gap-2">
                 <span className="font-bold uppercase whitespace-nowrap min-w-[70px] text-[8pt] text-slate-800">Paróquia:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px]">
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px]">
                   {selectedStudent.parish}
                 </span>
               </div>
@@ -2079,13 +2079,13 @@ export function Students() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-end gap-2">
                   <span className="font-bold uppercase whitespace-nowrap text-[8pt] text-slate-800">Forania:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px] text-center">
+                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px] text-center">
                     {selectedStudent.forania}
                   </span>
                 </div>
                 <div className="flex items-end gap-2">
                   <span className="font-bold uppercase whitespace-nowrap text-[8pt] text-slate-800">Pastoral:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[21px] text-center">
+                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[22px] text-center">
                     {selectedStudent.pastoral_participates}
                   </span>
                 </div>
@@ -2094,11 +2094,11 @@ export function Students() {
           </div>
 
           {/* BASIC INFORMATION SECTION - NORMAS */}
-          <div className="my-2 p-2.5 bg-slate-50/80 border border-slate-300 rounded-md">
+          <div className="my-2.5 p-3 bg-slate-50/80 border border-slate-300 rounded-md">
             <h4 className="text-[8pt] font-black uppercase text-center mb-1.5 tracking-wider text-slate-900 border-b border-slate-200 pb-1">
               Normas Básicas para Admissão
             </h4>
-            <div className="text-[7.2pt] leading-snug space-y-1 font-medium text-slate-800">
+            <div className="text-[7.2pt] leading-relaxed space-y-1 font-medium text-slate-800">
               {admissionNorms.map((norm, index) => {
                 const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
                 return (
@@ -2112,7 +2112,7 @@ export function Students() {
           </div>
 
           {/* DECLARATION */}
-          <div className="text-[7.5pt] leading-normal pt-1 mb-1">
+          <div className="text-[7.5pt] leading-normal my-2 pt-1">
             <div className="flex items-baseline mb-1 gap-2">
               <span className="font-bold uppercase text-slate-800">Eu,</span>
               <span className="flex-1 border-b border-slate-900 font-black uppercase px-2 text-slate-950">
@@ -2128,7 +2128,7 @@ export function Students() {
         {/* BOTTOM SECTION: DATE, SIGNATURE AND RODAPÉ PINNED AT ABSOLUTE BOTTOM */}
         <div className="mt-auto pt-2 shrink-0 pr-1">
           {/* DATE AND SIGNATURE */}
-          <div className="my-2.5">
+          <div className="my-3">
             <div className="flex justify-between items-end px-3 gap-8">
               <div className="flex flex-col pb-0.5">
                 <p className="text-[8.5pt] font-bold text-slate-900">
@@ -2138,7 +2138,7 @@ export function Students() {
                 </p>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-[70mm] border-t-2 border-slate-900 mb-1.5"></div>
+                <div className="w-[75mm] border-t-2 border-slate-900 mb-1.5"></div>
                 <p className="text-[7.5pt] font-black uppercase tracking-[0.2em] text-slate-900">
                   Assinatura do(a) Aluno(a)
                 </p>

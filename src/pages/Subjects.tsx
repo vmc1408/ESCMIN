@@ -1303,7 +1303,7 @@ export function Subjects() {
       {selectedSubject && (
         <div id="printable-subject-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0 box-border printable-single-page">
           {/* TOP SECTION: Header + Control Boxes + Subject Data + Content */}
-          <div className="flex-1 flex flex-col justify-between pr-1">
+          <div className="flex-1 flex flex-col justify-start pr-1">
             {/* Institutional Header with prominent logo */}
             <div>
               <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
