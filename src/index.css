@@ -143,7 +143,8 @@
     justify-content: space-between !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: auto !important;
+    height: 275mm !important;
+    min-height: 275mm !important;
     max-height: 275mm !important;
     box-sizing: border-box !important;
     margin: 0 auto !important;

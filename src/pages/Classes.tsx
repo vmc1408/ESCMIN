@@ -4827,43 +4827,45 @@ export function Classes() {
 
       {/* Printable Class Record */}
       {selectedClass && (
-        <div id="printable-class-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full max-h-[268mm] mx-auto p-0 box-border printable-single-page">
+        <div id="printable-class-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0 box-border printable-single-page">
           {/* TOP SECTION: Header + Control Boxes + Class Data + Curriculum */}
-          <div className="flex-1 flex flex-col justify-start pr-1">
+          <div className="flex-1 flex flex-col justify-between pr-1">
             {/* Institutional Header with prominent logo */}
-            <div className="flex items-center gap-4 mb-1.5 pb-1.5 border-b-2 border-slate-900">
-              <div className="flex-shrink-0 w-16 h-16 max-h-16 max-w-16 flex items-center justify-center">
-                {inst?.logo_url ? (
-                  <img
-                    src={inst.logo_url}
-                    className="w-full h-full object-contain max-h-16 max-w-16"
-                    referrerPolicy="no-referrer"
-                    alt="Logo da Instituição"
-                  />
-                ) : (
-                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
-                    <span>SEM</span>
-                    <span>LOGO</span>
-                  </div>
-                )}
+            <div>
+              <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
+                <div className="flex-shrink-0 w-20 h-20 max-h-20 max-w-20 flex items-center justify-center">
+                  {inst?.logo_url ? (
+                    <img
+                      src={inst.logo_url}
+                      className="w-full h-full object-contain max-h-20 max-w-20"
+                      referrerPolicy="no-referrer"
+                      alt="Logo da Instituição"
+                    />
+                  ) : (
+                    <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
+                      <span>SEM</span>
+                      <span>LOGO</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col justify-center">
+                  <p className="text-[8.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
+                    {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
+                  </p>
+                  <h1 className="text-[14.5pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+                    {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                  </h1>
+                  <p className="text-[9pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
+                    {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 flex flex-col justify-center">
-                <p className="text-[8pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
-                  {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
-                </p>
-                <h1 className="text-[13pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
-                  {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                </h1>
-                <p className="text-[8.5pt] font-bold text-slate-600 tracking-wider uppercase mt-0.5">
-                  {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
-                </p>
-              </div>
-            </div>
 
-            <div className="text-center my-1.5">
-              <h2 className="text-[11pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
-                Ficha da Turma
-              </h2>
+              <div className="text-center my-2">
+                <h2 className="text-[12pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-8 inline-block">
+                  Ficha da Turma
+                </h2>
+              </div>
             </div>
 
             {/* TOP CONTROL BOXES */}
