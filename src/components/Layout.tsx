@@ -24,7 +24,7 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="min-h-screen bg-slate-100 flex overflow-hidden print:block print:w-full print:overflow-visible print:h-auto font-sans">
+    <div className="min-h-screen bg-slate-100 flex overflow-hidden print:block print:w-full print:overflow-visible print:h-auto print:bg-white print:m-0 font-sans">
       {/* Botão de Menu Mobile */}
       <button
         onClick={() => setIsSidebarOpen(true)}

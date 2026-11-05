@@ -4827,96 +4827,96 @@ export function Classes() {
 
       {/* Printable Class Record */}
       {selectedClass && (
-        <div id="printable-class-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-relaxed relative w-full h-[270mm] max-h-[270mm] min-h-[270mm] mx-auto p-0 box-border">
+        <div id="printable-class-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full max-h-[268mm] mx-auto p-0 box-border printable-single-page">
           {/* TOP SECTION: Header + Control Boxes + Class Data + Curriculum */}
           <div className="flex-1 flex flex-col justify-start pr-1">
-            {/* Institutional Header with prominent doubled logo */}
-            <div className="flex items-center gap-5 mb-2.5 pb-2.5 border-b-2 border-slate-900">
-              <div className="flex-shrink-0 w-32 h-32 flex items-center justify-center">
+            {/* Institutional Header with prominent logo */}
+            <div className="flex items-center gap-4 mb-1.5 pb-1.5 border-b-2 border-slate-900">
+              <div className="flex-shrink-0 w-16 h-16 max-h-16 max-w-16 flex items-center justify-center">
                 {inst?.logo_url ? (
                   <img
                     src={inst.logo_url}
-                    className="w-full h-full object-contain max-h-32 max-w-32"
+                    className="w-full h-full object-contain max-h-16 max-w-16"
                     referrerPolicy="no-referrer"
                     alt="Logo da Instituição"
                   />
                 ) : (
-                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
+                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
                     <span>SEM</span>
                     <span>LOGO</span>
                   </div>
                 )}
               </div>
               <div className="flex-1 flex flex-col justify-center">
-                <p className="text-[10pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1.5">
+                <p className="text-[8pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
                   {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                 </p>
-                <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+                <h1 className="text-[13pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
                   {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                 </h1>
-                <p className="text-[10pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
+                <p className="text-[8.5pt] font-bold text-slate-600 tracking-wider uppercase mt-0.5">
                   {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                 </p>
               </div>
             </div>
 
-            <div className="text-center mb-2.5">
-              <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
+            <div className="text-center my-1.5">
+              <h2 className="text-[11pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
                 Ficha da Turma
               </h2>
             </div>
 
             {/* TOP CONTROL BOXES */}
-            <div className="grid grid-cols-12 gap-3.5 mb-2.5">
-              <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
-                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
+            <div className="grid grid-cols-12 gap-3 mb-2">
+              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col h-[2.35cm] justify-between bg-white">
+                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
                   Controle
                 </p>
                 <div className="flex-1 flex flex-col justify-center items-center">
-                  <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1 text-center">
+                  <p className="text-[6.5pt] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5 text-center">
                     Código da Turma
                   </p>
-                  <div className="border border-slate-400 bg-slate-50/70 h-8 w-28 flex items-center justify-center font-black text-[11.5pt] text-slate-950">
+                  <div className="border border-slate-400 bg-slate-50/70 h-7 w-24 flex items-center justify-center font-black text-[11pt] text-slate-950">
                     {selectedClass.code}
                   </div>
                 </div>
               </div>
 
-              <div className="col-span-6 border border-slate-800 p-2 h-[3cm] flex flex-col justify-between bg-white">
-                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
+              <div className="col-span-6 border border-slate-800 p-1.5 h-[2.35cm] flex flex-col justify-between bg-white">
+                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
                   Informações Acadêmicas:
                 </p>
-                <div className="grid grid-cols-3 gap-2 text-center my-auto py-1">
-                  <div className="border border-slate-200 p-1 bg-slate-50/50">
-                    <p className="text-[6.5pt] font-extrabold uppercase text-slate-500">Ano Letivo</p>
-                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedClass.year || selectedClass.start_year || '---'}</p>
+                <div className="grid grid-cols-3 gap-1.5 text-center my-auto py-0.5">
+                  <div className="border border-slate-200 p-0.5 bg-slate-50/50">
+                    <p className="text-[6pt] font-extrabold uppercase text-slate-500">Ano Letivo</p>
+                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedClass.year || selectedClass.start_year || '---'}</p>
                   </div>
-                  <div className="border border-slate-200 p-1 bg-slate-50/50">
-                    <p className="text-[6.5pt] font-extrabold uppercase text-slate-500">Semestre</p>
-                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedClass.semester || 'Anual'}</p>
+                  <div className="border border-slate-200 p-0.5 bg-slate-50/50">
+                    <p className="text-[6pt] font-extrabold uppercase text-slate-500">Semestre</p>
+                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedClass.semester || 'Anual'}</p>
                   </div>
-                  <div className="border border-slate-200 p-1 bg-slate-50/50">
-                    <p className="text-[6.5pt] font-extrabold uppercase text-slate-500">Turno</p>
-                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedClass.period || '---'}</p>
+                  <div className="border border-slate-200 p-0.5 bg-slate-50/50">
+                    <p className="text-[6pt] font-extrabold uppercase text-slate-500">Turno</p>
+                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedClass.period || '---'}</p>
                   </div>
                 </div>
-                <div className="text-[8pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-1 text-slate-800">
+                <div className="text-[7.5pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-0.5 text-slate-800">
                   <span>Sala: <strong className="uppercase font-bold text-slate-950">{selectedClass.room || 'Principal'}</strong></span>
                   <span>Status: <strong className="uppercase font-bold text-slate-950">{selectedClass.status || 'Ativo'}</strong></span>
                 </div>
               </div>
 
-              <div className="col-span-3 border border-slate-800 p-2 flex flex-col justify-between items-center bg-white h-[3cm] mr-1">
-                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1 w-full text-center">
+              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col justify-between items-center bg-white h-[2.35cm]">
+                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5 w-full text-center">
                   Matriculados
                 </p>
                 <div className="flex-1 flex flex-col justify-center items-center">
-                  <p className="text-[20pt] font-black leading-none text-slate-950">
+                  <p className="text-[17pt] font-black leading-none text-slate-950">
                     {modalStudents.length > 0 ? modalStudents.length : (selectedClassStudentCount !== null ? selectedClassStudentCount : '0')}
                   </p>
-                  <p className="text-[7pt] font-extrabold uppercase tracking-wider text-slate-600 mt-1">Alunos Ativos</p>
+                  <p className="text-[6.5pt] font-extrabold uppercase tracking-wider text-slate-600 mt-0.5">Alunos Ativos</p>
                 </div>
-                <div className="text-[7pt] font-bold uppercase text-slate-500 text-center">Ano {selectedClass.year || ''}</div>
+                <div className="text-[6.5pt] font-bold uppercase text-slate-500 text-center">Ano {selectedClass.year || ''}</div>
               </div>
             </div>
 

@@ -3772,7 +3772,7 @@ export function Reports() {
       })(), document.body)}
 
       {/* Professional Print Layout (Dynamic by Category, Figma/Paper Style) */}
-      <div id={viewingCertificate ? "non-printable-report" : "printable-report"} className={cn("hidden p-8 bg-white text-black font-sans", viewingCertificate ? "print:hidden" : "print:block")}>
+      <div id={viewingCertificate ? "non-printable-report" : "printable-report"} className={cn("hidden p-8 bg-white text-black font-sans print:p-0 print:m-0", viewingCertificate ? "print:hidden" : "print:block")}>
         {/* Institutional Header */}
         <div className="flex flex-col items-center text-center relative mb-6">
           {institution?.logo_url && (

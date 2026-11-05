@@ -1235,7 +1235,7 @@ export function Impressos() {
                       "bg-white shadow-2xl border border-slate-300 w-[210mm] max-w-full text-slate-900 mx-auto",
                       "pt-[12mm] pb-[12mm] px-[15mm]",
                       isSinglePageType 
-                        ? "h-[297mm] min-h-[297mm] max-h-[297mm] print:w-full print:max-w-none print:h-[273mm] print:min-h-[273mm] print:max-h-[273mm] print:p-0 print:m-0 print:border-none print:shadow-none print:overflow-hidden justify-between" 
+                        ? "h-[297mm] min-h-[297mm] max-h-[297mm] print:w-full print:max-w-none print:max-h-[268mm] print:h-auto print:min-h-0 print:p-0 print:m-0 print:border-none print:shadow-none print:overflow-hidden justify-between" 
                         : "min-h-[297mm] print:w-full print:min-h-0 print:h-auto print:p-0 print:m-0 print:border-none print:shadow-none"
                     )
               )}

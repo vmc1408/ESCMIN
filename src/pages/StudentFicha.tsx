@@ -1865,7 +1865,7 @@ export function StudentFicha() {
       {activeStudent && activeStudentMetrics && (
         <div 
           id="printable-student-dossier" 
-          className="hidden print:flex flex-col justify-between text-slate-900 bg-white overflow-hidden font-sans leading-tight w-full h-[273mm] min-h-[273mm] max-h-[273mm] mx-auto p-0 box-border printable-single-page"
+          className="hidden print:flex flex-col justify-between text-slate-900 bg-white overflow-hidden font-sans leading-tight w-full max-h-[268mm] mx-auto p-0 box-border printable-single-page"
         >
           {/* TOP SECTION: Header + Cadastral + Frequency + Academic */}
           <div className="flex-1 flex flex-col justify-start">

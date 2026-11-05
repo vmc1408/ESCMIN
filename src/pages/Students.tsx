@@ -1829,70 +1829,70 @@ export function Students() {
     const currentClass = classes.find(c => c.id === selectedStudent.class_id);
     
     return (
-      <div id="printable-student-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-relaxed relative w-full h-[270mm] max-h-[270mm] min-h-[270mm] mx-auto p-0 box-border">
+      <div id="printable-student-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full max-h-[268mm] mx-auto p-0 box-border printable-single-page">
         {/* TOP SECTION: Header + Control Boxes + Personal Data + Rules */}
         <div className="flex-1 flex flex-col justify-start pr-1">
-          {/* Institutional Header with prominent doubled logo */}
-          <div className="flex items-center gap-5 mb-2.5 pb-2.5 border-b-2 border-slate-900">
-            <div className="flex-shrink-0 w-32 h-32 flex items-center justify-center">
+          {/* Institutional Header with prominent logo */}
+          <div className="flex items-center gap-4 mb-1.5 pb-1.5 border-b-2 border-slate-900">
+            <div className="flex-shrink-0 w-16 h-16 max-h-16 max-w-16 flex items-center justify-center">
               {institution?.logo_url ? (
                 <img
                   src={institution.logo_url}
-                  className="w-full h-full object-contain max-h-32 max-w-32"
+                  className="w-full h-full object-contain max-h-16 max-w-16"
                   referrerPolicy="no-referrer"
                   alt="Logo da Instituição"
                 />
               ) : (
-                <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
+                <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
                   <span>SEM</span>
                   <span>LOGO</span>
                 </div>
               )}
             </div>
             <div className="flex-1 flex flex-col justify-center">
-              <p className="text-[10pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1.5">
+              <p className="text-[8pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
                 {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
               </p>
-              <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+              <h1 className="text-[13pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
                 {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
               </h1>
-              <p className="text-[10pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
+              <p className="text-[8.5pt] font-bold text-slate-600 tracking-wider uppercase mt-0.5">
                 {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
               </p>
             </div>
           </div>
 
           {/* Document Title */}
-          <div className="text-center mt-3.5 mb-6">
-            <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-8 inline-block">
+          <div className="text-center my-1.5">
+            <h2 className="text-[11pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
               Ficha de Inscrição
             </h2>
           </div>
 
           {/* TOP CONTROL BOXES: Matrícula + Cursos + Foto 3x4 */}
-          <div className="grid grid-cols-12 gap-4 mb-6">
+          <div className="grid grid-cols-12 gap-3 mb-2">
             {/* Controle / Matrícula */}
-            <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
-              <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
+            <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col h-[2.35cm] justify-between bg-white">
+              <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
                 Controle da Escola
               </p>
               <div className="flex-1 flex flex-col justify-center items-center">
-                <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 text-center">
+                <p className="text-[6.5pt] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5 text-center">
                   Nº de Matrícula
                 </p>
-                <p className="font-black text-[13.5pt] tracking-wider text-slate-950 text-center font-mono">
+                <p className="font-black text-[12pt] tracking-wider text-slate-950 text-center font-mono">
                   {formatRegistrationNumber(selectedStudent.registration_number)}
                 </p>
               </div>
             </div>
 
             {/* Cursos */}
-            <div className="col-span-6 border border-slate-800 p-2.5 h-[3cm] flex flex-col justify-between bg-white">
-              <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1 flex items-center justify-between">
+            <div className="col-span-6 border border-slate-800 p-1.5 h-[2.35cm] flex flex-col justify-between bg-white">
+              <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5 flex items-center justify-between">
                 <span>CURSOS:</span>
-                <span className="text-[6.5pt] text-slate-400 font-semibold lowercase">selecione o curso de ingresso</span>
+                <span className="text-[6pt] text-slate-400 font-semibold lowercase">selecione o curso de ingresso</span>
               </p>
-              <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2.5 content-center py-1">
+              <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1 content-center py-0.5">
                 {[
                   { key: 'Teologia', name: 'Teologia' },
                   { key: 'Latim', name: 'Latim' },
@@ -1917,11 +1917,11 @@ export function Students() {
                     (selectedStudent.course?.toLowerCase() || '').includes(course.key.toLowerCase());
                   
                   return (
-                    <div key={course.key} className="flex items-start gap-2">
-                      <div className="w-[19px] h-[19px] border-[1.8px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white relative shrink-0 mt-0.5">
-                        {isChecked && <span className="text-[10pt] font-black leading-none text-slate-950">✕</span>}
+                    <div key={course.key} className="flex items-center gap-1.5">
+                      <div className="w-[14px] h-[14px] border-[1.5px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white relative shrink-0">
+                        {isChecked && <span className="text-[8.5pt] font-black leading-none text-slate-950">✕</span>}
                       </div>
-                      <span className="text-[7.5pt] font-bold leading-tight uppercase text-slate-900">
+                      <span className="text-[6.8pt] font-bold leading-tight uppercase text-slate-900 truncate">
                         {course.name}
                       </span>
                     </div>
@@ -1931,9 +1931,9 @@ export function Students() {
 
               {/* Active enrollments summary if multiple */}
               {(studentEnrollments.length > 0) && (
-                <div className="pt-1 border-t border-slate-200 flex items-center gap-1.5">
-                  <span className="text-[6.5pt] font-black uppercase text-slate-600 shrink-0">Turma(s):</span>
-                  <p className="text-[7pt] font-bold leading-tight uppercase truncate text-slate-800">
+                <div className="pt-0.5 border-t border-slate-200 flex items-center gap-1">
+                  <span className="text-[6pt] font-black uppercase text-slate-600 shrink-0">Turma(s):</span>
+                  <p className="text-[6.5pt] font-bold leading-tight uppercase truncate text-slate-800">
                     {[
                       currentClass?.name,
                       ...studentEnrollments
@@ -1945,9 +1945,9 @@ export function Students() {
               )}
             </div>
 
-            {/* Foto 3x4 without borders */}
+            {/* Foto 3x4 */}
             <div className="col-span-3 flex justify-center">
-              <div className="flex items-center justify-center relative w-[2.4cm] h-[3cm] overflow-hidden">
+              <div className="flex items-center justify-center relative w-[2.2cm] h-[2.35cm] overflow-hidden border border-slate-300">
                 {selectedStudent.photo_url ? (
                   <img
                     src={selectedStudent.photo_url}
@@ -1957,133 +1957,133 @@ export function Students() {
                   />
                 ) : (
                   <div className="w-full h-full border border-dashed border-slate-300 flex items-center justify-center text-center text-slate-300 uppercase">
-                    <p className="text-[7pt] font-black tracking-widest">FOTO 3X4</p>
+                    <p className="text-[6.5pt] font-black tracking-widest">FOTO 3X4</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* PERSONAL DATA - Harmonious Grid with Roomy Line Spacing & Right Inset */}
-          <div className="space-y-3 mb-3 text-[9pt]">
+          {/* PERSONAL DATA - Compact Grid with Clean Lines */}
+          <div className="space-y-1.5 mb-2 text-[8pt]">
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Nome:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9.5pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">Nome:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                 {selectedStudent.name}
               </span>
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Endereço:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-900 px-2 pb-1 min-h-[22px]">
+              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">Endereço:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-900 px-1 pb-0.5 min-h-[19px]">
                 {selectedStudent.address_street ? `${selectedStudent.address_street}${selectedStudent.address_number ? `, Nº ${selectedStudent.address_number}` : ''}${selectedStudent.address_complement ? ` - ${selectedStudent.address_complement}` : ''}` : ''}
               </span>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <div className="flex-[4] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">Bairro:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">Bairro:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                   {selectedStudent.address_neighborhood || (selectedStudent.address_street?.includes(' - ') ? selectedStudent.address_street.split(' - ').pop() : '')}
                 </span>
               </div>
               <div className="flex-[4] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">Cidade:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">Cidade:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                   {selectedStudent.address_city}
                 </span>
               </div>
               <div className="flex-[1.2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">UF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">UF:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedStudent.address_state}
                 </span>
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <div className="flex-[2.2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">CEP:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px] whitespace-nowrap">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">CEP:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px] whitespace-nowrap">
                   {selectedStudent.address_zip}
                 </span>
               </div>
               <div className="flex-[3.8] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">Celular:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px] whitespace-nowrap">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">Celular:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px] whitespace-nowrap">
                   {selectedStudent.phone_mobile}
                 </span>
               </div>
-              <div className="flex-[2.5] flex items-end justify-end pb-1 text-[8pt]">
-                <div className="flex items-center gap-3">
+              <div className="flex-[2.5] flex items-end justify-end pb-0.5 text-[7.5pt]">
+                <div className="flex items-center gap-2.5">
                   <span className="text-slate-800 font-bold uppercase">WhatsApp:</span>
                   <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-slate-900 flex items-center justify-center bg-white shrink-0">
+                    <div className="w-3 h-3 border border-slate-900 flex items-center justify-center bg-white shrink-0">
                       {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
-                        <span className="text-[8.5pt] font-black leading-none text-slate-950">X</span>
+                        <span className="text-[7.5pt] font-black leading-none text-slate-950">X</span>
                       )}
                     </div>
-                    <span className="font-bold uppercase text-[7.5pt]">Sim</span>
+                    <span className="font-bold uppercase text-[7pt]">Sim</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-slate-900 flex items-center justify-center bg-white shrink-0">
+                    <div className="w-3 h-3 border border-slate-900 flex items-center justify-center bg-white shrink-0">
                       {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
-                        <span className="text-[8.5pt] font-black leading-none text-slate-950">X</span>
+                        <span className="text-[7.5pt] font-black leading-none text-slate-950">X</span>
                       )}
                     </div>
-                    <span className="font-bold uppercase text-[7.5pt]">Não</span>
+                    <span className="font-bold uppercase text-[7pt]">Não</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <div className="flex-[2.2] flex items-end gap-2">
-                <span className="font-bold uppercase whitespace-nowrap text-[8.5pt] text-slate-800">Nasc.:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase whitespace-nowrap text-[7.5pt] text-slate-800">Nasc.:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
                 </span>
               </div>
               <div className="flex-[2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">RG:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">RG:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedStudent.rg}
                 </span>
               </div>
               <div className="flex-[2.5] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">CPF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">CPF:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedStudent.cpf}
                 </span>
               </div>
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">E-mail:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold lowercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">E-mail:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold lowercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                 {selectedStudent.email}
               </span>
             </div>
 
             {/* Pastoral Info Grid */}
-            <div className="space-y-2.5 pt-2 border-t border-slate-200/80">
+            <div className="space-y-1.5 pt-1.5 border-t border-slate-200">
               <div className="flex items-end gap-2">
-                <span className="font-bold uppercase whitespace-nowrap min-w-[70px] text-[8.5pt] text-slate-800">Paróquia:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+                <span className="font-bold uppercase whitespace-nowrap min-w-[65px] text-[7.5pt] text-slate-800">Paróquia:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                   {selectedStudent.parish}
                 </span>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-end gap-2">
-                  <span className="font-bold uppercase whitespace-nowrap text-[8.5pt] text-slate-800">Forania:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px] text-center">
+                  <span className="font-bold uppercase whitespace-nowrap text-[7.5pt] text-slate-800">Forania:</span>
+                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px] text-center">
                     {selectedStudent.forania}
                   </span>
                 </div>
                 <div className="flex items-end gap-2">
-                  <span className="font-bold uppercase whitespace-nowrap text-[8.5pt] text-slate-800">Pastoral:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px] text-center">
+                  <span className="font-bold uppercase whitespace-nowrap text-[7.5pt] text-slate-800">Pastoral:</span>
+                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px] text-center">
                     {selectedStudent.pastoral_participates}
                   </span>
                 </div>
@@ -2092,11 +2092,11 @@ export function Students() {
           </div>
 
           {/* BASIC INFORMATION SECTION - NORMAS */}
-          <div className="my-2.5 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg">
-            <h4 className="text-[8pt] font-black uppercase text-center mb-1.5 tracking-wider text-slate-800 border-b border-slate-200 pb-1">
+          <div className="my-1.5 p-2 bg-slate-50/60 border border-slate-300 rounded">
+            <h4 className="text-[7.5pt] font-black uppercase text-center mb-1 tracking-wider text-slate-800 border-b border-slate-200 pb-0.5">
               Normas Básicas para Admissão
             </h4>
-            <div className="text-[7pt] leading-normal space-y-1 font-medium text-slate-800">
+            <div className="text-[6.8pt] leading-tight space-y-0.5 font-medium text-slate-800">
               {admissionNorms.map((norm, index) => {
                 const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
                 return (
@@ -2110,34 +2110,34 @@ export function Students() {
           </div>
 
           {/* DECLARATION */}
-          <div className="text-[8pt] leading-relaxed pt-2">
-            <div className="flex items-baseline mb-1 gap-2">
+          <div className="text-[7pt] leading-tight pt-1">
+            <div className="flex items-baseline mb-0.5 gap-2">
               <span className="font-bold uppercase text-slate-800">Eu,</span>
               <span className="flex-1 border-b border-slate-900 font-black uppercase px-2 text-slate-950">
                 {selectedStudent.name}
               </span>
             </div>
-            <p className="text-justify leading-relaxed font-medium text-slate-800 text-[7.5pt]">
+            <p className="text-justify leading-tight font-medium text-slate-800 text-[6.8pt]">
               declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição.
             </p>
           </div>
         </div>
 
         {/* BOTTOM SECTION: DATE, SIGNATURE AND RODAPÉ PINNED AT BOTTOM */}
-        <div className="mt-auto pt-3 shrink-0 pr-1">
+        <div className="mt-auto pt-2 shrink-0 pr-1">
           {/* DATE AND SIGNATURE */}
-          <div className="mt-2 mb-7">
+          <div className="my-2">
             <div className="flex justify-between items-end px-3 gap-8">
               <div className="flex flex-col pb-0.5">
-                <p className="text-[8.5pt] font-bold text-slate-900">
+                <p className="text-[8pt] font-bold text-slate-900">
                   Guarulhos, <span>
                     {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
                   </span>
                 </p>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-[70mm] border-t-2 border-slate-900 mb-1.5"></div>
-                <p className="text-[7.5pt] font-black uppercase tracking-[0.2em] text-slate-900">
+                <div className="w-[65mm] border-t-2 border-slate-900 mb-1"></div>
+                <p className="text-[7pt] font-black uppercase tracking-[0.2em] text-slate-900">
                   Assinatura do(a) Aluno(a)
                 </p>
               </div>
@@ -2145,31 +2145,31 @@ export function Students() {
           </div>
 
           {/* RODAPÉ */}
-          <div className="border-t-2 border-slate-900 pt-2 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
+          <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[6.5pt]">
             <div className="flex-1 space-y-0.5">
-              <p className="leading-snug font-bold">
+              <p className="leading-tight font-bold">
                 {institution?.address}
               </p>
               {(institution?.cep || institution?.city_uf) && (
-                <p className="leading-snug font-bold">
+                <p className="leading-tight font-bold">
                   {institution?.cep ? `CEP: ${institution.cep}` : ''} {institution?.city_uf ? ` - ${institution.city_uf}` : ''}
                 </p>
               )}
               {institution?.phone && (
-                <p className="leading-snug font-bold pt-0.5">
+                <p className="leading-tight font-bold pt-0.5">
                   <span className="normal-case">Telefone: {institution.phone}</span>
                 </p>
               )}
             </div>
-            <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
+            <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[6.5pt] space-y-0.5 pr-1">
               {institution?.secretary && (
                 <>
                   <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
-                  <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{institution.secretary}</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[6.5pt]">{institution.secretary}</p>
                 </>
               )}
               {institution?.email && (
-                <p className="lowercase font-bold text-[7pt] pt-0.5">
+                <p className="lowercase font-bold text-[6.5pt] pt-0.5">
                   email: {institution.email.toLowerCase()}
                 </p>
               )}

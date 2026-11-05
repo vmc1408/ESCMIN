@@ -917,74 +917,74 @@ export function Teachers() {
     const teacherSubjectsSummary = summaryParts.join(' | ');
 
     return (
-      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-relaxed relative w-full h-[270mm] max-h-[270mm] min-h-[270mm] mx-auto p-0 box-border">
+      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full max-h-[268mm] mx-auto p-0 box-border printable-single-page">
         {/* TOP SECTION: Header + Control Boxes + Teacher Data */}
         <div className="flex-1 flex flex-col justify-start pr-1">
-          {/* Institutional Header with prominent doubled logo */}
-          <div className="flex items-center gap-5 mb-2.5 pb-2.5 border-b-2 border-slate-900">
-            <div className="flex-shrink-0 w-32 h-32 flex items-center justify-center">
+          {/* Institutional Header with prominent logo */}
+          <div className="flex items-center gap-4 mb-1.5 pb-1.5 border-b-2 border-slate-900">
+            <div className="flex-shrink-0 w-16 h-16 max-h-16 max-w-16 flex items-center justify-center">
               {inst?.logo_url ? (
                 <img
                   src={inst.logo_url}
-                  className="w-full h-full object-contain max-h-32 max-w-32"
+                  className="w-full h-full object-contain max-h-16 max-w-16"
                   referrerPolicy="no-referrer"
                   alt="Logo da Instituição"
                 />
               ) : (
-                <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
+                <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
                   <span>SEM</span>
                   <span>LOGO</span>
                 </div>
               )}
             </div>
             <div className="flex-1 flex flex-col justify-center">
-              <p className="text-[10pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1.5">
+              <p className="text-[8pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
                 {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
               </p>
-              <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+              <h1 className="text-[13pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
                 {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
-              <p className="text-[10pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
+              <p className="text-[8.5pt] font-bold text-slate-600 tracking-wider uppercase mt-0.5">
                 {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
               </p>
             </div>
           </div>
 
-          <div className="text-center mt-3.5 mb-6">
-            <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-8 inline-block">
+          <div className="text-center my-1.5">
+            <h2 className="text-[11pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
               Ficha do Professor
             </h2>
           </div>
 
           {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-4 mb-6">
-            <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
-              <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
+          <div className="grid grid-cols-12 gap-3 mb-2">
+            <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col h-[2.35cm] justify-between bg-white">
+              <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
                 Controle
               </p>
               <div className="flex-1 flex flex-col justify-center items-center">
-                <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 text-center">
+                <p className="text-[6.5pt] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5 text-center">
                   Código Registro
                 </p>
-                <p className="font-black text-[13.5pt] tracking-wider text-slate-950 text-center">
+                <p className="font-black text-[12pt] tracking-wider text-slate-950 text-center">
                   {selectedTeacher.code}
                 </p>
               </div>
             </div>
 
-            <div className="col-span-6 border border-slate-800 p-2 h-[3cm] flex flex-col justify-between bg-white">
-              <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
+            <div className="col-span-6 border border-slate-800 p-1.5 h-[2.35cm] flex flex-col justify-between bg-white">
+              <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
                 Disciplinas Vinculadas:
               </p>
-              <div className="flex-1 overflow-hidden flex items-center py-1">
-                <p className="text-[8pt] font-bold leading-snug uppercase text-slate-900 line-clamp-4">
+              <div className="flex-1 overflow-hidden flex items-center py-0.5">
+                <p className="text-[7.5pt] font-bold leading-snug uppercase text-slate-900 line-clamp-3">
                   {teacherSubjectsSummary || 'NENHUMA DISCIPLINA SELECIONADA'}
                 </p>
               </div>
             </div>
 
             <div className="col-span-3 flex justify-center">
-              <div className="flex items-center justify-center relative w-[2.4cm] h-[3cm] overflow-hidden">
+              <div className="flex items-center justify-center relative w-[2.2cm] h-[2.35cm] overflow-hidden border border-slate-300">
                 {formData.photo_url || selectedTeacher.photo_url ? (
                   <img
                     src={formData.photo_url || selectedTeacher.photo_url}
@@ -994,9 +994,9 @@ export function Teachers() {
                   />
                 ) : (
                   <div className="w-full h-full border border-dashed border-slate-300 flex flex-col items-center justify-center text-center text-slate-300 uppercase">
-                    <p className="text-[7pt] font-black tracking-widest">FOTO 3X4</p>
+                    <p className="text-[6.5pt] font-black tracking-widest">FOTO 3X4</p>
                     <span className={cn(
-                      "inline-block mt-1 px-1.5 py-0.5 text-[6pt] font-black uppercase",
+                      "inline-block mt-0.5 px-1 py-0.2 text-[5.5pt] font-black uppercase",
                       selectedTeacher.status === 'Ativo' ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"
                     )}>
                       {selectedTeacher.status}
@@ -1008,45 +1008,45 @@ export function Teachers() {
           </div>
 
           {/* DADOS PESSOAIS */}
-          <div className="space-y-2.5 mb-2.5 text-[9pt]">
+          <div className="space-y-1.5 mb-2 text-[8pt]">
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Nome:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9.5pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">Nome:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                 {selectedTeacher.name}
               </span>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <div className="flex-[2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">CPF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">CPF:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedTeacher.cpf || '---'}
                 </span>
               </div>
               <div className="flex-[2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">RG:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">RG:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedTeacher.rg || '---'}
                 </span>
               </div>
               <div className="flex-[3] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">Celular:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">Celular:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedTeacher.phone_mobile || '---'}
                 </span>
               </div>
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">E-mail:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold lowercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">E-mail:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold lowercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                 {selectedTeacher.email || '---'}
               </span>
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Endereço:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">Endereço:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                 {[
                   selectedTeacher.address_street,
                   selectedTeacher.address_number ? `Nº ${selectedTeacher.address_number}` : null,
@@ -1056,22 +1056,22 @@ export function Teachers() {
               </span>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <div className="flex-[4] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">Cidade:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">Cidade:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
                   {selectedTeacher.address_city || '---'}
                 </span>
               </div>
               <div className="flex-[1.2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">UF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">UF:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedTeacher.address_state || '---'}
                 </span>
               </div>
               <div className="flex-[2.5] flex items-end gap-2">
-                <span className="font-bold uppercase text-[8.5pt] text-slate-800">CEP:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
+                <span className="font-bold uppercase text-[7.5pt] text-slate-800">CEP:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
                   {selectedTeacher.address_zip || '---'}
                 </span>
               </div>
@@ -1079,49 +1079,49 @@ export function Teachers() {
           </div>
 
           {/* DISCIPLINAS POR SEMESTRE */}
-          <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg space-y-1.5">
-            <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1 tracking-wider text-slate-800">
+          <div className="my-1.5 p-2 bg-slate-50/60 border border-slate-300 rounded space-y-1">
+            <h4 className="text-[7.5pt] font-black uppercase text-center border-b border-slate-200 pb-0.5 tracking-wider text-slate-800">
               Disciplinas Ministradas
             </h4>
-            <div className="grid grid-cols-2 gap-3 text-[8pt]">
+            <div className="grid grid-cols-2 gap-2 text-[7.5pt]">
               {/* 1º SEMESTRE */}
-              <div className="border border-slate-200 p-2 bg-white">
-                <p className="font-bold uppercase text-blue-900 border-b border-slate-200 pb-1 mb-1 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
+              <div className="border border-slate-200 p-1.5 bg-white">
+                <p className="font-bold uppercase text-blue-900 border-b border-slate-200 pb-0.5 mb-0.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
                   1º Semestre
                 </p>
                 {sem1.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7.5pt]">
+                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7pt]">
                     {sem1.map((s, idx) => (
                       <li key={`tsem1-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[7pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                  <p className="text-[6.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
                 )}
               </div>
 
               {/* 2º SEMESTRE */}
-              <div className="border border-slate-200 p-2 bg-white">
-                <p className="font-bold uppercase text-emerald-900 border-b border-slate-200 pb-1 mb-1 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
+              <div className="border border-slate-200 p-1.5 bg-white">
+                <p className="font-bold uppercase text-emerald-900 border-b border-slate-200 pb-0.5 mb-0.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
                   2º Semestre
                 </p>
                 {sem2.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7.5pt]">
+                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7pt]">
                     {sem2.map((s, idx) => (
                       <li key={`tsem2-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[7pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                  <p className="text-[6.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
                 )}
               </div>
             </div>
 
             {others.length > 0 && (
-              <div className="border border-slate-200 p-1.5 bg-white text-[7.5pt]">
-                <span className="font-bold uppercase text-slate-700 mr-1.5">Outras Disciplinas:</span>
+              <div className="border border-slate-200 p-1 bg-white text-[7pt]">
+                <span className="font-bold uppercase text-slate-700 mr-1">Outras Disciplinas:</span>
                 <span className="font-medium uppercase text-slate-900">{others.map(s => s.name).join(', ')}</span>
               </div>
             )}
@@ -1129,8 +1129,8 @@ export function Teachers() {
 
           {/* OBSERVAÇÕES */}
           <div className="mt-1">
-            <span className="text-[8pt] font-black uppercase text-slate-800">Observações:</span>
-            <div className="text-[8pt] border border-slate-300 p-2 min-h-[40px] leading-relaxed whitespace-pre-wrap mt-0.5 bg-slate-50/30">
+            <span className="text-[7.5pt] font-black uppercase text-slate-800">Observações:</span>
+            <div className="text-[7.5pt] border border-slate-300 p-1.5 min-h-[30px] leading-relaxed whitespace-pre-wrap mt-0.5 bg-slate-50/30">
               {(() => {
                 const cleanedObs = (selectedTeacher.observations || '')
                   .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
@@ -1147,31 +1147,31 @@ export function Teachers() {
         {/* BOTTOM SECTION: PINNED FOOTER */}
         <div className="mt-auto pt-2 shrink-0 pr-1">
           {/* RODAPÉ INSTITUCIONAL */}
-          <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
+          <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[6.5pt]">
             <div className="flex-1 space-y-0.5">
-              <p className="leading-snug font-bold">
+              <p className="leading-tight font-bold">
                 {inst?.address}
               </p>
               {(inst?.cep || inst?.city_uf) && (
-                <p className="leading-snug text-[7pt] font-bold">
+                <p className="leading-tight text-[6.5pt] font-bold">
                   {inst?.cep ? `CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
                 </p>
               )}
               {inst?.phone && (
-                <p className="leading-snug font-bold text-[7pt] pt-0.5">
+                <p className="leading-tight font-bold text-[6.5pt] pt-0.5">
                   <span className="normal-case">Telefone: {inst.phone}</span>
                 </p>
               )}
             </div>
-            <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
+            <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[6.5pt] space-y-0.5 pr-1">
               {inst?.secretary && (
                 <>
                   <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
-                  <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst.secretary}</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[6.5pt]">{inst.secretary}</p>
                 </>
               )}
               {inst?.email && (
-                <p className="lowercase font-bold text-[7pt] pt-0.5">
+                <p className="lowercase font-bold text-[6.5pt] pt-0.5">
                   email: {inst.email.toLowerCase()}
                 </p>
               )}

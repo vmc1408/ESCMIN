@@ -44,174 +44,192 @@
 }
 
 
-@layer base {
-  @media print {
-    /* Force exact color rendering (backgrounds, shades, and colored borders) in all browsers */
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
-      filter: none !important;
-      transition: none !important;
-    }
-    
-    /* Reset page and body for consistent margins and high-fidelity paging.
-       margin: 0 represses browser default header (date, title) and footer (URL, page number) */
-    @page {
-      size: A4 portrait;
-      margin: 0;
-    }
-    
-    html, body {
-      margin: 0 !important;
-      padding: 0 !important;
-      height: auto !important;
-      min-height: 0 !important;
-      background: #ffffff !important;
-      color: #000000 !important;
-      font-size: 12px;
-      line-height: 1.4 !important;
-      overflow: visible !important;
-      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-    }
+/* SISTEMA GLOBAL DE IMPRESSÃO - REGRAS DE ALTA FIDELIDADE (TOP-LEVEL) */
+@media print {
+  /* Forçar renderização de cores exatas (fundos, bordas, tonalidades) */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  /* Dimensão padrão A4 retrato com margens seguras para todos os navegadores */
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
 
-    /* Reset global layout components to release screen/scrolling restrictions */
-    html, body, #root, [class*="min-h-screen"], [class*="h-screen"], main, .overflow-y-auto {
-      height: auto !important;
-      min-height: 0 !important;
-      max-height: none !important;
-      overflow: visible !important;
-      position: static !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      background: transparent !important;
-      display: block !important;
-    }
+  /* Reset estrutural do body/html para impressão */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11px;
+    line-height: 1.35 !important;
+    overflow: visible !important;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
 
-    /* Hide screen-only interactive visual elements globally so they take 0 layout space */
-    nav, aside, header:not(.printable-header), footer:not(.printable-footer), button, .print-hide, .btn, [role="button"], .no-print, .print\:hidden {
-      display: none !important;
-      height: 0 !important;
-      width: 0 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      opacity: 0 !important;
-      visibility: hidden !important;
-    }
+  /* Reset dos wrappers raiz da aplicação SPA */
+  #root,
+  .min-h-screen,
+  main {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    display: block !important;
+    width: 100% !important;
+  }
 
-    /* Hide all browser scrollbars completely on print media */
-    * {
-      scrollbar-width: none !important;
-      -ms-overflow-style: none !important;
-    }
-    *::-webkit-scrollbar {
-      display: none !important;
-      width: 0 !important;
-      height: 0 !important;
-    }
+  /* Ocultar rigorosamente elementos de tela, navegação, botões e barras flutuantes */
+  nav,
+  aside,
+  header:not(.printable-header),
+  footer:not(.printable-footer),
+  button:not(.printable-btn):not(.printable-button),
+  [role="button"]:not(.printable-btn),
+  .print-hide,
+  .no-print,
+  .print\:hidden,
+  [class*="print:hidden"],
+  .modal-backdrop,
+  [role="alert"]:not(.printable-alert),
+  [role="status"]:not(.printable-status),
+  [data-radix-portal] {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    border: 0 !important;
+  }
 
-    /* Standardized single-page printable documents across Firefox, Chrome, Safari (Exact A4 210x297mm minus 12mm top/bottom margins = 273mm) */
-    #printable-student-record,
-    #printable-student-dossier,
-    #printable-teacher-record,
-    #printable-class-record,
-    #printable-subject-record,
-    .printable-standard-sheet,
-    .printable-single-page {
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: space-between !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      height: 273mm !important;
-      min-height: 273mm !important;
-      max-height: 273mm !important;
-      box-sizing: border-box !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow: hidden !important;
-      page-break-inside: avoid !important;
-      page-break-after: avoid !important;
-      page-break-before: avoid !important;
-      break-inside: avoid !important;
-      break-after: avoid !important;
-      break-before: avoid !important;
-      background: white !important;
-    }
+  /* Ocultar todas as barras de rolagem */
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
 
-    /* Multi-page printable documents and breaks */
-    .print-page-break,
-    .forania-print-page,
-    .certificate-printable-item {
-      page-break-after: always !important;
-      break-after: always !important;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
+  /* Documentos padronizados de folha única (Ficha do Aluno, Professor, Turma, Disciplina, Dossiê) */
+  #printable-student-record,
+  #printable-student-dossier,
+  #printable-teacher-record,
+  #printable-class-record,
+  #printable-subject-record,
+  .printable-standard-sheet,
+  .printable-single-page {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 275mm !important;
+    box-sizing: border-box !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    break-inside: avoid !important;
+    break-after: avoid !important;
+    break-before: avoid !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    visibility: visible !important;
+  }
 
-    /* Strict alignment and border rules for crisp table elements */
-    table {
-      width: 100% !important;
-      border-collapse: collapse !important;
-      border-spacing: 0 !important;
-    }
-    
-    tr {
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
+  /* Quebras lógicas de página em relatórios e certificados múltiplos */
+  .print-page-break,
+  .forania-print-page,
+  .certificate-printable-item {
+    page-break-after: always !important;
+    break-after: always !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 
-    thead {
-      display: table-header-group !important;
-    }
+  /* Alinhamento estrito e quebra de páginas em tabelas */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+  
+  tr, .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 
-    tfoot:not(.printable-footer-group):not(.print\:table-footer-group) {
-      display: table-row-group !important;
-    }
+  thead {
+    display: table-header-group !important;
+  }
 
-    tfoot.printable-footer-group,
-    tfoot.print\:table-footer-group {
-      display: table-footer-group !important;
-    }
+  tfoot:not(.printable-footer-group):not(.print\:table-footer-group) {
+    display: table-row-group !important;
+  }
 
-    /* Re-establish high-fidelity typography alignments consistently across engines */
-    h1, h2, h3, h4, h5, h6 {
-      color: #000000 !important;
-      page-break-after: avoid !important;
-      break-after: avoid !important;
-      font-weight: 700 !important;
-    }
+  tfoot.printable-footer-group,
+  tfoot.print\:table-footer-group {
+    display: table-footer-group !important;
+  }
 
-    p, td, th {
-      color: #1e293b;
-    }
+  /* Tipografia nítida e sem quebra órfã de cabeçalhos */
+  h1, h2, h3, h4, h5, h6 {
+    color: #000000 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    font-weight: 700 !important;
+  }
 
-    /* Standardized printable styles to ensure cross-device consistency */
-    .print-border {
-      border: 1px solid #cbd5e1 !important;
-    }
+  p, td, th {
+    color: #0f172a;
+  }
 
-    .print-border-b {
-      border-bottom: 1px solid #e2e8f0 !important;
-    }
+  /* Classes utilitárias padronizadas de impressão */
+  .print-border {
+    border: 1px solid #cbd5e1 !important;
+  }
 
-    .print-bg-slate {
-      background-color: #f1f5f9 !important;
-    }
+  .print-border-b {
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
 
-    .print-bg-emerald {
-      background-color: #f0fdf4 !important;
-    }
+  .print-bg-slate {
+    background-color: #f1f5f9 !important;
+  }
 
-    .print-bg-rose {
-      background-color: #fff1f2 !important;
-    }
+  .print-bg-emerald {
+    background-color: #f0fdf4 !important;
+  }
 
-    .print-bg-amber {
-      background-color: #fffbeb !important;
-    }
+  .print-bg-rose {
+    background-color: #fff1f2 !important;
+  }
+
+  .print-bg-amber {
+    background-color: #fffbeb !important;
   }
 }
 

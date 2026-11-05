@@ -1301,92 +1301,92 @@ export function Subjects() {
 
       {/* Printable Subject Record */}
       {selectedSubject && (
-        <div id="printable-subject-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-relaxed relative w-full h-[270mm] max-h-[270mm] min-h-[270mm] mx-auto p-0 box-border">
+        <div id="printable-subject-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full max-h-[268mm] mx-auto p-0 box-border printable-single-page">
           {/* TOP SECTION: Header + Control Boxes + Subject Data + Content */}
           <div className="flex-1 flex flex-col justify-start pr-1">
-            {/* Institutional Header with prominent doubled logo */}
-            <div className="flex items-center gap-5 mb-2.5 pb-2.5 border-b-2 border-slate-900">
-              <div className="flex-shrink-0 w-32 h-32 flex items-center justify-center">
+            {/* Institutional Header with prominent logo */}
+            <div className="flex items-center gap-4 mb-1.5 pb-1.5 border-b-2 border-slate-900">
+              <div className="flex-shrink-0 w-16 h-16 max-h-16 max-w-16 flex items-center justify-center">
                 {inst?.logo_url ? (
                   <img
                     src={inst.logo_url}
-                    className="w-full h-full object-contain max-h-32 max-w-32"
+                    className="w-full h-full object-contain max-h-16 max-w-16"
                     referrerPolicy="no-referrer"
                     alt="Logo da Instituição"
                   />
                 ) : (
-                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
+                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
                     <span>SEM</span>
                     <span>LOGO</span>
                   </div>
                 )}
               </div>
               <div className="flex-1 flex flex-col justify-center">
-                <p className="text-[10pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1.5">
+                <p className="text-[8pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
                   {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                 </p>
-                <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+                <h1 className="text-[13pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
                   {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                 </h1>
-                <p className="text-[10pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
+                <p className="text-[8.5pt] font-bold text-slate-600 tracking-wider uppercase mt-0.5">
                   {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                 </p>
               </div>
             </div>
 
-            <div className="text-center mb-2.5">
-              <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
+            <div className="text-center my-1.5">
+              <h2 className="text-[11pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
                 Ficha da Disciplina
               </h2>
             </div>
 
             {/* TOP CONTROL BOXES */}
-            <div className="grid grid-cols-12 gap-3.5 mb-2.5">
-              <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
-                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
+            <div className="grid grid-cols-12 gap-3 mb-2">
+              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col h-[2.35cm] justify-between bg-white">
+                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
                   Controle
                 </p>
                 <div className="flex-1 flex flex-col justify-center items-center">
-                  <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1 text-center">
+                  <p className="text-[6.5pt] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5 text-center">
                     Código da Matéria
                   </p>
-                  <div className="border border-slate-400 bg-slate-50/70 h-8 w-28 flex items-center justify-center font-black text-[11.5pt] text-slate-950">
+                  <div className="border border-slate-400 bg-slate-50/70 h-7 w-24 flex items-center justify-center font-black text-[11pt] text-slate-950">
                     {selectedSubject.code}
                   </div>
                 </div>
               </div>
 
-              <div className="col-span-6 border border-slate-800 p-2 h-[3cm] flex flex-col justify-between bg-white">
-                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
+              <div className="col-span-6 border border-slate-800 p-1.5 h-[2.35cm] flex flex-col justify-between bg-white">
+                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
                   Informações Acadêmicas:
                 </p>
-                <div className="grid grid-cols-2 gap-3 text-center my-auto py-1">
-                  <div className="border border-slate-200 p-1.5 bg-slate-50/50">
-                    <p className="text-[6.5pt] font-extrabold uppercase text-slate-500">Ano Curricular</p>
-                    <p className="text-[9.5pt] font-black uppercase text-slate-950">{selectedSubject.year || '---'}</p>
+                <div className="grid grid-cols-2 gap-2 text-center my-auto py-0.5">
+                  <div className="border border-slate-200 p-1 bg-slate-50/50">
+                    <p className="text-[6pt] font-extrabold uppercase text-slate-500">Ano Curricular</p>
+                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedSubject.year || '---'}</p>
                   </div>
-                  <div className="border border-slate-200 p-1.5 bg-slate-50/50">
-                    <p className="text-[6.5pt] font-extrabold uppercase text-slate-500">Semestre</p>
-                    <p className="text-[9.5pt] font-black uppercase text-slate-950">{selectedSubject.semester || '---'}</p>
+                  <div className="border border-slate-200 p-1 bg-slate-50/50">
+                    <p className="text-[6pt] font-extrabold uppercase text-slate-500">Semestre</p>
+                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedSubject.semester || '---'}</p>
                   </div>
                 </div>
-                <div className="text-[8pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-1 text-slate-800">
+                <div className="text-[7.5pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-0.5 text-slate-800">
                   <span>Carga Horária: <strong className="uppercase font-bold text-slate-950">{selectedSubject.workload ? `${selectedSubject.workload}h` : '30h'}</strong></span>
                   <span>Situação: <strong className="uppercase font-bold text-slate-950">{selectedSubject.status || 'Ativo'}</strong></span>
                 </div>
               </div>
 
-              <div className="col-span-3 border border-slate-800 p-2 flex flex-col justify-between items-center bg-white h-[3cm] mr-1">
-                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1 w-full text-center">
+              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col justify-between items-center bg-white h-[2.35cm]">
+                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5 w-full text-center">
                   Responsável
                 </p>
                 <div className="flex-1 flex flex-col justify-center items-center text-center px-1">
-                  <p className="text-[9pt] font-bold uppercase leading-tight text-slate-900 line-clamp-2">
+                  <p className="text-[8.5pt] font-bold uppercase leading-tight text-slate-900 line-clamp-2">
                     {teachers.find(t => t.id === selectedSubject.teacher_id)?.name || 'NÃO DEFINIDO'}
                   </p>
-                  <p className="text-[6.5pt] font-extrabold uppercase text-slate-500 mt-1">Professor Titular</p>
+                  <p className="text-[6pt] font-extrabold uppercase text-slate-500 mt-0.5">Professor Titular</p>
                 </div>
-                <div className="text-[7pt] font-bold uppercase text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 w-full text-center">
+                <div className="text-[6.5pt] font-bold uppercase text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 w-full text-center">
                   {selectedSubject.status || 'Ativo'}
                 </div>
               </div>

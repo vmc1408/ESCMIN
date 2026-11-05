@@ -294,7 +294,7 @@ export function FinancialDashboard() {
 
   // Central de Notificações WhatsApp por Turma (Módulo Unificado)
   const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
-  const [selectedValidationClassId, setSelectedValidationClassId] = useState<string>('all');
+  const [selectedValidationClassId, setSelectedValidationClassId] = useState<string>('');
   const [validationTargetGroup, setValidationTargetGroup] = useState<any | null>(null);
   const [validatedContacts, setValidatedContacts] = useState<any[]>([]);
   const [validationFilter, setValidationFilter] = useState<'all' | 'valid' | 'warning' | 'invalid' | 'selected'>('all');
@@ -1132,6 +1132,13 @@ export function FinancialDashboard() {
     currentDebtScope: 'all_due' | 'selected_month' | 'all_year' = notificationDebtScope
   ) => {
     setSelectedValidationClassId(classId);
+    if (!classId) {
+      setValidatedContacts([]);
+      setValidationFilter('all');
+      setValidationSearch('');
+      return;
+    }
+
     const baseStudents = currentDebtScope === 'all_due'
       ? (delinquencyMonthlyData.allDuePendingStudentsList || [])
       : currentDebtScope === 'all_year'
@@ -1162,9 +1169,9 @@ export function FinancialDashboard() {
     setValidationSearch('');
   };
 
-  // Abre diretamente a Central de Notificações WhatsApp por Turma
+  // Abre diretamente a Central de Notificações WhatsApp por Turma (sem turma pré-selecionada)
   const handleOpenWhatsAppCentral = (classId?: string) => {
-    const chosenClass = classId || (classGroups.length > 0 ? classGroups[0].classId : 'all');
+    const chosenClass = classId || '';
     loadValidationContactsForClass(chosenClass);
     setIsQueueActive(false);
     setQueueIndex(0);
@@ -2981,14 +2988,17 @@ export function FinancialDashboard() {
                     onChange={e => loadValidationContactsForClass(e.target.value)}
                     className="w-full text-xs font-bold pl-2.5 pr-8 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    <option value="all">
-                      Todas as Turmas ({activeScopeStudents.length} alunos com pendência)
+                    <option value="">
+                      -- Selecione uma turma para iniciar os envios --
                     </option>
                     {classGroups.map(group => (
                       <option key={group.classId} value={group.classId}>
                         {group.className} ({group.students.length} alunos • {group.totalWhatsAppCount} WhatsApp)
                       </option>
                     ))}
+                    <option value="all">
+                      Todas as Turmas ({activeScopeStudents.length} alunos com pendência)
+                    </option>
                   </select>
                 </div>
               </div>
@@ -3362,7 +3372,17 @@ export function FinancialDashboard() {
                     ref={validationListRef}
                     className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5 max-h-[62vh] min-h-[360px] bg-slate-50/50 scroll-smooth"
                   >
-                    {filteredContacts.length === 0 ? (
+                    {!selectedValidationClassId ? (
+                      <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500 max-w-md mx-auto my-8 shadow-2xs animate-in fade-in duration-200">
+                        <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 border border-emerald-200">
+                          <Users size={24} />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">Nenhuma turma selecionada</h4>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                          Selecione uma turma no campo acima para carregar a lista de alunos com pendências e validar os números de WhatsApp.
+                        </p>
+                      </div>
+                    ) : filteredContacts.length === 0 ? (
                       <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
                         <Info size={28} className="mx-auto mb-2 text-slate-400" />
                         <p className="text-xs font-bold text-slate-700">Nenhum contato encontrado no filtro atual.</p>
@@ -3493,11 +3513,10 @@ export function FinancialDashboard() {
                               </div>
 
                               {/* Badges de Validação e Indicador Mensal de Envios */}
-                              <div className="flex flex-col items-end sm:items-start gap-0.5 shrink-0 min-w-[120px]">
+                              <div className="flex flex-col items-end sm:items-start gap-0.5 shrink-0 min-w-[100px]">
                                 {isValid && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                    <CheckCircle2 size={10} className="text-emerald-600" />
-                                    <span>Válido (11d)</span>
+                                  <span className="text-emerald-600 flex items-center p-0.5" title="Número válido para WhatsApp">
+                                    <CheckCircle2 size={16} className="text-emerald-600" />
                                   </span>
                                 )}
                                 {isWarning && (
