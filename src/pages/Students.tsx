@@ -1864,15 +1864,15 @@ export function Students() {
             </div>
 
             {/* Document Title with balanced breathing room */}
-            <div className="text-center mt-3 mb-3.5">
-              <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-8 inline-block">
+            <div className="text-center mt-5 mb-5">
+              <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-10 inline-block">
                 Ficha de Inscrição
               </h2>
             </div>
           </div>
 
           {/* TOP CONTROL BOXES: Matrícula + Cursos + Foto 3x4 */}
-          <div className="grid grid-cols-12 gap-3.5 mt-1 mb-3.5">
+          <div className="grid grid-cols-12 gap-3.5 mt-2 mb-6">
             {/* Controle / Matrícula */}
             <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3.2cm] justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
@@ -1967,7 +1967,7 @@ export function Students() {
           </div>
 
           {/* PERSONAL DATA - Typographically Grounded Lines (No Floating, Baseline-Aligned, Unified Left) */}
-          <div className="space-y-2.5 my-2.5 text-[8.5pt]">
+          <div className="space-y-3.5 mt-2 mb-6 text-[8.5pt]">
             <div className="flex items-baseline gap-2">
               <span className="font-bold uppercase w-[72px] shrink-0 text-[8pt] text-slate-800">Nome:</span>
               <span className="flex-1 border-b border-slate-700 font-black uppercase text-[9pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
@@ -2016,23 +2016,33 @@ export function Students() {
                   {selectedStudent.phone_mobile || '\u00A0'}
                 </span>
               </div>
-              <div className="flex-[4] flex items-baseline justify-end gap-3.5 text-[8pt]">
+              <div className="flex-[4] flex items-center justify-end gap-3.5 text-[8pt] self-center">
                 <span className="text-slate-800 font-bold uppercase shrink-0">WhatsApp:</span>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <div className="w-[14px] h-[14px] border-[1.5px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white shrink-0">
-                    {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
-                      <span className="text-[8.5pt] font-black leading-none text-slate-950">✕</span>
-                    )}
+                  <div className="w-[14px] h-[14px] min-w-[14px] min-h-[14px] border-[1.5px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white shrink-0 relative">
+                    <span className={cn(
+                      "text-[8.5pt] font-black leading-none text-slate-950",
+                      (selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true))
+                        ? "opacity-100"
+                        : "opacity-0 select-none pointer-events-none"
+                    )}>
+                      ✕
+                    </span>
                   </div>
-                  <span className="font-bold uppercase text-[7.5pt] text-slate-900">Sim</span>
+                  <span className="font-bold uppercase text-[7.5pt] text-slate-900 leading-none">Sim</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <div className="w-[14px] h-[14px] border-[1.5px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white shrink-0">
-                    {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
-                      <span className="text-[8.5pt] font-black leading-none text-slate-950">✕</span>
-                    )}
+                  <div className="w-[14px] h-[14px] min-w-[14px] min-h-[14px] border-[1.5px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white shrink-0 relative">
+                    <span className={cn(
+                      "text-[8.5pt] font-black leading-none text-slate-950",
+                      (selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true))
+                        ? "opacity-100"
+                        : "opacity-0 select-none pointer-events-none"
+                    )}>
+                      ✕
+                    </span>
                   </div>
-                  <span className="font-bold uppercase text-[7.5pt] text-slate-900">Não</span>
+                  <span className="font-bold uppercase text-[7.5pt] text-slate-900 leading-none">Não</span>
                 </div>
               </div>
             </div>
@@ -2066,7 +2076,7 @@ export function Students() {
             </div>
 
             {/* Pastoral Info Grid */}
-            <div className="space-y-2.5 pt-2.5 mt-2.5 border-t border-slate-300">
+            <div className="space-y-3.5 pt-3.5 mt-3.5 border-t border-slate-300">
               <div className="flex items-baseline gap-2">
                 <span className="font-bold uppercase whitespace-nowrap w-[72px] shrink-0 text-[8pt] text-slate-800">Paróquia:</span>
                 <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
@@ -2092,7 +2102,7 @@ export function Students() {
           </div>
 
           {/* BASIC INFORMATION SECTION - NORMAS */}
-          <div className="my-2.5 p-3 bg-slate-50/80 border border-slate-300 rounded-md">
+          <div className="mt-6 mb-6 p-3.5 bg-slate-50/80 border border-slate-300 rounded-md">
             <h4 className="text-[8pt] font-black uppercase text-center mb-1.5 tracking-wider text-slate-900 border-b border-slate-200 pb-1">
               Normas Básicas para Admissão
             </h4>
@@ -2110,8 +2120,8 @@ export function Students() {
           </div>
 
           {/* DECLARATION */}
-          <div className="text-[7.5pt] leading-normal my-2 pt-1">
-            <div className="flex items-baseline mb-1 gap-2">
+          <div className="text-[7.5pt] leading-normal mt-5 mb-5 pt-1">
+            <div className="flex items-baseline mb-2 gap-2">
               <span className="font-bold uppercase text-slate-800">Eu,</span>
               <span className="flex-1 border-b border-slate-900 font-black uppercase px-2 text-slate-950">
                 {selectedStudent.name}
@@ -2126,7 +2136,7 @@ export function Students() {
         {/* BOTTOM SECTION: DATE, SIGNATURE AND RODAPÉ PINNED AT ABSOLUTE BOTTOM */}
         <div className="mt-auto pt-2 shrink-0 pr-1">
           {/* DATE AND SIGNATURE */}
-          <div className="mt-1 mb-5">
+          <div className="mt-2 mb-6">
             <div className="flex justify-between items-end px-3 gap-8">
               <div className="flex flex-col pb-0.5">
                 <p className="text-[8.5pt] font-bold text-slate-900">
