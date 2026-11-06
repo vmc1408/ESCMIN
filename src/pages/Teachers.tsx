@@ -1010,71 +1010,71 @@ export function Teachers() {
           </div>
 
           {/* DADOS PESSOAIS */}
-          <div className="space-y-1.5 mb-2 text-[8pt]">
-            <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">Nome:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8.5pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
-                {selectedTeacher.name}
+          <div className="space-y-2 mb-2 text-[8pt]">
+            <div className="flex items-baseline gap-2">
+              <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">Nome:</span>
+              <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                {selectedTeacher.name || '\u00A0'}
               </span>
             </div>
 
-            <div className="flex gap-3">
-              <div className="flex-[2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[7.5pt] text-slate-800">CPF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
-                  {selectedTeacher.cpf || '---'}
+            <div className="flex gap-3 items-baseline">
+              <div className="flex-[2] flex items-baseline gap-2">
+                <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">CPF:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedTeacher.cpf || '\u00A0'}
                 </span>
               </div>
-              <div className="flex-[2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[7.5pt] text-slate-800">RG:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
-                  {selectedTeacher.rg || '---'}
+              <div className="flex-[2] flex items-baseline gap-2">
+                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">RG:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedTeacher.rg || '\u00A0'}
                 </span>
               </div>
-              <div className="flex-[3] flex items-end gap-2">
-                <span className="font-bold uppercase text-[7.5pt] text-slate-800">Celular:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
-                  {selectedTeacher.phone_mobile || '---'}
+              <div className="flex-[3] flex items-baseline gap-2">
+                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">Celular:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedTeacher.phone_mobile || '\u00A0'}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">E-mail:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold lowercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
-                {selectedTeacher.email || '---'}
+            <div className="flex items-baseline gap-2">
+              <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">E-mail:</span>
+              <span className="flex-1 border-b border-slate-700 font-bold lowercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                {selectedTeacher.email || '\u00A0'}
               </span>
             </div>
 
-            <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[65px] text-[7.5pt] text-slate-800">Endereço:</span>
-              <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
+            <div className="flex items-baseline gap-2">
+              <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">Endereço:</span>
+              <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                 {[
                   selectedTeacher.address_street,
                   selectedTeacher.address_number ? `Nº ${selectedTeacher.address_number}` : null,
                   selectedTeacher.address_complement,
                   selectedTeacher.address_neighborhood
-                ].filter(Boolean).join(', ') || '---'}
+                ].filter(Boolean).join(', ') || '\u00A0'}
               </span>
             </div>
 
-            <div className="flex gap-3">
-              <div className="flex-[4] flex items-end gap-2">
-                <span className="font-bold uppercase text-[7.5pt] text-slate-800">Cidade:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 min-h-[19px]">
-                  {selectedTeacher.address_city || '---'}
+            <div className="flex gap-3 items-baseline">
+              <div className="flex-[4] flex items-baseline gap-2">
+                <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">Cidade:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedTeacher.address_city || '\u00A0'}
                 </span>
               </div>
-              <div className="flex-[1.2] flex items-end gap-2">
-                <span className="font-bold uppercase text-[7.5pt] text-slate-800">UF:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
-                  {selectedTeacher.address_state || '---'}
+              <div className="flex-[1.2] flex items-baseline gap-2">
+                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">UF:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedTeacher.address_state || '\u00A0'}
                 </span>
               </div>
-              <div className="flex-[2.5] flex items-end gap-2">
-                <span className="font-bold uppercase text-[7.5pt] text-slate-800">CEP:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold text-[8pt] text-slate-950 px-1 pb-0.5 text-center min-h-[19px]">
-                  {selectedTeacher.address_zip || '---'}
+              <div className="flex-[2.5] flex items-baseline gap-2">
+                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">CEP:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedTeacher.address_zip || '\u00A0'}
                 </span>
               </div>
             </div>
