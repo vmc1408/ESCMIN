@@ -287,45 +287,58 @@ export function Subjects() {
       const pageWidth = doc.internal.pageSize.width;
 
       // Header - Institution info ONLY above divider
+      let textStartX = margin;
       if (inst?.logo_url) {
         try {
-          doc.addImage(inst.logo_url, 'PNG', margin, 10, 20, 20);
+          doc.addImage(inst.logo_url, 'auto', margin, 12, 20, 20);
+          textStartX = margin + 24;
         } catch (e) { console.error('Error adding logo', e); }
       }
       
-      doc.setFontSize(14);
-      doc.setTextColor(0, 23, 75);
-      doc.setFont('helvetica', 'bold');
-      doc.text(inst?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 38, 18);
-      
       doc.setFontSize(8.5);
-      doc.setTextColor(100);
-      doc.setFont('helvetica', 'normal');
-      const instInfo = [inst?.address, inst?.city_uf, inst?.phone ? `TEL: ${inst.phone}` : ''].filter(Boolean).join(' • ');
-      doc.text(instInfo || 'GUARULHOS/SP', 38, 24);
-
-      // Divider line
-      doc.setDrawColor(0, 23, 75);
-      doc.setLineWidth(0.5);
-      doc.line(margin, 32, pageWidth - margin, 32);
-
-      // Below the line: Report title & selected filters
-      doc.setFontSize(11);
-      doc.setTextColor(0, 23, 75);
+      doc.setTextColor(71, 85, 105);
       doc.setFont('helvetica', 'bold');
-      doc.text('RELAÇÃO DE DISCIPLINAS', margin, 40);
+      doc.text((inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'), textStartX, 16.5);
 
-      doc.setFontSize(8);
-      doc.setTextColor(80);
-      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 22.5);
+
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'bold');
+      doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 28.5);
+
+      // Header divider line (separating Institutional Header from Document Title)
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(margin, 35, pageWidth - margin, 35);
+
+      // Centered Document Title with standard underline
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const docTitle = 'R E L A Ç Ã O   D E   D I S C I P L I N A S';
+      doc.text(docTitle, pageWidth / 2, 44, { align: 'center' });
+
+      const titleWidth = doc.getTextWidth(docTitle);
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(pageWidth / 2 - (titleWidth / 2) - 4, 46.5, pageWidth / 2 + (titleWidth / 2) + 4, 46.5);
+
+      // Metadata line
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'bold');
       const filterLabels = [`FILTRO: ${statusFilter.toUpperCase()}`];
       if (semesterFilter !== 'Todos') {
         filterLabels.push(`SEMESTRE: ${semesterFilter.toUpperCase()}`);
       } else {
         filterLabels.push('SEMESTRE: TODOS');
       }
-      doc.text(filterLabels.join(' • '), margin, 45);
-      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 45, { align: 'right' });
+      doc.text(filterLabels.join('  •  '), margin, 52.5);
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 52.5, { align: 'right' });
 
       const tableData = filteredSubjects.map(s => {
         const teacher = teachers.find(t => t.id === s.teacher_id);
@@ -345,22 +358,58 @@ export function Subjects() {
       });
 
       autoTable(doc, {
-        startY: 50,
+        startY: 57,
         head: [['CÓD.', 'NOME DA DISCIPLINA', 'ANO', 'SEM.', 'PROFESSOR', 'STATUS']],
         body: tableData,
-        headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
         styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
         alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { left: margin, right: margin }
+        margin: { left: margin, right: margin, bottom: 25 }
       });
 
+      // Standard Institutional Footer (2 Columns, 3 Lines)
       const pages = (doc as any).internal.getNumberOfPages();
+      const pageHeight = doc.internal.pageSize.height;
       for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        const footerText = `SISTEMA ESCMIN • Documento emitido em ${new Date().toLocaleString('pt-BR')} • Página ${i} de ${pages}`;
-        doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+        
+        // Footer divider line
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(0.8);
+        doc.line(margin, pageHeight - 19, pageWidth - margin, pageHeight - 19);
+
+        // Institutional address & phone on the left
+        doc.setFontSize(6.5);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont('helvetica', 'bold');
+        
+        const addrLine1 = (inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
+        const addrLine2 = [
+          inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170',
+          inst?.city_uf ? `- ${inst.city_uf}` : '- GUARULHOS/SP'
+        ].filter(Boolean).join(' ').toUpperCase();
+        const addrLine3 = `TELEFONE: ${inst?.phone || '(11) 2421-2935'}`.toUpperCase();
+        
+        doc.text(addrLine1, margin, pageHeight - 14.5);
+        doc.text(addrLine2, margin, pageHeight - 11);
+        doc.text(addrLine3, margin, pageHeight - 7.5);
+
+        // Secretary / Email and Page on the right
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        
+        doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 14.5, { align: 'right' });
+        
+        doc.setFont('helvetica', 'normal');
+        const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
+        doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
+        
+        const emailAndPage = [
+          inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
+          `Página ${i} de ${pages}`
+        ].join('  •  ');
+        doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
       }
 
       doc.autoPrint();

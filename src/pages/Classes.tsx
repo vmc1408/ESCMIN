@@ -1143,57 +1143,56 @@ export function Classes() {
     let textStartX = margin;
     if (inst?.logo_url) {
       try {
-        doc.addImage(inst.logo_url, 'PNG', margin, 10, 22, 22);
-        textStartX = margin + 26;
+        doc.addImage(inst.logo_url, 'auto', margin, 12, 20, 20);
+        textStartX = margin + 24;
       } catch (e) {
         console.error('Error adding logo to PDF', e);
       }
     }
 
     doc.setFontSize(8.5);
-    doc.setTextColor(100, 100, 100);
+    doc.setTextColor(71, 85, 105);
     doc.setFont('helvetica', 'bold');
-    doc.text((inst?.diocese_name || 'DIOCESE DE GUARULHOS').toUpperCase(), textStartX, 15);
+    doc.text((inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : (inst?.diocese_name || 'DIOCESE DE GUARULHOS')).toUpperCase(), textStartX, 16.5);
 
-    doc.setFontSize(13);
-    doc.setTextColor(0, 23, 75);
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
-    doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, 21);
+    doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 22.5);
 
     doc.setFontSize(9);
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(71, 85, 105);
     doc.setFont('helvetica', 'bold');
-    doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 26);
+    doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 28.5);
 
     // Header divider line (separating Institutional Header from Document Title)
-    doc.setDrawColor(0, 23, 75);
-    doc.setLineWidth(0.6);
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.8);
     doc.line(margin, 35, pageWidth - margin, 35);
 
-    // 2. Document Title & Metadata (Below the divider line)
-    // Left side: Title & Class Info
+    // 2. Document Title & Metadata (Centered with standard underline)
     doc.setFontSize(11);
-    doc.setTextColor(0, 23, 75);
+    doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
-    doc.text(`LISTA DE ALUNOS MATRICULADOS`, margin, 42);
+    const docTitle = 'L I S T A   D E   A L U N O S   M A T R I C U L A D O S';
+    doc.text(docTitle, pageWidth / 2, 44, { align: 'center' });
 
-    doc.setFontSize(8.5);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`TURMA: ${className.toUpperCase()} (${classCode})`, margin, 47);
+    const titleWidth = doc.getTextWidth(docTitle);
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.8);
+    doc.line(pageWidth / 2 - (titleWidth / 2) - 4, 46.5, pageWidth / 2 + (titleWidth / 2) + 4, 46.5);
 
-    // Right side: Total Students & Optional Emission Date
-    doc.setFontSize(9);
-    doc.setTextColor(0, 23, 75);
+    // Metadata line
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
     doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL: ${modalStudents.length} ALUNO(S)`, pageWidth - margin, 42, { align: 'right' });
+    doc.text(`TURMA: ${className.toUpperCase()} (${classCode})`, margin, 52.5);
 
+    const rightMetaParts = [`TOTAL: ${modalStudents.length} ALUNO(S)`];
     if (includeEmissionDate) {
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 47, { align: 'right' });
+      rightMetaParts.push(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`);
     }
+    doc.text(rightMetaParts.join('  •  '), pageWidth - margin, 52.5, { align: 'right' });
 
     // 3. Table of Students
     const tableRows = modalStudents.map((s, idx) => [
@@ -1205,31 +1204,58 @@ export function Classes() {
     ]);
 
     autoTable(doc, {
-      startY: 52,
+      startY: 57,
       head: [['#', 'NOME DO ALUNO', 'MATRÍCULA', 'CPF', 'STATUS']],
       body: tableRows,
-      headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      styles: { fontSize: 8.5, cellPadding: 2.5, font: 'helvetica' },
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 2.5, font: 'helvetica' },
       alternateRowStyles: { fillColor: [248, 250, 252] },
-      margin: { left: margin, right: margin }
+      margin: { left: margin, right: margin, bottom: 25 }
     });
 
-    // 4. Institutional Footer
+    // 4. Standard Institutional Footer (2 Columns, 3 Lines)
     const totalPages = (doc as any).internal.getNumberOfPages();
+    const pageHeight = doc.internal.pageSize.height;
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      doc.setFontSize(7.5);
-      doc.setTextColor(140, 140, 140);
+      
+      // Footer divider line
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(margin, pageHeight - 19, pageWidth - margin, pageHeight - 19);
+
+      // Institutional address & phone on the left
+      doc.setFontSize(6.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      
+      const addrLine1 = (inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
+      const addrLine2 = [
+        inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170',
+        inst?.city_uf ? `- ${inst.city_uf}` : '- GUARULHOS/SP'
+      ].filter(Boolean).join(' ').toUpperCase();
+      const addrLine3 = `TELEFONE: ${inst?.phone || '(11) 2421-2935'}`.toUpperCase();
+      
+      doc.text(addrLine1, margin, pageHeight - 14.5);
+      doc.text(addrLine2, margin, pageHeight - 11);
+      doc.text(addrLine3, margin, pageHeight - 7.5);
+
+      // Secretary / Email and Page on the right
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      
+      doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 14.5, { align: 'right' });
+      
       doc.setFont('helvetica', 'normal');
-
-      let footerLeft = `SISTEMA ESCMIN • ${inst?.name || 'Escola Diocesana de Ministérios'}`;
-      if (includeEmissionDate) {
-        footerLeft += ` • Emissão: ${new Date().toLocaleString('pt-BR')}`;
-      }
-      doc.text(footerLeft, margin, doc.internal.pageSize.height - 8, { align: 'left' });
-
-      // Page numbering right-aligned
-      doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, doc.internal.pageSize.height - 8, { align: 'right' });
+      const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
+      doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
+      
+      const emailAndPage = [
+        inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
+        `Página ${i} de ${totalPages}`
+      ].join('  •  ');
+      doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
     }
 
     // 4. Direct Print Execution (No File Save Download)
@@ -1331,26 +1357,52 @@ export function Classes() {
       const margin = 15;
       const pageWidth = doc.internal.pageSize.width;
 
+      let textStartX = margin;
       if (inst?.logo_url) {
         try {
-          doc.addImage(inst.logo_url, 'PNG', margin, 10, 20, 20);
+          doc.addImage(inst.logo_url, 'auto', margin, 12, 20, 20);
+          textStartX = margin + 24;
         } catch (e) { console.error('Error adding logo', e); }
       }
       
-      doc.setFontSize(14);
-      doc.setTextColor(0, 23, 75);
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
       doc.setFont('helvetica', 'bold');
-      doc.text(inst?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 38, 18);
-      
-      doc.setFontSize(9);
-      doc.setTextColor(100);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`RELAÇÃO DE TURMAS • FILTRO: ${statusFilter.toUpperCase()}`, 38, 24);
-      doc.text(`${inst?.city_uf || ''} • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, 38, 29);
+      doc.text((inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : (inst?.diocese_name || 'DIOCESE DE GUARULHOS')).toUpperCase(), textStartX, 16.5);
 
-      doc.setDrawColor(0, 23, 75);
-      doc.setLineWidth(0.5);
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 22.5);
+
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'bold');
+      doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 28.5);
+
+      // Header divider line (separating Institutional Header from Document Title)
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
       doc.line(margin, 35, pageWidth - margin, 35);
+
+      // Centered Document Title with standard underline
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const docTitle = 'R E L A Ç Ã O   D E   T U R M A S';
+      doc.text(docTitle, pageWidth / 2, 44, { align: 'center' });
+
+      const titleWidth = doc.getTextWidth(docTitle);
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(pageWidth / 2 - (titleWidth / 2) - 4, 46.5, pageWidth / 2 + (titleWidth / 2) + 4, 46.5);
+
+      // Metadata line
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`FILTRO: ${statusFilter.toUpperCase()}`, margin, 52.5);
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 52.5, { align: 'right' });
 
       const tableData = filteredClasses.map(c => [
         c.code,
@@ -1362,22 +1414,58 @@ export function Classes() {
       ]);
 
       autoTable(doc, {
-        startY: 40,
+        startY: 57,
         head: [['CÓD.', 'NOME DA TURMA', 'ANO', 'PERÍODO', 'DIAS', 'STATUS']],
         body: tableData,
-        headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-        styles: { fontSize: 6.5, cellPadding: 2, font: 'helvetica' },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
         alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: { left: margin, right: margin }
+        margin: { left: margin, right: margin, bottom: 25 }
       });
 
+      // Standard Institutional Footer (2 Columns, 3 Lines)
       const pages = (doc as any).internal.getNumberOfPages();
+      const pageHeight = doc.internal.pageSize.height;
       for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        const footerText = `SISTEMA ESCMIN • Documento emitido em ${new Date().toLocaleString('pt-BR')} • Página ${i} de ${pages}`;
-        doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+        
+        // Footer divider line
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(0.8);
+        doc.line(margin, pageHeight - 19, pageWidth - margin, pageHeight - 19);
+
+        // Institutional address & phone on the left
+        doc.setFontSize(6.5);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont('helvetica', 'bold');
+        
+        const addrLine1 = (inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
+        const addrLine2 = [
+          inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170',
+          inst?.city_uf ? `- ${inst.city_uf}` : '- GUARULHOS/SP'
+        ].filter(Boolean).join(' ').toUpperCase();
+        const addrLine3 = `TELEFONE: ${inst?.phone || '(11) 2421-2935'}`.toUpperCase();
+        
+        doc.text(addrLine1, margin, pageHeight - 14.5);
+        doc.text(addrLine2, margin, pageHeight - 11);
+        doc.text(addrLine3, margin, pageHeight - 7.5);
+
+        // Secretary / Email and Page on the right
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        
+        doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 14.5, { align: 'right' });
+        
+        doc.setFont('helvetica', 'normal');
+        const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
+        doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
+        
+        const emailAndPage = [
+          inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
+          `Página ${i} de ${pages}`
+        ].join('  •  ');
+        doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
       }
 
       doc.autoPrint();
