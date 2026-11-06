@@ -391,39 +391,45 @@ export function Teachers() {
       const margin = 15;
       const pageWidth = doc.internal.pageSize.width;
 
-      // Header - Institution info ONLY above the divider
+      // Header - Standard Institutional Header
+      let textStartX = margin;
       if (inst?.logo_url) {
         try {
-          doc.addImage(inst.logo_url, 'PNG', margin, 10, 20, 20);
+          doc.addImage(inst.logo_url, 'PNG', margin, 10, 22, 22);
+          textStartX = margin + 26;
         } catch (e) {
           console.error('Error adding logo to list PDF', e);
         }
       }
       
-      doc.setFontSize(14);
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'bold');
+      doc.text((inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'), textStartX, 15);
+
+      doc.setFontSize(13);
       doc.setTextColor(0, 23, 75);
       doc.setFont('helvetica', 'bold');
-      doc.text(inst?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 38, 18);
-      
-      doc.setFontSize(8.5);
-      doc.setTextColor(100);
-      doc.setFont('helvetica', 'normal');
-      const instInfo = [inst?.address, inst?.city_uf, inst?.phone ? `TEL: ${inst.phone}` : ''].filter(Boolean).join(' • ');
-      doc.text(instInfo || 'GUARULHOS/SP', 38, 24);
+      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 21);
 
-      // Divider line
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'bold');
+      doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 26);
+
+      // Header divider line (separating Institutional Header from Document Title)
       doc.setDrawColor(0, 23, 75);
-      doc.setLineWidth(0.5);
-      doc.line(margin, 32, pageWidth - margin, 32);
+      doc.setLineWidth(0.6);
+      doc.line(margin, 35, pageWidth - margin, 35);
 
       // Below the line: Report name, selected filters, emission date
       doc.setFontSize(11);
       doc.setTextColor(0, 23, 75);
       doc.setFont('helvetica', 'bold');
-      doc.text('RELAÇÃO DE CORPO DOCENTE', margin, 40);
+      doc.text('RELAÇÃO DE CORPO DOCENTE', margin, 43);
 
-      doc.setFontSize(8);
-      doc.setTextColor(80);
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 100, 100);
       doc.setFont('helvetica', 'normal');
       
       const filterLabels: string[] = [`FILTRO: ${statusFilter.toUpperCase()}`];
@@ -437,8 +443,8 @@ export function Teachers() {
         if (subName) filterLabels.push(`DISCIPLINA: ${subName.toUpperCase()}`);
       }
 
-      doc.text(filterLabels.join(' • '), margin, 45);
-      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 45, { align: 'right' });
+      doc.text(filterLabels.join(' • '), margin, 48);
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 48, { align: 'right' });
 
       const tableData = filteredTeachers.map(t => {
         const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
@@ -465,7 +471,7 @@ export function Teachers() {
       });
 
       autoTable(doc, {
-        startY: 50,
+        startY: 53,
         head: [['CÓD.', 'NOME DO PROFESSOR', 'E-MAIL', 'DISCIPLINAS', 'STATUS']],
         body: tableData,
         headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },
@@ -481,14 +487,49 @@ export function Teachers() {
         margin: { left: margin, right: margin }
       });
 
-      // Footer
+      // Standard Institutional Footer
       const pages = (doc as any).internal.getNumberOfPages();
+      const pageHeight = doc.internal.pageSize.height;
       for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        const footerText = `SISTEMA ESCMIN • Documento emitido em ${new Date().toLocaleString('pt-BR')} • Página ${i} de ${pages}`;
-        doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+        
+        // Footer divider line
+        doc.setDrawColor(0, 23, 75);
+        doc.setLineWidth(0.5);
+        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+        // Institutional address & phone on the left
+        doc.setFontSize(6.5);
+        doc.setTextColor(70, 70, 70);
+        doc.setFont('helvetica', 'bold');
+        
+        const addrLine1 = inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP';
+        const addrLine2 = [
+          inst?.cep ? `CEP: ${inst.cep}` : '',
+          inst?.city_uf ? `- ${inst.city_uf}` : '',
+          inst?.phone ? `• TEL: ${inst.phone}` : ''
+        ].filter(Boolean).join(' ');
+        
+        doc.text(addrLine1.toUpperCase(), margin, pageHeight - 10.5);
+        if (addrLine2) {
+          doc.text(addrLine2.toUpperCase(), margin, pageHeight - 7);
+        }
+
+        // Secretary / Email and Page on the right
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+        
+        let secText = '';
+        if (inst?.secretary) {
+          secText = `SEC: ${inst.secretary.replace(/\n/g, ' ')} • `;
+        }
+        if (inst?.email) {
+          secText += `${inst.email.toLowerCase()} • `;
+        }
+        secText += `Página ${i} de ${pages}`;
+        
+        doc.text(secText, pageWidth - margin, pageHeight - 9, { align: 'right' });
       }
 
       doc.autoPrint();
@@ -943,7 +984,7 @@ export function Teachers() {
                   {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                 </p>
                 <h1 className="text-[14.5pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
-                  {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                  {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
                 </h1>
                 <p className="text-[9pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
                   {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
@@ -951,24 +992,24 @@ export function Teachers() {
               </div>
             </div>
 
-            <div className="text-center my-2">
-              <h2 className="text-[12pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-8 inline-block">
+            <div className="text-center mt-5 mb-5">
+              <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-10 inline-block">
                 Ficha do Professor
               </h2>
             </div>
           </div>
 
           {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-3.5 my-2">
+          <div className="grid grid-cols-12 gap-3.5 mt-2 mb-6">
             <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3.2cm] justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                 Controle
               </p>
-              <div className="flex-1 flex flex-col justify-center items-center">
+              <div className="flex-1 flex flex-col justify-center items-center px-1">
                 <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-500 mb-1 text-center">
                   Código Registro
                 </p>
-                <p className="font-black text-[13.5pt] tracking-wider text-slate-950 text-center font-mono">
+                <p className="font-mono font-black text-[13.5pt] tracking-wider text-slate-950 text-center leading-none">
                   {selectedTeacher.code}
                 </p>
               </div>
@@ -978,15 +1019,19 @@ export function Teachers() {
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                 Disciplinas Vinculadas:
               </p>
-              <div className="flex-1 overflow-hidden flex items-center py-0.5">
+              <div className="flex-1 overflow-hidden flex items-center py-1">
                 <p className="text-[7.5pt] font-bold leading-snug uppercase text-slate-900 line-clamp-3">
                   {teacherSubjectsSummary || 'NENHUMA DISCIPLINA SELECIONADA'}
                 </p>
               </div>
+              <div className="text-[6.5pt] font-semibold text-slate-500 border-t border-slate-200 pt-0.5 flex justify-between">
+                <span>Total de Matérias: <strong className="text-slate-900">{selectedTeacher.subject_ids?.length || 0}</strong></span>
+                <span>Status: <strong className="text-slate-900">{selectedTeacher.status || 'Ativo'}</strong></span>
+              </div>
             </div>
 
             <div className="col-span-3 flex justify-center">
-              <div className="flex items-center justify-center relative w-[2.2cm] h-[2.35cm] overflow-hidden border border-slate-300">
+              <div className="flex items-center justify-center relative w-[2.4cm] h-[3.2cm] overflow-hidden border border-slate-300">
                 {formData.photo_url || selectedTeacher.photo_url ? (
                   <img
                     src={formData.photo_url || selectedTeacher.photo_url}
@@ -996,7 +1041,7 @@ export function Teachers() {
                   />
                 ) : (
                   <div className="w-full h-full border border-dashed border-slate-300 flex flex-col items-center justify-center text-center text-slate-300 uppercase">
-                    <p className="text-[6.5pt] font-black tracking-widest">FOTO 3X4</p>
+                    <p className="text-[7pt] font-black tracking-widest">FOTO 3X4</p>
                     <span className={cn(
                       "inline-block mt-0.5 px-1 py-0.2 text-[5.5pt] font-black uppercase",
                       selectedTeacher.status === 'Ativo' ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"
@@ -1010,9 +1055,9 @@ export function Teachers() {
           </div>
 
           {/* DADOS PESSOAIS */}
-          <div className="space-y-2 mb-2 text-[8pt]">
+          <div className="space-y-3.5 mt-2 mb-6 text-[8.5pt]">
             <div className="flex items-baseline gap-2">
-              <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">Nome:</span>
+              <span className="font-bold uppercase w-[72px] shrink-0 text-[8pt] text-slate-800">Nome:</span>
               <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                 {selectedTeacher.name || '\u00A0'}
               </span>
@@ -1020,35 +1065,35 @@ export function Teachers() {
 
             <div className="flex gap-3 items-baseline">
               <div className="flex-[2] flex items-baseline gap-2">
-                <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">CPF:</span>
-                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                <span className="font-bold uppercase w-[72px] shrink-0 text-[8pt] text-slate-800">CPF:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {selectedTeacher.cpf || '\u00A0'}
                 </span>
               </div>
               <div className="flex-[2] flex items-baseline gap-2">
-                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">RG:</span>
-                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                <span className="font-bold uppercase shrink-0 text-[8pt] text-slate-800">RG:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {selectedTeacher.rg || '\u00A0'}
                 </span>
               </div>
               <div className="flex-[3] flex items-baseline gap-2">
-                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">Celular:</span>
-                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                <span className="font-bold uppercase shrink-0 text-[8pt] text-slate-800">Celular:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {selectedTeacher.phone_mobile || '\u00A0'}
                 </span>
               </div>
             </div>
 
             <div className="flex items-baseline gap-2">
-              <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">E-mail:</span>
-              <span className="flex-1 border-b border-slate-700 font-bold lowercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+              <span className="font-bold uppercase w-[72px] shrink-0 text-[8pt] text-slate-800">E-mail:</span>
+              <span className="flex-1 border-b border-slate-700 font-bold lowercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                 {selectedTeacher.email || '\u00A0'}
               </span>
             </div>
 
             <div className="flex items-baseline gap-2">
-              <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">Endereço:</span>
-              <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+              <span className="font-bold uppercase w-[72px] shrink-0 text-[8pt] text-slate-800">Endereço:</span>
+              <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                 {[
                   selectedTeacher.address_street,
                   selectedTeacher.address_number ? `Nº ${selectedTeacher.address_number}` : null,
@@ -1060,20 +1105,20 @@ export function Teachers() {
 
             <div className="flex gap-3 items-baseline">
               <div className="flex-[4] flex items-baseline gap-2">
-                <span className="font-bold uppercase w-[65px] shrink-0 text-[7.5pt] text-slate-800">Cidade:</span>
-                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                <span className="font-bold uppercase w-[72px] shrink-0 text-[8pt] text-slate-800">Cidade:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {selectedTeacher.address_city || '\u00A0'}
                 </span>
               </div>
               <div className="flex-[1.2] flex items-baseline gap-2">
-                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">UF:</span>
-                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                <span className="font-bold uppercase shrink-0 text-[8pt] text-slate-800">UF:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {selectedTeacher.address_state || '\u00A0'}
                 </span>
               </div>
               <div className="flex-[2.5] flex items-baseline gap-2">
-                <span className="font-bold uppercase shrink-0 text-[7.5pt] text-slate-800">CEP:</span>
-                <span className="flex-1 border-b border-slate-700 font-bold text-[8pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                <span className="font-bold uppercase shrink-0 text-[8pt] text-slate-800">CEP:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {selectedTeacher.address_zip || '\u00A0'}
                 </span>
               </div>
@@ -1081,58 +1126,58 @@ export function Teachers() {
           </div>
 
           {/* DISCIPLINAS POR SEMESTRE */}
-          <div className="my-1.5 p-2 bg-slate-50/60 border border-slate-300 rounded space-y-1">
-            <h4 className="text-[7.5pt] font-black uppercase text-center border-b border-slate-200 pb-0.5 tracking-wider text-slate-800">
+          <div className="mt-6 mb-6 p-3.5 bg-slate-50/80 border border-slate-300 rounded-md space-y-2">
+            <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1.5 tracking-wider text-slate-900">
               Disciplinas Ministradas
             </h4>
-            <div className="grid grid-cols-2 gap-2 text-[7.5pt]">
+            <div className="grid grid-cols-2 gap-3 text-[8pt]">
               {/* 1º SEMESTRE */}
-              <div className="border border-slate-200 p-1.5 bg-white">
-                <p className="font-bold uppercase text-blue-900 border-b border-slate-200 pb-0.5 mb-0.5 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+              <div className="border border-slate-200 p-2.5 bg-white">
+                <p className="font-bold uppercase text-blue-900 border-b border-slate-200 pb-1 mb-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
                   1º Semestre
                 </p>
                 {sem1.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7pt]">
+                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7.5pt]">
                     {sem1.map((s, idx) => (
                       <li key={`tsem1-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[6.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                  <p className="text-[7pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
                 )}
               </div>
 
               {/* 2º SEMESTRE */}
-              <div className="border border-slate-200 p-1.5 bg-white">
-                <p className="font-bold uppercase text-emerald-900 border-b border-slate-200 pb-0.5 mb-0.5 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
+              <div className="border border-slate-200 p-2.5 bg-white">
+                <p className="font-bold uppercase text-emerald-900 border-b border-slate-200 pb-1 mb-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
                   2º Semestre
                 </p>
                 {sem2.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7pt]">
+                  <ul className="list-disc list-inside space-y-0.5 font-bold uppercase text-slate-900 text-[7.5pt]">
                     {sem2.map((s, idx) => (
                       <li key={`tsem2-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[6.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                  <p className="text-[7pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
                 )}
               </div>
             </div>
 
             {others.length > 0 && (
-              <div className="border border-slate-200 p-1 bg-white text-[7pt]">
-                <span className="font-bold uppercase text-slate-700 mr-1">Outras Disciplinas:</span>
+              <div className="border border-slate-200 p-1.5 bg-white text-[7.5pt]">
+                <span className="font-bold uppercase text-slate-700 mr-1.5">Outras Disciplinas:</span>
                 <span className="font-medium uppercase text-slate-900">{others.map(s => s.name).join(', ')}</span>
               </div>
             )}
           </div>
 
           {/* OBSERVAÇÕES */}
-          <div className="mt-1">
-            <span className="text-[7.5pt] font-black uppercase text-slate-800">Observações:</span>
-            <div className="text-[7.5pt] border border-slate-300 p-1.5 min-h-[30px] leading-relaxed whitespace-pre-wrap mt-0.5 bg-slate-50/30">
+          <div className="mt-6 mb-6">
+            <span className="text-[8pt] font-black uppercase text-slate-800">Observações:</span>
+            <div className="text-[8pt] border border-slate-300 p-2.5 min-h-[60px] leading-relaxed whitespace-pre-wrap mt-1 bg-slate-50/40">
               {(() => {
                 const cleanedObs = (selectedTeacher.observations || '')
                   .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
@@ -1148,32 +1193,51 @@ export function Teachers() {
 
         {/* BOTTOM SECTION: PINNED FOOTER */}
         <div className="mt-auto pt-2 shrink-0 pr-1">
+          {/* DATE AND SIGNATURE */}
+          <div className="mt-auto mb-6">
+            <div className="flex justify-between items-end px-3 gap-8">
+              <div className="flex flex-col pb-0.5">
+                <p className="text-[8.5pt] font-bold text-slate-900">
+                  {inst?.city_uf ? inst.city_uf.split('/')[0] : 'Guarulhos'}, <span>
+                    {new Date().toLocaleDateString('pt-BR')}
+                  </span>
+                </p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-[75mm] border-t-2 border-slate-900 mb-1.5"></div>
+                <p className="text-[7.5pt] font-black uppercase tracking-[0.2em] text-slate-900">
+                  Assinatura do(a) Professor(a)
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* RODAPÉ INSTITUCIONAL */}
-          <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[6.5pt]">
+          <div className="border-t-2 border-slate-900 pt-2 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
             <div className="flex-1 space-y-0.5">
               <p className="leading-tight font-bold">
                 {inst?.address}
               </p>
               {(inst?.cep || inst?.city_uf) && (
-                <p className="leading-tight text-[6.5pt] font-bold">
+                <p className="leading-tight font-bold">
                   {inst?.cep ? `CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
                 </p>
               )}
               {inst?.phone && (
-                <p className="leading-tight font-bold text-[6.5pt] pt-0.5">
+                <p className="leading-tight font-bold pt-0.5">
                   <span className="normal-case">Telefone: {inst.phone}</span>
                 </p>
               )}
             </div>
-            <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[6.5pt] space-y-0.5 pr-1">
+            <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
               {inst?.secretary && (
                 <>
                   <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
-                  <p className="whitespace-pre-line lowercase font-bold text-[6.5pt]">{inst.secretary}</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst.secretary}</p>
                 </>
               )}
               {inst?.email && (
-                <p className="lowercase font-bold text-[6.5pt] pt-0.5">
+                <p className="lowercase font-bold text-[7pt] pt-0.5">
                   email: {inst.email.toLowerCase()}
                 </p>
               )}
