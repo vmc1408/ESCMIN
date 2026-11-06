@@ -202,6 +202,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    // Regra estrita de segurança institucional:
+    // Ao fechar e reabrir o navegador, o sessionStorage é descartado automaticamente pelo browser.
+    // Se não houver 'app_session_active' no sessionStorage, a sessão anterior foi finalizada
+    // com o fechamento do navegador, exigindo nova autenticação.
+    const isRecoveryMode = typeof window !== 'undefined' && (
+      localStorage.getItem('supabase_recovery_mode') === 'true' ||
+      window.location.hash.includes('type=recovery') ||
+      window.location.hash.includes('access_token=') ||
+      window.location.search.includes('type=recovery')
+    );
+    const isSessionActive = typeof window !== 'undefined' && sessionStorage.getItem('app_session_active') === 'true';
+
+    if (!isSessionActive && !isRecoveryMode) {
+      clearCorruptedAuthTokens();
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      if (mounted) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+      return;
+    }
+
     // 1. Pega sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
@@ -268,6 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
 
       if (event === 'SIGNED_OUT' || !session) {
+        sessionStorage.removeItem('app_session_active');
         setUser(null);
         setProfile(null);
         setLoading(false);
@@ -275,6 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (event === 'SIGNED_IN') {
+        sessionStorage.setItem('app_session_active', 'true');
         localStorage.setItem('selected_global_unit_id', 'matriz');
         sessionStorage.setItem('just_logged_in', 'true');
         try {

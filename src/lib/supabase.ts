@@ -196,54 +196,48 @@ export const clearCorruptedAuthTokens = () => {
   }
 };
 
-// Gerenciamento dinâmico de persistência de sessão (Sessão efêmera vs Permanente)
+// Gerenciamento de persistência de sessão: estritamente efêmero por sessão de navegador
 export const getAuthPersistence = (): 'session' | 'local' => {
-  if (typeof window === 'undefined') return 'session';
-  return window.localStorage.getItem('auth_persist_mode') === 'local' ? 'local' : 'session';
+  return 'session';
 };
 
-export const setAuthPersistence = (mode: 'session' | 'local') => {
+export const setAuthPersistence = (_mode: 'session' | 'local') => {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem('auth_persist_mode', mode);
-  if (mode === 'session') {
-    // Modo seguro (padrão): limpa tokens persistentes de disco para garantir isolamento por fechamento de navegador
-    try {
-      for (let i = window.localStorage.length - 1; i >= 0; i--) {
-        const key = window.localStorage.key(i);
-        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
-          window.localStorage.removeItem(key);
-        }
+  window.localStorage.removeItem('auth_persist_mode');
+  // Modo seguro institucional: limpa tokens persistentes de disco para garantir isolamento por fechamento de navegador
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
+        window.localStorage.removeItem(key);
       }
-    } catch (_) {}
-  }
+    }
+  } catch (_) {}
 };
 
-// Limpeza preventiva de tokens persistidos indevidamente em modo de sessão
+// Limpeza preventiva de tokens persistidos indevidamente em disco
 if (typeof window !== 'undefined') {
-  if (getAuthPersistence() !== 'local') {
-    try {
-      for (let i = window.localStorage.length - 1; i >= 0; i--) {
-        const key = window.localStorage.key(i);
-        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
-          window.localStorage.removeItem(key);
-        }
+  try {
+    window.localStorage.removeItem('auth_persist_mode');
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
+        window.localStorage.removeItem(key);
       }
-    } catch (_) {}
-  }
+    }
+  } catch (_) {}
 }
 
-// Storage seguro com suporte a modo efêmero (sessionStorage) ou persistente (localStorage)
+// Storage seguro com suporte a modo efêmero (sessionStorage)
 const safeAuthStorage = typeof window !== 'undefined' ? {
   getItem: (key: string): string | null => {
     try {
-      const mode = getAuthPersistence();
-      const primaryStorage = mode === 'local' ? window.localStorage : window.sessionStorage;
-      
-      // Se estiver em modo de sessão, garante que o localStorage não tem cópia residual
-      if (mode === 'session' && window.localStorage.getItem(key)) {
+      // Garante que o localStorage nunca mantenha cópia residual de tokens sensíveis
+      if (window.localStorage.getItem(key)) {
         window.localStorage.removeItem(key);
       }
 
+      const primaryStorage = window.sessionStorage;
       let item = primaryStorage.getItem(key);
       if (!item) return null;
 
@@ -285,14 +279,8 @@ const safeAuthStorage = typeof window !== 'undefined' ? {
   },
   setItem: (key: string, value: string): void => {
     try {
-      const mode = getAuthPersistence();
-      if (mode === 'local') {
-        window.localStorage.setItem(key, value);
-        window.sessionStorage.removeItem(key);
-      } else {
-        window.sessionStorage.setItem(key, value);
-        window.localStorage.removeItem(key);
-      }
+      window.sessionStorage.setItem(key, value);
+      window.localStorage.removeItem(key);
     } catch (e) {
       console.warn('[Supabase Auth Storage] setItem error:', e);
     }

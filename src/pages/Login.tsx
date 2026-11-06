@@ -34,7 +34,9 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function Login() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    return localStorage.getItem('remembered_email') || '';
+  });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -51,9 +53,9 @@ export function Login() {
     }
   });
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0 });
-  const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError, setPersistMode, authPersistMode } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError, setPersistMode } = useAuth();
   const [rememberMe, setRememberMe] = useState(() => {
-    return authPersistMode === 'local' || !!localStorage.getItem('remembered_email');
+    return !!localStorage.getItem('remembered_email');
   });
   
   const [logoutNotice, setLogoutNotice] = useState<string | null>(() => {
@@ -218,11 +220,11 @@ export function Login() {
       
       if (rememberMe) {
         localStorage.setItem('remembered_email', emailNormalized);
-        setPersistMode('local');
       } else {
         localStorage.removeItem('remembered_email');
-        setPersistMode('session');
       }
+      setPersistMode('session');
+      localStorage.removeItem('auth_persist_mode');
 
       // Inicializa timestamp de atividade para garantir contagem limpa
       const nowStr = Date.now().toString();
@@ -1117,7 +1119,7 @@ export function Login() {
                             />
                             {rememberMe && <CheckCircle size={10} className="text-white" />}
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Permanecer conectado</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lembrar e-mail neste dispositivo</span>
                         </label>
 
                         <button 

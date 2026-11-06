@@ -403,34 +403,41 @@ export function Teachers() {
       }
       
       doc.setFontSize(8.5);
-      doc.setTextColor(100, 100, 100);
+      doc.setTextColor(71, 85, 105);
       doc.setFont('helvetica', 'bold');
       doc.text((inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'), textStartX, 15);
 
-      doc.setFontSize(13);
-      doc.setTextColor(0, 23, 75);
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 21);
+      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 22);
 
       doc.setFontSize(9);
-      doc.setTextColor(120, 120, 120);
+      doc.setTextColor(71, 85, 105);
       doc.setFont('helvetica', 'bold');
-      doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 26);
+      doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 27);
 
       // Header divider line (separating Institutional Header from Document Title)
-      doc.setDrawColor(0, 23, 75);
-      doc.setLineWidth(0.6);
-      doc.line(margin, 35, pageWidth - margin, 35);
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(margin, 34, pageWidth - margin, 34);
 
-      // Below the line: Report name, selected filters, emission date
+      // Centered Document Title with standard underline
       doc.setFontSize(11);
-      doc.setTextColor(0, 23, 75);
+      doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.text('RELAÇÃO DE CORPO DOCENTE', margin, 43);
+      const docTitle = 'R E L A Ç Ã O   D E   C O R P O   D O C E N T E';
+      doc.text(docTitle, pageWidth / 2, 42, { align: 'center' });
 
-      doc.setFontSize(8.5);
-      doc.setTextColor(100, 100, 100);
-      doc.setFont('helvetica', 'normal');
+      const titleWidth = doc.getTextWidth(docTitle);
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(pageWidth / 2 - (titleWidth / 2) - 4, 44.5, pageWidth / 2 + (titleWidth / 2) + 4, 44.5);
+
+      // Filters on the left and Emission timestamp on the right
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'bold');
       
       const filterLabels: string[] = [`FILTRO: ${statusFilter.toUpperCase()}`];
       if (semesterFilter !== 'all') {
@@ -443,8 +450,8 @@ export function Teachers() {
         if (subName) filterLabels.push(`DISCIPLINA: ${subName.toUpperCase()}`);
       }
 
-      doc.text(filterLabels.join(' • '), margin, 48);
-      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 48, { align: 'right' });
+      doc.text(filterLabels.join('  •  '), margin, 50);
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 50, { align: 'right' });
 
       const tableData = filteredTeachers.map(t => {
         const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
@@ -471,10 +478,10 @@ export function Teachers() {
       });
 
       autoTable(doc, {
-        startY: 53,
+        startY: 54,
         head: [['CÓD.', 'NOME DO PROFESSOR', 'E-MAIL', 'DISCIPLINAS', 'STATUS']],
         body: tableData,
-        headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
         styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
         columnStyles: {
           0: { cellWidth: 12 },
@@ -494,42 +501,42 @@ export function Teachers() {
         doc.setPage(i);
         
         // Footer divider line
-        doc.setDrawColor(0, 23, 75);
-        doc.setLineWidth(0.5);
-        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(0.8);
+        doc.line(margin, pageHeight - 17, pageWidth - margin, pageHeight - 17);
 
-        // Institutional address & phone on the left
+        // Institutional address & phone on the left (matching the 3-line format of all forms)
         doc.setFontSize(6.5);
-        doc.setTextColor(70, 70, 70);
+        doc.setTextColor(15, 23, 42);
         doc.setFont('helvetica', 'bold');
         
-        const addrLine1 = inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP';
+        const addrLine1 = (inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
         const addrLine2 = [
-          inst?.cep ? `CEP: ${inst.cep}` : '',
-          inst?.city_uf ? `- ${inst.city_uf}` : '',
-          inst?.phone ? `• TEL: ${inst.phone}` : ''
-        ].filter(Boolean).join(' ');
+          inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170',
+          inst?.city_uf ? `- ${inst.city_uf}` : '- GUARULHOS/SP'
+        ].filter(Boolean).join(' ').toUpperCase();
+        const addrLine3 = `TELEFONE: ${inst?.phone || '(11) 2421-2935'}`.toUpperCase();
         
-        doc.text(addrLine1.toUpperCase(), margin, pageHeight - 10.5);
-        if (addrLine2) {
-          doc.text(addrLine2.toUpperCase(), margin, pageHeight - 7);
-        }
+        doc.text(addrLine1, margin, pageHeight - 12.5);
+        doc.text(addrLine2, margin, pageHeight - 9);
+        doc.text(addrLine3, margin, pageHeight - 5.5);
 
-        // Secretary / Email and Page on the right
+        // Secretary / Email and Page on the right (matching the 3-line format of all forms)
         doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        
+        doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 12.5, { align: 'right' });
+        
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80, 80, 80);
+        const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
+        doc.text(secLine, pageWidth - margin, pageHeight - 9, { align: 'right' });
         
-        let secText = '';
-        if (inst?.secretary) {
-          secText = `SEC: ${inst.secretary.replace(/\n/g, ' ')} • `;
-        }
-        if (inst?.email) {
-          secText += `${inst.email.toLowerCase()} • `;
-        }
-        secText += `Página ${i} de ${pages}`;
-        
-        doc.text(secText, pageWidth - margin, pageHeight - 9, { align: 'right' });
+        const emailAndPage = [
+          inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
+          `Página ${i} de ${pages}`
+        ].join('  •  ');
+        doc.text(emailAndPage, pageWidth - margin, pageHeight - 5.5, { align: 'right' });
       }
 
       doc.autoPrint();
