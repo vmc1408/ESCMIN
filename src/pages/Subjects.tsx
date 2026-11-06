@@ -1335,58 +1335,58 @@ export function Subjects() {
                 </div>
               </div>
 
-              <div className="text-center my-2">
-                <h2 className="text-[12pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-8 inline-block">
+              <div className="text-center mt-5 mb-5">
+                <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-10 inline-block">
                   Ficha da Disciplina
                 </h2>
               </div>
             </div>
 
             {/* TOP CONTROL BOXES */}
-            <div className="grid grid-cols-12 gap-3 mb-2">
-              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col h-[2.35cm] justify-between bg-white">
-                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
+            <div className="grid grid-cols-12 gap-3.5 mt-2 mb-6">
+              <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3.2cm] justify-between bg-white">
+                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                   Controle
                 </p>
-                <div className="flex-1 flex flex-col justify-center items-center">
-                  <p className="text-[6.5pt] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5 text-center">
+                <div className="flex-1 flex flex-col justify-center items-center px-1">
+                  <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-500 mb-1 text-center">
                     Código da Matéria
                   </p>
-                  <div className="border border-slate-400 bg-slate-50/70 h-7 w-24 flex items-center justify-center font-black text-[11pt] text-slate-950">
+                  <p className="font-mono font-black text-[13.5pt] tracking-wider text-slate-950 text-center leading-none">
                     {selectedSubject.code}
-                  </div>
+                  </p>
                 </div>
               </div>
 
-              <div className="col-span-6 border border-slate-800 p-1.5 h-[2.35cm] flex flex-col justify-between bg-white">
-                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
+              <div className="col-span-6 border border-slate-800 p-2 h-[3.2cm] flex flex-col justify-between bg-white">
+                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                   Informações Acadêmicas:
                 </p>
-                <div className="grid grid-cols-2 gap-2 text-center my-auto py-0.5">
-                  <div className="border border-slate-200 p-1 bg-slate-50/50">
+                <div className="grid grid-cols-2 gap-2 text-center my-auto py-1">
+                  <div className="border border-slate-200 p-1 bg-slate-50/70">
                     <p className="text-[6pt] font-extrabold uppercase text-slate-500">Ano Curricular</p>
-                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedSubject.year || '---'}</p>
+                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedSubject.year || '---'}</p>
                   </div>
-                  <div className="border border-slate-200 p-1 bg-slate-50/50">
+                  <div className="border border-slate-200 p-1 bg-slate-50/70">
                     <p className="text-[6pt] font-extrabold uppercase text-slate-500">Semestre</p>
-                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedSubject.semester || '---'}</p>
+                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedSubject.semester || '---'}</p>
                   </div>
                 </div>
-                <div className="text-[7.5pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-0.5 text-slate-800">
+                <div className="text-[7.5pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-1 text-slate-800">
                   <span>Carga Horária: <strong className="uppercase font-bold text-slate-950">{selectedSubject.workload ? `${selectedSubject.workload}h` : '30h'}</strong></span>
                   <span>Situação: <strong className="uppercase font-bold text-slate-950">{selectedSubject.status || 'Ativo'}</strong></span>
                 </div>
               </div>
 
-              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col justify-between items-center bg-white h-[2.35cm]">
-                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5 w-full text-center">
+              <div className="col-span-3 border border-slate-800 p-2 flex flex-col justify-between items-center bg-white h-[3.2cm]">
+                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1 w-full text-center">
                   Responsável
                 </p>
                 <div className="flex-1 flex flex-col justify-center items-center text-center px-1">
                   <p className="text-[8.5pt] font-bold uppercase leading-tight text-slate-900 line-clamp-2">
                     {teachers.find(t => t.id === selectedSubject.teacher_id)?.name || 'NÃO DEFINIDO'}
                   </p>
-                  <p className="text-[6pt] font-extrabold uppercase text-slate-500 mt-0.5">Professor Titular</p>
+                  <p className="text-[6.5pt] font-extrabold uppercase text-slate-500 mt-1">Professor Titular</p>
                 </div>
                 <div className="text-[6.5pt] font-bold uppercase text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 w-full text-center">
                   {selectedSubject.status || 'Ativo'}
@@ -1395,17 +1395,17 @@ export function Subjects() {
             </div>
 
             {/* DADOS DA DISCIPLINA */}
-            <div className="space-y-2.5 mb-2.5 text-[9pt]">
-              <div className="flex items-end gap-2">
-                <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Disciplina:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9.5pt] text-slate-950 px-2 pb-1 min-h-[22px]">
-                  {selectedSubject.name}
+            <div className="space-y-3.5 mt-2 mb-6 text-[8.5pt]">
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold uppercase w-[85px] shrink-0 text-[8pt] text-slate-800">Disciplina:</span>
+                <span className="flex-1 border-b border-slate-700 font-black uppercase text-[9pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedSubject.name || '\u00A0'}
                 </span>
               </div>
 
-              <div className="flex items-end gap-2">
-                <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Habilitados:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold uppercase w-[85px] shrink-0 text-[8pt] text-slate-800">Habilitados:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {getQualifiedTeachers(selectedSubject.id).length > 0 
                     ? getQualifiedTeachers(selectedSubject.id).map(t => t.name).join(', ') 
                     : 'Nenhum outro professor habilitado no cadastro'}
@@ -1414,8 +1414,8 @@ export function Subjects() {
             </div>
 
             {/* CONTEÚDO PROGRAMÁTICO */}
-            <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg space-y-1.5 flex-1 flex flex-col">
-              <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1 tracking-wider text-slate-800">
+            <div className="mt-6 mb-6 p-3.5 bg-slate-50/80 border border-slate-300 rounded-md space-y-2 flex-1 flex flex-col">
+              <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1.5 tracking-wider text-slate-900">
                 Conteúdo Programático e Ementa
               </h4>
               <div className="text-[8pt] leading-relaxed text-justify whitespace-pre-wrap text-slate-800 p-1 flex-1 min-h-[140px]">
@@ -1429,6 +1429,25 @@ export function Subjects() {
 
           {/* BOTTOM SECTION: PINNED FOOTER */}
           <div className="mt-auto pt-2 shrink-0 pr-1">
+            {/* DATE AND SIGNATURE */}
+            <div className="mt-auto mb-6">
+              <div className="flex justify-between items-end px-3 gap-8">
+                <div className="flex flex-col pb-0.5">
+                  <p className="text-[8.5pt] font-bold text-slate-900">
+                    {inst?.city_uf ? inst.city_uf.split('/')[0] : 'Guarulhos'}, <span>
+                      {new Date().toLocaleDateString('pt-BR')}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-[75mm] border-t-2 border-slate-900 mb-1.5"></div>
+                  <p className="text-[7.5pt] font-black uppercase tracking-[0.2em] text-slate-900">
+                    Coordenação Pedagógica / Direção
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* RODAPÉ INSTITUCIONAL */}
             <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
               <div className="flex-1 space-y-0.5">

@@ -4861,102 +4861,102 @@ export function Classes() {
                 </div>
               </div>
 
-              <div className="text-center my-2">
-                <h2 className="text-[12pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-8 inline-block">
+              <div className="text-center mt-5 mb-5">
+                <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-10 inline-block">
                   Ficha da Turma
                 </h2>
               </div>
             </div>
 
             {/* TOP CONTROL BOXES */}
-            <div className="grid grid-cols-12 gap-3 mb-2">
-              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col h-[2.35cm] justify-between bg-white">
-                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
+            <div className="grid grid-cols-12 gap-3.5 mt-2 mb-6">
+              <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3.2cm] justify-between bg-white">
+                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                   Controle
                 </p>
-                <div className="flex-1 flex flex-col justify-center items-center">
-                  <p className="text-[6.5pt] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5 text-center">
+                <div className="flex-1 flex flex-col justify-center items-center px-1">
+                  <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-500 mb-1 text-center">
                     Código da Turma
                   </p>
-                  <div className="border border-slate-400 bg-slate-50/70 h-7 w-24 flex items-center justify-center font-black text-[11pt] text-slate-950">
+                  <p className="font-mono font-black text-[13.5pt] tracking-wider text-slate-950 text-center leading-none">
                     {selectedClass.code}
-                  </div>
+                  </p>
                 </div>
               </div>
 
-              <div className="col-span-6 border border-slate-800 p-1.5 h-[2.35cm] flex flex-col justify-between bg-white">
-                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5">
+              <div className="col-span-6 border border-slate-800 p-2 h-[3.2cm] flex flex-col justify-between bg-white">
+                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1">
                   Informações Acadêmicas:
                 </p>
-                <div className="grid grid-cols-3 gap-1.5 text-center my-auto py-0.5">
-                  <div className="border border-slate-200 p-0.5 bg-slate-50/50">
+                <div className="grid grid-cols-3 gap-2 text-center my-auto py-1">
+                  <div className="border border-slate-200 p-1 bg-slate-50/70">
                     <p className="text-[6pt] font-extrabold uppercase text-slate-500">Ano Letivo</p>
-                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedClass.year || selectedClass.start_year || '---'}</p>
+                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedClass.year || selectedClass.start_year || '---'}</p>
                   </div>
-                  <div className="border border-slate-200 p-0.5 bg-slate-50/50">
+                  <div className="border border-slate-200 p-1 bg-slate-50/70">
                     <p className="text-[6pt] font-extrabold uppercase text-slate-500">Semestre</p>
-                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedClass.semester || 'Anual'}</p>
+                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedClass.semester || 'Anual'}</p>
                   </div>
-                  <div className="border border-slate-200 p-0.5 bg-slate-50/50">
+                  <div className="border border-slate-200 p-1 bg-slate-50/70">
                     <p className="text-[6pt] font-extrabold uppercase text-slate-500">Turno</p>
-                    <p className="text-[8.5pt] font-black uppercase text-slate-950">{selectedClass.period || '---'}</p>
+                    <p className="text-[9pt] font-black uppercase text-slate-950">{selectedClass.period || '---'}</p>
                   </div>
                 </div>
-                <div className="text-[7.5pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-0.5 text-slate-800">
+                <div className="text-[7.5pt] font-semibold flex items-center justify-between border-t border-slate-200 pt-1 text-slate-800">
                   <span>Sala: <strong className="uppercase font-bold text-slate-950">{selectedClass.room || 'Principal'}</strong></span>
                   <span>Status: <strong className="uppercase font-bold text-slate-950">{selectedClass.status || 'Ativo'}</strong></span>
                 </div>
               </div>
 
-              <div className="col-span-3 border border-slate-800 p-1.5 flex flex-col justify-between items-center bg-white h-[2.35cm]">
-                <p className="text-[7.5pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-0.5 w-full text-center">
+              <div className="col-span-3 border border-slate-800 p-2 flex flex-col justify-between items-center bg-white h-[3.2cm]">
+                <p className="text-[8pt] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1 w-full text-center">
                   Matriculados
                 </p>
                 <div className="flex-1 flex flex-col justify-center items-center">
-                  <p className="text-[17pt] font-black leading-none text-slate-950">
+                  <p className="text-[20pt] font-black leading-none text-slate-950">
                     {modalStudents.length > 0 ? modalStudents.length : (selectedClassStudentCount !== null ? selectedClassStudentCount : '0')}
                   </p>
-                  <p className="text-[6.5pt] font-extrabold uppercase tracking-wider text-slate-600 mt-0.5">Alunos Ativos</p>
+                  <p className="text-[7pt] font-extrabold uppercase tracking-wider text-slate-600 mt-1">Alunos Ativos</p>
                 </div>
-                <div className="text-[6.5pt] font-bold uppercase text-slate-500 text-center">Ano {selectedClass.year || ''}</div>
+                <div className="text-[6.5pt] font-bold uppercase text-slate-500 text-center border-t border-slate-200 pt-1 w-full">Ano {selectedClass.year || ''}</div>
               </div>
             </div>
 
             {/* DADOS DA TURMA */}
-            <div className="space-y-2.5 mb-2.5 text-[9pt]">
-              <div className="flex items-end gap-2">
-                <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Turma:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9.5pt] text-slate-950 px-2 pb-1 min-h-[22px]">
-                  {selectedClass.name}
+            <div className="space-y-3.5 mt-2 mb-6 text-[8.5pt]">
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold uppercase w-[85px] shrink-0 text-[8pt] text-slate-800">Turma:</span>
+                <span className="flex-1 border-b border-slate-700 font-black uppercase text-[9pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                  {selectedClass.name || '\u00A0'}
                 </span>
               </div>
 
-              <div className="flex gap-4">
-                <div className="flex-[3] flex items-end gap-2">
-                  <span className="font-bold uppercase text-[8.5pt] text-slate-800">Curso Base:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <div className="flex gap-4 items-baseline">
+                <div className="flex-[3] flex items-baseline gap-2">
+                  <span className="font-bold uppercase w-[85px] shrink-0 text-[8pt] text-slate-800">Curso Base:</span>
+                  <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                     {selectedClass.course || 'Teologia e Ministérios'}
                   </span>
                 </div>
-                <div className="flex-[2] flex items-end gap-2">
-                  <span className="font-bold uppercase text-[8.5pt] text-slate-800">Início em:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
-                    {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '---'}
+                <div className="flex-[2] flex items-baseline gap-2">
+                  <span className="font-bold uppercase shrink-0 text-[8pt] text-slate-800">Início em:</span>
+                  <span className="flex-1 border-b border-slate-700 font-bold text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
+                    {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '\u00A0'}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-end gap-2">
-                <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Dias de Aula:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold uppercase w-[85px] shrink-0 text-[8pt] text-slate-800">Dias de Aula:</span>
+                <span className="flex-1 border-b border-slate-700 font-bold uppercase text-[8.5pt] text-slate-950 pl-2.5 pb-0.5 text-left leading-normal min-h-[1.3em]">
                   {(selectedClass.days_of_week || []).join(', ') || 'Não especificado'}
                 </span>
               </div>
             </div>
 
             {/* MATRIZ CURRICULAR */}
-            <div className="my-2 p-2.5 bg-slate-50/50 border border-slate-300 rounded-lg space-y-1.5">
-              <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1 tracking-wider text-slate-800">
+            <div className="mt-6 mb-6 p-3.5 bg-slate-50/80 border border-slate-300 rounded-md space-y-2">
+              <h4 className="text-[8pt] font-black uppercase text-center border-b border-slate-200 pb-1.5 tracking-wider text-slate-900">
                 Matriz Curricular Vinculada
               </h4>
               {(() => {
@@ -4972,10 +4972,10 @@ export function Classes() {
                 }
 
                 return (
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-3 text-[8pt]">
                       {/* 1º Semestre */}
-                      <div className="border border-slate-200 p-2 bg-white">
+                      <div className="border border-slate-200 p-2.5 bg-white">
                         <p className="font-bold uppercase text-blue-900 border-b border-slate-200 pb-1 mb-1 flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
                           1º Semestre
@@ -4992,7 +4992,7 @@ export function Classes() {
                       </div>
 
                       {/* 2º Semestre */}
-                      <div className="border border-slate-200 p-2 bg-white">
+                      <div className="border border-slate-200 p-2.5 bg-white">
                         <p className="font-bold uppercase text-emerald-900 border-b border-slate-200 pb-1 mb-1 flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
                           2º Semestre
@@ -5023,9 +5023,9 @@ export function Classes() {
             </div>
 
             {/* OBSERVAÇÕES */}
-            <div className="mt-1">
+            <div className="mt-6 mb-6">
               <span className="text-[8pt] font-black uppercase text-slate-800">Observações da Turma:</span>
-              <div className="text-[8pt] border border-slate-300 p-2 min-h-[40px] leading-relaxed whitespace-pre-wrap mt-0.5 bg-slate-50/30">
+              <div className="text-[8pt] border border-slate-300 p-2.5 min-h-[60px] leading-relaxed whitespace-pre-wrap mt-1 bg-slate-50/40">
                 {(() => {
                   const rawObs = selectedClass.observations || '';
                   const cleaned = rawObs
@@ -5046,6 +5046,25 @@ export function Classes() {
 
           {/* BOTTOM SECTION: PINNED FOOTER */}
           <div className="mt-auto pt-2 shrink-0 pr-1">
+            {/* DATE AND SIGNATURE */}
+            <div className="mt-auto mb-6">
+              <div className="flex justify-between items-end px-3 gap-8">
+                <div className="flex flex-col pb-0.5">
+                  <p className="text-[8.5pt] font-bold text-slate-900">
+                    {inst?.city_uf ? inst.city_uf.split('/')[0] : 'Guarulhos'}, <span>
+                      {new Date().toLocaleDateString('pt-BR')}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-[75mm] border-t-2 border-slate-900 mb-1.5"></div>
+                  <p className="text-[7.5pt] font-black uppercase tracking-[0.2em] text-slate-900">
+                    Coordenação Pedagógica / Direção
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* RODAPÉ INSTITUCIONAL */}
             <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
               <div className="flex-1 space-y-0.5">
