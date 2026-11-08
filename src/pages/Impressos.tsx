@@ -71,6 +71,15 @@ export function Impressos() {
   const [coSignerTitle, setCoSignerTitle] = useState('Diretor Geral');
   const [showPhotoBorder, setShowPhotoBorder] = useState(false);
   const [isFormFilled, setIsFormFilled] = useState(true);
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrinting(false);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   // States for student cards (Pimaco 6183)
   const [selectedCardStudentIds, setSelectedCardStudentIds] = useState<string[]>([]);
@@ -402,7 +411,10 @@ export function Impressos() {
 
   // Handle standard document print trigger
   const handlePrint = useCallback(() => {
-    window.print();
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+    }, 100);
   }, []);
 
   const formatLongDate = (dateString: string) => {
@@ -446,6 +458,7 @@ export function Impressos() {
   return (
     <div className="relative font-sans text-slate-800 pb-12 print:pb-0 print:p-0 print:m-0">
       {/* Dynamic style sheet for Pimaco sticker sheets and specialized print layouts */}
+      {isPrinting && (
       <style dangerouslySetInnerHTML={{ __html: `
         /* Pimaco 6183 Sheet layout (2 columns, 5 rows = 10 labels) */
         .pimaco-sheet {
@@ -549,6 +562,7 @@ export function Impressos() {
           }
         }
       `}} />
+      )}
 
       {/* Page Title */}
       <PageHeader 

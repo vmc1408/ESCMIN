@@ -68,6 +68,15 @@ export function Bulletin() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [exportingPDF, setExportingPDF] = useState<boolean>(false);
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrinting(false);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   // Load Database Records
   useEffect(() => {
@@ -670,7 +679,10 @@ export function Bulletin() {
 
   // Print current screen report card
   const handlePrint = () => {
-    window.print();
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   // Helper function to format grade values safely
@@ -2200,6 +2212,7 @@ export function Bulletin() {
       )}
 
       {/* Custom print rules overrides to optimize height, layout, and eliminate scrollbars */}
+      {isPrinting && (
       <style>{`
         @media print {
           @page {
@@ -2394,6 +2407,7 @@ export function Bulletin() {
           }
         }
       `}</style>
+      )}
     </div>
   );
 }

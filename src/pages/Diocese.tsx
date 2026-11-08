@@ -83,6 +83,15 @@ export function Diocese() {
   const [activeTab, setActiveTab ] = useState<TabType>('dashboard');
   const [parishes, setParishes] = useState<Parish[]>([]);
   const [foraries, setForaries] = useState<Foraria[]>([]);
+  const [isPrintingReport, setIsPrintingReport] = useState(false);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrintingReport(false);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
   const [clergy, setClergy] = useState<ClergyLeity[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -1188,8 +1197,12 @@ export function Diocese() {
 
   const handlePrint = () => {
     try {
-      window.print();
+      setIsPrintingReport(true);
+      setTimeout(() => {
+        window.print();
+      }, 100);
     } catch (error) {
+      setIsPrintingReport(false);
       console.warn('Falha ao acionar impressão direta, exportando PDF:', error);
       handleExportPDF();
     }
@@ -2383,26 +2396,28 @@ export function Diocese() {
 
       {/* PRINT REPORT - OFFICIAL DIOCESAN REPORT GROUPED BY FORANIA */}
       <div id="printable-diocese-report" className="hidden print:block bg-white text-slate-900 w-full" ref={printRef}>
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            @page {
-              size: A4 landscape !important;
-              margin: 10mm 10mm 10mm 10mm !important;
+        {isPrintingReport && (
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page {
+                size: A4 landscape !important;
+                margin: 10mm 10mm 10mm 10mm !important;
+              }
+              .forania-print-page {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                margin: 0 0 20px 0 !important;
+                padding: 0 !important;
+              }
+              .forania-print-page:not(:first-child) {
+                page-break-before: always !important;
+                break-before: page !important;
+              }
             }
-            .forania-print-page {
-              width: 100% !important;
-              box-sizing: border-box !important;
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-              margin: 0 0 20px 0 !important;
-              padding: 0 !important;
-            }
-            .forania-print-page:not(:first-child) {
-              page-break-before: always !important;
-              break-before: page !important;
-            }
-          }
-        `}} />
+          `}} />
+        )}
 
         {/* Dynamic Report Content for HTML Print */}
         <div className="p-4 bg-white text-slate-900">

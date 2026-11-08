@@ -2280,10 +2280,6 @@ export function AnnualCalendarManager({
         <div id="annual-calendar-printable" className="hidden print:block w-full bg-white text-slate-900 p-0 m-0">
           <style>{`
             @media print {
-              @page {
-                size: A4 portrait;
-                margin: 8mm 10mm 10mm 10mm;
-              }
               body {
                 background: #ffffff !important;
                 color: #000000 !important;
@@ -2292,7 +2288,11 @@ export function AnnualCalendarManager({
               }
               #annual-calendar-printable {
                 display: block !important;
-                width: 100% !important;
+                width: 210mm !important;
+                max-width: 210mm !important;
+                box-sizing: border-box !important;
+                margin: 0 auto !important;
+                padding: 12mm 15mm 10mm 15mm !important;
                 visibility: visible !important;
               }
               .print-break-inside-avoid {

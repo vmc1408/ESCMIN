@@ -5476,20 +5476,18 @@ export function Contributions() {
         <>
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
-              @page {
-                size: A4 portrait;
-                margin: 10mm 15mm 10mm 15mm !important;
-              }
               #printable-statement {
                 display: block !important;
                 visibility: visible !important;
                 background: white !important;
                 position: relative !important;
-                width: 100% !important;
+                width: 210mm !important;
+                max-width: 210mm !important;
+                box-sizing: border-box !important;
                 height: auto !important;
                 min-height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
+                margin: 0 auto !important;
+                padding: 12mm 15mm 10mm 15mm !important;
               }
               #statement-print-container {
                 display: flex !important;

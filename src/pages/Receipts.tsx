@@ -891,35 +891,7 @@ export function Receipts() {
 
       </div>
 
-      {/* CSS PRINT INLINE SYSTEM */}
-      {selectedReceipt && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            #root {
-              display: none !important;
-            }
-            #printable-receipt-portal {
-              display: block !important;
-              position: absolute !important;
-              left: 10mm !important;
-              top: 10mm !important;
-              width: 190mm !important;
-              height: 130mm !important;
-              border: 1px solid #000 !important;
-              padding: 10mm 15mm !important;
-              background: white !important;
-              box-sizing: border-box !important;
-            }
-            #printable-receipt-portal * {
-              visibility: visible !important;
-            }
-            @page {
-              size: A4 portrait;
-              margin: 0 !important;
-            }
-          }
-        `}} />
-      )}
+
 
       {selectedReceipt && createPortal(
         <div 

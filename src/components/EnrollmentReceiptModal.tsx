@@ -990,17 +990,14 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
       <div id="printable-enrollment-receipt" className="hidden print:block bg-white text-black p-0 m-0 w-full">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
-            @page {
-              size: A4 portrait;
-              margin: 8mm 12mm 8mm 12mm !important;
-            }
             #printable-enrollment-receipt {
               display: block !important;
               position: static !important;
-              width: 100% !important;
-              max-width: 190mm !important;
+              width: 210mm !important;
+              max-width: 210mm !important;
+              box-sizing: border-box !important;
               margin: 0 auto !important;
-              padding: 0 !important;
+              padding: 12mm 15mm 10mm 15mm !important;
               background: #ffffff !important;
               color: #000000 !important;
               overflow: visible !important;

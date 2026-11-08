@@ -82,6 +82,15 @@ export function FinancialReport() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
   const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrinting(false);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   // Alunos da Turma: Todos ou Selecionar
   const [studentSelectionMode, setStudentSelectionMode] = useState<'all' | 'select'>('all');
@@ -1115,8 +1124,12 @@ const totals = useMemo(() => {
   const handlePrint = () => {
     if (!isFilterReady) return;
     try {
-      window.print();
+      setIsPrinting(true);
+      setTimeout(() => {
+        window.print();
+      }, 100);
     } catch (err) {
+      setIsPrinting(false);
       console.warn('Falha na impressão direta, exportando PDF:', err);
       handleExportPDF();
     }
@@ -1141,6 +1154,7 @@ const totals = useMemo(() => {
 return (
   <div id="financial-report-main-container" className="w-full space-y-3 sm:space-y-3.5 pb-6 print:space-y-3 print:m-0 print:p-0">
     {/* Regras Estritas de Impressão Multi-página, Margens A4 e Continuidade */}
+    {isPrinting && (
     <style>{`
       @media print {
         @page {
@@ -1253,6 +1267,7 @@ return (
         }
       }
     `}</style>
+    )}
 
     {/* PageHeader exclusivo na visualização em tela */}
     <PageHeader
