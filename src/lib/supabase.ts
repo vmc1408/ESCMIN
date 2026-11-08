@@ -241,25 +241,6 @@ const safeAuthStorage = typeof window !== 'undefined' ? {
       let item = primaryStorage.getItem(key);
       if (!item) return null;
 
-      // Validação estrita de expiração por inatividade mesmo em armazenamento local
-      const lastActivity = window.localStorage.getItem('app_last_activity') || window.sessionStorage.getItem('app_last_activity');
-      if (lastActivity) {
-        const lastTime = parseInt(lastActivity, 10);
-        if (!isNaN(lastTime) && lastTime > 0) {
-          const timeoutSec = parseInt(window.localStorage.getItem('app_inactivity_timeout') || '900', 10);
-          const elapsed = (Date.now() - lastTime) / 1000;
-          if (elapsed >= timeoutSec) {
-            console.warn('[Supabase Auth Storage] Sessão expirada por inatividade. Descartando credenciais...');
-            primaryStorage.removeItem(key);
-            window.localStorage.removeItem(key);
-            window.sessionStorage.removeItem(key);
-            window.localStorage.removeItem('app_last_activity');
-            window.sessionStorage.removeItem('app_last_activity');
-            return null;
-          }
-        }
-      }
-
       if (item.startsWith('{') || item.startsWith('[')) {
         try {
           const parsed = JSON.parse(item);

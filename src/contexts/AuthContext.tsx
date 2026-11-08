@@ -222,69 +222,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setLoading(false);
       }
-      return;
-    }
+    } else {
+      // 1. Pega sessão inicial somente quando a sessão do navegador estiver ativa
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          if (isJwtOrTokenError(error)) {
+            console.warn("[AuthContext] Token de atualização inválido/expirado detectado. Limpando chaves locais do Supabase...");
+            clearCorruptedAuthTokens();
+            supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+            if (mounted) {
+              setUser(null);
+              setProfile(null);
+              setLoading(false);
+            }
+            return;
+          }
 
-    // 1. Pega sessão inicial
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        if (isJwtOrTokenError(error)) {
-          console.warn("[AuthContext] Token de atualização inválido/expirado detectado. Limpando chaves locais do Supabase...");
+          const isOfflineError = 
+            (typeof window !== 'undefined' && !window.navigator.onLine) || 
+            error.message?.toLowerCase().includes('offline') || 
+            error.message?.toLowerCase().includes('failed to fetch') || 
+            error.message?.toLowerCase().includes('network error');
+
+          if (isOfflineError) {
+            console.warn("[AuthContext] Dispositivo offline ou erro de rede ao buscar sessão inicial:", error.message);
+          } else {
+            console.error("[AuthContext] Erro ao buscar sessão inicial:", error);
+          }
+        }
+        if (!mounted) return;
+        
+        if (session?.user) {
+          setUser(prev => {
+            if (prev && prev.uid === session.user.id && prev.email === (session.user.email || null)) {
+              return prev;
+            }
+            return {
+              uid: session.user.id,
+              email: session.user.email || null,
+              displayName: session.user.user_metadata?.full_name || null
+            };
+          });
+          refreshProfile(session.user.id);
+        } else {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
+      }).catch(err => {
+        if (isJwtOrTokenError(err)) {
+          console.warn("[AuthContext] Capturada falha de refresh token. Limpando credenciais locais...");
           clearCorruptedAuthTokens();
           supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-          if (mounted) {
-            setUser(null);
-            setProfile(null);
-            setLoading(false);
-          }
-          return;
-        }
-
-        const isOfflineError = 
-          (typeof window !== 'undefined' && !window.navigator.onLine) || 
-          error.message?.toLowerCase().includes('offline') || 
-          error.message?.toLowerCase().includes('failed to fetch') || 
-          error.message?.toLowerCase().includes('network error');
-
-        if (isOfflineError) {
-          console.warn("[AuthContext] Dispositivo offline ou erro de rede ao buscar sessão inicial:", error.message);
         } else {
-          console.error("[AuthContext] Erro ao buscar sessão inicial:", error);
+          console.error("[AuthContext] Falha grave ao obter sessão do Supabase:", err);
         }
-      }
-      if (!mounted) return;
-      
-      if (session?.user) {
-        setUser(prev => {
-          if (prev && prev.uid === session.user.id && prev.email === (session.user.email || null)) {
-            return prev;
-          }
-          return {
-            uid: session.user.id,
-            email: session.user.email || null,
-            displayName: session.user.user_metadata?.full_name || null
-          };
-        });
-        refreshProfile(session.user.id);
-      } else {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      }
-    }).catch(err => {
-      if (isJwtOrTokenError(err)) {
-        console.warn("[AuthContext] Capturada falha de refresh token. Limpando credenciais locais...");
-        clearCorruptedAuthTokens();
-        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      } else {
-        console.error("[AuthContext] Falha grave ao obter sessão do Supabase:", err);
-      }
-      if (mounted) {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      }
-    });
+        if (mounted) {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
+      });
+    }
 
     // 2. Escuta mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {

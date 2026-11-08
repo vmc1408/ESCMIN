@@ -249,6 +249,17 @@ export function Login() {
       }), 20000);
       
       if (result?.error) throw result.error;
+
+      if (result?.data?.user) {
+        sessionStorage.setItem('app_session_active', 'true');
+        try {
+          await refreshProfile(result.data.user.id);
+        } catch (profErr) {
+          console.warn("[Login] Erro ao sincronizar perfil imediatamente:", profErr);
+        }
+        localStorage.removeItem('force_dashboard_on_login');
+        navigate(from, { replace: true });
+      }
     } catch (err: any) {
       setError(err.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : err.message);
     } finally {
