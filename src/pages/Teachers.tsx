@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Search, 
   UserPlus, 
@@ -28,6 +28,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn, detectSubjectSemester, formatSubjectDisplayName } from '../lib/utils';
 import { fetchAll, saveData, deleteData, uploadImage } from '../lib/database';
+import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
 import { RotateCcw, FileText as FileIcon, Building2, UserX } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,6 +36,7 @@ import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { maskRG, calculateRGValidation, RG_MAX_FORMATTED_LENGTH } from '../lib/rgUtils';
 import { fetchAddressByCEP } from '../lib/cepUtils';
+import { DEFAULT_LOGO } from '../lib/default-logo';
 
 interface Teacher {
   id: string;
@@ -173,6 +175,7 @@ const TeacherItem = React.memo(({
 
 export function Teachers() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, getUnitName } = useUnits();
   const { canDelete } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -389,57 +392,8 @@ export function Teachers() {
     try {
       const doc = new jsPDF();
       const margin = 15;
-      const pageWidth = doc.internal.pageSize.width;
 
-      // Header - Standard Institutional Header
-      let textStartX = margin;
-      if (inst?.logo_url) {
-        try {
-          doc.addImage(inst.logo_url, 'auto', margin, 12, 20, 20);
-          textStartX = margin + 24;
-        } catch (e) {
-          console.error('Error adding logo to list PDF', e);
-        }
-      }
-      
-      doc.setFontSize(8.5);
-      doc.setTextColor(71, 85, 105);
-      doc.setFont('helvetica', 'bold');
-      doc.text((inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'), textStartX, 16.5);
-
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 22.5);
-
-      doc.setFontSize(9);
-      doc.setTextColor(71, 85, 105);
-      doc.setFont('helvetica', 'bold');
-      doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 28.5);
-
-      // Header divider line (separating Institutional Header from Document Title)
-      doc.setDrawColor(15, 23, 42);
-      doc.setLineWidth(0.8);
-      doc.line(margin, 35, pageWidth - margin, 35);
-
-      // Centered Document Title with standard underline
-      doc.setFontSize(11);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      const docTitle = 'R E L A Ç Ã O   D E   C O R P O   D O C E N T E';
-      doc.text(docTitle, pageWidth / 2, 44, { align: 'center' });
-
-      const titleWidth = doc.getTextWidth(docTitle);
-      doc.setDrawColor(15, 23, 42);
-      doc.setLineWidth(0.8);
-      doc.line(pageWidth / 2 - (titleWidth / 2) - 4, 46.5, pageWidth / 2 + (titleWidth / 2) + 4, 46.5);
-
-      // Filters on the left and Emission timestamp on the right
-      doc.setFontSize(7.5);
-      doc.setTextColor(71, 85, 105);
-      doc.setFont('helvetica', 'bold');
-      
-      const filterLabels: string[] = [`FILTRO: ${statusFilter.toUpperCase()}`];
+      const filterLabels: string[] = [`STATUS: ${statusFilter.toUpperCase()}`];
       if (semesterFilter !== 'all') {
         filterLabels.push(`SEMESTRE: ${semesterFilter.toUpperCase()}`);
       } else {
@@ -449,9 +403,15 @@ export function Teachers() {
         const subName = subjects.find(s => s.id === subjectFilter)?.name;
         if (subName) filterLabels.push(`DISCIPLINA: ${subName.toUpperCase()}`);
       }
+      const filterSummary = filterLabels.join('  •  ');
 
-      doc.text(filterLabels.join('  •  '), margin, 52.5);
-      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 52.5, { align: 'right' });
+      const startY = drawStandardReportHeader(
+        doc,
+        inst,
+        'RELAÇÃO DE CORPO DOCENTE',
+        filterSummary,
+        margin
+      );
 
       const tableData = filteredTeachers.map(t => {
         const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
@@ -478,11 +438,11 @@ export function Teachers() {
       });
 
       autoTable(doc, {
-        startY: 57,
+        startY,
         head: [['CÓD.', 'NOME DO PROFESSOR', 'E-MAIL', 'DISCIPLINAS', 'STATUS']],
         body: tableData,
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-        styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
+        styles: { fontSize: 7, cellPadding: 2.5, font: 'helvetica' },
         columnStyles: {
           0: { cellWidth: 12 },
           1: { cellWidth: 55 },
@@ -490,54 +450,11 @@ export function Teachers() {
           3: { cellWidth: 55 },
           4: { cellWidth: 18 }
         },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
         margin: { left: margin, right: margin, bottom: 25 }
       });
 
-      // Standard Institutional Footer
-      const pages = (doc as any).internal.getNumberOfPages();
-      const pageHeight = doc.internal.pageSize.height;
-      for (let i = 1; i <= pages; i++) {
-        doc.setPage(i);
-        
-        // Footer divider line
-        doc.setDrawColor(15, 23, 42);
-        doc.setLineWidth(0.8);
-        doc.line(margin, pageHeight - 19, pageWidth - margin, pageHeight - 19);
-
-        // Institutional address & phone on the left (matching the 3-line format of all forms)
-        doc.setFontSize(6.5);
-        doc.setTextColor(15, 23, 42);
-        doc.setFont('helvetica', 'bold');
-        
-        const addrLine1 = (inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
-        const addrLine2 = [
-          inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170',
-          inst?.city_uf ? `- ${inst.city_uf}` : '- GUARULHOS/SP'
-        ].filter(Boolean).join(' ').toUpperCase();
-        const addrLine3 = `TELEFONE: ${inst?.phone || '(11) 2421-2935'}`.toUpperCase();
-        
-        doc.text(addrLine1, margin, pageHeight - 14.5);
-        doc.text(addrLine2, margin, pageHeight - 11);
-        doc.text(addrLine3, margin, pageHeight - 7.5);
-
-        // Secretary / Email and Page on the right (matching the 3-line format of all forms)
-        doc.setFontSize(6.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        
-        doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 14.5, { align: 'right' });
-        
-        doc.setFont('helvetica', 'normal');
-        const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
-        doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
-        
-        const emailAndPage = [
-          inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
-          `Página ${i} de ${pages}`
-        ].join('  •  ');
-        doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
-      }
+      drawStandardReportFooter(doc, inst, margin);
 
       doc.autoPrint();
       const blob = doc.output('blob');
@@ -818,38 +735,67 @@ export function Teachers() {
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
-      const margin = 20;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 15;
       
       const institutions = await fetchAll('institution_settings');
-      const inst = institutions && institutions.length > 0 ? institutions[0] : null;
+      const instData = institutions && institutions.length > 0 ? institutions[0] : inst;
 
-      if (inst?.logo_url) {
+      const logoToUse = instData?.logo_url || DEFAULT_LOGO;
+      let textStartX = margin;
+      if (logoToUse) {
         try {
-          doc.addImage(inst.logo_url, 'PNG', margin, 15, 25, 25);
+          doc.addImage(logoToUse, 'auto', margin, 12, 20, 20);
+          textStartX = margin + 24;
         } catch (e) {
-          console.error('Error adding logo to PDF', e);
+          try {
+            doc.addImage(logoToUse, 'PNG', margin, 12, 20, 20);
+            textStartX = margin + 24;
+          } catch (err2) {
+            console.error('Error adding logo to PDF', err2);
+          }
         }
       }
       
-      doc.setFontSize(22);
-      doc.setTextColor(0, 23, 75);
+      // Institutional texts (3 lines)
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
       doc.setFont('helvetica', 'bold');
-      doc.text('FICHA DO PROFESSOR', 50, 25);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.setFont('helvetica', 'normal');
-      doc.text(inst?.name || 'ESCMIN - Gestão Escolar', 50, 32);
-      doc.text(`Código: ${teacher.code}`, 50, 37);
+      doc.text((instData?.city_uf ? `DIOCESE DE ${instData.city_uf.split('/')[0].toUpperCase()}` : (instData?.diocese_name || 'DIOCESE DE GUARULHOS')).toUpperCase(), textStartX, 17);
 
-      doc.setFontSize(14);
-      doc.setTextColor(0, 23, 75);
-      doc.text('DADOS PESSOAIS', margin, 75);
-      doc.setDrawColor(0, 23, 75);
-      doc.line(margin, 77, pageWidth - margin, 77);
+      doc.setFontSize(14.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.text((instData?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 23.5);
 
-      doc.setFontSize(10);
-      doc.setTextColor(0);
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'bold');
+      doc.text((instData?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 29.5);
+
+      // Header divider line
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(margin, 34.5, pageWidth - margin, 34.5);
+
+      // Title with underline banner
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      const docTitle = 'FICHA DO PROFESSOR';
+      doc.text(docTitle, pageWidth / 2, 44, { align: 'center', charSpace: 1.0 });
+
+      const titleWidth = doc.getTextWidth(docTitle);
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(pageWidth / 2 - (titleWidth / 2) - 10, 46.5, pageWidth / 2 + (titleWidth / 2) + 10, 46.5);
+
+      // Subtitle
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`CÓDIGO DE REGISTRO: ${teacher.code}  •  SITUAÇÃO: ${(teacher.status || 'Ativo').toUpperCase()}`, margin, 52.5);
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 52.5, { align: 'right' });
       
       // Get subjects grouped by semester
       const tSubList = subjects.filter(s => teacher.subject_ids?.includes(s.id));
@@ -861,27 +807,27 @@ export function Teachers() {
       if (others.length > 0) parts.push(`OUTRAS: ${others.map(s => s.name).join(', ')}`);
 
       const personalData = [
-        ['Nome:', teacher.name],
-        ['Situação:', teacher.status],
+        ['Nome do Professor:', teacher.name.toUpperCase()],
+        ['Situação Cadastral:', teacher.status || 'Ativo'],
         ['CPF:', teacher.cpf || '---'],
         ['RG:', teacher.rg || '---'],
         ['E-mail:', teacher.email || '---'],
-        ['Disciplinas:', parts.join('\n') || 'Nenhuma selecionada']
+        ['Celular / WhatsApp:', teacher.phone_mobile || '---'],
+        ['Disciplinas Vinculadas:', parts.join('\n') || 'Nenhuma selecionada']
       ];
 
       autoTable(doc, {
-        startY: 80,
+        startY: 56.5,
+        head: [['DADOS DO PROFESSOR', 'INFORMAÇÕES']],
         body: personalData,
-        theme: 'plain',
-        styles: { cellPadding: 2, fontSize: 10 },
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 } }
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 7.5, cellPadding: 2.5, font: 'helvetica' },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 } },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: margin, right: margin }
       });
 
-      const nextY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(14);
-      doc.setTextColor(0, 23, 75);
-      doc.text('CONTATO E ENDEREÇO', margin, nextY);
-      doc.line(margin, nextY + 2, pageWidth - margin, nextY + 2);
+      const nextY = (doc as any).lastAutoTable.finalY + 6;
 
       const formattedAddress = [
         teacher.address_street,
@@ -891,45 +837,84 @@ export function Teachers() {
       ].filter(Boolean).join(', ') || '---';
 
       const contactData = [
-        ['Endereço:', formattedAddress],
-        ['Cidade/UF:', `${teacher.address_city || '---'} / ${teacher.address_state || '---'}`],
-        ['CEP:', teacher.address_zip || '---'],
-        ['Celular:', teacher.phone_mobile || '---']
+        ['Endereço Residencial:', formattedAddress],
+        ['Cidade / UF:', `${teacher.address_city || '---'} / ${teacher.address_state || '---'}`],
+        ['CEP:', teacher.address_zip || '---']
       ];
 
       autoTable(doc, {
-        startY: nextY + 5,
+        startY: nextY,
+        head: [['ENDEREÇO E LOCALIZAÇÃO', 'DETALHES']],
         body: contactData,
-        theme: 'plain',
-        styles: { cellPadding: 2, fontSize: 10 },
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 } }
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 7.5, cellPadding: 2.5, font: 'helvetica' },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 } },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: margin, right: margin }
       });
 
       if (teacher.observations) {
-        const obsY = (doc as any).lastAutoTable.finalY + 10;
-        doc.setFontSize(14);
-        doc.setTextColor(0, 23, 75);
-        doc.text('OBSERVAÇÕES', margin, obsY);
-        doc.line(margin, obsY + 2, pageWidth - margin, obsY + 2);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0);
-        doc.text(
-          (teacher.observations || '')
-            .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
-            .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
-            .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
-            .replace(/\]\]$/g, '')
-            .trim(),
-          margin,
-          obsY + 10,
-          { maxWidth: pageWidth - (margin * 2) }
-        );
+        const obsY = (doc as any).lastAutoTable.finalY + 6;
+        const cleanedObs = (teacher.observations || '')
+          .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
+          .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
+          .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
+          .replace(/\]\]$/g, '')
+          .trim();
+          
+        if (cleanedObs) {
+          autoTable(doc, {
+            startY: obsY,
+            head: [['OBSERVAÇÕES GERAIS']],
+            body: [[cleanedObs]],
+            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+            styles: { fontSize: 7.5, cellPadding: 2.5, font: 'helvetica' },
+            margin: { left: margin, right: margin }
+          });
+        }
       }
 
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(`Documento gerado em ${new Date().toLocaleString('pt-BR')}`, margin, doc.internal.pageSize.height - 10);
+      // Standard Institutional Footer
+      const pages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(0.8);
+        doc.line(margin, pageHeight - 19, pageWidth - margin, pageHeight - 19);
+
+        // Coluna da Esquerda (Dados Institucionais / Endereço)
+        doc.setFontSize(7);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont('helvetica', 'bold');
+        
+        const addrLine1 = (instData?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
+        const addrLine2 = [
+          instData?.cep ? `CEP: ${instData.cep}` : 'CEP: 07044-170',
+          instData?.city_uf ? `- ${instData.city_uf}` : '- GUARULHOS/SP'
+        ].filter(Boolean).join(' ').toUpperCase();
+        const addrLine3 = `Telefone: ${instData?.phone || '(11) 2421-2935'}`;
+        
+        doc.text(addrLine1, margin, pageHeight - 14.5);
+        doc.text(addrLine2, margin, pageHeight - 11);
+        doc.text(addrLine3, margin, pageHeight - 7.5);
+
+        // Coluna da Direita (Atendimento Secretaria & Paginação)
+        doc.setFontSize(7);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont('helvetica', 'bold');
+        
+        doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 14.5, { align: 'right' });
+        
+        const secLine = instData?.secretary ? instData.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
+        doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
+        
+        const emailAndPage = [
+          instData?.email ? `email: ${instData.email.toLowerCase()}` : 'email: email@email.com.br',
+          `Página ${i} de ${pages}`
+        ].join('  •  ');
+        doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
+      }
 
       doc.save(`Ficha_Prof_${teacher.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
@@ -972,19 +957,12 @@ export function Teachers() {
           <div>
             <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
               <div className="flex-shrink-0 w-20 h-20 max-h-20 max-w-20 flex items-center justify-center">
-                {inst?.logo_url ? (
-                  <img
-                    src={inst.logo_url}
-                    className="w-full h-full object-contain max-h-20 max-w-20"
-                    referrerPolicy="no-referrer"
-                    alt="Logo da Instituição"
-                  />
-                ) : (
-                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
-                    <span>SEM</span>
-                    <span>LOGO</span>
-                  </div>
-                )}
+                <img
+                  src={inst?.logo_url || DEFAULT_LOGO}
+                  className="w-full h-full object-contain max-h-20 max-w-20"
+                  referrerPolicy="no-referrer"
+                  alt="Logo da Instituição"
+                />
               </div>
               <div className="flex-1 flex flex-col justify-center">
                 <p className="text-[8.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
@@ -1223,31 +1201,21 @@ export function Teachers() {
           <div className="border-t-2 border-slate-900 pt-2 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
             <div className="flex-1 space-y-0.5">
               <p className="leading-tight font-bold">
-                {inst?.address}
+                {inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP'}
               </p>
-              {(inst?.cep || inst?.city_uf) && (
-                <p className="leading-tight font-bold">
-                  {inst?.cep ? `CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
-                </p>
-              )}
-              {inst?.phone && (
-                <p className="leading-tight font-bold pt-0.5">
-                  <span className="normal-case">Telefone: {inst.phone}</span>
-                </p>
-              )}
+              <p className="leading-tight font-bold">
+                {inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170'} {inst?.city_uf ? ` - ${inst.city_uf}` : ' - GUARULHOS/SP'}
+              </p>
+              <p className="leading-tight font-bold pt-0.5">
+                <span className="normal-case">Telefone: {inst?.phone || '(11) 2421-2935'}</span>
+              </p>
             </div>
             <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
-              {inst?.secretary && (
-                <>
-                  <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
-                  <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst.secretary}</p>
-                </>
-              )}
-              {inst?.email && (
-                <p className="lowercase font-bold text-[7pt] pt-0.5">
-                  email: {inst.email.toLowerCase()}
-                </p>
-              )}
+              <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
+              <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst?.secretary || 'quarta a sexta-feira das 14h as 18h'}</p>
+              <p className="lowercase font-bold text-[7pt] pt-0.5">
+                email: {(inst?.email || 'email@email.com.br').toLowerCase()}
+              </p>
             </div>
           </div>
         </div>
@@ -1360,9 +1328,9 @@ export function Teachers() {
                   {filteredTeachers.length}
                 </div>
                 <button 
-                  onClick={generateTeacherListPDF}
+                  onClick={() => navigate('/cadastros-relatorios?tab=professores')}
                   className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
-                  title="Imprimir Listagem Completa"
+                  title="Abrir Relatório / Listagem Completa"
                 >
                   <Printer size={16} />
                   <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Edit2, 
@@ -27,6 +28,8 @@ import { RotateCcw, FileText as FileIcon, UserX } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { DEFAULT_LOGO } from '../lib/default-logo';
+import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
 
 interface Subject {
   id: string;
@@ -126,6 +129,7 @@ const SubjectItem = React.memo(({
 });
 
 export function Subjects() {
+  const navigate = useNavigate();
   const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, isRestricted, canSwitchUnit, getUnitName } = useUnits();
   const { canDelete } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -284,61 +288,22 @@ export function Subjects() {
     try {
       const doc = new jsPDF();
       const margin = 15;
-      const pageWidth = doc.internal.pageSize.width;
 
-      // Header - Institution info ONLY above divider
-      let textStartX = margin;
-      if (inst?.logo_url) {
-        try {
-          doc.addImage(inst.logo_url, 'auto', margin, 12, 20, 20);
-          textStartX = margin + 24;
-        } catch (e) { console.error('Error adding logo', e); }
-      }
-      
-      doc.setFontSize(8.5);
-      doc.setTextColor(71, 85, 105);
-      doc.setFont('helvetica', 'bold');
-      doc.text((inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'), textStartX, 16.5);
-
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 22.5);
-
-      doc.setFontSize(9);
-      doc.setTextColor(71, 85, 105);
-      doc.setFont('helvetica', 'bold');
-      doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 28.5);
-
-      // Header divider line (separating Institutional Header from Document Title)
-      doc.setDrawColor(15, 23, 42);
-      doc.setLineWidth(0.8);
-      doc.line(margin, 35, pageWidth - margin, 35);
-
-      // Centered Document Title with standard underline
-      doc.setFontSize(11);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      const docTitle = 'R E L A Ç Ã O   D E   D I S C I P L I N A S';
-      doc.text(docTitle, pageWidth / 2, 44, { align: 'center' });
-
-      const titleWidth = doc.getTextWidth(docTitle);
-      doc.setDrawColor(15, 23, 42);
-      doc.setLineWidth(0.8);
-      doc.line(pageWidth / 2 - (titleWidth / 2) - 4, 46.5, pageWidth / 2 + (titleWidth / 2) + 4, 46.5);
-
-      // Metadata line
-      doc.setFontSize(7.5);
-      doc.setTextColor(71, 85, 105);
-      doc.setFont('helvetica', 'bold');
-      const filterLabels = [`FILTRO: ${statusFilter.toUpperCase()}`];
+      const filterLabels = [`STATUS: ${statusFilter.toUpperCase()}`];
       if (semesterFilter !== 'Todos') {
         filterLabels.push(`SEMESTRE: ${semesterFilter.toUpperCase()}`);
       } else {
         filterLabels.push('SEMESTRE: TODOS');
       }
-      doc.text(filterLabels.join('  •  '), margin, 52.5);
-      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 52.5, { align: 'right' });
+      const filterSummary = filterLabels.join('  •  ');
+
+      const startY = drawStandardReportHeader(
+        doc,
+        inst,
+        'RELAÇÃO DE DISCIPLINAS',
+        filterSummary,
+        margin
+      );
 
       const tableData = filteredSubjects.map(s => {
         const teacher = teachers.find(t => t.id === s.teacher_id);
@@ -358,59 +323,16 @@ export function Subjects() {
       });
 
       autoTable(doc, {
-        startY: 57,
+        startY,
         head: [['CÓD.', 'NOME DA DISCIPLINA', 'ANO', 'SEM.', 'PROFESSOR', 'STATUS']],
         body: tableData,
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-        styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
+        styles: { fontSize: 7, cellPadding: 2.5, font: 'helvetica' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
         margin: { left: margin, right: margin, bottom: 25 }
       });
 
-      // Standard Institutional Footer (2 Columns, 3 Lines)
-      const pages = (doc as any).internal.getNumberOfPages();
-      const pageHeight = doc.internal.pageSize.height;
-      for (let i = 1; i <= pages; i++) {
-        doc.setPage(i);
-        
-        // Footer divider line
-        doc.setDrawColor(15, 23, 42);
-        doc.setLineWidth(0.8);
-        doc.line(margin, pageHeight - 19, pageWidth - margin, pageHeight - 19);
-
-        // Institutional address & phone on the left
-        doc.setFontSize(6.5);
-        doc.setTextColor(15, 23, 42);
-        doc.setFont('helvetica', 'bold');
-        
-        const addrLine1 = (inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
-        const addrLine2 = [
-          inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170',
-          inst?.city_uf ? `- ${inst.city_uf}` : '- GUARULHOS/SP'
-        ].filter(Boolean).join(' ').toUpperCase();
-        const addrLine3 = `TELEFONE: ${inst?.phone || '(11) 2421-2935'}`.toUpperCase();
-        
-        doc.text(addrLine1, margin, pageHeight - 14.5);
-        doc.text(addrLine2, margin, pageHeight - 11);
-        doc.text(addrLine3, margin, pageHeight - 7.5);
-
-        // Secretary / Email and Page on the right
-        doc.setFontSize(6.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        
-        doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 14.5, { align: 'right' });
-        
-        doc.setFont('helvetica', 'normal');
-        const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
-        doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
-        
-        const emailAndPage = [
-          inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
-          `Página ${i} de ${pages}`
-        ].join('  •  ');
-        doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
-      }
+      drawStandardReportFooter(doc, inst, margin);
 
       doc.autoPrint();
       const blob = doc.output('blob');
@@ -731,9 +653,9 @@ export function Subjects() {
                 {filteredSubjects.length}
               </div>
               <button 
-                onClick={generateSubjectListPDF}
+                onClick={() => navigate('/cadastros-relatorios?tab=disciplinas')}
                 className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
-                title="Imprimir Listagem Completa"
+                title="Abrir Relatório / Listagem Completa"
               >
                 <Printer size={16} />
                 <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>

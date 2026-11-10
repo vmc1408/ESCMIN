@@ -63,6 +63,7 @@ const navItems = [
           { icon: GraduationCap, label: 'Cursos', path: '/courses' },
           { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
+          { icon: FileText, label: 'Relatórios', path: '/cadastros-relatorios' },
         ]
       },
       { 

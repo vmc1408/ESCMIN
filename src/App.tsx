@@ -8,6 +8,7 @@ import { Teachers } from './pages/Teachers';
 import { Courses } from './pages/Courses';
 import { Classes } from './pages/Classes';
 import { Subjects } from './pages/Subjects';
+import { CadastrosRelatorios } from './pages/CadastrosRelatorios';
 import { AcademicCalendar } from './pages/AcademicCalendar';
 import { Attendance } from './pages/Attendance';
 import { Grades } from './pages/Grades';
@@ -191,6 +192,8 @@ function AppContent() {
               <Route path="courses" element={<ProtectedRoute requiredModule="/courses"><Courses /></ProtectedRoute>} />
               <Route path="classes" element={<ProtectedRoute requiredModule="/classes"><Classes /></ProtectedRoute>} />
               <Route path="subjects" element={<ProtectedRoute requiredModule="/subjects"><Subjects /></ProtectedRoute>} />
+              <Route path="cadastros-relatorios" element={<ProtectedRoute requiredModule="/students"><CadastrosRelatorios /></ProtectedRoute>} />
+              <Route path="cadastros/relatorios" element={<ProtectedRoute requiredModule="/students"><CadastrosRelatorios /></ProtectedRoute>} />
               <Route path="calendar" element={<ProtectedRoute requiredModule="/calendar"><AcademicCalendar /></ProtectedRoute>} />
               <Route path="attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance initialMode="marking" /></ProtectedRoute>} />
               <Route path="monthly-attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance initialMode="monthly" /></ProtectedRoute>} />

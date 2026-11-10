@@ -2417,13 +2417,23 @@ export function Students() {
                 {filteredStudents.length}
               </div>
             </div>
-            <button 
-              onClick={handleNew}
-              className="px-3 h-8 bg-slate-800 text-white rounded-lg text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
-            >
-              <Plus size={14} />
-              Novo
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button 
+                onClick={() => navigate('/cadastros-relatorios?tab=alunos')}
+                className="px-2.5 h-8 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 shadow-2xs uppercase tracking-wider"
+                title="Imprimir Listagem de Alunos"
+              >
+                <Printer size={13} />
+                Listagem
+              </button>
+              <button 
+                onClick={handleNew}
+                className="px-3 h-8 bg-slate-800 text-white rounded-lg text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
+              >
+                <Plus size={14} />
+                Novo
+              </button>
+            </div>
           </div>
           <div className="space-y-2">
             <div className="relative">
