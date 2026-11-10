@@ -191,6 +191,36 @@
     background: #ffffff !important;
   }
 
+  /* Folhas A4 individuais de relatórios multipágina cadastrais */
+  .printable-report-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    box-sizing: border-box !important;
+    margin: 0 auto !important;
+    padding: 12mm 15mm 10mm 15mm !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    position: relative !important;
+  }
+
+  .printable-report-sheet:last-of-type,
+  .printable-report-sheet:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
   /* Quebras lógicas de página em relatórios e certificados múltiplos */
   .print-page-break,
   .forania-print-page,
