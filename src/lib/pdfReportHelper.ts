@@ -160,11 +160,11 @@ export function drawStandardReportFooter(
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
 
-    const addrLine1 = (inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP').toUpperCase();
+    const addrLine1 = inst?.address || 'Av. Venus, 195 - Itapegica';
     const addrLine2 = [
       inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170',
-      inst?.city_uf ? `- ${inst.city_uf}` : '- GUARULHOS/SP'
-    ].filter(Boolean).join(' ').toUpperCase();
+      inst?.city_uf ? `- ${inst.city_uf}` : '- Guarulhos/SP'
+    ].filter(Boolean).join(' ');
     const addrLine3 = `Telefone: ${inst?.phone || '(11) 2421-2935'}`;
 
     doc.text(addrLine1, margin, pageHeight - 14.5);
@@ -178,11 +178,11 @@ export function drawStandardReportFooter(
 
     doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, pageHeight - 14.5, { align: 'right' });
 
-    const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h as 18h';
+    const secLine = inst?.secretary ? inst.secretary.replace(/\n/g, ' ') : 'quarta a sexta-feira das 14h às 18h';
     doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
 
     const emailAndPage = [
-      inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
+      `email: ${(inst?.email || 'email@email.com.br').toLowerCase()}`,
       `Página ${i} de ${pages}`
     ].join('  •  ');
     doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
