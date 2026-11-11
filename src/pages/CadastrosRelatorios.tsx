@@ -11,7 +11,6 @@ import {
   Layers, 
   ArrowDownAZ,
   ArrowDown01,
-  LayoutList,
   School
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -24,17 +23,12 @@ import { Student, Teacher, Course, Class, Subject, Enrollment } from '../types';
 
 type ReportTab = 'alunos' | 'professores' | 'cursos' | 'turmas' | 'disciplinas';
 type StudentSortBy = 'alphabetical' | 'numeric';
-type StudentGroupMode = 'continuous' | 'group_by_class' | 'page_per_class';
 
-interface StudentSheet {
-  sheetIndex: number;
-  totalSheets: number;
-  isFirstSheetOfReport: boolean;
-  isFirstSheetOfGroup: boolean;
-  classTitle?: string;
-  classSubtitle?: string;
-  classTotal?: number;
-  students: Student[];
+interface StudentRowItem {
+  type: 'header' | 'student';
+  turmaName?: string;
+  count?: number;
+  student?: Student;
 }
 
 function formatDisplayPhone(phone?: string) {
@@ -51,6 +45,93 @@ function formatDisplayPhone(phone?: string) {
     return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
   }
   return phone;
+}
+
+// Standard Institutional Header (Identical on EVERY page)
+function StandardReportHeader({
+  inst,
+  title,
+  filterText
+}: {
+  inst: any;
+  title: string;
+  filterText: string;
+}) {
+  return (
+    <div className="shrink-0">
+      {/* Institutional Top: Logo + Diocese + Escola + Subtítulo */}
+      <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
+        <div className="flex-shrink-0 w-20 h-20 max-h-20 max-w-20 flex items-center justify-center">
+          <img
+            src={inst?.logo_url || DEFAULT_LOGO}
+            className="w-full h-full object-contain max-h-20 max-w-20"
+            referrerPolicy="no-referrer"
+            alt="Brasão Diocesano"
+          />
+        </div>
+        <div className="flex-1 flex flex-col justify-center">
+          <p className="text-[8.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
+            {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : (inst?.diocese_name || 'DIOCESE DE GUARULHOS')}
+          </p>
+          <h1 className="text-[14.5pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+            {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
+          </h1>
+          <p className="text-[9pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
+            {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
+          </p>
+        </div>
+      </div>
+
+      {/* Centered Document Title with standard underline */}
+      <div className="text-center mt-3 mb-2">
+        <h2 className="text-[12pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-1 px-8 inline-block">
+          {title}
+        </h2>
+      </div>
+
+      {/* Context Metadata Line */}
+      <div className="flex justify-between items-center text-[7pt] font-bold text-slate-600 mb-2 uppercase">
+        <span className="truncate max-w-[70%]">{filterText}</span>
+        <span className="shrink-0">EMISSÃO: {new Date().toLocaleString('pt-BR')}</span>
+      </div>
+    </div>
+  );
+}
+
+// Standard Institutional Footer (Identical on EVERY page with dynamic page numbers)
+function StandardReportFooter({
+  inst,
+  pageNumber,
+  totalPages
+}: {
+  inst: any;
+  pageNumber: number;
+  totalPages: number;
+}) {
+  return (
+    <div className="mt-auto pt-2 shrink-0">
+      <div className="border-t-2 border-slate-900 pt-2 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
+        <div className="flex-1 space-y-0.5">
+          <p className="leading-tight font-bold">
+            {inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP'}
+          </p>
+          <p className="leading-tight font-bold">
+            {inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170'} {inst?.city_uf ? ` - ${inst.city_uf}` : ' - GUARULHOS/SP'}
+          </p>
+          <p className="leading-tight font-bold pt-0.5">
+            <span className="normal-case">Telefone: {inst?.phone || '(11) 2421-2935'}</span>
+          </p>
+        </div>
+        <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
+          <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
+          <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst?.secretary || 'quarta a sexta-feira das 14h as 18h'}</p>
+          <p className="lowercase font-bold text-[7pt] pt-0.5">
+            email: {(inst?.email || 'email@email.com.br').toLowerCase()}  •  Página {pageNumber} de {totalPages}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function CadastrosRelatorios() {
@@ -79,9 +160,11 @@ export function CadastrosRelatorios() {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
 
-  // Alunos specific configurations: Ordenação e Separação por Turma
+  // Alunos specific configurations:
+  // 1. studentSortBy: 'alphabetical' (Nome A-Z) | 'numeric' (Matrícula)
+  // 2. sortByTurma: boolean (campo chave para separar e ordenar por turma)
   const [studentSortBy, setStudentSortBy] = useState<StudentSortBy>('alphabetical');
-  const [studentGroupMode, setStudentGroupMode] = useState<StudentGroupMode>('continuous');
+  const [sortByTurma, setSortByTurma] = useState<boolean>(true);
 
   // Load database entities
   useEffect(() => {
@@ -165,6 +248,73 @@ export function CadastrosRelatorios() {
     }
   }, [filteredStudents, studentSortBy]);
 
+  // Generate unified list of rows for Alunos: separated by Turma or continuous
+  const studentItems = useMemo<StudentRowItem[]>(() => {
+    if (sortByTurma && selectedClassId === 'all') {
+      const items: StudentRowItem[] = [];
+      
+      // Order classes by name
+      const sortedClasses = [...classes].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+      
+      sortedClasses.forEach(cls => {
+        const clsStudents = sortedStudents.filter(s => s.class_id === cls.id);
+        if (clsStudents.length > 0) {
+          items.push({
+            type: 'header',
+            turmaName: cls.name,
+            count: clsStudents.length
+          });
+          clsStudents.forEach(s => {
+            items.push({ type: 'student', student: s });
+          });
+        }
+      });
+
+      const unallocated = sortedStudents.filter(s => !s.class_id || !classes.some(c => c.id === s.class_id));
+      if (unallocated.length > 0) {
+        items.push({
+          type: 'header',
+          turmaName: 'ALUNOS NÃO ALOCADOS EM TURMA',
+          count: unallocated.length
+        });
+        unallocated.forEach(s => {
+          items.push({ type: 'student', student: s });
+        });
+      }
+
+      return items;
+    } else {
+      return sortedStudents.map(s => ({ type: 'student', student: s }));
+    }
+  }, [sortByTurma, selectedClassId, classes, sortedStudents]);
+
+  // Calibrate exact rows per sheet to fill the A4 page without large empty gaps
+  const ROWS_PER_PAGE = 37;
+
+  // Chunk studentItems into standardized A4 sheets
+  const studentSheets = useMemo(() => {
+    if (studentItems.length === 0) {
+      return [{
+        sheetIndex: 1,
+        totalSheets: 1,
+        items: [] as StudentRowItem[]
+      }];
+    }
+
+    const totalSheets = Math.ceil(studentItems.length / ROWS_PER_PAGE);
+    const sheets = [];
+
+    for (let i = 0; i < totalSheets; i++) {
+      sheets.push({
+        sheetIndex: i + 1,
+        totalSheets,
+        items: studentItems.slice(i * ROWS_PER_PAGE, (i + 1) * ROWS_PER_PAGE)
+      });
+    }
+
+    return sheets;
+  }, [studentItems]);
+
   // Filtered Professores
   const filteredTeachers = useMemo(() => {
     return teachers.filter(t => {
@@ -181,6 +331,21 @@ export function CadastrosRelatorios() {
     });
   }, [teachers, statusFilter, selectedSubjectId, searchTerm]);
 
+  // Professores sheets
+  const teacherSheets = useMemo(() => {
+    if (filteredTeachers.length === 0) return [{ sheetIndex: 1, totalSheets: 1, items: [] as Teacher[] }];
+    const totalSheets = Math.ceil(filteredTeachers.length / ROWS_PER_PAGE);
+    const sheets = [];
+    for (let i = 0; i < totalSheets; i++) {
+      sheets.push({
+        sheetIndex: i + 1,
+        totalSheets,
+        items: filteredTeachers.slice(i * ROWS_PER_PAGE, (i + 1) * ROWS_PER_PAGE)
+      });
+    }
+    return sheets;
+  }, [filteredTeachers]);
+
   // Filtered Cursos
   const filteredCourses = useMemo(() => {
     return courses.filter(c => {
@@ -194,6 +359,21 @@ export function CadastrosRelatorios() {
       return true;
     });
   }, [courses, statusFilter, searchTerm]);
+
+  // Cursos sheets
+  const courseSheets = useMemo(() => {
+    if (filteredCourses.length === 0) return [{ sheetIndex: 1, totalSheets: 1, items: [] as Course[] }];
+    const totalSheets = Math.ceil(filteredCourses.length / ROWS_PER_PAGE);
+    const sheets = [];
+    for (let i = 0; i < totalSheets; i++) {
+      sheets.push({
+        sheetIndex: i + 1,
+        totalSheets,
+        items: filteredCourses.slice(i * ROWS_PER_PAGE, (i + 1) * ROWS_PER_PAGE)
+      });
+    }
+    return sheets;
+  }, [filteredCourses]);
 
   // Filtered Turmas
   const filteredClasses = useMemo(() => {
@@ -215,6 +395,21 @@ export function CadastrosRelatorios() {
     });
   }, [classes, statusFilter, selectedYear, selectedCourseId, searchTerm, courses]);
 
+  // Turmas sheets
+  const classSheets = useMemo(() => {
+    if (filteredClasses.length === 0) return [{ sheetIndex: 1, totalSheets: 1, items: [] as Class[] }];
+    const totalSheets = Math.ceil(filteredClasses.length / ROWS_PER_PAGE);
+    const sheets = [];
+    for (let i = 0; i < totalSheets; i++) {
+      sheets.push({
+        sheetIndex: i + 1,
+        totalSheets,
+        items: filteredClasses.slice(i * ROWS_PER_PAGE, (i + 1) * ROWS_PER_PAGE)
+      });
+    }
+    return sheets;
+  }, [filteredClasses]);
+
   // Filtered Disciplinas
   const filteredSubjects = useMemo(() => {
     return subjects.filter(s => {
@@ -234,141 +429,32 @@ export function CadastrosRelatorios() {
     });
   }, [subjects, statusFilter, selectedSemester, selectedYear, searchTerm]);
 
-  // Paged sheets calculation for Alunos
-  const studentSheets = useMemo<StudentSheet[]>(() => {
-    if (sortedStudents.length === 0) {
-      return [{
-        sheetIndex: 1,
-        totalSheets: 1,
-        isFirstSheetOfReport: true,
-        isFirstSheetOfGroup: true,
-        students: []
-      }];
+  // Disciplinas sheets
+  const subjectSheets = useMemo(() => {
+    if (filteredSubjects.length === 0) return [{ sheetIndex: 1, totalSheets: 1, items: [] as Subject[] }];
+    const totalSheets = Math.ceil(filteredSubjects.length / ROWS_PER_PAGE);
+    const sheets = [];
+    for (let i = 0; i < totalSheets; i++) {
+      sheets.push({
+        sheetIndex: i + 1,
+        totalSheets,
+        items: filteredSubjects.slice(i * ROWS_PER_PAGE, (i + 1) * ROWS_PER_PAGE)
+      });
     }
-
-    // Modo 1: 1 Turma por Página (Quebra de Página A4 por Turma)
-    if (studentGroupMode === 'page_per_class' && selectedClassId === 'all') {
-      const groups: { classId: string; className: string; year?: string; students: Student[] }[] = [];
-      
-      // Classes with students
-      classes.forEach(cls => {
-        const clsStudents = sortedStudents.filter(s => s.class_id === cls.id);
-        if (clsStudents.length > 0) {
-          groups.push({
-            classId: cls.id,
-            className: cls.name,
-            year: cls.year,
-            students: clsStudents
-          });
-        }
-      });
-
-      // Unallocated students
-      const unallocated = sortedStudents.filter(s => !s.class_id || !classes.some(c => c.id === s.class_id));
-      if (unallocated.length > 0) {
-        groups.push({
-          classId: 'none',
-          className: 'ALUNOS NÃO ALOCADOS EM TURMA',
-          students: unallocated
-        });
-      }
-
-      // Chunk each group into sheets (30 on first sheet of class, 34 on continuation)
-      const rawSheets: Omit<StudentSheet, 'sheetIndex' | 'totalSheets'>[] = [];
-      groups.forEach((g, gIdx) => {
-        const totalInGroup = g.students.length;
-        if (totalInGroup <= 30) {
-          rawSheets.push({
-            isFirstSheetOfReport: gIdx === 0,
-            isFirstSheetOfGroup: true,
-            classTitle: g.className,
-            classSubtitle: g.year ? `Ano Letivo: ${g.year}` : undefined,
-            classTotal: totalInGroup,
-            students: g.students
-          });
-        } else {
-          // Sheet 1 of group: 30 items
-          rawSheets.push({
-            isFirstSheetOfReport: gIdx === 0,
-            isFirstSheetOfGroup: true,
-            classTitle: g.className,
-            classSubtitle: g.year ? `Ano Letivo: ${g.year}` : undefined,
-            classTotal: totalInGroup,
-            students: g.students.slice(0, 30)
-          });
-          // Subsequent sheets of group: 34 items
-          let offset = 30;
-          while (offset < totalInGroup) {
-            rawSheets.push({
-              isFirstSheetOfReport: false,
-              isFirstSheetOfGroup: false,
-              classTitle: `${g.className} (Continuação)`,
-              classSubtitle: g.year ? `Ano Letivo: ${g.year}` : undefined,
-              classTotal: totalInGroup,
-              students: g.students.slice(offset, offset + 34)
-            });
-            offset += 34;
-          }
-        }
-      });
-
-      const totalSheets = Math.max(1, rawSheets.length);
-      return rawSheets.map((s, idx) => ({
-        ...s,
-        sheetIndex: idx + 1,
-        totalSheets
-      }));
-    }
-
-    // Modo 2: Agrupado por Turma (Contínuo) ou Lista Geral Contínua
-    // Na folha 1 cabem 32 alunos (devido ao cabeçalho institucional completo).
-    // Nas folhas seguintes cabem 36 alunos (devido ao cabeçalho compacto de continuação).
-    const rawSheets: Omit<StudentSheet, 'sheetIndex' | 'totalSheets'>[] = [];
-    if (sortedStudents.length <= 32) {
-      rawSheets.push({
-        isFirstSheetOfReport: true,
-        isFirstSheetOfGroup: true,
-        students: sortedStudents
-      });
-    } else {
-      rawSheets.push({
-        isFirstSheetOfReport: true,
-        isFirstSheetOfGroup: true,
-        students: sortedStudents.slice(0, 32)
-      });
-      let offset = 32;
-      while (offset < sortedStudents.length) {
-        rawSheets.push({
-          isFirstSheetOfReport: false,
-          isFirstSheetOfGroup: false,
-          students: sortedStudents.slice(offset, offset + 36)
-        });
-        offset += 36;
-      }
-    }
-
-    const totalSheets = Math.max(1, rawSheets.length);
-    return rawSheets.map((s, idx) => ({
-      ...s,
-      sheetIndex: idx + 1,
-      totalSheets
-    }));
-  }, [sortedStudents, studentGroupMode, selectedClassId, classes]);
+    return sheets;
+  }, [filteredSubjects]);
 
   // Report Title and Metadata
   const reportConfig = useMemo(() => {
     switch (activeTab) {
       case 'alunos': {
         const orderLabel = studentSortBy === 'numeric' ? 'NUMÉRICA (MATRÍCULA)' : 'ALFABÉTICA (A-Z)';
-        let sepLabel = 'LISTAGEM GERAL';
-        if (studentGroupMode === 'page_per_class') sepLabel = '1 TURMA POR FOLHA';
-        else if (studentGroupMode === 'group_by_class') sepLabel = 'AGRUPADO POR TURMA';
-
+        const turmaLabel = sortByTurma ? 'SEPARADO POR TURMA' : 'LISTAGEM GERAL';
         return {
           title: 'RELAÇÃO GERAL DE ALUNOS',
           totalLabel: 'Total de Alunos',
           count: filteredStudents.length,
-          filterText: `STATUS: ${statusFilter.toUpperCase()}  •  TURMA: ${selectedClassId === 'all' ? 'TODAS' : (classes.find(c => c.id === selectedClassId)?.name?.toUpperCase() || 'ESPECÍFICA')}  •  ORDEM: ${orderLabel}  •  ${sepLabel}`
+          filterText: `STATUS: ${statusFilter.toUpperCase()}  •  TURMA: ${selectedClassId === 'all' ? 'TODAS' : (classes.find(c => c.id === selectedClassId)?.name?.toUpperCase() || 'ESPECÍFICA')}  •  ORDEM: ${orderLabel}  •  ${turmaLabel}`
         };
       }
       case 'professores':
@@ -400,7 +486,7 @@ export function CadastrosRelatorios() {
           filterText: `STATUS: ${statusFilter.toUpperCase()}  •  SEMESTRE: ${selectedSemester === 'all' ? 'TODOS' : selectedSemester}`
         };
     }
-  }, [activeTab, statusFilter, selectedClassId, selectedSubjectId, selectedYear, selectedSemester, studentSortBy, studentGroupMode, filteredStudents.length, filteredTeachers.length, filteredCourses.length, filteredClasses.length, filteredSubjects.length, classes, subjects]);
+  }, [activeTab, statusFilter, selectedClassId, selectedSubjectId, selectedYear, selectedSemester, studentSortBy, sortByTurma, filteredStudents.length, filteredTeachers.length, filteredCourses.length, filteredClasses.length, filteredSubjects.length, classes, subjects]);
 
   // Action: Print native HTML (window.print())
   const handlePrintHTML = () => {
@@ -414,58 +500,13 @@ export function CadastrosRelatorios() {
       const margin = 15;
 
       if (activeTab === 'alunos') {
-        const orderLabel = studentSortBy === 'numeric' ? 'NUMÉRICA' : 'ALFABÉTICA';
+        const startY = drawStandardReportHeader(doc, inst, reportConfig.title, reportConfig.filterText, margin);
+        const body: any[] = [];
 
-        if (studentGroupMode === 'page_per_class' && selectedClassId === 'all') {
-          // Multiple classes: each class on its own page
-          const groups: { classId: string; className: string; year?: string; students: Student[] }[] = [];
-          classes.forEach(cls => {
-            const clsStudents = sortedStudents.filter(s => s.class_id === cls.id);
-            if (clsStudents.length > 0) {
-              groups.push({ classId: cls.id, className: cls.name, year: cls.year, students: clsStudents });
-            }
-          });
-          const unallocated = sortedStudents.filter(s => !s.class_id || !classes.some(c => c.id === s.class_id));
-          if (unallocated.length > 0) {
-            groups.push({ classId: 'none', className: 'ALUNOS NÃO ALOCADOS', students: unallocated });
-          }
-
-          groups.forEach((g, gIdx) => {
-            if (gIdx > 0) doc.addPage();
-            const filterLine = `TURMA: ${g.className.toUpperCase()}  •  ORDEM: ${orderLabel}  •  TOTAL: ${g.students.length} ALUNOS`;
-            const startY = drawStandardReportHeader(doc, inst, 'RELAÇÃO DE ALUNOS', filterLine, margin);
-
-            const body = g.students.map(s => [
-              s.registration_number || '---',
-              s.name.toUpperCase(),
-              g.className.toUpperCase(),
-              formatDisplayPhone(s.phone_mobile || s.phone_residential),
-              s.status || 'Ativo'
-            ]);
-
-            autoTable(doc, {
-              startY,
-              head: [['MATRÍCULA', 'NOME DO ALUNO', 'TURMA', 'CONTATO', 'STATUS']],
-              body,
-              headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-              styles: { fontSize: 7, cellPadding: 2.5, font: 'helvetica' },
-              columnStyles: {
-                0: { cellWidth: 26 },
-                1: { cellWidth: 68 },
-                2: { cellWidth: 46 },
-                3: { cellWidth: 25 },
-                4: { cellWidth: 15 }
-              },
-              alternateRowStyles: { fillColor: [248, 250, 252] },
-              margin: { left: margin, right: margin, bottom: 25 }
-            });
-          });
-        } else if (studentGroupMode === 'group_by_class' && selectedClassId === 'all') {
-          // Grouped with section banners in a continuous table
-          const startY = drawStandardReportHeader(doc, inst, reportConfig.title, reportConfig.filterText, margin);
-          const body: any[] = [];
-
-          classes.forEach(cls => {
+        if (sortByTurma && selectedClassId === 'all') {
+          // Grouped by class with section banners
+          const sortedClasses = [...classes].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+          sortedClasses.forEach(cls => {
             const clsStudents = sortedStudents.filter(s => s.class_id === cls.id);
             if (clsStudents.length > 0) {
               body.push([{
@@ -488,7 +529,7 @@ export function CadastrosRelatorios() {
           const unallocated = sortedStudents.filter(s => !s.class_id || !classes.some(c => c.id === s.class_id));
           if (unallocated.length > 0) {
             body.push([{
-              content: `ALUNOS NÃO ALOCADOS (${unallocated.length} ALUNOS)`,
+              content: `ALUNOS NÃO ALOCADOS EM TURMA (${unallocated.length} ALUNOS)`,
               colSpan: 5,
               styles: { fillColor: [100, 116, 139], textColor: 255, fontStyle: 'bold', fontSize: 7.5 }
             }]);
@@ -502,54 +543,36 @@ export function CadastrosRelatorios() {
               ]);
             });
           }
-
-          autoTable(doc, {
-            startY,
-            head: [['MATRÍCULA', 'NOME DO ALUNO', 'TURMA', 'CONTATO', 'STATUS']],
-            body,
-            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-            styles: { fontSize: 7, cellPadding: 2.5, font: 'helvetica' },
-            columnStyles: {
-              0: { cellWidth: 26 },
-              1: { cellWidth: 68 },
-              2: { cellWidth: 46 },
-              3: { cellWidth: 25 },
-              4: { cellWidth: 15 }
-            },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: margin, right: margin, bottom: 25 }
-          });
         } else {
           // Continuous single list
-          const startY = drawStandardReportHeader(doc, inst, reportConfig.title, reportConfig.filterText, margin);
-          const body = sortedStudents.map(s => {
+          sortedStudents.forEach(s => {
             const cls = classes.find(c => c.id === s.class_id);
-            return [
+            body.push([
               s.registration_number || '---',
               s.name.toUpperCase(),
               cls?.name?.toUpperCase() || 'NÃO ALOCADO',
               formatDisplayPhone(s.phone_mobile || s.phone_residential),
               s.status || 'Ativo'
-            ];
-          });
-
-          autoTable(doc, {
-            startY,
-            head: [['MATRÍCULA', 'NOME DO ALUNO', 'TURMA', 'CONTATO', 'STATUS']],
-            body,
-            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-            styles: { fontSize: 7, cellPadding: 2.5, font: 'helvetica' },
-            columnStyles: {
-              0: { cellWidth: 26 },
-              1: { cellWidth: 68 },
-              2: { cellWidth: 46 },
-              3: { cellWidth: 25 },
-              4: { cellWidth: 15 }
-            },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: margin, right: margin, bottom: 25 }
+            ]);
           });
         }
+
+        autoTable(doc, {
+          startY,
+          head: [['MATRÍCULA', 'NOME DO ALUNO', 'TURMA', 'CONTATO', 'STATUS']],
+          body,
+          headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+          styles: { fontSize: 7, cellPadding: 2.2, font: 'helvetica' },
+          columnStyles: {
+            0: { cellWidth: 26 },
+            1: { cellWidth: 68 },
+            2: { cellWidth: 46 },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 15 }
+          },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin, bottom: 25 }
+        });
       } else {
         // Other tabs
         const startY = drawStandardReportHeader(doc, inst, reportConfig.title, reportConfig.filterText, margin);
@@ -637,7 +660,7 @@ export function CadastrosRelatorios() {
           head,
           body,
           headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-          styles: { fontSize: 7, cellPadding: 2.5, font: 'helvetica' },
+          styles: { fontSize: 7, cellPadding: 2.2, font: 'helvetica' },
           columnStyles,
           alternateRowStyles: { fillColor: [248, 250, 252] },
           margin: { left: margin, right: margin, bottom: 25 }
@@ -793,7 +816,7 @@ export function CadastrosRelatorios() {
             ))}
           </div>
 
-          {/* Alunos Specific Controls: Ordenação & Separação por Turmas */}
+          {/* Alunos Specific Controls: Ordenação & Campo Chave Ordenar por Turma */}
           {activeTab === 'alunos' && (
             <>
               {/* Turma filter dropdown */}
@@ -844,19 +867,30 @@ export function CadastrosRelatorios() {
                 </button>
               </div>
 
-              {/* Separação por Turmas */}
+              {/* Campo Chave: Ordenar por Turma (SIM / NÃO) */}
               {selectedClassId === 'all' && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Divisão:</span>
-                  <select
-                    value={studentGroupMode}
-                    onChange={e => setStudentGroupMode(e.target.value as StudentGroupMode)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:ring-1 focus:ring-slate-400"
+                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg shrink-0">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase px-1.5 flex items-center gap-1">
+                    <School size={12} className="text-slate-600" />
+                    Ordenar por Turma:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSortByTurma(prev => !prev)}
+                    className={cn(
+                      "px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-2 cursor-pointer shadow-xs",
+                      sortByTurma
+                        ? "bg-slate-900 text-white"
+                        : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+                    )}
+                    title="Ativar/Desativar agrupamento e ordenação por Turma"
                   >
-                    <option value="continuous">Lista Corrida (Geral)</option>
-                    <option value="group_by_class">Agrupar por Turma</option>
-                    <option value="page_per_class">1 Turma por Folha (Quebra de Página)</option>
-                  </select>
+                    <span className={cn(
+                      "w-2 h-2 rounded-full",
+                      sortByTurma ? "bg-emerald-400" : "bg-slate-300"
+                    )} />
+                    <span>{sortByTurma ? "SIM (Separado por Turma)" : "NÃO (Lista Geral)"}</span>
+                  </button>
                 </div>
               )}
             </>
@@ -924,401 +958,333 @@ export function CadastrosRelatorios() {
           <span className="font-medium">{reportConfig.filterText}</span>
           <span className="font-semibold text-slate-700">
             {reportConfig.totalLabel}: <strong className="text-slate-950 font-black">{reportConfig.count}</strong> registros encontrados
-            {activeTab === 'alunos' && ` • ${studentSheets.length} folha(s) A4 calculada(s)`}
+            {activeTab === 'alunos' && ` • ${studentSheets.length} folha(s) padronizada(s)`}
           </span>
         </div>
       </div>
 
       {/* A4 PRINTABLE DOCUMENT CONTAINER */}
       <div id="printable-cadastral-report" className="flex flex-col items-center gap-6 print:gap-0 print:block">
-        {activeTab === 'alunos' ? (
-          // Multi-sheet renderer for Alunos
+        {activeTab === 'alunos' && (
           studentSheets.map((sheet) => (
             <div key={`student-sheet-${sheet.sheetIndex}`} className="w-full flex flex-col items-center">
               {/* Screen page indicator badge (Hidden in print) */}
               <div className="print:hidden w-full max-w-[210mm] flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-1.5">
                 <span>Folha {sheet.sheetIndex} de {sheet.totalSheets}</span>
-                <span>{sheet.classTitle ? sheet.classTitle : `Alunos ${sheet.students.length} itens`}</span>
+                <span>{sheet.items.length} linhas nesta folha</span>
               </div>
 
-              {/* Physical A4 Sheet */}
-              <div className="w-full max-w-[210mm] min-h-[297mm] bg-white p-[12mm_15mm_10mm_15mm] border border-slate-200 shadow-md flex flex-col justify-between text-slate-950 font-sans leading-tight relative box-border printable-report-sheet print:shadow-none print:border-none print:m-0">
-                {/* HEADER SECTION */}
-                <div>
-                  {sheet.isFirstSheetOfReport || sheet.isFirstSheetOfGroup ? (
-                    // Full Institutional Header
-                    <div>
-                      <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
-                        <div className="flex-shrink-0 w-20 h-20 max-h-20 max-w-20 flex items-center justify-center">
-                          <img
-                            src={inst?.logo_url || DEFAULT_LOGO}
-                            className="w-full h-full object-contain max-h-20 max-w-20"
-                            referrerPolicy="no-referrer"
-                            alt="Brasão Diocesano"
-                          />
-                        </div>
-                        <div className="flex-1 flex flex-col justify-center">
-                          <p className="text-[8.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
-                            {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : (inst?.diocese_name || 'DIOCESE DE GUARULHOS')}
-                          </p>
-                          <h1 className="text-[14.5pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
-                            {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
-                          </h1>
-                          <p className="text-[9pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
-                            {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
-                          </p>
-                        </div>
-                      </div>
+              {/* Physical A4 Sheet (Standardized bounds, padding, header, rows and footer) */}
+              <div className="w-full max-w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] bg-white p-[12mm_15mm_10mm_15mm] border border-slate-200 shadow-md flex flex-col justify-between text-slate-950 font-sans leading-tight relative box-border printable-report-sheet print:shadow-none print:border-none print:m-0 overflow-hidden">
+                {/* Standard Full Header on EVERY page */}
+                <StandardReportHeader
+                  inst={inst}
+                  title={reportConfig.title}
+                  filterText={reportConfig.filterText}
+                />
 
-                      {/* Centered Document Title with standard underline */}
-                      <div className="text-center mt-3 mb-2">
-                        <h2 className="text-[12pt] font-black uppercase tracking-[0.25em] text-slate-900 border-b-2 border-slate-900 pb-1 px-8 inline-block">
-                          {sheet.classTitle ? `RELAÇÃO DE ALUNOS` : reportConfig.title}
-                        </h2>
-                      </div>
-
-                      {/* Class Banner if separated by class */}
-                      {sheet.classTitle && (
-                        <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xs flex justify-between items-center my-2 uppercase font-bold text-[8pt]">
-                          <span>TURMA: {sheet.classTitle}</span>
-                          <span className="text-[7pt] text-slate-300">
-                            {sheet.classSubtitle || `Total: ${sheet.classTotal || sheet.students.length} alunos`}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Context Metadata Line */}
-                      <div className="flex justify-between items-center text-[7pt] font-bold text-slate-600 mb-2 uppercase">
-                        <span>
-                          ORDEM: {studentSortBy === 'numeric' ? 'NUMÉRICA (MATRÍCULA)' : 'ALFABÉTICA (A-Z)'}  •  STATUS: {statusFilter.toUpperCase()}
-                        </span>
-                        <span>EMISSÃO: {new Date().toLocaleString('pt-BR')}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    // Compact Repeating Header for Continuation Sheets
-                    <div>
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-[8pt]">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={inst?.logo_url || DEFAULT_LOGO}
-                            className="w-8 h-8 object-contain"
-                            referrerPolicy="no-referrer"
-                            alt="Logo"
-                          />
-                          <div>
-                            <p className="font-extrabold uppercase text-[7.5pt] text-slate-950 leading-none">
-                              {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
-                            </p>
-                            <p className="text-[6.5pt] text-slate-500 font-bold uppercase mt-0.5">
-                              {sheet.classTitle ? `RELAÇÃO DE ALUNOS • ${sheet.classTitle}` : `${reportConfig.title} (CONTINUAÇÃO)`}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right text-[6.5pt] font-bold text-slate-500 uppercase">
-                          <span>ORDEM: {studentSortBy === 'numeric' ? 'NUMÉRICA' : 'ALFABÉTICA'}</span>
-                          <span className="mx-1">•</span>
-                          <span>FOLHA {sheet.sheetIndex} DE {sheet.totalSheets}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* DATA TABLE */}
-                  <div className="overflow-hidden border border-slate-300 rounded-xs">
-                    <table className="w-full text-left border-collapse text-[7.5pt]">
-                      <thead>
-                        <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                          <th className="py-1.5 px-2 w-[16%]">Matrícula</th>
-                          <th className="py-1.5 px-2 w-[38%]">Nome do Aluno</th>
-                          <th className="py-1.5 px-2 w-[24%]">Turma</th>
-                          <th className="py-1.5 px-2 w-[14%]">Contato</th>
-                          <th className="py-1.5 px-2 w-[8%] text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {sheet.students.length > 0 ? (
-                          sheet.students.map((s, idx) => {
-                            const cls = classes.find(c => c.id === s.class_id);
+                {/* DATA TABLE (Fills the available vertical height down to footer) */}
+                <div className="flex-1 overflow-hidden border border-slate-300 rounded-xs mb-2">
+                  <table className="w-full text-left border-collapse text-[7.5pt]">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
+                        <th className="py-1 px-2 w-[16%]">Matrícula</th>
+                        <th className="py-1 px-2 w-[38%]">Nome do Aluno</th>
+                        <th className="py-1 px-2 w-[24%]">Turma</th>
+                        <th className="py-1 px-2 w-[14%]">Contato</th>
+                        <th className="py-1 px-2 w-[8%] text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {sheet.items.length > 0 ? (
+                        sheet.items.map((item, idx) => {
+                          if (item.type === 'header') {
                             return (
-                              <tr key={s.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
-                                <td className="py-1.5 px-2 font-mono font-bold text-slate-950">
-                                  {s.registration_number || '---'}
-                                </td>
-                                <td className="py-1.5 px-2 font-bold uppercase text-slate-950">
-                                  {s.name}
-                                </td>
-                                <td className="py-1.5 px-2 uppercase text-slate-800 text-[7pt]">
-                                  {cls?.name || 'NÃO ALOCADO'}
-                                </td>
-                                <td className="py-1.5 px-2 text-slate-700 text-[7pt]">
-                                  {formatDisplayPhone(s.phone_mobile || s.phone_residential)}
-                                </td>
-                                <td className="py-1.5 px-2 text-center font-bold text-slate-900">
-                                  {s.status || 'Ativo'}
+                              <tr key={`header-${idx}`} className="bg-slate-800 text-white font-bold">
+                                <td colSpan={5} className="py-1 px-2.5 text-[7pt] uppercase tracking-wider">
+                                  TURMA: {item.turmaName} • {item.count} ALUNOS
                                 </td>
                               </tr>
                             );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="py-6 text-center text-slate-400 italic">
-                              Nenhum aluno encontrado com os filtros selecionados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Subtotal of class if page per class */}
-                  {sheet.classTotal && (
-                    <div className="mt-1.5 text-right text-[7pt] font-bold text-slate-600 uppercase">
-                      Total nesta turma: <strong className="text-slate-950 font-black">{sheet.classTotal}</strong> alunos
-                    </div>
-                  )}
+                          }
+                          const s = item.student!;
+                          const cls = classes.find(c => c.id === s.class_id);
+                          return (
+                            <tr key={s.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">
+                                {s.registration_number || '---'}
+                              </td>
+                              <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt] truncate max-w-[210px]">
+                                {s.name}
+                              </td>
+                              <td className="py-1 px-2 uppercase text-slate-800 text-[6.5pt] truncate max-w-[140px]">
+                                {cls?.name || 'NÃO ALOCADO'}
+                              </td>
+                              <td className="py-1 px-2 text-slate-700 text-[6.5pt] whitespace-nowrap">
+                                {formatDisplayPhone(s.phone_mobile || s.phone_residential)}
+                              </td>
+                              <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">
+                                {s.status || 'Ativo'}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                            Nenhum aluno encontrado com os filtros selecionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
 
-                {/* INSTITUTIONAL FOOTER */}
-                <div className="mt-auto pt-3 shrink-0">
-                  <div className="border-t-2 border-slate-900 pt-2 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
-                    <div className="flex-1 space-y-0.5">
-                      <p className="leading-tight font-bold">
-                        {inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP'}
-                      </p>
-                      <p className="leading-tight font-bold">
-                        {inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170'} {inst?.city_uf ? ` - ${inst.city_uf}` : ' - GUARULHOS/SP'}
-                      </p>
-                      <p className="leading-tight font-bold pt-0.5">
-                        <span className="normal-case">Telefone: {inst?.phone || '(11) 2421-2935'}</span>
-                      </p>
-                    </div>
-                    <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
-                      <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
-                      <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst?.secretary || 'quarta a sexta-feira das 14h as 18h'}</p>
-                      <p className="lowercase font-bold text-[7pt] pt-0.5">
-                        email: {(inst?.email || 'email@email.com.br').toLowerCase()}  •  Página {sheet.sheetIndex} de {sheet.totalSheets}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {/* Standard Full Footer on EVERY page with dynamic page numbers */}
+                <StandardReportFooter
+                  inst={inst}
+                  pageNumber={sheet.sheetIndex}
+                  totalPages={sheet.totalSheets}
+                />
               </div>
             </div>
           ))
-        ) : (
-          // Single-page/multi-sheet render for other cadastral entities (Professores, Cursos, Turmas, Disciplinas)
-          <div className="w-full flex flex-col items-center">
-            <div className="w-full max-w-[210mm] min-h-[297mm] bg-white p-[12mm_15mm_10mm_15mm] border border-slate-200 shadow-md flex flex-col justify-between text-slate-950 font-sans leading-tight relative box-border printable-report-sheet print:shadow-none print:border-none print:m-0">
-              <div>
-                {/* Institutional Header */}
-                <div className="flex items-center gap-4 mb-2 pb-2 border-b-2 border-slate-900">
-                  <div className="flex-shrink-0 w-20 h-20 max-h-20 max-w-20 flex items-center justify-center">
-                    <img
-                      src={inst?.logo_url || DEFAULT_LOGO}
-                      className="w-full h-full object-contain max-h-20 max-w-20"
-                      referrerPolicy="no-referrer"
-                      alt="Brasão Diocesano"
-                    />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center">
-                    <p className="text-[8.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
-                      {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : (inst?.diocese_name || 'DIOCESE DE GUARULHOS')}
-                    </p>
-                    <h1 className="text-[14.5pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
-                      {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
-                    </h1>
-                    <p className="text-[9pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
-                      {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
-                    </p>
-                  </div>
-                </div>
+        )}
 
-                {/* Centered Document Title with standard underline */}
-                <div className="text-center mt-4 mb-3">
-                  <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-10 inline-block">
-                    {reportConfig.title}
-                  </h2>
-                </div>
-
-                {/* Context Metadata Line */}
-                <div className="flex justify-between items-center text-[7.5pt] font-bold text-slate-600 mb-3 uppercase">
-                  <span>{reportConfig.filterText}</span>
-                  <span>EMISSÃO: {new Date().toLocaleString('pt-BR')}</span>
-                </div>
-
-                {/* DATA TABLE */}
-                <div className="overflow-hidden border border-slate-300 rounded-xs">
-                  {activeTab === 'professores' && (
-                    <table className="w-full text-left border-collapse text-[7.5pt]">
-                      <thead>
-                        <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                          <th className="py-2 px-2 w-[10%]">Cód.</th>
-                          <th className="py-2 px-2 w-[35%]">Nome do Professor</th>
-                          <th className="py-2 px-2 w-[25%]">E-mail</th>
-                          <th className="py-2 px-2 w-[22%]">Disciplinas</th>
-                          <th className="py-2 px-2 w-[8%] text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {filteredTeachers.length > 0 ? (
-                          filteredTeachers.map((t, idx) => {
-                            const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
-                            return (
-                              <tr key={t.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
-                                <td className="py-1.5 px-2 font-mono font-bold text-slate-950">{t.code}</td>
-                                <td className="py-1.5 px-2 font-bold uppercase text-slate-950">{t.name}</td>
-                                <td className="py-1.5 px-2 lowercase text-slate-700">{t.email || '---'}</td>
-                                <td className="py-1.5 px-2 uppercase text-slate-800 text-[7pt]">
-                                  {tSubList.map(s => s.name).join(', ') || '---'}
-                                </td>
-                                <td className="py-1.5 px-2 text-center font-bold text-slate-900">{t.status || 'Ativo'}</td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="py-6 text-center text-slate-400 italic">
-                              Nenhum professor encontrado com os filtros selecionados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {activeTab === 'cursos' && (
-                    <table className="w-full text-left border-collapse text-[7.5pt]">
-                      <thead>
-                        <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                          <th className="py-2 px-2 w-[15%]">Cód.</th>
-                          <th className="py-2 px-2 w-[55%]">Nome do Curso</th>
-                          <th className="py-2 px-2 w-[20%]">Duração</th>
-                          <th className="py-2 px-2 w-[10%] text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {filteredCourses.length > 0 ? (
-                          filteredCourses.map((c, idx) => (
-                            <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
-                              <td className="py-1.5 px-2 font-mono font-bold text-slate-950">{c.code}</td>
-                              <td className="py-1.5 px-2 font-bold uppercase text-slate-950">{c.name}</td>
-                              <td className="py-1.5 px-2 text-slate-700">{c.duration_total || '---'}</td>
-                              <td className="py-1.5 px-2 text-center font-bold text-slate-900">{c.status || 'Ativo'}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className="py-6 text-center text-slate-400 italic">
-                              Nenhum curso encontrado com os filtros selecionados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {activeTab === 'turmas' && (
-                    <table className="w-full text-left border-collapse text-[7.5pt]">
-                      <thead>
-                        <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                          <th className="py-2 px-2 w-[12%]">Cód.</th>
-                          <th className="py-2 px-2 w-[42%]">Nome da Turma</th>
-                          <th className="py-2 px-2 w-[12%]">Ano</th>
-                          <th className="py-2 px-2 w-[14%]">Período</th>
-                          <th className="py-2 px-2 w-[12%]">Dias</th>
-                          <th className="py-2 px-2 w-[8%] text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {filteredClasses.length > 0 ? (
-                          filteredClasses.map((c, idx) => (
-                            <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
-                              <td className="py-1.5 px-2 font-mono font-bold text-slate-950">{c.code}</td>
-                              <td className="py-1.5 px-2 font-bold uppercase text-slate-950">{c.name}</td>
-                              <td className="py-1.5 px-2 text-slate-700">{c.year || '---'}</td>
-                              <td className="py-1.5 px-2 text-slate-700">{c.period || '---'}</td>
-                              <td className="py-1.5 px-2 text-slate-700 text-[6.5pt]">{(c.days_of_week || []).join(', ') || '---'}</td>
-                              <td className="py-1.5 px-2 text-center font-bold text-slate-900">{c.status || 'Ativo'}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={6} className="py-6 text-center text-slate-400 italic">
-                              Nenhuma turma encontrada com os filtros selecionados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {activeTab === 'disciplinas' && (
-                    <table className="w-full text-left border-collapse text-[7.5pt]">
-                      <thead>
-                        <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                          <th className="py-2 px-2 w-[10%]">Cód.</th>
-                          <th className="py-2 px-2 w-[38%]">Nome da Disciplina</th>
-                          <th className="py-2 px-2 w-[12%]">Ano</th>
-                          <th className="py-2 px-2 w-[12%]">Semestre</th>
-                          <th className="py-2 px-2 w-[20%]">Professor</th>
-                          <th className="py-2 px-2 w-[8%] text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {filteredSubjects.length > 0 ? (
-                          filteredSubjects.map((s, idx) => {
-                            const teacher = teachers.find(t => t.subject_ids?.includes(s.id));
-                            return (
-                              <tr key={s.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
-                                <td className="py-1.5 px-2 font-mono font-bold text-slate-950">{s.code || '---'}</td>
-                                <td className="py-1.5 px-2 font-bold uppercase text-slate-950">{s.name}</td>
-                                <td className="py-1.5 px-2 text-slate-700">{s.year ? `${s.year}º Ano` : '---'}</td>
-                                <td className="py-1.5 px-2 text-slate-700">{s.semester || '1º Sem.'}</td>
-                                <td className="py-1.5 px-2 uppercase text-slate-800 text-[7pt]">
-                                  {teacher?.name || 'A DEFINIR'}
-                                </td>
-                                <td className="py-1.5 px-2 text-center font-bold text-slate-900">{s.status || 'Ativo'}</td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={6} className="py-6 text-center text-slate-400 italic">
-                              Nenhuma disciplina encontrada com os filtros selecionados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
+        {/* Professores Sheets */}
+        {activeTab === 'professores' && (
+          teacherSheets.map(sheet => (
+            <div key={`teacher-sheet-${sheet.sheetIndex}`} className="w-full flex flex-col items-center">
+              <div className="print:hidden w-full max-w-[210mm] flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-1.5">
+                <span>Folha {sheet.sheetIndex} de {sheet.totalSheets}</span>
+                <span>{sheet.items.length} professores</span>
               </div>
-
-              {/* FOOTER SECTION */}
-              <div className="mt-auto pt-4 shrink-0">
-                <div className="border-t-2 border-slate-900 pt-2 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
-                  <div className="flex-1 space-y-0.5">
-                    <p className="leading-tight font-bold">
-                      {inst?.address || 'AV. VENUS, 195 - ITAPEGICA - GUARULHOS/SP'}
-                    </p>
-                    <p className="leading-tight font-bold">
-                      {inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170'} {inst?.city_uf ? ` - ${inst.city_uf}` : ' - GUARULHOS/SP'}
-                    </p>
-                    <p className="leading-tight font-bold pt-0.5">
-                      <span className="normal-case">Telefone: {inst?.phone || '(11) 2421-2935'}</span>
-                    </p>
-                  </div>
-                  <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
-                    <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
-                    <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst?.secretary || 'quarta a sexta-feira das 14h as 18h'}</p>
-                    <p className="lowercase font-bold text-[7pt] pt-0.5">
-                      email: {(inst?.email || 'email@email.com.br').toLowerCase()}  •  Página 1 de 1
-                    </p>
-                  </div>
+              <div className="w-full max-w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] bg-white p-[12mm_15mm_10mm_15mm] border border-slate-200 shadow-md flex flex-col justify-between text-slate-950 font-sans leading-tight relative box-border printable-report-sheet print:shadow-none print:border-none print:m-0 overflow-hidden">
+                <StandardReportHeader
+                  inst={inst}
+                  title={reportConfig.title}
+                  filterText={reportConfig.filterText}
+                />
+                <div className="flex-1 overflow-hidden border border-slate-300 rounded-xs mb-2">
+                  <table className="w-full text-left border-collapse text-[7.5pt]">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
+                        <th className="py-1 px-2 w-[10%]">Cód.</th>
+                        <th className="py-1 px-2 w-[35%]">Nome do Professor</th>
+                        <th className="py-1 px-2 w-[25%]">E-mail</th>
+                        <th className="py-1 px-2 w-[22%]">Disciplinas</th>
+                        <th className="py-1 px-2 w-[8%] text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {sheet.items.length > 0 ? (
+                        sheet.items.map((t, idx) => {
+                          const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
+                          return (
+                            <tr key={t.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{t.code}</td>
+                              <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{t.name}</td>
+                              <td className="py-1 px-2 lowercase text-slate-700 text-[6.5pt]">{t.email || '---'}</td>
+                              <td className="py-1 px-2 uppercase text-slate-800 text-[6.5pt]">
+                                {tSubList.map(s => s.name).join(', ') || '---'}
+                              </td>
+                              <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{t.status || 'Ativo'}</td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                            Nenhum professor encontrado com os filtros selecionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
+                <StandardReportFooter
+                  inst={inst}
+                  pageNumber={sheet.sheetIndex}
+                  totalPages={sheet.totalSheets}
+                />
               </div>
             </div>
-          </div>
+          ))
+        )}
+
+        {/* Cursos Sheets */}
+        {activeTab === 'cursos' && (
+          courseSheets.map(sheet => (
+            <div key={`course-sheet-${sheet.sheetIndex}`} className="w-full flex flex-col items-center">
+              <div className="print:hidden w-full max-w-[210mm] flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-1.5">
+                <span>Folha {sheet.sheetIndex} de {sheet.totalSheets}</span>
+                <span>{sheet.items.length} cursos</span>
+              </div>
+              <div className="w-full max-w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] bg-white p-[12mm_15mm_10mm_15mm] border border-slate-200 shadow-md flex flex-col justify-between text-slate-950 font-sans leading-tight relative box-border printable-report-sheet print:shadow-none print:border-none print:m-0 overflow-hidden">
+                <StandardReportHeader
+                  inst={inst}
+                  title={reportConfig.title}
+                  filterText={reportConfig.filterText}
+                />
+                <div className="flex-1 overflow-hidden border border-slate-300 rounded-xs mb-2">
+                  <table className="w-full text-left border-collapse text-[7.5pt]">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
+                        <th className="py-1 px-2 w-[15%]">Cód.</th>
+                        <th className="py-1 px-2 w-[55%]">Nome do Curso</th>
+                        <th className="py-1 px-2 w-[20%]">Duração</th>
+                        <th className="py-1 px-2 w-[10%] text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {sheet.items.length > 0 ? (
+                        sheet.items.map((c, idx) => (
+                          <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                            <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{c.code}</td>
+                            <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{c.name}</td>
+                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.duration_total || '---'}</td>
+                            <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{c.status || 'Ativo'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="py-6 text-center text-slate-400 italic">
+                            Nenhum curso encontrado com os filtros selecionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <StandardReportFooter
+                  inst={inst}
+                  pageNumber={sheet.sheetIndex}
+                  totalPages={sheet.totalSheets}
+                />
+              </div>
+            </div>
+          ))
+        )}
+
+        {/* Turmas Sheets */}
+        {activeTab === 'turmas' && (
+          classSheets.map(sheet => (
+            <div key={`class-sheet-${sheet.sheetIndex}`} className="w-full flex flex-col items-center">
+              <div className="print:hidden w-full max-w-[210mm] flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-1.5">
+                <span>Folha {sheet.sheetIndex} de {sheet.totalSheets}</span>
+                <span>{sheet.items.length} turmas</span>
+              </div>
+              <div className="w-full max-w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] bg-white p-[12mm_15mm_10mm_15mm] border border-slate-200 shadow-md flex flex-col justify-between text-slate-950 font-sans leading-tight relative box-border printable-report-sheet print:shadow-none print:border-none print:m-0 overflow-hidden">
+                <StandardReportHeader
+                  inst={inst}
+                  title={reportConfig.title}
+                  filterText={reportConfig.filterText}
+                />
+                <div className="flex-1 overflow-hidden border border-slate-300 rounded-xs mb-2">
+                  <table className="w-full text-left border-collapse text-[7.5pt]">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
+                        <th className="py-1 px-2 w-[12%]">Cód.</th>
+                        <th className="py-1 px-2 w-[42%]">Nome da Turma</th>
+                        <th className="py-1 px-2 w-[12%]">Ano</th>
+                        <th className="py-1 px-2 w-[14%]">Período</th>
+                        <th className="py-1 px-2 w-[12%]">Dias</th>
+                        <th className="py-1 px-2 w-[8%] text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {sheet.items.length > 0 ? (
+                        sheet.items.map((c, idx) => (
+                          <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                            <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{c.code}</td>
+                            <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{c.name}</td>
+                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.year || '---'}</td>
+                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.period || '---'}</td>
+                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{(c.days_of_week || []).join(', ') || '---'}</td>
+                            <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{c.status || 'Ativo'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-slate-400 italic">
+                            Nenhuma turma encontrada com os filtros selecionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <StandardReportFooter
+                  inst={inst}
+                  pageNumber={sheet.sheetIndex}
+                  totalPages={sheet.totalSheets}
+                />
+              </div>
+            </div>
+          ))
+        )}
+
+        {/* Disciplinas Sheets */}
+        {activeTab === 'disciplinas' && (
+          subjectSheets.map(sheet => (
+            <div key={`subject-sheet-${sheet.sheetIndex}`} className="w-full flex flex-col items-center">
+              <div className="print:hidden w-full max-w-[210mm] flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-1.5">
+                <span>Folha {sheet.sheetIndex} de {sheet.totalSheets}</span>
+                <span>{sheet.items.length} disciplinas</span>
+              </div>
+              <div className="w-full max-w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] bg-white p-[12mm_15mm_10mm_15mm] border border-slate-200 shadow-md flex flex-col justify-between text-slate-950 font-sans leading-tight relative box-border printable-report-sheet print:shadow-none print:border-none print:m-0 overflow-hidden">
+                <StandardReportHeader
+                  inst={inst}
+                  title={reportConfig.title}
+                  filterText={reportConfig.filterText}
+                />
+                <div className="flex-1 overflow-hidden border border-slate-300 rounded-xs mb-2">
+                  <table className="w-full text-left border-collapse text-[7.5pt]">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
+                        <th className="py-1 px-2 w-[10%]">Cód.</th>
+                        <th className="py-1 px-2 w-[38%]">Nome da Disciplina</th>
+                        <th className="py-1 px-2 w-[12%]">Ano</th>
+                        <th className="py-1 px-2 w-[12%]">Semestre</th>
+                        <th className="py-1 px-2 w-[20%]">Professor</th>
+                        <th className="py-1 px-2 w-[8%] text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {sheet.items.length > 0 ? (
+                        sheet.items.map((s, idx) => {
+                          const teacher = teachers.find(t => t.subject_ids?.includes(s.id));
+                          return (
+                            <tr key={s.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{s.code || '---'}</td>
+                              <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{s.name}</td>
+                              <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{s.year ? `${s.year}º Ano` : '---'}</td>
+                              <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{s.semester || '1º Sem.'}</td>
+                              <td className="py-1 px-2 uppercase text-slate-800 text-[6.5pt]">
+                                {teacher?.name || 'A DEFINIR'}
+                              </td>
+                              <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{s.status || 'Ativo'}</td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-slate-400 italic">
+                            Nenhuma disciplina encontrada com os filtros selecionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <StandardReportFooter
+                  inst={inst}
+                  pageNumber={sheet.sheetIndex}
+                  totalPages={sheet.totalSheets}
+                />
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
