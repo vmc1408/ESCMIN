@@ -1201,9 +1201,18 @@ export function Courses() {
             <RotateCcw className={cn("w-4 h-4", loading && "animate-spin text-slate-400")} />
           </button>
           <button
-            onClick={() => navigate('/cadastros-relatorios?tab=cursos')}
+            onClick={() => {
+              const params = new URLSearchParams();
+              params.set('tab', 'cursos');
+              if (statusFilter && statusFilter !== 'Todos') {
+                params.set('status', statusFilter);
+              } else if (statusFilter === 'Todos') {
+                params.set('status', 'Todos');
+              }
+              navigate(`/cadastros-relatorios?${params.toString()}`);
+            }}
             className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
-            title="Imprimir Listagem Geral de Cursos"
+            title="Imprimir Listagem Geral de Cursos com os filtros atuais"
           >
             <Printer className="w-4 h-4 text-slate-600" />
             Listagem

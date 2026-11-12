@@ -2419,9 +2419,24 @@ export function Students() {
             </div>
             <div className="flex items-center gap-1.5">
               <button 
-                onClick={() => navigate('/cadastros-relatorios?tab=alunos')}
-                className="px-2.5 h-8 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 shadow-2xs uppercase tracking-wider"
-                title="Imprimir Listagem de Alunos"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  params.set('tab', 'alunos');
+                  if (statusFilter && statusFilter !== 'Todos') {
+                    params.set('status', statusFilter);
+                  } else if (statusFilter === 'Todos') {
+                    params.set('status', 'Todos');
+                  }
+                  if (selectedClassId && selectedClassId !== 'unallocated') {
+                    params.set('class_id', selectedClassId);
+                  }
+                  if (selectedYear && selectedYear !== 'all') {
+                    params.set('year', selectedYear);
+                  }
+                  navigate(`/cadastros-relatorios?${params.toString()}`);
+                }}
+                className="px-2.5 h-8 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 shadow-2xs uppercase tracking-wider cursor-pointer"
+                title="Imprimir Listagem de Alunos com os filtros atuais"
               >
                 <Printer size={13} />
                 Listagem

@@ -1328,9 +1328,26 @@ export function Teachers() {
                   {filteredTeachers.length}
                 </div>
                 <button 
-                  onClick={() => navigate('/cadastros-relatorios?tab=professores')}
-                  className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
-                  title="Abrir Relatório / Listagem Completa"
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    params.set('tab', 'professores');
+                    if (statusFilter && statusFilter !== 'Todos') {
+                      params.set('status', statusFilter);
+                    } else if (statusFilter === 'Todos') {
+                      params.set('status', 'Todos');
+                    }
+                    if (semesterFilter === '1º Semestre' || semesterFilter === '1') {
+                      params.set('semester', '1');
+                    } else if (semesterFilter === '2º Semestre' || semesterFilter === '2') {
+                      params.set('semester', '2');
+                    }
+                    if (subjectFilter && subjectFilter !== 'all') {
+                      params.set('subject_id', subjectFilter);
+                    }
+                    navigate(`/cadastros-relatorios?${params.toString()}`);
+                  }}
+                  className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm cursor-pointer"
+                  title="Abrir Relatório / Listagem Completa com os filtros atuais"
                 >
                   <Printer size={16} />
                   <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>

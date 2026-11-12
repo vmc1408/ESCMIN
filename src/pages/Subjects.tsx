@@ -653,9 +653,20 @@ export function Subjects() {
                 {filteredSubjects.length}
               </div>
               <button 
-                onClick={() => navigate('/cadastros-relatorios?tab=disciplinas')}
-                className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
-                title="Abrir Relatório / Listagem Completa"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  params.set('tab', 'disciplinas');
+                  const effStatus = statusFilter || 'Ativo';
+                  params.set('status', effStatus);
+                  if (semesterFilter === '1º Sem.' || semesterFilter === '1') {
+                    params.set('semester', '1');
+                  } else if (semesterFilter === '2º Sem.' || semesterFilter === '2') {
+                    params.set('semester', '2');
+                  }
+                  navigate(`/cadastros-relatorios?${params.toString()}`);
+                }}
+                className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm cursor-pointer"
+                title="Abrir Relatório / Listagem Completa com os filtros atuais"
               >
                 <Printer size={16} />
                 <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>

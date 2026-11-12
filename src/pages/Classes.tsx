@@ -2405,9 +2405,23 @@ export function Classes() {
               </div>
               <div className="flex items-center gap-1.5">
                 <button 
-                  onClick={() => navigate('/cadastros-relatorios?tab=turmas')}
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    params.set('tab', 'turmas');
+                    if (statusFilter && statusFilter !== 'Todos') {
+                      params.set('status', statusFilter);
+                    } else if (statusFilter === 'Todos') {
+                      params.set('status', 'Todos');
+                    }
+                    if (selectedAcademicYearFilter && selectedAcademicYearFilter !== 'Todos' && selectedAcademicYearFilter !== 'ATUAL') {
+                      params.set('year', selectedAcademicYearFilter);
+                    } else if (selectedAcademicYearFilter === 'ATUAL' && currentAcademicYear) {
+                      params.set('year', String(currentAcademicYear));
+                    }
+                    navigate(`/cadastros-relatorios?${params.toString()}`);
+                  }}
                   className="px-2.5 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer text-[10px] font-bold uppercase tracking-wider"
-                  title="Imprimir Listagem de Turmas"
+                  title="Imprimir Listagem de Turmas com os filtros atuais"
                 >
                   <Printer size={13} />
                   <span className="hidden sm:inline">Listagem</span>

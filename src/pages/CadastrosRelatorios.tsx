@@ -145,8 +145,70 @@ function StandardReportFooter({
 
 export function CadastrosRelatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as ReportTab) || 'alunos';
-  const [activeTab, setActiveTab] = useState<ReportTab>(initialTab);
+
+  // Helper to parse values from URL searchParams
+  const parseTab = (params: URLSearchParams): ReportTab => {
+    const t = params.get('tab');
+    if (t === 'alunos' || t === 'professores' || t === 'cursos' || t === 'turmas' || t === 'disciplinas') {
+      return t;
+    }
+    return 'alunos';
+  };
+
+  const parseStatus = (params: URLSearchParams): 'Todos' | 'Ativo' | 'Inativo' => {
+    const s = params.get('status')?.toLowerCase();
+    if (s === 'todos') return 'Todos';
+    if (s === 'inativo') return 'Inativo';
+    if (s === 'ativo') return 'Ativo';
+    return 'Ativo';
+  };
+
+  const parseSemester = (params: URLSearchParams): string => {
+    const sem = params.get('semester') || params.get('semestre');
+    if (!sem) return 'all';
+    if (sem === '1' || sem.includes('1')) return '1';
+    if (sem === '2' || sem.includes('2')) return '2';
+    return 'all';
+  };
+
+  const parseClassId = (params: URLSearchParams): string => {
+    return params.get('class_id') || params.get('turma') || 'all';
+  };
+
+  const parseYear = (params: URLSearchParams): string => {
+    return params.get('year') || params.get('ano') || 'all';
+  };
+
+  const parseSubjectId = (params: URLSearchParams): string => {
+    return params.get('subject_id') || params.get('disciplina') || 'all';
+  };
+
+  const parseCourseId = (params: URLSearchParams): string => {
+    return params.get('course_id') || params.get('curso') || 'all';
+  };
+
+  const parseStudentSort = (params: URLSearchParams): StudentSortBy => {
+    const s = params.get('sort');
+    if (s === 'numeric') return 'numeric';
+    return 'alphabetical';
+  };
+
+  const parseSortByTurma = (params: URLSearchParams): boolean => {
+    const g = params.get('group_by_turma');
+    if (g === 'false') return false;
+    return true;
+  };
+
+  // State initialized directly from searchParams
+  const [activeTab, setActiveTab] = useState<ReportTab>(() => parseTab(searchParams));
+  const [statusFilter, setStatusFilter] = useState<'Todos' | 'Ativo' | 'Inativo'>(() => parseStatus(searchParams));
+  const [selectedClassId, setSelectedClassId] = useState<string>(() => parseClassId(searchParams));
+  const [selectedCourseId, setSelectedCourseId] = useState<string>(() => parseCourseId(searchParams));
+  const [selectedSemester, setSelectedSemester] = useState<string>(() => parseSemester(searchParams));
+  const [selectedYear, setSelectedYear] = useState<string>(() => parseYear(searchParams));
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(() => parseSubjectId(searchParams));
+  const [studentSortBy, setStudentSortBy] = useState<StudentSortBy>(() => parseStudentSort(searchParams));
+  const [sortByTurma, setSortByTurma] = useState<boolean>(() => parseSortByTurma(searchParams));
 
   // Data states
   const [students, setStudents] = useState<Student[]>([]);
@@ -158,21 +220,36 @@ export function CadastrosRelatorios() {
   const [inst, setInst] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Common filters
-  const [statusFilter, setStatusFilter] = useState<'Todos' | 'Ativo' | 'Inativo'>('Ativo');
+  // Sync state whenever searchParams changes (e.g. navigation from other modules)
+  useEffect(() => {
+    const newTab = parseTab(searchParams);
+    setActiveTab(newTab);
 
-  // Specific filters
-  const [selectedClassId, setSelectedClassId] = useState<string>('all');
-  const [selectedCourseId, setSelectedCourseId] = useState<string>('all');
-  const [selectedSemester, setSelectedSemester] = useState<string>('all');
-  const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
-
-  // Alunos specific configurations:
-  // 1. studentSortBy: 'alphabetical' (Nome A-Z) | 'numeric' (Matrícula)
-  // 2. sortByTurma: boolean (campo chave para separar e ordenar por turma)
-  const [studentSortBy, setStudentSortBy] = useState<StudentSortBy>('alphabetical');
-  const [sortByTurma, setSortByTurma] = useState<boolean>(true);
+    if (searchParams.has('status')) {
+      setStatusFilter(parseStatus(searchParams));
+    }
+    if (searchParams.has('semester') || searchParams.has('semestre')) {
+      setSelectedSemester(parseSemester(searchParams));
+    }
+    if (searchParams.has('class_id') || searchParams.has('turma')) {
+      setSelectedClassId(parseClassId(searchParams));
+    }
+    if (searchParams.has('year') || searchParams.has('ano')) {
+      setSelectedYear(parseYear(searchParams));
+    }
+    if (searchParams.has('subject_id') || searchParams.has('disciplina')) {
+      setSelectedSubjectId(parseSubjectId(searchParams));
+    }
+    if (searchParams.has('course_id') || searchParams.has('curso')) {
+      setSelectedCourseId(parseCourseId(searchParams));
+    }
+    if (searchParams.has('sort')) {
+      setStudentSortBy(parseStudentSort(searchParams));
+    }
+    if (searchParams.has('group_by_turma')) {
+      setSortByTurma(parseSortByTurma(searchParams));
+    }
+  }, [searchParams]);
 
   // Load database entities & institution configuration
   useEffect(() => {
@@ -230,7 +307,93 @@ export function CadastrosRelatorios() {
   // Sync tab with URL
   const handleTabChange = (tab: ReportTab) => {
     setActiveTab(tab);
-    setSearchParams({ tab });
+    // Reset specific filters for the new tab, preserving current status
+    setSelectedClassId('all');
+    setSelectedCourseId('all');
+    setSelectedSemester('all');
+    setSelectedYear('all');
+    setSelectedSubjectId('all');
+    setSearchParams({ tab, status: statusFilter });
+  };
+
+  const handleStatusFilterChange = (st: 'Todos' | 'Ativo' | 'Inativo') => {
+    setStatusFilter(st);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('status', st);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleClassFilterChange = (val: string) => {
+    setSelectedClassId(val);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val === 'all') next.delete('class_id');
+      else next.set('class_id', val);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleYearFilterChange = (val: string) => {
+    setSelectedYear(val);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val === 'all') next.delete('year');
+      else next.set('year', val);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleSemesterFilterChange = (val: string) => {
+    setSelectedSemester(val);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val === 'all') next.delete('semester');
+      else next.set('semester', val);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleSubjectFilterChange = (val: string) => {
+    setSelectedSubjectId(val);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val === 'all') next.delete('subject_id');
+      else next.set('subject_id', val);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleCourseFilterChange = (val: string) => {
+    setSelectedCourseId(val);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val === 'all') next.delete('course_id');
+      else next.set('course_id', val);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleStudentSortChange = (sort: StudentSortBy) => {
+    setStudentSortBy(sort);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (sort === 'alphabetical') next.delete('sort');
+      else next.set('sort', sort);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleSortByTurmaChange = () => {
+    const nextVal = !sortByTurma;
+    setSortByTurma(nextVal);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (nextVal) next.delete('group_by_turma');
+      else next.set('group_by_turma', 'false');
+      return next;
+    }, { replace: true });
   };
 
   // Helper: Case-insensitive robust status matching
@@ -834,7 +997,7 @@ export function CadastrosRelatorios() {
             {(['Todos', 'Ativo', 'Inativo'] as const).map(st => (
               <button
                 key={st}
-                onClick={() => setStatusFilter(st)}
+                onClick={() => handleStatusFilterChange(st)}
                 className={cn(
                   "px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer",
                   statusFilter === st
@@ -855,7 +1018,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Turma:</span>
                 <select
                   value={selectedClassId}
-                  onChange={e => setSelectedClassId(e.target.value)}
+                  onChange={e => handleClassFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todas as Turmas</option>
@@ -870,7 +1033,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Ano:</span>
                 <select
                   value={selectedYear}
-                  onChange={e => setSelectedYear(e.target.value)}
+                  onChange={e => handleYearFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>
@@ -885,7 +1048,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase px-2">Ordem:</span>
                 <button
                   type="button"
-                  onClick={() => setStudentSortBy('alphabetical')}
+                  onClick={() => handleStudentSortChange('alphabetical')}
                   className={cn(
                     "px-2.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer",
                     studentSortBy === 'alphabetical'
@@ -899,7 +1062,7 @@ export function CadastrosRelatorios() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStudentSortBy('numeric')}
+                  onClick={() => handleStudentSortChange('numeric')}
                   className={cn(
                     "px-2.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer",
                     studentSortBy === 'numeric'
@@ -922,7 +1085,7 @@ export function CadastrosRelatorios() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setSortByTurma(prev => !prev)}
+                    onClick={handleSortByTurmaChange}
                     className={cn(
                       "px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-2 cursor-pointer shadow-xs",
                       sortByTurma
@@ -948,7 +1111,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Disciplina:</span>
                 <select
                   value={selectedSubjectId}
-                  onChange={e => setSelectedSubjectId(e.target.value)}
+                  onChange={e => handleSubjectFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todas as Disciplinas</option>
@@ -962,7 +1125,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Semestre:</span>
                 <select
                   value={selectedSemester}
-                  onChange={e => setSelectedSemester(e.target.value)}
+                  onChange={e => handleSemesterFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Semestres</option>
@@ -979,7 +1142,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Ano Letivo:</span>
                 <select
                   value={selectedYear}
-                  onChange={e => setSelectedYear(e.target.value)}
+                  onChange={e => handleYearFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>
@@ -993,7 +1156,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Curso:</span>
                 <select
                   value={selectedCourseId}
-                  onChange={e => setSelectedCourseId(e.target.value)}
+                  onChange={e => handleCourseFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Cursos</option>
@@ -1011,7 +1174,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Semestre:</span>
                 <select
                   value={selectedSemester}
-                  onChange={e => setSelectedSemester(e.target.value)}
+                  onChange={e => handleSemesterFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Semestres</option>
@@ -1024,7 +1187,7 @@ export function CadastrosRelatorios() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Ano:</span>
                 <select
                   value={selectedYear}
-                  onChange={e => setSelectedYear(e.target.value)}
+                  onChange={e => handleYearFilterChange(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>

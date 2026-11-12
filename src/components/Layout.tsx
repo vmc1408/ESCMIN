@@ -24,7 +24,7 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="min-h-screen bg-slate-100 flex overflow-hidden print:block print:w-full print:overflow-visible print:h-auto print:bg-white print:m-0 font-sans">
+    <div className="h-screen max-h-screen bg-slate-100 flex overflow-hidden print:block print:w-full print:overflow-visible print:h-auto print:bg-white print:m-0 font-sans">
       {/* Botão de Menu Mobile */}
       <button
         onClick={() => setIsSidebarOpen(true)}
@@ -43,7 +43,7 @@ export function Layout() {
 
       {/* Sidebar com classes responsivas */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 lg:relative lg:block transition-transform duration-300 ease-in-out print:hidden",
+        "fixed inset-y-0 left-0 z-50 lg:relative lg:flex lg:flex-col h-screen max-h-screen overflow-hidden shrink-0 transition-transform duration-300 ease-in-out print:hidden",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <Sidebar onClose={() => setIsSidebarOpen(false)} />

@@ -621,7 +621,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <aside className="h-full w-60 bg-slate-900 text-white flex flex-col border-r border-slate-800 print:hidden overflow-hidden shrink-0">
+    <aside className="h-full max-h-screen w-60 bg-slate-900 text-white flex flex-col border-r border-slate-800 print:hidden overflow-hidden shrink-0 select-none">
       <div className="h-16 px-5 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div className="flex flex-col">
           <h2 className="text-[10px] font-bold uppercase tracking-[0.05em] text-blue-400">SISTEMA ACADEMICO ESCMIN</h2>
@@ -647,11 +647,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
       )}
 
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 min-h-0 px-2 py-3 space-y-1 overflow-y-auto overscroll-contain sidebar-scrollbar">
         {renderNavItems(filteredNavItems)}
       </nav>
 
-      <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col items-center">
+      <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col items-center shrink-0 mt-auto select-none">
         {/* Database Connection Indicator */}
         <div className="w-full px-3 py-2 bg-slate-900/50 border border-slate-800/80 flex items-center justify-between">
           <div className="flex items-center gap-2">
