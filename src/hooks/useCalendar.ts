@@ -32,15 +32,22 @@ export function useCalendarHelpers() {
     const corpusChristi = new Date(easter);
     corpusChristi.setDate(easter.getDate() + 60);
 
+    const formatLocalYMD = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     return [
       { title: "Confraternização Universal", date: `${year}-01-01`, category: 'nacional' },
       { title: "Aniv. de São Paulo", date: `${year}-01-25`, category: 'estadual' },
-      { title: "Carnaval", date: carnival.toISOString().split('T')[0], category: 'nacional' },
-      { title: "Sexta-feira Santa", date: goodFriday.toISOString().split('T')[0], category: 'nacional' },
-      { title: "Páscoa", date: easter.toISOString().split('T')[0], category: 'nacional' },
+      { title: "Carnaval", date: formatLocalYMD(carnival), category: 'nacional' },
+      { title: "Sexta-feira Santa", date: formatLocalYMD(goodFriday), category: 'nacional' },
+      { title: "Páscoa", date: formatLocalYMD(easter), category: 'nacional' },
       { title: "Tiradentes", date: `${year}-04-21`, category: 'nacional' },
       { title: "Dia do Trabalho", date: `${year}-05-01`, category: 'nacional' },
-      { title: "Corpus Christi", date: corpusChristi.toISOString().split('T')[0], category: 'nacional' },
+      { title: "Corpus Christi", date: formatLocalYMD(corpusChristi), category: 'nacional' },
       { title: "Independência do Brasil", date: `${year}-09-07`, category: 'nacional' },
       { title: "Nossa Sra Aparecida", date: `${year}-10-12`, category: 'nacional' },
       { title: "Finados", date: `${year}-11-02`, category: 'nacional' },

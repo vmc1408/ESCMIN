@@ -14,7 +14,9 @@ import {
   RecessInterval,
   HolidayEntry
 } from '../types/annualCalendar';
-import { fetchAll, saveData, deleteQuery, fetchQuery } from '../lib/database';
+import { fetchAll, saveData, saveBatch, deleteQuery, fetchQuery, fetchById } from '../lib/database';
+import { getClassWeekdays, sanitizeAcademicSettings } from '../lib/academicUtils';
+import { isItemInUnit } from '../lib/unitService';
 
 export const MONTH_NAMES_BR = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -600,6 +602,13 @@ export async function getCalendarVersions(year: number, unitId = 'matriz'): Prom
   return [];
 }
 
+export interface PublishSyncOptions {
+  classes?: any[];
+  weekdayClasses?: Record<number, string[]>;
+  userId?: string;
+  syncSettings?: boolean;
+}
+
 /**
  * Salva uma nova versão do calendário, preservando as anteriores para auditoria.
  */
@@ -608,7 +617,8 @@ export async function saveCalendarVersion(
   days: Record<string, CalendarDayRecord>,
   status: 'draft' | 'approved' | 'published',
   userName?: string,
-  notes?: string
+  notes?: string,
+  syncOptions?: PublishSyncOptions
 ): Promise<CalendarVersion> {
   const year = params.year;
   const unitId = params.unit_id || 'matriz';
@@ -683,63 +693,194 @@ export async function saveCalendarVersion(
     console.warn('[CalendarEngine] Aviso ao salvar versão no banco remoto:', err);
   }
 
-  // 4. Se o status for 'published', sincroniza também com 'calendar_events'
+  // 4. Se o status for 'published', sincroniza também com 'calendar_events' e 'academic_settings'
   if (status === 'published') {
-    await syncCalendarEventsWithPublishedDays(newVersion);
+    await syncCalendarEventsWithPublishedDays(newVersion, syncOptions);
   }
 
   return newVersion;
 }
 
 /**
- * Sincroniza os dias letivos, feriados e termos com a tabela principal 'calendar_events'
- * para que todo o sistema (Frequência, Calendário Mensal, Grade e Relatórios) reflita os novos dias de aula.
+ * Sincroniza os dias letivos, termos, turmas vinculadas e academic_settings
+ * com a tabela principal 'calendar_events' para que todo o sistema
+ * (Frequência, Notas, Grade Acadêmica, Ficha do Aluno e Relatórios) reflita os novos dias de aula.
  */
-export async function syncCalendarEventsWithPublishedDays(version: CalendarVersion): Promise<void> {
+export async function syncCalendarEventsWithPublishedDays(
+  version: CalendarVersion,
+  options?: PublishSyncOptions
+): Promise<void> {
   const yearStr = String(version.year);
   const unitId = version.unit_id || 'matriz';
 
   try {
     // 1. Limpa eventos gerados automaticamente pelo calendário deste ano e unidade
-    const allEvents = await fetchAll('calendar_events', '*', 'start_date');
+    const [allEvents, fetchedClasses, existingSettings] = await Promise.all([
+      fetchAll('calendar_events', '*', 'start_date'),
+      options?.classes
+        ? Promise.resolve(options.classes)
+        : fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]).catch(() => []),
+      fetchById('academic_settings', unitId === 'matriz' ? 'current' : `academic_settings_${unitId}`).catch(() => null)
+    ]);
+
     const toDeleteIds = (allEvents || [])
       .filter((e: any) => {
         if (!e.start_date || !e.start_date.startsWith(yearStr)) return false;
         const eUnit = e.unit_id || 'matriz';
         if (eUnit !== unitId && unitId !== 'all') return false;
         const desc = (e.description || '').toLowerCase();
+        const isAutoDesc = desc.includes('calendário anual') || desc.includes('cronograma automático');
         return (
-          e.type === 'class_day' || 
-          desc.includes('calendário anual') || 
-          desc.includes('cronograma automático')
+          e.type === 'class_day' ||
+          ((e.type === 'start_term' || e.type === 'end_term') && isAutoDesc) ||
+          isAutoDesc
         );
       })
-      .map((e: any) => e.id);
+      .map((e: any) => e.id)
+      .filter(Boolean);
 
     if (toDeleteIds.length > 0) {
-      await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: toDeleteIds }]);
+      for (let i = 0; i < toDeleteIds.length; i += 100) {
+        const chunk = toDeleteIds.slice(i, i + 100);
+        await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: chunk }]);
+      }
     }
 
-    // 2. Cria eventos de dias letivos para os dias classificados como class_day
+    // 2. Identifica turmas ativas da unidade e mapeia turmas por dia da semana
+    const unitClasses = (fetchedClasses || []).filter((c: any) => {
+      if (c.status && c.status !== 'Ativo') return false;
+      if (unitId === 'all') return true;
+      return isItemInUnit(c.unit_id || c.polo, unitId);
+    });
+
+    const resolvedWeekdayClasses: Record<number, string[]> = {};
+    (version.weekdays || []).forEach(w => {
+      if (w < 1 || w > 6) return;
+      const explicitIds = options?.weekdayClasses?.[w];
+      if (Array.isArray(explicitIds) && explicitIds.length > 0) {
+        resolvedWeekdayClasses[w] = explicitIds;
+      } else {
+        const matched = unitClasses
+          .filter((c: any) => getClassWeekdays(c, existingSettings).includes(w))
+          .map((c: any) => c.id)
+          .filter(Boolean);
+        resolvedWeekdayClasses[w] = matched;
+      }
+    });
+
+    // 3. Cria eventos de dias letivos vinculados às turmas (ou global se nenhuma turma estiver associada)
     const newItems: any[] = [];
+    const nowIso = new Date().toISOString();
+    const signatureDesc = `Calendário Anual Oficial (${version.title})`;
+
     Object.values(version.days).forEach(day => {
-      if (day.is_class_day) {
+      if (!day.is_class_day) return;
+      const wDay = day.day_of_week;
+      const classIdsForDay = resolvedWeekdayClasses[wDay] || [];
+
+      if (classIdsForDay.length > 0) {
+        classIdsForDay.forEach(cid => {
+          const cls = unitClasses.find((c: any) => String(c.id) === String(cid));
+          newItems.push({
+            title: cls ? `Dia de Aula - ${cls.name}` : `Aula - ${day.period_name || 'Calendário Anual'}`,
+            start_date: day.date,
+            end_date: day.date,
+            type: 'class_day',
+            description: signatureDesc,
+            class_id: cid,
+            unit_id: cls?.unit_id || unitId,
+            ...(options?.userId ? { user_id: options.userId } : {}),
+            created_at: nowIso
+          });
+        });
+      } else {
         newItems.push({
           title: `Aula - ${day.period_name || 'Calendário Anual'}`,
           start_date: day.date,
           end_date: day.date,
           type: 'class_day',
-          description: `Calendário Anual Oficial (${version.title})`,
+          description: signatureDesc,
+          class_id: null,
           unit_id: unitId,
-          created_at: new Date().toISOString()
+          ...(options?.userId ? { user_id: options.userId } : {}),
+          created_at: nowIso
         });
       }
     });
 
-    // Salva em lotes no Supabase
-    for (let i = 0; i < newItems.length; i += 20) {
-      const batch = newItems.slice(i, i + 20);
-      await Promise.all(batch.map(item => saveData('calendar_events', null, item)));
+    // 4. Cria marcos de início e término de períodos ativos
+    const activePeriods = (version.periods || []).filter(p => p.is_active);
+    activePeriods.forEach(p => {
+      if (p.start_date) {
+        newItems.push({
+          title: `Início - ${p.name}`,
+          start_date: p.start_date,
+          end_date: p.start_date,
+          type: 'start_term',
+          description: signatureDesc,
+          class_id: null,
+          unit_id: unitId,
+          ...(options?.userId ? { user_id: options.userId } : {}),
+          created_at: nowIso
+        });
+      }
+      if (p.end_date) {
+        newItems.push({
+          title: `Término - ${p.name}`,
+          start_date: p.end_date,
+          end_date: p.end_date,
+          type: 'end_term',
+          description: signatureDesc,
+          class_id: null,
+          unit_id: unitId,
+          ...(options?.userId ? { user_id: options.userId } : {}),
+          created_at: nowIso
+        });
+      }
+    });
+
+    // Salva em lotes
+    if (newItems.length > 0) {
+      await saveBatch('calendar_events', newItems, 60000);
+    }
+
+    // 5. Sincroniza academic_settings para que Splash, Grade, Frequência e Boletim fiquem alinhados
+    if (options?.syncSettings !== false) {
+      const targetSettingsId = unitId === 'matriz' ? 'current' : `academic_settings_${unitId}`;
+      const p1 = activePeriods[0];
+      const p2 = activePeriods[1] || activePeriods[activePeriods.length - 1];
+      const weekdayTitles: Record<number, string> = { ...(existingSettings?.weekday_titles || {}) };
+      (version.weekdays || []).forEach(w => {
+        if (w >= 1 && w <= 6 && !weekdayTitles[w]) {
+          weekdayTitles[w] = `Aula, Classe(s) Turma(s) de ${WEEKDAY_NAMES_BR[w]}`;
+        }
+      });
+
+      const updatedSettings = sanitizeAcademicSettings({
+        ...(existingSettings || {}),
+        id: targetSettingsId,
+        unit_id: unitId,
+        term1_start: p1?.start_date || version.start_date || existingSettings?.term1_start || '',
+        term1_end: p1?.end_date || existingSettings?.term1_end || '',
+        term2_start: p2 && p2.id !== p1?.id ? p2.start_date : (existingSettings?.term2_start || ''),
+        term2_end: (p2 && p2.id !== p1?.id ? p2.end_date : version.end_date) || existingSettings?.term2_end || '',
+        class_weekdays: (version.weekdays || []).filter(w => w >= 1 && w <= 6),
+        weekday_titles: weekdayTitles,
+        weekday_classes: resolvedWeekdayClasses,
+        updated_at: nowIso
+      });
+
+      await saveData('academic_settings', targetSettingsId, updatedSettings).catch(() => {});
+      try {
+        localStorage.setItem(`academic_settings_${targetSettingsId}`, JSON.stringify(updatedSettings));
+        if (unitId !== 'matriz') {
+          localStorage.setItem(`academic_settings_${unitId}`, JSON.stringify(updatedSettings));
+        } else {
+          localStorage.setItem('academic_settings_current', JSON.stringify(updatedSettings));
+        }
+        window.dispatchEvent(new Event('academic-settings-updated'));
+        window.dispatchEvent(new Event('units-updated'));
+      } catch {}
     }
   } catch (err) {
     console.error('[CalendarEngine] Erro ao sincronizar calendar_events com calendário publicado:', err);

@@ -12,9 +12,9 @@ import {
   CalendarDays,
   Sparkles
 } from 'lucide-react';
-import { saveData, fetchAll, fetchById, deleteQuery } from '../lib/database';
+import { saveData, saveBatch, fetchAll, deleteQuery } from '../lib/database';
 import { isItemInUnit } from '../lib/unitService';
-import { sanitizeAcademicSettings, normalizeClassWeekdays } from '../lib/academicUtils';
+import { sanitizeAcademicSettings, normalizeClassWeekdays, getClassWeekdays } from '../lib/academicUtils';
 
 interface UnitScheduleModalProps {
   isOpen: boolean;
@@ -194,14 +194,53 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
             await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: oldUnitEvents }]);
           }
 
-          // Cria novos eventos para cada dia de aula selecionado
+          // Feriados já existentes para pular dias sem aula
+          const holidayDates = new Set(
+            (preEvents || [])
+              .filter((e: any) => e.type?.includes('holiday') && e.start_date)
+              .map((e: any) => e.start_date)
+          );
+
+          // Cria novos eventos vinculados às turmas do polo (ou evento geral da unidade se não houver turma no dia)
           const ranges = [
             { start: new Date(term1Start + 'T00:00:00'), end: new Date(term1End + 'T00:00:00') },
             { start: new Date(term2Start + 'T00:00:00'), end: new Date(term2End + 'T00:00:00') }
           ];
 
           const newEvents: any[] = [];
-          for (const weekdayNum of selectedWeekdays) {
+          const weekdayClassesMap: Record<number, string[]> = {};
+
+          // Marcos semestrais do polo
+          const termBoundaries = [
+            { date: term1Start, title: `Início do 1º Semestre (${unitName})`, type: 'start_term' },
+            { date: term1End, title: `Término do 1º Semestre (${unitName})`, type: 'end_term' },
+            { date: term2Start, title: `Início do 2º Semestre (${unitName})`, type: 'start_term' },
+            { date: term2End, title: `Término do Ano Letivo (${unitName})`, type: 'end_term' }
+          ];
+          for (const tb of termBoundaries) {
+            if (!tb.date) continue;
+            newEvents.push({
+              title: tb.title,
+              start_date: tb.date,
+              end_date: tb.date,
+              type: tb.type,
+              description: 'Cronograma automático do polo',
+              class_id: null,
+              unit_id: unitId,
+              user_id: userAuth.uid,
+              created_at: new Date().toISOString()
+            });
+          }
+
+          for (const weekdayNum of validWeekdays) {
+            const matchingClasses = unitClasses.filter((c: any) => {
+              const days = getClassWeekdays(c, updatedSettings);
+              return days.includes(weekdayNum);
+            });
+            weekdayClassesMap[weekdayNum] = matchingClasses.map((c: any) => c.id);
+
+            const targets = matchingClasses.length > 0 ? matchingClasses : [null];
+
             for (const range of ranges) {
               if (isNaN(range.start.getTime()) || isNaN(range.end.getTime())) continue;
               const curr = new Date(range.start);
@@ -212,26 +251,41 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                   const d = String(curr.getDate()).padStart(2, '0');
                   const dateStr = `${y}-${m}-${d}`;
 
-                  const dayName = WEEKDAYS.find(w => w.num === weekdayNum)?.full || 'Dia de Aula';
-                  newEvents.push({
-                    title: `Aula - ${dayName} (${unitName})`,
-                    start_date: dateStr,
-                    end_date: dateStr,
-                    type: 'class_day',
-                    description: 'Cronograma automático do polo',
-                    unit_id: unitId,
-                    user_id: userAuth.uid,
-                    created_at: new Date().toISOString()
-                  });
+                  if (!holidayDates.has(dateStr)) {
+                    const dayName = WEEKDAYS.find(w => w.num === weekdayNum)?.full || 'Dia de Aula';
+                    for (const cls of targets) {
+                      newEvents.push({
+                        title: cls ? `Dia de Aula - ${cls.name}` : `Aula - ${dayName} (${unitName})`,
+                        start_date: dateStr,
+                        end_date: dateStr,
+                        type: 'class_day',
+                        description: 'Cronograma automático do polo',
+                        class_id: cls ? cls.id : null,
+                        unit_id: cls?.unit_id || unitId,
+                        user_id: userAuth.uid,
+                        created_at: new Date().toISOString()
+                      });
+                    }
+                  }
                 }
                 curr.setDate(curr.getDate() + 1);
               }
             }
           }
 
-          // Salva em lotes se houver eventos
-          for (const ev of newEvents) {
-            await saveData('calendar_events', undefined, ev);
+          // Atualiza weekday_classes em academic_settings do polo se detectou turmas
+          const hasAnyMapped = Object.values(weekdayClassesMap).some(arr => arr.length > 0);
+          if (hasAnyMapped) {
+            updatedSettings.weekday_classes = weekdayClassesMap;
+            await saveData('academic_settings', targetSettingsId, updatedSettings);
+            try {
+              localStorage.setItem(`academic_settings_${targetSettingsId}`, JSON.stringify(updatedSettings));
+              localStorage.setItem(`academic_settings_${unitId}`, JSON.stringify(updatedSettings));
+            } catch {}
+          }
+
+          if (newEvents.length > 0) {
+            await saveBatch('calendar_events', newEvents, 45000);
           }
         } catch (genErr) {
           console.warn("Aviso ao regenerar eventos do calendário do polo:", genErr);
@@ -269,7 +323,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
           {/* Header */}
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+              <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20">
                 <Building2 size={20} />
               </div>
               <div>
@@ -277,7 +331,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                   <h3 className="font-extrabold text-slate-900 text-base tracking-tight">
                     Cronograma e Ciclo da Unidade
                   </h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 uppercase tracking-wider">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 uppercase tracking-wider">
                     {unitName}
                   </span>
                 </div>
@@ -416,12 +470,12 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                           onClick={() => toggleWeekday(day.num)}
                           className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex flex-col items-center gap-1 cursor-pointer ${
                             isSelected
-                              ? 'bg-blue-900 text-white border-blue-900 shadow-sm'
+                              ? 'bg-[#0F2A30] text-white border-[#0F2A30] shadow-sm'
                               : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                           }`}
                         >
                           <span className="text-[11px] uppercase tracking-wider">{day.label}</span>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-blue-300' : 'bg-slate-300'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-teal-300' : 'bg-slate-300'}`} />
                         </button>
                       );
                     })}
@@ -545,7 +599,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isSaving ? (
                 <>

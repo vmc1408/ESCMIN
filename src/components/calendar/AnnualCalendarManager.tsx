@@ -63,7 +63,11 @@ import {
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitContext';
-import { getInstitutionSettings } from '../../lib/database';
+import { fetchQuery, getInstitutionSettings } from '../../lib/database';
+import { getClassWeekdays } from '../../lib/academicUtils';
+import { isItemInUnit } from '../../lib/unitService';
+import { StandardReportSheet } from '../print/StandardPrintLayout';
+import { Class } from '../../types';
 
 interface AnnualCalendarManagerProps {
   onClose?: () => void;
@@ -79,11 +83,21 @@ export function AnnualCalendarManager({
   const { user: userAuth, profile } = useAuth();
   const { selectedUnitId, getUnitName, activeUnits } = useUnits();
   const [institution, setInstitution] = useState<any>(null);
+  const [allActiveClasses, setAllActiveClasses] = useState<Class[]>([]);
+  const [weekdayClasses, setWeekdayClasses] = useState<Record<number, string[]>>({});
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   useEffect(() => {
     getInstitutionSettings().then(inst => {
       if (inst) setInstitution(inst);
     }).catch(() => {});
+
+    fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }])
+      .then(clsList => {
+        if (Array.isArray(clsList)) setAllActiveClasses(clsList);
+      })
+      .catch(() => {});
   }, []);
 
   // 1. Estado do Ano e Localidade
@@ -102,6 +116,40 @@ export function AnnualCalendarManager({
   const [classWeekdays, setClassWeekdays] = useState<number[]>([]); // Não pré-selecionado
   const [preserveOverrides, setPreserveOverrides] = useState<boolean>(true);
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState<string | null>(null);
+
+  const unitClasses = useMemo(() => {
+    if (!targetUnitId || targetUnitId === 'all') return allActiveClasses;
+    return allActiveClasses.filter((c: any) => isItemInUnit(c.unit_id || c.polo, targetUnitId, activeUnits));
+  }, [allActiveClasses, targetUnitId, activeUnits]);
+
+  useEffect(() => {
+    if (classWeekdays.length === 0) return;
+    setWeekdayClasses(prev => {
+      const next = { ...prev };
+      let changed = false;
+      classWeekdays.forEach(day => {
+        if (!Array.isArray(next[day])) {
+          const matchedIds = unitClasses
+            .filter(c => getClassWeekdays(c).includes(day))
+            .map(c => c.id);
+          next[day] = matchedIds;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [classWeekdays, unitClasses]);
+
+  const toggleClassForWeekday = (day: number, classId: string) => {
+    setWeekdayClasses(prev => {
+      const current = Array.isArray(prev[day]) ? prev[day] : [];
+      const exists = current.includes(classId);
+      return {
+        ...prev,
+        [day]: exists ? current.filter(id => id !== classId) : [...current, classId]
+      };
+    });
+  };
 
   // 3. Períodos Letivos (Sem datas pré-selecionadas)
   const [periods, setPeriods] = useState<AcademicPeriod[]>(() => [
@@ -215,18 +263,27 @@ export function AnnualCalendarManager({
     loadHolidays(targetYear, stateUf, cityName);
   }, [targetYear, stateUf, cityName, loadHolidays]);
 
-  // Carrega versões salvas ou rascunho anterior do ano
+  // Carrega versões salvas ou rascunho anterior do ano/unidade
   const loadVersions = useCallback(async () => {
+    setSelectedVersionId(null);
+    setErrorMsg(null);
+    let loadedAny = false;
+
     // 1. Tenta recuperar rascunho salvo anteriormente
     const draft = getCalendarDraft(targetYear, targetUnitId);
     if (draft && draft.params) {
+      loadedAny = true;
       if (draft.params.start_date) setStartDate(draft.params.start_date);
       if (draft.params.end_date) setEndDate(draft.params.end_date);
       if (Array.isArray(draft.params.weekdays)) setClassWeekdays(draft.params.weekdays);
       if (draft.params.periods && draft.params.periods.length > 0) setPeriods(draft.params.periods);
       if (draft.params.recesses) setRecesses(draft.params.recesses);
       if (draft.params.holidays && draft.params.holidays.length > 0) setHolidays(draft.params.holidays);
-      if (draft.days && Object.keys(draft.days).length > 0) setCalendarDays(draft.days);
+      if (draft.days && Object.keys(draft.days).length > 0) {
+        setCalendarDays(draft.days);
+      } else {
+        setCalendarDays(null);
+      }
       if (draft.saved_at) {
         setLastDraftSavedAt(new Date(draft.saved_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
       }
@@ -235,7 +292,8 @@ export function AnnualCalendarManager({
     // 2. Busca histórico de versões oficiais / homologadas
     const list = await getCalendarVersions(targetYear, targetUnitId);
     setVersions(list);
-    if (list.length > 0 && !selectedVersionId) {
+    if (list.length > 0) {
+      loadedAny = true;
       const activeVer = list.find(v => v.status === 'published') || list.find(v => v.status === 'approved') || list[0];
       setSelectedVersionId(activeVer.id);
       setCalendarDays(activeVer.days);
@@ -246,7 +304,16 @@ export function AnnualCalendarManager({
       if (activeVer.recesses) setRecesses(activeVer.recesses);
       if (activeVer.holidays) setHolidays(activeVer.holidays);
     }
-  }, [targetYear, targetUnitId, selectedVersionId]);
+
+    if (!loadedAny) {
+      setStartDate('');
+      setEndDate('');
+      setClassWeekdays([]);
+      setRecesses([]);
+      setCalendarDays(null);
+      setLastDraftSavedAt(null);
+    }
+  }, [targetYear, targetUnitId]);
 
   useEffect(() => {
     loadVersions();
@@ -284,13 +351,14 @@ export function AnnualCalendarManager({
   // Geração Automática do Calendário
   const handleGenerate = () => {
     if (!validation.isValid) {
-      alert(`Por favor, corrija os seguintes pontos antes de gerar:\n\n• ${validation.errors.join('\n• ')}`);
+      setErrorMsg(`Corrija antes de gerar: ${validation.errors.join(' • ')}`);
       return;
     }
+    setErrorMsg(null);
 
     const generated = generateAnnualCalendarDays(currentParams, calendarDays || undefined);
     setCalendarDays(generated);
-    setSaveSuccessMsg('Calendário anual gerado com sucesso! Revise a pré-visualização abaixo antes de salvar.');
+    setSaveSuccessMsg('Calendário anual gerado com sucesso! Revise a pré-visualização abaixo antes de salvar ou publicar.');
     setTimeout(() => setSaveSuccessMsg(null), 5000);
   };
 
@@ -375,6 +443,7 @@ export function AnnualCalendarManager({
   };
 
   const handleStartAddHoliday = () => {
+    setModalError(null);
     setEditingHoliday({
       id: `hol_custom_${Date.now()}`,
       name: '',
@@ -392,6 +461,7 @@ export function AnnualCalendarManager({
   };
 
   const handleStartEditHoliday = (h: HolidayEntry) => {
+    setModalError(null);
     setEditingHoliday({ ...h });
     setIsNewHoliday(false);
   };
@@ -399,13 +469,14 @@ export function AnnualCalendarManager({
   const handleSaveHoliday = () => {
     if (!editingHoliday) return;
     if (!editingHoliday.name.trim()) {
-      alert('Informe o nome do feriado.');
+      setModalError('Informe o nome do feriado ou evento.');
       return;
     }
     if (!editingHoliday.date) {
-      alert('Informe a data do feriado.');
+      setModalError('Informe a data do feriado.');
       return;
     }
+    setModalError(null);
 
     if (isNewHoliday) {
       setHolidays(prev => [...prev, editingHoliday]);
@@ -443,6 +514,7 @@ export function AnnualCalendarManager({
   const handleOpenOverrideModal = (dateStr: string) => {
     if (!calendarDays || !calendarDays[dateStr]) return;
     const current = calendarDays[dateStr];
+    setModalError(null);
     setOverrideModalDate(dateStr);
     setOverrideClassification(current.classification);
     setOverrideIsClassDay(current.is_class_day);
@@ -453,9 +525,10 @@ export function AnnualCalendarManager({
   const handleSaveOverride = () => {
     if (!overrideModalDate || !calendarDays) return;
     if (!overrideReason.trim()) {
-      alert('Por favor, informe a justificativa ou motivo deste ajuste para auditoria.');
+      setModalError('Informe a justificativa ou motivo deste ajuste para auditoria.');
       return;
     }
+    setModalError(null);
 
     const updated = applyManualOverrideToDate(
       calendarDays,
@@ -531,25 +604,39 @@ export function AnnualCalendarManager({
     }
 
     setIsSaving(true);
+    setErrorMsg(null);
     try {
       const saved = await saveCalendarVersion(
         currentParams,
         calendarDays,
         status,
-        profile?.name || userAuth?.email || 'Administrador'
+        profile?.name || userAuth?.email || 'Administrador',
+        undefined,
+        status === 'published'
+          ? {
+              classes: unitClasses,
+              weekdayClasses,
+              userId: userAuth?.uid,
+              syncSettings: true
+            }
+          : undefined
       );
       setVersions(prev => [saved, ...prev.filter(v => v.id !== saved.id)]);
       setSelectedVersionId(saved.id);
-      setSaveSuccessMsg(`Versão ${saved.version} salva com sucesso como ${status === 'published' ? 'PUBLICADA' : status.toUpperCase()}!`);
+      setSaveSuccessMsg(
+        status === 'published'
+          ? `Versão ${saved.version} PUBLICADA e turmas/datas sincronizadas com o Cronograma!`
+          : `Versão ${saved.version} salva como ${status === 'approved' ? 'APROVADA' : 'RASCUNHO'}!`
+      );
       setShowConfirmPublish(false);
-      setTimeout(() => setSaveSuccessMsg(null), 5000);
+      setTimeout(() => setSaveSuccessMsg(null), 5500);
 
       if (status === 'published' && onCalendarPublished) {
         onCalendarPublished();
       }
     } catch (err: any) {
       console.error('Erro ao salvar versão do calendário:', err);
-      alert('Erro ao salvar calendário. Verifique a conexão e tente novamente.');
+      setErrorMsg('Erro ao salvar ou publicar calendário. Verifique a conexão e tente novamente.');
     } finally {
       setIsSaving(false);
     }
@@ -703,7 +790,23 @@ export function AnnualCalendarManager({
         </div>
       </div>
 
-      {/* Alerta de Sucesso ou Aviso de Fallback da API */}
+      {/* Alerta de Sucesso, Erro ou Aviso de Fallback da API */}
+      {errorMsg && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-semibold flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="text-rose-600 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            className="text-rose-700 hover:text-rose-900 text-xs font-bold cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {saveSuccessMsg && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 font-semibold flex items-center gap-2">
           <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
@@ -911,8 +1014,8 @@ export function AnnualCalendarManager({
               </div>
             </div>
 
-            {/* Dias da Semana de Aula */}
-            <div className="pt-2 border-t border-slate-100">
+            {/* Dias da Semana de Aula e Turmas Vinculadas */}
+            <div className="pt-2 border-t border-slate-100 space-y-3">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                   Dias da Semana em que Há Aulas
@@ -947,6 +1050,67 @@ export function AnnualCalendarManager({
                   })}
                 </div>
               </div>
+
+              {classWeekdays.length > 0 && (
+                <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                      Turmas Vinculadas por Dia da Semana ({getUnitName(targetUnitId)})
+                    </span>
+                    <span className="text-[10px] font-semibold text-slate-500">
+                      Ao publicar, os dias letivos serão associados às turmas marcadas
+                    </span>
+                  </div>
+
+                  {unitClasses.length === 0 ? (
+                    <p className="text-[11px] text-slate-500 italic">
+                      Nenhuma turma ativa encontrada nesta unidade. As datas serão geradas como registro geral da unidade.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {classWeekdays.map(day => {
+                        const selectedIds = weekdayClasses[day] || [];
+                        return (
+                          <div key={`wc_${day}`} className="bg-white border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-slate-900">
+                                {WEEKDAY_NAMES_BR[day]}
+                              </span>
+                              <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
+                                {selectedIds.length} {selectedIds.length === 1 ? 'turma selecionada' : 'turmas selecionadas'}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {unitClasses.map(cls => {
+                                const isChecked = selectedIds.includes(cls.id);
+                                const isNativeDay = getClassWeekdays(cls).includes(day);
+                                return (
+                                  <button
+                                    key={`${day}_${cls.id}`}
+                                    type="button"
+                                    onClick={() => toggleClassForWeekday(day, cls.id)}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer inline-flex items-center gap-1.5",
+                                      isChecked
+                                        ? "bg-[#0F2A30] text-white border-[#0F2A30] shadow-2xs"
+                                        : isNativeDay
+                                          ? "bg-teal-50 text-teal-900 border-teal-300 hover:bg-teal-100"
+                                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                    )}
+                                  >
+                                    {isChecked && <Check size={11} className="text-teal-300" />}
+                                    <span>{cls.name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1876,6 +2040,13 @@ export function AnnualCalendarManager({
               </button>
             </div>
 
+            {modalError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-semibold flex items-center gap-2">
+                <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
             <div className="space-y-3">
               <div>
                 <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
@@ -2048,6 +2219,13 @@ export function AnnualCalendarManager({
                 <X size={18} />
               </button>
             </div>
+
+            {modalError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-semibold flex items-center gap-2">
+                <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
             <div className="space-y-3">
               <div>
@@ -2275,154 +2453,222 @@ export function AnnualCalendarManager({
       )}
       </div>
 
-      {/* 2. ÁREA EXCLUSIVA DE IMPRESSÃO (Conforme visualizado em tela) */}
-      {calendarDays && summary && (
-        <div id="annual-calendar-printable" className="hidden print:block w-full bg-white text-slate-900 p-0 m-0">
-          <style>{`
-            @media print {
-              body {
-                background: #ffffff !important;
-                color: #000000 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              #annual-calendar-printable {
-                display: block !important;
-                width: 210mm !important;
-                max-width: 210mm !important;
-                box-sizing: border-box !important;
-                margin: 0 auto !important;
-                padding: 12mm 15mm 10mm 15mm !important;
-                visibility: visible !important;
-              }
-              .print-break-inside-avoid {
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-              }
-            }
-          `}</style>
+      {/* 2. ÁREA EXCLUSIVA DE IMPRESSÃO NO PADRÃO OFICIAL A4 */}
+      {calendarDays && summary && (() => {
+        const unitLabel = getUnitName(targetUnitId);
+        const viewLabel = previewMode === 'months'
+          ? 'Grade Anual (12 Meses)'
+          : previewMode === 'single_month'
+            ? `Visão Mensal (${MONTH_NAMES_BR[singleMonthIdx]})`
+            : 'Tabela Detalhada';
+        const baseFilterText = `ANO LETIVO: ${targetYear} • UNIDADE: ${unitLabel} • ${cityName}/${stateUf} • ${viewLabel}`;
 
-          {/* Cabeçalho do Documento Impresso */}
-          <div className="border-b-2 border-slate-900 pb-3 mb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {institution?.logo_url ? (
-                  <img src={institution.logo_url} alt="Logo" className="h-12 w-auto object-contain" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-10 h-10 bg-slate-900 text-white flex items-center justify-center font-bold text-lg">
-                    {institution?.name?.charAt(0) || 'E'}
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-base font-black uppercase tracking-tight text-slate-950">
-                    {institution?.name || 'Sistema de Gestão Escolar'}
-                  </h1>
-                  <p className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider">
-                    {institution?.city_uf || `${cityName} - ${stateUf}`} {institution?.cnpj ? `• CNPJ: ${institution.cnpj}` : ''}
-                  </p>
-                </div>
-              </div>
+        const linkedSummary = classWeekdays.map(d => {
+          const ids = weekdayClasses[d] || [];
+          const names = ids
+            .map(id => unitClasses.find(c => c.id === id)?.name)
+            .filter(Boolean);
+          return `${WEEKDAY_SHORT_BR[d]}: ${names.length > 0 ? names.join(', ') : 'Geral'}`;
+        }).join(' | ');
 
-              <div className="text-right">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-900 bg-slate-100 border border-slate-300 px-2 py-0.5">
-                  Ano Letivo {targetYear}
-                </span>
-                <p className="text-[9px] text-slate-500 font-mono mt-0.5">
-                  Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
+        const filteredTableRows = Object.values(calendarDays).filter(d => {
+          if (selectedMonthFilter === 'all') return true;
+          const mNum = parseInt(d.date.split('-')[1], 10);
+          return mNum === selectedMonthFilter;
+        });
 
-            <div className="mt-2 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-              <div>
-                <strong className="text-slate-900">CALENDÁRIO ESCOLAR OFICIAL</strong>
-                <span className="text-slate-600 ml-2">• Polo/Unidade: <strong>{getUnitName(targetUnitId)}</strong></span>
-                <span className="text-slate-600 ml-2">• Local: <strong>{cityName} - {stateUf}</strong></span>
-              </div>
-              <div className="text-slate-700 font-semibold">
-                Visualização: <strong className="uppercase">{previewMode === 'months' ? 'Grade Anual (12 Meses)' : previewMode === 'single_month' ? `Visão Mensal (${MONTH_NAMES_BR[singleMonthIdx]})` : 'Tabela Detalhada'}</strong>
-              </div>
-            </div>
-          </div>
+        const TABLE_ROWS_PER_PAGE = 26;
+        const tableChunks: CalendarDayRecord[][] = [];
+        if (previewMode === 'table') {
+          for (let idx = 0; idx < filteredTableRows.length; idx += TABLE_ROWS_PER_PAGE) {
+            tableChunks.push(filteredTableRows.slice(idx, idx + TABLE_ROWS_PER_PAGE));
+          }
+          if (tableChunks.length === 0) tableChunks.push([]);
+        }
 
-          {/* Barra de Totais / Métricas do Calendário (Sem Metas) */}
-          <div className="grid grid-cols-4 gap-2 mb-3 bg-slate-50 border border-slate-300 p-2 text-center text-xs">
+        const metricsStrip = (
+          <div className="grid grid-cols-4 gap-2 mb-2 bg-slate-50 border border-slate-300 p-1.5 text-center shrink-0">
             <div className="border-r border-slate-200 pr-1">
-              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Total Dias Letivos</span>
-              <strong className="text-base font-black text-emerald-800 font-mono">{summary.total_class_days}</strong>
+              <span className="text-[7pt] uppercase tracking-wider font-bold text-slate-600 block">Dias Letivos</span>
+              <strong className="text-[11pt] font-black text-emerald-800 font-mono">{summary.total_class_days}</strong>
             </div>
             <div className="border-r border-slate-200 pr-1">
-              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Feriados</span>
-              <strong className="text-base font-black text-slate-900 font-mono">{summary.total_holidays}</strong>
+              <span className="text-[7pt] uppercase tracking-wider font-bold text-slate-600 block">Feriados</span>
+              <strong className="text-[11pt] font-black text-slate-900 font-mono">{summary.total_holidays}</strong>
             </div>
             <div className="border-r border-slate-200 pr-1">
-              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Recessos / Férias</span>
-              <strong className="text-base font-black text-slate-900 font-mono">{summary.total_recess_days}</strong>
+              <span className="text-[7pt] uppercase tracking-wider font-bold text-slate-600 block">Recessos / Férias</span>
+              <strong className="text-[11pt] font-black text-slate-900 font-mono">{summary.total_recess_days}</strong>
             </div>
             <div>
-              <span className="text-[9px] uppercase tracking-wider font-bold text-slate-600 block">Ajustes Manuais</span>
-              <strong className="text-base font-black text-purple-900 font-mono">{summary.total_manual_overrides}</strong>
+              <span className="text-[7pt] uppercase tracking-wider font-bold text-slate-600 block">Ajustes Manuais</span>
+              <strong className="text-[11pt] font-black text-purple-900 font-mono">{summary.total_manual_overrides}</strong>
             </div>
           </div>
+        );
 
-          {/* Períodos Letivos */}
-          <div className="mb-3 p-2 bg-white border border-slate-300 text-[10px]">
-            <strong className="text-slate-800 uppercase block mb-1">Períodos Letivos:</strong>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {summary.by_period.map(p => (
-                <div key={p.period_id} className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-900">{p.period_name}:</span>
-                  <span className="font-mono text-slate-700">
-                    {p.start_date ? p.start_date.split('-').reverse().join('/') : '-'} a {p.end_date ? p.end_date.split('-').reverse().join('/') : '-'}
+        const periodsAndLegendStrip = (
+          <div className="space-y-1.5 mb-2 shrink-0">
+            <div className="p-1.5 bg-white border border-slate-300 text-[7.5pt]">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                <strong className="text-slate-900 uppercase">Períodos Letivos:</strong>
+                {summary.by_period.map(p => (
+                  <span key={p.period_id} className="inline-flex items-center gap-1">
+                    <span className="font-bold text-slate-900">{p.period_name}:</span>
+                    <span className="font-mono text-slate-700">
+                      {p.start_date ? p.start_date.split('-').reverse().join('/') : '-'} a {p.end_date ? p.end_date.split('-').reverse().join('/') : '-'}
+                    </span>
+                    <span className="font-bold text-emerald-800 font-mono">({p.class_days}d)</span>
                   </span>
-                  <span className="font-bold text-emerald-800 font-mono bg-emerald-50 px-1 border border-emerald-200">
-                    ({p.class_days} letivos)
-                  </span>
+                ))}
+              </div>
+              {linkedSummary && (
+                <p className="text-[7pt] text-slate-700 mt-1 pt-1 border-t border-slate-200 truncate">
+                  <strong>Turmas Vinculadas:</strong> {linkedSummary}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1 bg-slate-50 border border-slate-300 text-[7pt] font-bold">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-200 border border-emerald-500"></span>Dia Letivo</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-200 border border-red-500"></span>Feriado Nac.</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-200 border border-amber-500"></span>Feriado Est.</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-violet-200 border border-violet-500"></span>Feriado Mun.</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-200 border border-yellow-500"></span>Recesso</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-cyan-200 border border-cyan-500"></span>Férias</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-200 border border-purple-700"></span>Ajuste Manual</span>
+            </div>
+          </div>
+        );
+
+        const signatureBlock = (
+          <div className="pt-2 mt-auto border-t border-slate-300 grid grid-cols-2 gap-10 text-center text-[8pt] shrink-0">
+            <div>
+              <div className="border-t border-slate-400 mt-6 pt-1">
+                <p className="font-bold text-slate-900">Coordenação Pedagógica</p>
+                <p className="text-[7pt] text-slate-500">Visto e Homologação</p>
+              </div>
+            </div>
+            <div>
+              <div className="border-t border-slate-400 mt-6 pt-1">
+                <p className="font-bold text-slate-900">Direção Escolar</p>
+                <p className="text-[7pt] text-slate-500">Aprovação e Publicação</p>
+              </div>
+            </div>
+          </div>
+        );
+
+        return (
+          <div id="annual-calendar-printable" className="hidden print:block w-full bg-white text-slate-950">
+            {previewMode === 'months' && (
+              <StandardReportSheet
+                inst={institution}
+                title="CALENDÁRIO ESCOLAR OFICIAL"
+                filterText={baseFilterText}
+                pageNumber={1}
+                totalPages={1}
+              >
+                {metricsStrip}
+                {periodsAndLegendStrip}
+
+                <div className="grid grid-cols-3 gap-2 flex-1 min-h-0">
+                  {MONTH_NAMES_BR.map((monthName, mIdx) => {
+                    const daysInMonth = getDaysInMonth(targetYear, mIdx);
+                    const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
+                    const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
+                    const mSummary = summary.by_month[mIdx];
+
+                    return (
+                      <div key={monthName} className="border border-slate-300 p-1.5 bg-white flex flex-col justify-between text-[7.5pt]">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-0.5 mb-0.5">
+                          <strong className="font-black text-[8pt] text-slate-900 uppercase">{monthName}</strong>
+                          <span className="font-mono font-bold text-emerald-900 bg-emerald-50 px-1 border border-emerald-300 text-[6.5pt]">
+                            {mSummary.class_days} let.
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-0.5 text-center font-bold text-slate-500 mb-0.5 text-[6.5pt]">
+                          {WEEKDAY_SHORT_BR.map(w => (
+                            <span key={w}>{w[0]}</span>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-0.5 text-center">
+                          {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                            <div key={`print_blank_${i}`} className="h-[15px]" />
+                          ))}
+
+                          {Array.from({ length: daysInMonth }).map((_, i) => {
+                            const dayNum = i + 1;
+                            const dateKey = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                            const dayRecord = calendarDays[dateKey];
+                            if (!dayRecord) return null;
+
+                            const isManual = dayRecord.is_manual_override;
+                            const badgeCls = getBadgeStyleForClassification(dayRecord.classification, isManual);
+
+                            return (
+                              <div
+                                key={`print_${dateKey}`}
+                                className={cn(
+                                  "h-[15px] flex items-center justify-center font-bold border text-[7pt] leading-none",
+                                  badgeCls
+                                )}
+                              >
+                                {dayNum}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Legenda Visual Completa */}
-          <div className="mb-3 flex items-center justify-between p-2 bg-slate-50 border border-slate-300 text-[9px] font-bold">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-emerald-100 border border-emerald-400"></span>Dia Letivo</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-red-100 border border-red-400"></span>Feriado Nacional</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-amber-100 border border-amber-400"></span>Feriado Estadual</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-purple-100 border border-purple-400"></span>Feriado Municipal</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-yellow-100 border border-yellow-400"></span>Recesso</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-cyan-100 border border-cyan-400"></span>Férias</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-purple-200 border-2 border-purple-600"></span>Ajuste Manual</span>
-          </div>
+                {signatureBlock}
+              </StandardReportSheet>
+            )}
 
-          {/* CONTEÚDO CONFORME VISUALIZAÇÃO EM TELA */}
-          
-          {/* MODO 1 IMPRESSÃO: GRADE ANUAL (12 MESES) */}
-          {previewMode === 'months' && (
-            <div className="grid grid-cols-3 gap-2.5 mb-4">
-              {MONTH_NAMES_BR.map((monthName, mIdx) => {
-                const daysInMonth = getDaysInMonth(targetYear, mIdx);
-                const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
-                const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
-                const mSummary = summary.by_month[mIdx];
+            {previewMode === 'single_month' && (() => {
+              const mIdx = singleMonthIdx;
+              const monthName = MONTH_NAMES_BR[mIdx];
+              const daysInMonth = getDaysInMonth(targetYear, mIdx);
+              const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
+              const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
+              const mSummary = summary.by_month[mIdx];
 
-                return (
-                  <div key={monthName} className="border border-slate-300 p-1.5 bg-white print-break-inside-avoid text-[9px]">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <strong className="font-black text-[10px] text-slate-900 uppercase">{monthName}</strong>
-                      <span className="font-mono font-bold text-emerald-900 bg-emerald-50 px-1 border border-emerald-300">
-                        {mSummary.class_days} letivos
-                      </span>
+              return (
+                <StandardReportSheet
+                  inst={institution}
+                  title={`CALENDÁRIO ESCOLAR — ${monthName.toUpperCase()} / ${targetYear}`}
+                  filterText={baseFilterText}
+                  pageNumber={1}
+                  totalPages={1}
+                >
+                  {metricsStrip}
+                  {periodsAndLegendStrip}
+
+                  <div className="flex items-center justify-between bg-slate-100 px-3 py-1.5 border border-slate-300 text-[8.5pt] mb-2 shrink-0">
+                    <h3 className="font-black uppercase text-slate-900">{monthName} de {targetYear}</h3>
+                    <div className="flex items-center gap-3 font-bold text-slate-700">
+                      <span>{mSummary.class_days} Dias Letivos</span>
+                      <span>•</span>
+                      <span>{mSummary.holidays} Feriados</span>
+                      <span>•</span>
+                      <span>{mSummary.recess_days} Recessos/Férias</span>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-7 gap-0.5 text-center font-bold text-slate-500 mb-0.5 text-[8px]">
-                      {WEEKDAY_SHORT_BR.map(w => (
-                        <span key={w}>{w[0]}</span>
+                  <div className="border border-slate-300 flex-1 min-h-0 flex flex-col">
+                    <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-300 text-center py-1 text-[8pt] font-bold uppercase shrink-0">
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                        <div key={d}>{d}</div>
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-7 gap-0.5 text-center">
+                    <div className="grid grid-cols-7 gap-px bg-slate-300 flex-1">
                       {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                        <div key={`print_blank_${i}`} className="h-5" />
+                        <div key={`print_m_blank_${i}`} className="bg-slate-50 min-h-[58px] p-1" />
                       ))}
 
                       {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -2435,156 +2681,96 @@ export function AnnualCalendarManager({
                         const badgeCls = getBadgeStyleForClassification(dayRecord.classification, isManual);
 
                         return (
-                          <div
-                            key={`print_${dateKey}`}
-                            className={cn(
-                              "h-5 flex items-center justify-center font-bold border text-[8.5px]",
-                              badgeCls
+                          <div key={`print_m_${dateKey}`} className={cn("bg-white min-h-[58px] p-1 flex flex-col justify-between text-[7.5pt]", dayRecord.is_class_day && "bg-emerald-50/20")}>
+                            <div className="flex items-center justify-between">
+                              <span className="font-black text-[9pt] font-mono">{dayNum}</span>
+                              <span className={cn("px-1 py-0.2 rounded text-[6.5pt] font-bold border", badgeCls)}>
+                                {dayRecord.is_class_day ? 'Aula' : 'Sem Aula'}
+                              </span>
+                            </div>
+                            <p className="text-[7pt] font-semibold text-slate-800 line-clamp-2 leading-tight">
+                              {dayRecord.event_name || (dayRecord.is_class_day ? 'Dia Letivo' : '')}
+                            </p>
+                            {isManual && (
+                              <p className="text-[6.5pt] text-purple-800 font-bold truncate">★ {dayRecord.override_reason}</p>
                             )}
-                          >
-                            <span>{dayNum}</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
 
-          {/* MODO 2 IMPRESSÃO: VISÃO MENSAL AMPLA */}
-          {previewMode === 'single_month' && (() => {
-            const mIdx = singleMonthIdx;
-            const monthName = MONTH_NAMES_BR[mIdx];
-            const daysInMonth = getDaysInMonth(targetYear, mIdx);
-            const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
-            const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
-            const mSummary = summary.by_month[mIdx];
+                  {signatureBlock}
+                </StandardReportSheet>
+              );
+            })()}
 
-            return (
-              <div className="mb-4 space-y-2 print-break-inside-avoid">
-                <div className="flex items-center justify-between bg-slate-100 p-2 border border-slate-300 text-xs">
-                  <h3 className="font-black text-sm uppercase text-slate-900">{monthName} de {targetYear}</h3>
-                  <div className="flex items-center gap-3 font-semibold">
-                    <span>{mSummary.class_days} Dias Letivos</span>
-                    <span>•</span>
-                    <span>{mSummary.holidays} Feriados</span>
-                    <span>•</span>
-                    <span>{mSummary.recess_days} Recessos/Férias</span>
+            {previewMode === 'table' && tableChunks.map((chunk, chunkIdx) => {
+              const isFirstPage = chunkIdx === 0;
+              const isLastPage = chunkIdx === tableChunks.length - 1;
+              return (
+                <StandardReportSheet
+                  key={`annual-table-page-${chunkIdx}`}
+                  inst={institution}
+                  title="CALENDÁRIO ESCOLAR OFICIAL — DETALHAMENTO"
+                  filterText={baseFilterText}
+                  pageNumber={chunkIdx + 1}
+                  totalPages={tableChunks.length}
+                >
+                  {isFirstPage && (
+                    <>
+                      {metricsStrip}
+                      {periodsAndLegendStrip}
+                    </>
+                  )}
+
+                  <div className="border border-slate-300 rounded overflow-hidden flex-1 min-h-0">
+                    <table className="w-full text-left text-[8pt] border-collapse">
+                      <thead className="bg-slate-100 text-[7.5pt] font-bold text-slate-900 uppercase">
+                        <tr className="border-b border-slate-300">
+                          <th className="p-1.5 border-r border-slate-300 w-[75px]">Data</th>
+                          <th className="p-1.5 border-r border-slate-300 w-[60px]">Dia</th>
+                          <th className="p-1.5 border-r border-slate-300 text-center w-[110px]">Classificação</th>
+                          <th className="p-1.5 border-r border-slate-300 text-center w-[55px]">Letivo?</th>
+                          <th className="p-1.5">Evento / Ajuste Manual</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {chunk.map(d => (
+                          <tr key={`print_t_${d.date}`}>
+                            <td className="p-1 font-mono font-bold border-r border-slate-200">
+                              {d.date.split('-').reverse().join('/')}
+                            </td>
+                            <td className="p-1 border-r border-slate-200">
+                              {WEEKDAY_SHORT_BR[d.day_of_week]}
+                            </td>
+                            <td className="p-1 text-center border-r border-slate-200">
+                              <span className={cn("px-1.5 py-0.5 rounded text-[7pt] font-bold border", getBadgeStyleForClassification(d.classification, d.is_manual_override))}>
+                                {d.classification}
+                              </span>
+                            </td>
+                            <td className="p-1 text-center font-bold font-mono border-r border-slate-200">
+                              {d.is_class_day ? <span className="text-emerald-700">SIM</span> : <span className="text-slate-400">NÃO</span>}
+                            </td>
+                            <td className="p-1 text-slate-800 truncate max-w-[320px]">
+                              {d.event_name || (d.is_class_day ? 'Dia Letivo Regular' : '')}
+                              {d.is_manual_override && (
+                                <span className="text-purple-800 font-bold ml-1">• Ajuste: {d.override_reason}</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
 
-                <div className="border border-slate-300">
-                  <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-300 text-center py-1.5 text-[10px] font-bold uppercase">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                      <div key={d}>{d}</div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-px bg-slate-300">
-                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                      <div key={`print_m_blank_${i}`} className="bg-slate-50 min-h-[70px] p-1.5" />
-                    ))}
-
-                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                      const dayNum = i + 1;
-                      const dateKey = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                      const dayRecord = calendarDays[dateKey];
-                      if (!dayRecord) return null;
-
-                      const isManual = dayRecord.is_manual_override;
-                      const badgeCls = getBadgeStyleForClassification(dayRecord.classification, isManual);
-
-                      return (
-                        <div key={`print_m_${dateKey}`} className={cn("bg-white min-h-[70px] p-1.5 flex flex-col justify-between text-[10px]", dayRecord.is_class_day && "bg-emerald-50/20")}>
-                          <div className="flex items-center justify-between">
-                            <span className="font-black text-xs font-mono">{dayNum}</span>
-                            <span className={cn("px-1 py-0.2 rounded text-[7.5px] font-bold border", badgeCls)}>
-                              {dayRecord.is_class_day ? 'Aula' : 'Sem Aula'}
-                            </span>
-                          </div>
-                          <p className="text-[8.5px] font-medium text-slate-800 line-clamp-2 mt-1">
-                            {dayRecord.event_name || (dayRecord.is_class_day ? 'Dia Letivo' : '')}
-                          </p>
-                          {isManual && (
-                            <p className="text-[7.5px] text-purple-800 font-bold">★ {dayRecord.override_reason}</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* MODO 3 IMPRESSÃO: TABELA DETALHADA */}
-          {previewMode === 'table' && (
-            <div className="mb-4">
-              <table className="w-full text-left text-[9px] border-collapse border border-slate-300">
-                <thead className="bg-slate-100 text-[9px] font-bold text-slate-900 uppercase">
-                  <tr className="border-b border-slate-300">
-                    <th className="p-1.5 border-r border-slate-300">Data</th>
-                    <th className="p-1.5 border-r border-slate-300">Semana</th>
-                    <th className="p-1.5 border-r border-slate-300 text-center">Classificação</th>
-                    <th className="p-1.5 border-r border-slate-300 text-center">Letivo?</th>
-                    <th className="p-1.5">Evento / Ajuste Manual</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {Object.values(calendarDays)
-                    .filter(d => {
-                      if (selectedMonthFilter === 'all') return true;
-                      const mNum = parseInt(d.date.split('-')[1], 10);
-                      return mNum === selectedMonthFilter;
-                    })
-                    .map(d => (
-                      <tr key={`print_t_${d.date}`} className="print-break-inside-avoid">
-                        <td className="p-1 font-mono font-bold border-r border-slate-200">
-                          {d.date.split('-').reverse().join('/')}
-                        </td>
-                        <td className="p-1 border-r border-slate-200">
-                          {WEEKDAY_SHORT_BR[d.day_of_week]}
-                        </td>
-                        <td className="p-1 text-center border-r border-slate-200">
-                          <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-bold border", getBadgeStyleForClassification(d.classification, d.is_manual_override))}>
-                            {d.classification}
-                          </span>
-                        </td>
-                        <td className="p-1 text-center font-bold font-mono border-r border-slate-200">
-                          {d.is_class_day ? <span className="text-emerald-700">SIM</span> : <span className="text-slate-400">NÃO</span>}
-                        </td>
-                        <td className="p-1 text-slate-800">
-                          {d.event_name || (d.is_class_day ? 'Dia Letivo Regular' : '')}
-                          {d.is_manual_override && (
-                            <span className="text-purple-800 font-bold ml-1">• Ajuste: {d.override_reason}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Rodapé e Assinaturas */}
-          <div className="pt-4 border-t-2 border-slate-900 grid grid-cols-2 gap-8 text-center text-xs print-break-inside-avoid">
-            <div>
-              <div className="border-t border-slate-400 mt-8 pt-1">
-                <p className="font-bold text-slate-900">Coordenação Pedagógica</p>
-                <p className="text-[9px] text-slate-500">Visto e Homologação</p>
-              </div>
-            </div>
-            <div>
-              <div className="border-t border-slate-400 mt-8 pt-1">
-                <p className="font-bold text-slate-900">Direção Escolar</p>
-                <p className="text-[9px] text-slate-500">Aprovação e Publicação</p>
-              </div>
-            </div>
+                  {isLastPage && signatureBlock}
+                </StandardReportSheet>
+              );
+            })}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

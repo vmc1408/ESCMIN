@@ -26,18 +26,124 @@ const WEEKDAY_NAMES = [
 
 const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-interface MonthReportData {
+export interface MonthReportData {
   monthIndex: number;
   monthName: string;
-  days: number[]; // Distinct days of the month with classes, sorted: [4, 10, 12, 16]
+  days: number[];
   totalClasses: number;
 }
 
-interface WeekdayReportData {
+export interface WeekdayReportData {
   weekday: number;
   weekdayName: string;
   months: MonthReportData[];
   totalAnnualClasses: number;
+}
+
+export interface SynopticRowData {
+  monthIndex: number;
+  monthName: string;
+  cells: Record<number, number>;
+  monthTotal: number;
+}
+
+export function computeDayMonthReportData(
+  events: CalendarEvent[],
+  currentYear: string,
+  selectedWeekday: number | 'all' = 'all',
+  selectedMonth: number | 'all' = 'all'
+) {
+  const targetTypes = ['class_day', 'exam'];
+  const uniqueDates = new Set<string>();
+
+  (events || []).forEach(e => {
+    if (!e.start_date || !e.start_date.startsWith(currentYear)) return;
+    if (!targetTypes.includes(e.type)) return;
+    uniqueDates.add(e.start_date);
+  });
+
+  const sortedDates = Array.from(uniqueDates).sort();
+  const weekdayMap = new Map<number, Map<number, Set<number>>>();
+
+  sortedDates.forEach(dateStr => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const wDay = d.getDay();
+    const mIdx = d.getMonth();
+    const dayNum = d.getDate();
+
+    if (selectedWeekday !== 'all' && wDay !== selectedWeekday) return;
+    if (selectedMonth !== 'all' && mIdx !== selectedMonth) return;
+
+    if (!weekdayMap.has(wDay)) {
+      weekdayMap.set(wDay, new Map<number, Set<number>>());
+    }
+    const mGroup = weekdayMap.get(wDay)!;
+    if (!mGroup.has(mIdx)) {
+      mGroup.set(mIdx, new Set<number>());
+    }
+    mGroup.get(mIdx)!.add(dayNum);
+  });
+
+  const weekdayKeys = Array.from(weekdayMap.keys()).sort((a, b) => {
+    const orderA = a === 0 ? 7 : a;
+    const orderB = b === 0 ? 7 : b;
+    return orderA - orderB;
+  });
+
+  let overallTotal = 0;
+
+  const weekdaySections: WeekdayReportData[] = weekdayKeys.map(wDay => {
+    const mGroup = weekdayMap.get(wDay)!;
+    const monthIndices = Array.from(mGroup.keys()).sort((a, b) => a - b);
+
+    let wTotal = 0;
+    const months: MonthReportData[] = monthIndices.map(mIdx => {
+      const days = Array.from(mGroup.get(mIdx)!).sort((a, b) => a - b);
+      wTotal += days.length;
+      return {
+        monthIndex: mIdx,
+        monthName: MONTH_NAMES[mIdx],
+        days,
+        totalClasses: days.length
+      };
+    });
+
+    overallTotal += wTotal;
+
+    return {
+      weekday: wDay,
+      weekdayName: WEEKDAY_NAMES[wDay],
+      months,
+      totalAnnualClasses: wTotal
+    };
+  });
+
+  const synopticTable: SynopticRowData[] = MONTH_NAMES.map((mName, mIdx) => {
+    if (selectedMonth !== 'all' && selectedMonth !== mIdx) return null;
+
+    const cells: Record<number, number> = {};
+    let monthTotal = 0;
+
+    weekdayKeys.forEach(wDay => {
+      const days = weekdayMap.get(wDay)?.get(mIdx);
+      const count = days ? days.size : 0;
+      cells[wDay] = count;
+      monthTotal += count;
+    });
+
+    return {
+      monthIndex: mIdx,
+      monthName: mName,
+      cells,
+      monthTotal
+    };
+  }).filter(Boolean) as SynopticRowData[];
+
+  return {
+    weekdaySections,
+    totalAnnualAllWeekdays: overallTotal,
+    synopticTable
+  };
 }
 
 export function DayMonthClassReport({
@@ -45,7 +151,6 @@ export function DayMonthClassReport({
   currentYear,
   selectedWeekday = 'all',
   selectedMonth = 'all',
-  institution,
   onPrint,
   isInlineView = false,
   variant
@@ -57,118 +162,10 @@ export function DayMonthClassReport({
 
   const effectiveVariant = variant || activeTab;
 
-  // Process schedule dates:
-  // ONLY dates defined in the schedule as class days / exams (class_day, exam)
-  // Deduplicated strictly by date: 1 date = 1 class day regardless of how many classes/subjects exist!
-  const { weekdaySections, totalAnnualAllWeekdays, synopticTable } = useMemo(() => {
-    const targetTypes = ['class_day', 'exam'];
-
-    // 1. Collect all unique class dates in the year
-    const uniqueDates = new Set<string>();
-
-    events.forEach(e => {
-      if (!e.start_date || !e.start_date.startsWith(currentYear)) return;
-      if (!targetTypes.includes(e.type)) return;
-      uniqueDates.add(e.start_date);
-    });
-
-    const sortedDates = Array.from(uniqueDates).sort();
-
-    // Map: weekday -> monthIndex -> Set of day numbers
-    const weekdayMap = new Map<number, Map<number, Set<number>>>();
-    // Map: monthIndex -> Set of all day numbers (across weekdays)
-    const monthAllMap = new Map<number, Set<number>>();
-
-    sortedDates.forEach(dateStr => {
-      const d = new Date(dateStr + 'T00:00:00');
-      const wDay = d.getDay();
-      const mIdx = d.getMonth();
-      const dayNum = d.getDate();
-
-      // Filter by selected weekday if set
-      if (selectedWeekday !== 'all' && wDay !== selectedWeekday) return;
-
-      // Filter by selected month if set
-      if (selectedMonth !== 'all' && mIdx !== selectedMonth) return;
-
-      if (!weekdayMap.has(wDay)) {
-        weekdayMap.set(wDay, new Map<number, Set<number>>());
-      }
-      const mGroup = weekdayMap.get(wDay)!;
-      if (!mGroup.has(mIdx)) {
-        mGroup.set(mIdx, new Set<number>());
-      }
-      mGroup.get(mIdx)!.add(dayNum);
-
-      if (!monthAllMap.has(mIdx)) {
-        monthAllMap.set(mIdx, new Set<number>());
-      }
-      monthAllMap.get(mIdx)!.add(dayNum);
-    });
-
-    // Build structured sections for each weekday
-    const weekdayKeys = Array.from(weekdayMap.keys()).sort((a, b) => {
-      const orderA = a === 0 ? 7 : a;
-      const orderB = b === 0 ? 7 : b;
-      return orderA - orderB;
-    });
-
-    let overallTotal = 0;
-
-    const weekdaySections: WeekdayReportData[] = weekdayKeys.map(wDay => {
-      const mGroup = weekdayMap.get(wDay)!;
-      const monthIndices = Array.from(mGroup.keys()).sort((a, b) => a - b);
-
-      let wTotal = 0;
-      const months: MonthReportData[] = monthIndices.map(mIdx => {
-        const days = Array.from(mGroup.get(mIdx)!).sort((a, b) => a - b);
-        wTotal += days.length;
-        return {
-          monthIndex: mIdx,
-          monthName: MONTH_NAMES[mIdx],
-          days,
-          totalClasses: days.length
-        };
-      });
-
-      overallTotal += wTotal;
-
-      return {
-        weekday: wDay,
-        weekdayName: WEEKDAY_NAMES[wDay],
-        months,
-        totalAnnualClasses: wTotal
-      };
-    });
-
-    // Synoptic Table: Month x Weekday
-    const synopticTable = MONTH_NAMES.map((mName, mIdx) => {
-      if (selectedMonth !== 'all' && selectedMonth !== mIdx) return null;
-
-      const cells: Record<number, number> = {};
-      let monthTotal = 0;
-
-      weekdayKeys.forEach(wDay => {
-        const days = weekdayMap.get(wDay)?.get(mIdx);
-        const count = days ? days.size : 0;
-        cells[wDay] = count;
-        monthTotal += count;
-      });
-
-      return {
-        monthIndex: mIdx,
-        monthName: mName,
-        cells,
-        monthTotal
-      };
-    }).filter(Boolean);
-
-    return {
-      weekdaySections,
-      totalAnnualAllWeekdays: overallTotal,
-      synopticTable: synopticTable as { monthIndex: number; monthName: string; cells: Record<number, number>; monthTotal: number }[]
-    };
-  }, [events, currentYear, selectedWeekday, selectedMonth]);
+  const { weekdaySections, totalAnnualAllWeekdays, synopticTable } = useMemo(
+    () => computeDayMonthReportData(events, currentYear, selectedWeekday, selectedMonth),
+    [events, currentYear, selectedWeekday, selectedMonth]
+  );
 
   if (weekdaySections.length === 0) {
     return (
@@ -183,13 +180,13 @@ export function DayMonthClassReport({
   }
 
   return (
-    <div className={cn("space-y-6 font-sans", isInlineView ? "p-4 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-xs" : "")}>
+    <div className={cn("space-y-5 font-sans", isInlineView ? "p-4 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-xs" : "")}>
       
       {/* Barra de Título / Cabeçalho */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b-2 border-slate-800">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-700 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-teal-600 inline-block" />
             <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-slate-900">
               Cronograma: Dias e Meses de Aula ({currentYear})
             </h2>
@@ -200,8 +197,8 @@ export function DayMonthClassReport({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="bg-slate-900 text-white px-3.5 py-1.5 rounded-lg flex items-center gap-2 shadow-xs">
-            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Total no Ano:</span>
+          <div className="bg-[#0F2A30] text-white px-3.5 py-1.5 rounded-lg flex items-center gap-2 shadow-xs">
+            <span className="text-[9px] font-bold text-teal-200 uppercase tracking-widest">Total no Ano:</span>
             <span className="text-sm font-black text-white leading-none">
               {totalAnnualAllWeekdays} {totalAnnualAllWeekdays === 1 ? 'Dia Letivo' : 'Dias Letivos'}
             </span>
@@ -209,9 +206,10 @@ export function DayMonthClassReport({
 
           {onPrint && (
             <button
+              type="button"
               onClick={onPrint}
-              className="print:hidden flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
-              title="Imprimir este relatório"
+              className="print:hidden flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+              title="Imprimir este relatório no padrão A4"
             >
               <Printer size={14} />
               <span>Imprimir</span>
@@ -221,20 +219,20 @@ export function DayMonthClassReport({
       </div>
 
       {/* SELETOR DE MODO DO RELATÓRIO (CONSOLIDADO vs DETALHADO) */}
-      <div className="flex items-center justify-between gap-3 bg-slate-150/70 p-1.5 rounded-xl border border-slate-200 print:hidden">
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-100 p-1.5 rounded-xl border border-slate-200 print:hidden">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setActiveTab('consolidated')}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
               effectiveVariant === 'consolidated'
-                ? "bg-slate-900 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                ? "bg-[#0F2A30] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/70"
             )}
           >
             <Calendar size={13} />
-            <span>1. Relatório Consolidado (Totais por Mês)</span>
+            <span>1. Consolidado (Totais por Mês)</span>
           </button>
           <button
             type="button"
@@ -242,12 +240,12 @@ export function DayMonthClassReport({
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
               effectiveVariant === 'detailed'
-                ? "bg-slate-900 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                ? "bg-[#0F2A30] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/70"
             )}
           >
             <CalendarDays size={13} />
-            <span>2. Relatório Detalhado (Dias Individuais)</span>
+            <span>2. Detalhado (Dias Individuais)</span>
           </button>
         </div>
         
@@ -261,10 +259,10 @@ export function DayMonthClassReport({
       <div className="avoid-break space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-            <Calendar size={13} className="text-slate-700" />
+            <Calendar size={13} className="text-teal-700" />
             1. Quadro de Aulas por Mês e Dia da Semana (Totais por Mês)
           </h3>
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
             Quantidade de Encontros por Mês
           </span>
         </div>
@@ -306,7 +304,7 @@ export function DayMonthClassReport({
                               "inline-block px-2.5 py-0.5 rounded text-[10px] font-extrabold",
                               w.weekday === 3 ? "bg-sky-50 text-sky-800 border border-sky-200" :
                               w.weekday === 4 ? "bg-amber-50 text-amber-800 border border-amber-200" :
-                              "bg-slate-100 text-slate-800 border border-slate-200"
+                              "bg-teal-50 text-teal-800 border border-teal-200"
                             )}>
                               {count} {count === 1 ? 'aula' : 'aulas'}
                             </span>
@@ -346,10 +344,10 @@ export function DayMonthClassReport({
       <div className="space-y-6 pt-2">
         <div className="flex items-center justify-between pb-1 border-b border-slate-300">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-            <CalendarDays size={13} className="text-slate-700" />
+            <CalendarDays size={13} className="text-teal-700" />
             2. Relação de Dias de Aula por Mês (Dias Individuais Separados por Dia da Semana)
           </h3>
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
             Definidos no Cronograma Oficial
           </span>
         </div>
@@ -357,21 +355,21 @@ export function DayMonthClassReport({
         {weekdaySections.map(wSection => (
           <div 
             key={`wsec-${wSection.weekday}`}
-            className="page-break border-2 border-slate-300 rounded-lg bg-white shadow-2xs overflow-hidden"
+            className="border-2 border-slate-300 rounded-lg bg-white shadow-2xs overflow-hidden"
           >
             {/* Header da Seção: Dia da Semana */}
             <div className={cn(
               "px-4 py-3 flex flex-wrap items-center justify-between gap-3 border-b-2",
               wSection.weekday === 3 ? "bg-sky-50 border-sky-300 text-sky-950" :
               wSection.weekday === 4 ? "bg-amber-50 border-amber-300 text-amber-950" :
-              "bg-slate-100 border-slate-300 text-slate-900"
+              "bg-teal-50 border-teal-300 text-teal-950"
             )}>
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-8 h-8 rounded flex items-center justify-center font-black text-xs uppercase shadow-xs",
                   wSection.weekday === 3 ? "bg-sky-600 text-white" :
                   wSection.weekday === 4 ? "bg-amber-600 text-white" :
-                  "bg-slate-800 text-white"
+                  "bg-[#0F2A30] text-white"
                 )}>
                   {WEEKDAY_SHORT[wSection.weekday]}
                 </div>
@@ -379,7 +377,7 @@ export function DayMonthClassReport({
                   <h4 className="text-sm font-black uppercase tracking-wider">
                     {wSection.weekdayName}
                   </h4>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">
                     Cronograma Regular de Aulas
                   </p>
                 </div>
@@ -409,7 +407,7 @@ export function DayMonthClassReport({
                         <span className="text-xs font-black uppercase text-slate-900 tracking-wide">
                           {m.monthName}
                         </span>
-                        <div className="text-[9.5px] font-bold text-blue-700 uppercase tracking-wider">
+                        <div className="text-[9.5px] font-bold text-teal-800 uppercase tracking-wider">
                           Total de {String(m.totalClasses).padStart(2, '0')} {m.totalClasses === 1 ? 'aula' : 'aulas'}
                         </div>
                       </div>
@@ -417,7 +415,7 @@ export function DayMonthClassReport({
 
                     {/* Bloco dos Dias Específicos: ex: "Dias: 04, 10, 12, 16" */}
                     <div className="flex-1 flex flex-wrap items-center gap-1.5 sm:justify-start">
-                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mr-1">
+                      <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest mr-1">
                         Dias:
                       </span>
                       {m.days.map(dayNum => (
@@ -449,7 +447,7 @@ export function DayMonthClassReport({
             {/* Rodapé da Seção com Total do Dia da Semana */}
             <div className="p-3 px-5 bg-slate-50 border-t border-slate-300 flex items-center justify-between text-[10px] font-black uppercase text-slate-800">
               <span>Total de Dias de Aula ({wSection.weekdayName}):</span>
-              <span className="text-xs font-black text-blue-900">
+              <span className="text-xs font-black text-teal-900">
                 {wSection.totalAnnualClasses} {wSection.totalAnnualClasses === 1 ? 'Aula no Ano' : 'Aulas no Ano'}
               </span>
             </div>
@@ -459,9 +457,9 @@ export function DayMonthClassReport({
       )}
 
       {/* 3. RESUMO GERAL CONSOLIDADO NO FINAL DO RELATÓRIO */}
-      <div className="avoid-break bg-slate-900 text-white p-4 sm:p-5 rounded-lg shadow-md flex flex-wrap items-center justify-between gap-4">
+      <div className="avoid-break bg-[#0F2A30] text-white p-4 sm:p-5 rounded-lg shadow-md flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 block mb-1">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-teal-200 block mb-1">
             Consolidação do Ano Letivo {currentYear}
           </span>
           <h4 className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
@@ -474,7 +472,7 @@ export function DayMonthClassReport({
             <span className="text-2xl sm:text-3xl font-black text-white tracking-tight tabular-nums">
               {totalAnnualAllWeekdays}
             </span>
-            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest block">
+            <span className="text-[10px] font-bold text-teal-200 uppercase tracking-widest block">
               Dias de Aula no Ano
             </span>
           </div>

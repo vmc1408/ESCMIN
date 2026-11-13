@@ -23,21 +23,24 @@ export const getTypeStyle = (type: CalendarEvent['type'], startDate?: string, ti
       if (startDate) {
         const date = new Date(startDate + 'T00:00:00');
         const weekday = date.getDay();
-        if (weekday === 3) return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
-        if (weekday === 4) return 'bg-amber-50 text-amber-700 border-amber-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
-        return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
+        if (weekday === 1) return 'bg-slate-100 text-slate-800 border-slate-300 shadow-xs font-black text-[9.5px] uppercase tracking-wider';
+        if (weekday === 2) return 'bg-cyan-50 text-cyan-800 border-cyan-200 shadow-xs font-black text-[9.5px] uppercase tracking-wider';
+        if (weekday === 3) return 'bg-sky-50 text-sky-800 border-sky-200 shadow-xs font-black text-[9.5px] uppercase tracking-wider';
+        if (weekday === 4) return 'bg-amber-50 text-amber-800 border-amber-200 shadow-xs font-black text-[9.5px] uppercase tracking-wider';
+        if (weekday === 5) return 'bg-rose-50 text-rose-800 border-rose-200 shadow-xs font-black text-[9.5px] uppercase tracking-wider';
+        if (weekday === 6) return 'bg-teal-50 text-teal-800 border-teal-200 shadow-xs font-black text-[9.5px] uppercase tracking-wider';
       }
-      return 'bg-blue-50 text-blue-700 border-blue-100';
+      return 'bg-teal-50 text-teal-800 border-teal-200 font-black text-[9.5px] uppercase tracking-wider';
     }
     case 'excused_class': 
-      return 'bg-slate-50/80 text-slate-400 border-slate-200/50 opacity-90 font-black text-[9px] uppercase tracking-tighter';
+      return 'bg-slate-100 text-slate-600 border-slate-300 opacity-90 font-black text-[9px] uppercase tracking-tighter';
     case 'cancelled_class':
-      return 'bg-rose-50 text-rose-400 border-rose-100 opacity-80 font-black text-[9px] uppercase tracking-tighter';
-    default: return 'bg-slate-50 text-slate-600 border-slate-100 font-black text-[9px] uppercase tracking-wider';
+      return 'bg-rose-50 text-rose-600 border-rose-200 opacity-90 font-black text-[9px] uppercase tracking-tighter';
+    default: return 'bg-slate-50 text-slate-700 border-slate-200 font-black text-[9px] uppercase tracking-wider';
   }
 };
 
-export const getTypeText = (type: CalendarEvent['type'], description?: string) => {
+export const getTypeText = (type: CalendarEvent['type'], _description?: string) => {
   switch (type) {
     case 'holiday':
     case 'holiday_nac': return 'Feriado Nacional';
@@ -45,7 +48,7 @@ export const getTypeText = (type: CalendarEvent['type'], description?: string) =
     case 'holiday_mun': return 'Feriado Municipal';
     case 'exam': return 'Avaliação';
     case 'start_term': return 'Início Letivo';
-    case 'end_term': return 'Cierre Letivo';
+    case 'end_term': return 'Término Letivo';
     case 'class_day': return 'Dia de Aula';
     case 'excused_class': return 'Abonada';
     case 'cancelled_class': return 'Cancelada';
@@ -66,10 +69,10 @@ export const getTypeColor = (type: CalendarEvent['type'], startDate?: string) =>
       if (startDate) {
         const date = new Date(startDate + 'T00:00:00');
         const weekday = date.getDay();
-        if (weekday === 3) return 'bg-blue-600';
+        if (weekday === 3) return 'bg-sky-600';
         if (weekday === 4) return 'bg-amber-500';
       }
-      return 'bg-emerald-600';
+      return 'bg-teal-600';
     }
     case 'excused_class': return 'bg-slate-400';
     case 'cancelled_class': return 'bg-rose-500';

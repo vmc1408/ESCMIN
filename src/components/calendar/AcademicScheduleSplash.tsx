@@ -96,14 +96,14 @@ export function AcademicScheduleSplash({
       {/* Barra superior de controle do Splash */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-100 mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-200/80 flex items-center justify-center text-blue-600 shrink-0">
+          <div className="w-6 h-6 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 shrink-0">
             <Calendar size={13} />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-800 tracking-tight">
               Ciclo Letivo e Semestres
             </span>
-            <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/80">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
               Cronograma Oficial
             </span>
           </div>
@@ -142,10 +142,10 @@ export function AcademicScheduleSplash({
             <button
               type="button"
               onClick={onOpenDaysReport}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200/90 rounded-lg text-[10px] font-bold tracking-wide transition-all cursor-pointer shadow-2xs"
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 hover:text-teal-950 border border-teal-200 rounded-lg text-[10px] font-bold tracking-wide transition-all cursor-pointer shadow-2xs"
               title="Abrir relatório de dias e meses de aula"
             >
-              <CalendarDays size={12} className="text-blue-600" />
+              <CalendarDays size={12} className="text-teal-700" />
               <span className="hidden sm:inline">Dias e Meses de Aula</span>
               <span className="inline sm:hidden">Dias de Aula</span>
             </button>
@@ -187,17 +187,17 @@ export function AcademicScheduleSplash({
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
               {/* Card 1º Semestre */}
-              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50/80 border border-slate-200/90 shadow-2xs hover:bg-slate-50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-blue-700 shrink-0">
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs hover:bg-slate-100/70 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-700 shrink-0">
                   <Calendar size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                       1º Semestre Letivo
                     </span>
                     {periods.length > 1 && (
-                      <span className="text-[8.5px] font-bold bg-blue-100/70 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200 uppercase">
+                      <span className="text-[8.5px] font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded-md border border-teal-200 uppercase">
                         {currentPeriod.label}
                       </span>
                     )}
@@ -209,17 +209,17 @@ export function AcademicScheduleSplash({
               </div>
 
               {/* Card 2º Semestre */}
-              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50/80 border border-slate-200/90 shadow-2xs hover:bg-slate-50 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-700 shrink-0">
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs hover:bg-slate-100/70 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-700 shrink-0">
                   <Calendar size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                       2º Semestre Letivo
                     </span>
                     {periods.length > 1 && (
-                      <span className="text-[8.5px] font-bold bg-indigo-100/70 text-indigo-800 px-2 py-0.5 rounded-full border border-indigo-200 uppercase">
+                      <span className="text-[8.5px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-200 uppercase">
                         {currentPeriod.label}
                       </span>
                     )}
