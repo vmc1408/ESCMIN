@@ -308,40 +308,172 @@
   }
 }
 
-/* Alta legibilidade e contraste para os campos de formulários de todo o sistema com cantos arredondados modernos */
-input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only),
-select:not(.sr-only),
-textarea:not(.sr-only) {
-  background-color: #f8fafc !important; /* bg-slate-50 */
-  border: 1.5px solid #94a3b8 !important; /* border-slate-400 (borda bem visível) */
-  border-radius: 0.5rem !important; /* rounded-lg (8px) suave e moderno para todos os campos */
-  color: #0f172a !important; /* text-slate-900 (alto contraste) */
-  font-weight: 500 !important;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05) !important;
-  transition: all 0.15s ease-in-out !important;
-}
+@media screen {
+  :root, :host {
+    /* Paleta Principal Moderna & Viva (Teal / Verde-Petróleo) substituindo o Roxo/Indigo escuro */
+    --color-indigo-50: #f0fdfa;
+    --color-indigo-100: #ccfbf1;
+    --color-indigo-200: #99f6e4;
+    --color-indigo-300: #5eead4;
+    --color-indigo-400: #2dd4bf;
+    --color-indigo-500: #14b8a6;
+    --color-indigo-600: #0d9488;
+    --color-indigo-700: #0f766e;
+    --color-indigo-800: #115e59;
+    --color-indigo-900: #134e4a;
+    --color-indigo-950: #042f2e;
 
-input[type="checkbox"] {
-  border-radius: 0.25rem !important;
-}
+    /* Paleta Secundária Viva (Ciano-Petróleo) substituindo o Azul marinho/escuro cansativo */
+    --color-blue-50: #ecfeff;
+    --color-blue-100: #cffafe;
+    --color-blue-200: #a5f3fc;
+    --color-blue-300: #67e8f9;
+    --color-blue-400: #22d3ee;
+    --color-blue-500: #06b6d4;
+    --color-blue-600: #0891b2;
+    --color-blue-700: #0e7490;
+    --color-blue-800: #0f766e;
+    --color-blue-900: #115e59;
+    --color-blue-950: #083344;
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only):focus,
-select:not(.sr-only):focus,
-textarea:not(.sr-only):focus {
-  background-color: #ffffff !important; /* fundo branco ao focar */
-  border-color: #334155 !important; /* border-slate-700 (destaque máximo) */
-  color: #000000 !important;
-  box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.15) !important; /* anel de foco */
-  outline: none !important;
-}
+    /* Superfícies Neutras com Alto Contraste Estrutural entre Fundo, Cards, Módulos e Bordas */
+    --color-slate-50: #edf2f7;
+    --color-slate-100: #dfe7f0;
+    --color-slate-200: #bfcde0;
+    --color-slate-300: #93a5bc;
+  }
 
-/* Campos desabilitados legíveis mas diferenciados */
-input:disabled, select:disabled, textarea:disabled {
-  background-color: #e2e8f0 !important; /* bg-slate-200 */
-  border-color: #cbd5e1 !important; /* border-slate-300 */
-  border-radius: 0.5rem !important;
-  color: #475569 !important; /* text-slate-600 */
-  opacity: 0.8 !important;
-  cursor: not-allowed !important;
+  /* Separação nítida de módulos e cards brancos sobre o fundo do sistema */
+  main .bg-white.border,
+  main .bg-white.border-slate-200,
+  main .bg-white.border-slate-100 {
+    border-color: #b6c6d8;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  /* Cabeçalhos de tabelas mais legíveis */
+  main thead.bg-slate-50,
+  main thead.bg-slate-100 {
+    background-color: #dfe7f0;
+    border-bottom: 1.5px solid #93a5bc;
+  }
+
+  main thead.bg-slate-900,
+  main thead.bg-slate-800 {
+    background-color: #0f2a30 !important;
+    color: #f8fafc !important;
+  }
+
+  /* Legibilidade de textos secundários e rótulos em superfícies claras (sem afetar fundos escuros) */
+  main .bg-white .text-slate-400:not(.bg-slate-900 *):not(.bg-slate-800 *):not(.bg-slate-950 *):not(button.bg-slate-800 *):not(button.bg-slate-900 *),
+  main .bg-slate-50 .text-slate-400:not(.bg-slate-900 *):not(.bg-slate-800 *):not(.bg-slate-950 *):not(button.bg-slate-800 *):not(button.bg-slate-900 *),
+  main .bg-slate-100 .text-slate-400:not(.bg-slate-900 *):not(.bg-slate-800 *):not(.bg-slate-950 *):not(button.bg-slate-800 *):not(button.bg-slate-900 *) {
+    color: #475569;
+  }
+
+  main .bg-white .text-slate-500:not(.bg-slate-900 *):not(.bg-slate-800 *):not(.bg-slate-950 *):not(button.bg-slate-800 *):not(button.bg-slate-900 *),
+  main .bg-slate-50 .text-slate-500:not(.bg-slate-900 *):not(.bg-slate-800 *):not(.bg-slate-950 *):not(button.bg-slate-800 *):not(button.bg-slate-900 *),
+  main .bg-slate-100 .text-slate-500:not(.bg-slate-900 *):not(.bg-slate-800 *):not(.bg-slate-950 *):not(button.bg-slate-800 *):not(button.bg-slate-900 *) {
+    color: #334155;
+  }
+
+  main .bg-white label:not([class*="text-"]),
+  main .bg-slate-50 label:not([class*="text-"]) {
+    color: #1e293b;
+  }
+
+  /* Botões Primários Unificados: substitui o azul/roxo/grafite escuro por Teal moderno, vivo e descansado */
+  main button.bg-slate-800:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]),
+  main button.bg-slate-900:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]),
+  main a.bg-slate-800,
+  main a.bg-slate-900,
+  main label.bg-slate-800,
+  main label.bg-slate-900 {
+    background-color: #0d9488 !important;
+    border-color: #0f766e !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(13, 148, 136, 0.25);
+  }
+
+  main button.bg-slate-800:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]):hover:not(:disabled),
+  main button.bg-slate-900:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]):hover:not(:disabled),
+  main a.bg-slate-800:hover,
+  main a.bg-slate-900:hover,
+  main label.bg-slate-800:hover,
+  main label.bg-slate-900:hover {
+    background-color: #0f766e !important;
+    border-color: #115e59 !important;
+  }
+
+  /* Botões secundários com borda definida para não sumirem no fundo claro */
+  main button.border.bg-white:not(:disabled),
+  main button.border.bg-slate-50:not(:disabled),
+  main button.border.bg-slate-100:not(:disabled) {
+    border-color: #93a5bc;
+    color: #1e293b;
+  }
+
+  main button.border.bg-white:hover:not(:disabled),
+  main button.border.bg-slate-50:hover:not(:disabled),
+  main button.border.bg-slate-100:hover:not(:disabled) {
+    border-color: #0d9488;
+    background-color: #f0fdfa;
+    color: #0f766e;
+  }
+
+  /* Alta legibilidade e contraste para os campos de formulários de todo o sistema */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only),
+  select:not(.sr-only),
+  textarea:not(.sr-only) {
+    background-color: #eaf0f6 !important;
+    border: 1.5px solid #64748b !important;
+    border-radius: 0.5rem !important;
+    color: #0f172a !important;
+    font-weight: 500 !important;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only)::placeholder,
+  textarea:not(.sr-only)::placeholder {
+    color: #475569 !important;
+    opacity: 1 !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only):hover:not(:disabled):not(:focus),
+  select:not(.sr-only):hover:not(:disabled):not(:focus),
+  textarea:not(.sr-only):hover:not(:disabled):not(:focus) {
+    background-color: #f4f8fb !important;
+    border-color: #0f766e !important;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: #0d9488;
+  }
+
+  input[type="checkbox"] {
+    border-radius: 0.25rem !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only):focus,
+  select:not(.sr-only):focus,
+  textarea:not(.sr-only):focus {
+    background-color: #ffffff !important;
+    border-color: #0d9488 !important;
+    color: #000000 !important;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.22) !important;
+    outline: none !important;
+  }
+
+  /* Campos desabilitados legíveis mas diferenciados */
+  input:disabled, select:disabled, textarea:disabled {
+    background-color: #d6e0eb !important;
+    border-color: #93a5bc !important;
+    border-radius: 0.5rem !important;
+    color: #334155 !important;
+    opacity: 0.9 !important;
+    cursor: not-allowed !important;
+  }
 }
 

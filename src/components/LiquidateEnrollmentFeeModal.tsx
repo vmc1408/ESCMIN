@@ -194,8 +194,8 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                     className={cn(
                       "py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
                       paymentMethod === method
-                        ? "bg-[#00174b] border-[#00174b] text-white shadow-xs"
-                        : "bg-white border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-800"
+                        ? "bg-teal-600 border-teal-700 text-white shadow-xs"
+                        : "bg-white border-slate-300 text-slate-700 hover:border-teal-500 hover:text-teal-800"
                     )}
                   >
                     {method}

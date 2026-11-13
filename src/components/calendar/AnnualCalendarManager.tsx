@@ -609,7 +609,7 @@ export function AnnualCalendarManager({
         {/* 1. TOPO: Identificação e Seletor de Ano Letivo & Unidade */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 bg-[#00174b] text-white rounded-xl flex items-center justify-center shadow-xs shrink-0">
+          <div className="w-11 h-11 bg-teal-600 text-white rounded-xl flex items-center justify-center shadow-xs shrink-0">
             <CalendarDays size={22} />
           </div>
           <div className="min-w-0">
@@ -805,7 +805,7 @@ export function AnnualCalendarManager({
             onClick={() => setActiveConfigTab('general')}
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
-              activeConfigTab === 'general' ? "border-[#00174b] text-[#00174b] bg-white" : "border-transparent text-slate-500 hover:text-slate-800"
+              activeConfigTab === 'general' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
             )}
           >
             <MapPin size={14} />
@@ -817,7 +817,7 @@ export function AnnualCalendarManager({
             onClick={() => setActiveConfigTab('periods')}
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
-              activeConfigTab === 'periods' ? "border-[#00174b] text-[#00174b] bg-white" : "border-transparent text-slate-500 hover:text-slate-800"
+              activeConfigTab === 'periods' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
             )}
           >
             <Layers size={14} />
@@ -829,7 +829,7 @@ export function AnnualCalendarManager({
             onClick={() => setActiveConfigTab('recesses')}
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
-              activeConfigTab === 'recesses' ? "border-[#00174b] text-[#00174b] bg-white" : "border-transparent text-slate-500 hover:text-slate-800"
+              activeConfigTab === 'recesses' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
             )}
           >
             <Clock size={14} />
@@ -841,7 +841,7 @@ export function AnnualCalendarManager({
             onClick={() => setActiveConfigTab('holidays')}
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
-              activeConfigTab === 'holidays' ? "border-[#00174b] text-[#00174b] bg-white" : "border-transparent text-slate-500 hover:text-slate-800"
+              activeConfigTab === 'holidays' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
             )}
           >
             <CalendarCheck size={14} />
@@ -936,8 +936,8 @@ export function AnnualCalendarManager({
                         className={cn(
                           "px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5",
                           isSelected
-                            ? "bg-[#00174b] text-white border-[#00174b] shadow-2xs"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            ? "bg-teal-600 text-white border-teal-700 shadow-2xs"
+                            : "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100"
                         )}
                       >
                         {isSelected && <Check size={12} />}
@@ -1092,7 +1092,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={handleAddRecess}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00174b] hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
               >
                 <Plus size={13} />
                 <span>Adicionar Intervalo</span>
@@ -1205,7 +1205,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={handleStartAddHoliday}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00174b] hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
                 >
                   <Plus size={13} />
                   <span>Adicionar Feriado / Data Sem Aula</span>
@@ -1290,22 +1290,22 @@ export function AnnualCalendarManager({
       </div>
 
       {/* 3. BARRA DE EXECUÇÃO: Ação "Gerar Calendário Anual" */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#0F2A30] via-[#133840] to-[#0F2A30] text-white rounded-2xl p-4 sm:p-5 shadow-sm border border-teal-800/50 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h4 className="text-sm font-bold flex items-center gap-2">
             <Sparkles size={16} className="text-amber-400" />
             <span>Processar Regras e Gerar Calendário de {targetYear}</span>
           </h4>
-          <p className="text-xs text-slate-300 mt-0.5">
+          <p className="text-xs text-slate-200 mt-0.5">
             O motor cruzará os períodos ativos, feriados, recessos e os dias da semana para gerar todos os dias letivos.
           </p>
 
-          <label className="inline-flex items-center gap-2 mt-2 text-xs text-slate-300 cursor-pointer">
+          <label className="inline-flex items-center gap-2 mt-2 text-xs text-slate-200 cursor-pointer">
             <input
               type="checkbox"
               checked={preserveOverrides}
               onChange={(e) => setPreserveOverrides(e.target.checked)}
-              className="rounded text-blue-600 focus:ring-0 cursor-pointer"
+              className="rounded text-teal-500 focus:ring-0 cursor-pointer"
             />
             <span>Preservar ajustes manuais anteriores durante a regeneração</span>
           </label>
@@ -1316,7 +1316,7 @@ export function AnnualCalendarManager({
             type="button"
             onClick={handleSaveDraft}
             disabled={isSaving}
-            className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 border border-white/15"
+            className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 border border-white/20"
             title="Salvar os parâmetros e dados atuais como rascunho"
           >
             <Save size={15} />
@@ -1327,7 +1327,7 @@ export function AnnualCalendarManager({
             type="button"
             onClick={handleGenerate}
             disabled={!validation.isValid}
-            className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
+            className="px-6 py-3 bg-teal-500 hover:bg-teal-400 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
           >
             <Sparkles size={15} />
             <span>Gerar Calendário Anual</span>
@@ -1386,7 +1386,7 @@ export function AnnualCalendarManager({
                   type="button"
                   onClick={() => setShowConfirmPublish(true)}
                   disabled={isSaving}
-                  className="px-4 py-2 bg-[#00174b] hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Check size={14} />
                   <span>Publicar Oficialmente</span>
@@ -2017,7 +2017,7 @@ export function AnnualCalendarManager({
                 type="button"
                 onClick={() => handleSaveVersion('published')}
                 disabled={isSaving}
-                className="px-4 py-2 bg-[#00174b] hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <Check size={14} />
                 <span>Confirmar e Publicar</span>
@@ -2208,7 +2208,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={handleSaveHoliday}
-                className="px-4 py-2 bg-[#00174b] hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <Save size={14} />
                 <span>Salvar Feriado</span>
@@ -2264,7 +2264,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={handleExecuteSelectiveRegen}
-                className="px-4 py-2 bg-[#00174b] hover:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <Sparkles size={14} />
                 <span>Confirmar Regeneração</span>

@@ -126,8 +126,8 @@ export function AcademicScheduleSplash({
                     onClick={() => setActivePeriodIndex(idx)}
                     className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide transition-all cursor-pointer ${
                       isActive 
-                        ? 'bg-blue-900 text-white shadow-2xs' 
-                        : 'text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                        ? 'bg-teal-600 text-white shadow-2xs' 
+                        : 'text-slate-700 hover:bg-slate-200/80 hover:text-slate-900'
                     }`}
                   >
                     {p.label}

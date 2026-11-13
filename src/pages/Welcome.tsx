@@ -89,15 +89,15 @@ export function Welcome() {
           </div>
           
           <div className="hidden md:flex items-center gap-8 mr-8">
-            <a href="#sobre" className="text-[11px] font-black uppercase tracking-widest text-[#00174b]/60 hover:text-[#00174b] transition-colors">A Escola</a>
-            <a href="#criterios" className="text-[11px] font-black uppercase tracking-widest text-[#00174b]/60 hover:text-[#00174b] transition-colors">Critérios</a>
-            <a href="#documentos" className="text-[11px] font-black uppercase tracking-widest text-[#00174b]/60 hover:text-[#00174b] transition-colors">Documentos</a>
-            <a href="#contato" className="text-[11px] font-black uppercase tracking-widest text-[#00174b]/60 hover:text-[#00174b] transition-colors">Contato</a>
+            <a href="#sobre" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">A Escola</a>
+            <a href="#criterios" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Critérios</a>
+            <a href="#documentos" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Documentos</a>
+            <a href="#contato" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Contato</a>
           </div>
 
           <button 
             onClick={() => navigate(isLoggedIn ? '/' : '/login')}
-            className="px-6 py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-900 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-900/20"
+            className="px-6 py-2.5 bg-teal-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-teal-700 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-teal-900/20"
           >
             {isLoggedIn ? 'Acessar Dashboard' : 'Área do Aluno'}
             {isLoggedIn ? <ArrowRight size={16} /> : <Lock size={16} />}
@@ -132,7 +132,7 @@ export function Welcome() {
             <div className="flex flex-col sm:flex-row gap-5">
               <button 
                 onClick={() => navigate(isLoggedIn ? '/' : '/login')}
-                className="px-10 py-5 bg-[#00174b] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-900 transition-all shadow-2xl shadow-blue-900/30 active:scale-95 flex items-center justify-center gap-3 group"
+                className="px-10 py-5 bg-teal-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-teal-700 transition-all shadow-2xl shadow-teal-900/25 active:scale-95 flex items-center justify-center gap-3 group"
               >
                 {isLoggedIn ? 'Ir para o Portal' : 'Fazer Matrícula'}
                 <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -140,7 +140,7 @@ export function Welcome() {
               
               <a 
                 href="#sobre"
-                className="px-10 py-5 bg-white text-[#00174b] border border-[#00174b]/10 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-50 transition-all flex items-center justify-center gap-3"
+                className="px-10 py-5 bg-white text-teal-800 border-2 border-slate-300 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-teal-50 hover:border-teal-500 transition-all flex items-center justify-center gap-3"
               >
                 Saiba Mais
               </a>

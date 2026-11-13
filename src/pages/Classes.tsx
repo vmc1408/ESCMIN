@@ -2881,7 +2881,7 @@ export function Classes() {
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
+                      className="h-10 px-6 bg-teal-600 text-white hover:bg-teal-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
                       <Save size={16} />
                       <span>Salvar Cadastro</span>

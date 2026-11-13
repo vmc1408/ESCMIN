@@ -24,11 +24,11 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="h-screen max-h-screen bg-slate-100 flex overflow-hidden print:block print:w-full print:overflow-visible print:h-auto print:bg-white print:m-0 font-sans">
+    <div className="h-screen max-h-screen bg-[#DCE5EE] flex overflow-hidden print:block print:w-full print:overflow-visible print:h-auto print:bg-white print:m-0 font-sans">
       {/* Botão de Menu Mobile */}
       <button
         onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-600 text-white rounded shadow-lg active:scale-90 transition-transform print:hidden"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-teal-600 hover:bg-teal-700 text-white rounded shadow-lg active:scale-90 transition-transform print:hidden"
       >
         <Menu size={20} />
       </button>
@@ -50,7 +50,7 @@ export function Layout() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:block print:w-full print:overflow-visible print:h-auto">
-        <div className="print:hidden sticky top-0 z-[60] bg-white border-b border-slate-200">
+        <div className="print:hidden sticky top-0 z-[60] bg-white border-b-2 border-slate-300 shadow-2xs">
           <Navbar />
         </div>
         <main 

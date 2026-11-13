@@ -1301,7 +1301,7 @@ return (
         <button
           onClick={handlePrint}
           disabled={!isFilterReady}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#00174b] hover:bg-blue-900 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+          className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
           title={isFilterReady ? "Imprimir relatório formatado" : "Selecione os parâmetros para imprimir"}
         >
           <Printer size={15} />
@@ -1433,8 +1433,8 @@ return (
               className={cn(
                 "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
                 filterTarget === 'class'
-                  ? "bg-[#00174b] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  ? "bg-teal-600 text-white shadow-xs"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
               )}
             >
               <Users size={14} />
@@ -1450,8 +1450,8 @@ return (
               className={cn(
                 "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
                 filterTarget === 'student'
-                  ? "bg-[#00174b] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  ? "bg-teal-600 text-white shadow-xs"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
               )}
             >
               <User size={14} />

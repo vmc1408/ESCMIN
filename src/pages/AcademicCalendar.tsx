@@ -2313,7 +2313,7 @@ export function AcademicCalendar() {
                       setParametersTab('annual');
                       setShowSettings(true);
                     }}
-                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-[#00174b] text-white hover:bg-blue-900 transition-all rounded-lg text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm cursor-pointer"
+                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-teal-600 text-white hover:bg-teal-700 transition-all rounded-lg text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm cursor-pointer"
                     title="Geração Automática do Calendário Anual de Aulas"
                   >
                     <CalendarDays size={14} className="text-amber-400" />
@@ -4236,11 +4236,11 @@ export function AcademicCalendar() {
                     className={cn(
                       "px-3.5 py-2 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap",
                       parametersTab === 'annual'
-                        ? "border-[#00174b] text-[#00174b] bg-slate-50/70"
-                        : "border-transparent text-slate-500 hover:text-slate-800"
+                        ? "border-teal-600 text-teal-800 bg-teal-50/70"
+                        : "border-transparent text-slate-600 hover:text-slate-900"
                     )}
                   >
-                    <CalendarDays size={14} className="text-blue-900" />
+                    <CalendarDays size={14} className="text-teal-700" />
                     <span>Calendário Anual de Aulas (Geração Automática)</span>
                   </button>
 
@@ -4250,8 +4250,8 @@ export function AcademicCalendar() {
                     className={cn(
                       "px-3.5 py-2 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap",
                       parametersTab === 'weekly'
-                        ? "border-[#00174b] text-[#00174b] bg-slate-50/70"
-                        : "border-transparent text-slate-500 hover:text-slate-800"
+                        ? "border-teal-600 text-teal-800 bg-teal-50/70"
+                        : "border-transparent text-slate-600 hover:text-slate-900"
                     )}
                   >
                     <Settings size={14} className="text-slate-500" />

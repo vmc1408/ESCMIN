@@ -139,7 +139,7 @@ export function Navbar() {
                   </h2>
                 </div>
                 {(institution?.city || 'Diocese de Guarulhos') && (
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest truncate leading-tight mt-0.5">
+                  <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest truncate leading-tight mt-0.5">
                     {institution?.city || 'Diocese de Guarulhos'}
                   </p>
                 )}
@@ -154,19 +154,19 @@ export function Navbar() {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={lock}
-                  className="group relative flex items-center justify-center p-2 bg-slate-100/90 hover:bg-amber-50 text-slate-500 hover:text-amber-700 border border-slate-200/80 hover:border-amber-300 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs"
+                  className="group relative flex items-center justify-center p-2 bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-300 hover:border-amber-400 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs"
                   title="Bloquear sistema agora"
                 >
                   {/* Cadeado aberto quando o sistema está desbloqueado */}
-                  <Unlock size={16} className="transition-all duration-200 group-hover:hidden text-emerald-600" />
+                  <Unlock size={16} className="transition-all duration-200 group-hover:hidden text-teal-600" />
                   {/* Cadeado fecha ao passar o mouse por cima para bloquear o sistema */}
                   <Lock size={16} className="hidden transition-all duration-200 group-hover:block text-amber-600 animate-in zoom-in-75" />
                 </button>
               </div>
             )}
 
-            <div className="flex items-center gap-2 md:gap-4 text-slate-400 border-l border-slate-200 pl-2.5 md:pl-4">
-            <div className="relative cursor-pointer hover:text-blue-600 transition-colors hidden xs:block">
+            <div className="flex items-center gap-2 md:gap-4 text-slate-500 border-l border-slate-300 pl-2.5 md:pl-4">
+            <div className="relative cursor-pointer hover:text-teal-600 transition-colors hidden xs:block">
               <Bell size={18} />
               <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>
             </div>
@@ -174,9 +174,9 @@ export function Navbar() {
             <div className="flex items-center gap-2 md:gap-3 ml-1 md:ml-2">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-semibold text-slate-900 leading-none truncate max-w-[120px]">{userName}</p>
-                <p className="text-[10px] font-medium text-slate-500 mt-1 truncate">{userRole}</p>
+                <p className="text-[10px] font-semibold text-slate-600 mt-1 truncate">{userRole}</p>
               </div>
-              <div className="w-8 h-8 rounded bg-slate-100 overflow-hidden border border-slate-200 shadow-sm shrink-0">
+              <div className="w-8 h-8 rounded bg-slate-100 overflow-hidden border border-slate-300 shadow-sm shrink-0">
                 {avatarUrl && !avatarError ? (
                   <img 
                     src={avatarUrl} 
@@ -186,14 +186,14 @@ export function Navbar() {
                     onError={() => setAvatarError(true)}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300">
+                  <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-500">
                     <User size={18} />
                   </div>
                 )}
               </div>
               <button 
                 onClick={logout}
-                className="ml-2 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-90"
+                className="ml-2 p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg transition-all active:scale-90"
                 title="Sair do Sistema"
               >
                 <LogOut size={18} />

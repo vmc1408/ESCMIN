@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
   LayoutDashboard as DashboardIcon, 
   Upload as ImportIcon, 
@@ -235,8 +235,95 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma', 'Impressos', 'Guia Diocese']);
+  const openGroupsRef = useRef<string[]>(openGroups);
+  openGroupsRef.current = openGroups;
+  const navRef = useRef<HTMLElement>(null);
+  const groupRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const pendingScrollGroupRef = useRef<string | null>(null);
+  const scrollFallbackTimerRef = useRef<number | null>(null);
+
+  const setGroupRef = useCallback((label: string) => (el: HTMLDivElement | null) => {
+    if (el) {
+      groupRefs.current.set(label, el);
+    } else {
+      groupRefs.current.delete(label);
+    }
+  }, []);
+
+  const scrollGroupIntoView = useCallback((label: string) => {
+    const navEl = navRef.current;
+    const groupEl = groupRefs.current.get(label);
+    if (!navEl || !groupEl) return;
+
+    const navRect = navEl.getBoundingClientRect();
+    const groupRect = groupEl.getBoundingClientRect();
+    const topPadding = 8;
+    const bottomPadding = 12;
+
+    if (groupRect.height <= navRect.height - (topPadding + bottomPadding)) {
+      if (groupRect.bottom > navRect.bottom - bottomPadding) {
+        const neededScroll = groupRect.bottom - (navRect.bottom - bottomPadding);
+        const maxSafeScroll = Math.max(0, groupRect.top - (navRect.top + topPadding));
+        const delta = Math.min(neededScroll, maxSafeScroll);
+        if (delta > 2) {
+          navEl.scrollTo({
+            top: navEl.scrollTop + delta,
+            behavior: 'smooth',
+          });
+        }
+      } else if (groupRect.top < navRect.top + topPadding) {
+        const delta = groupRect.top - (navRect.top + topPadding);
+        navEl.scrollTo({
+          top: Math.max(0, navEl.scrollTop + delta),
+          behavior: 'smooth',
+        });
+      }
+    } else {
+      // Group taller than sidebar viewport: align its header near the top so expanded items are visible
+      const delta = groupRect.top - (navRect.top + topPadding);
+      if (Math.abs(delta) > 4) {
+        navEl.scrollTo({
+          top: Math.max(0, navEl.scrollTop + delta),
+          behavior: 'smooth',
+        });
+      }
+    }
+  }, []);
+
+  const triggerScrollForGroup = useCallback((label: string) => {
+    pendingScrollGroupRef.current = label;
+    if (scrollFallbackTimerRef.current !== null) {
+      window.clearTimeout(scrollFallbackTimerRef.current);
+    }
+    scrollFallbackTimerRef.current = window.setTimeout(() => {
+      if (pendingScrollGroupRef.current === label) {
+        pendingScrollGroupRef.current = null;
+        scrollFallbackTimerRef.current = null;
+        scrollGroupIntoView(label);
+      }
+    }, 250);
+  }, [scrollGroupIntoView]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollFallbackTimerRef.current !== null) {
+        window.clearTimeout(scrollFallbackTimerRef.current);
+      }
+    };
+  }, []);
 
   const toggleGroup = (label: string) => {
+    const isCurrentlyOpen = openGroups.includes(label);
+    if (!isCurrentlyOpen) {
+      triggerScrollForGroup(label);
+    } else if (pendingScrollGroupRef.current === label) {
+      pendingScrollGroupRef.current = null;
+      if (scrollFallbackTimerRef.current !== null) {
+        window.clearTimeout(scrollFallbackTimerRef.current);
+        scrollFallbackTimerRef.current = null;
+      }
+    }
+
     setOpenGroups(prev => 
       prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]
     );
@@ -297,13 +384,15 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
 
     findAncestors(filteredNavItems);
-    setOpenGroups(prev => {
-      if (prev.length === activeAncestors.length && activeAncestors.every((item, i) => prev[i] === item)) {
-        return prev;
+    const prev = openGroupsRef.current;
+    const isSame = prev.length === activeAncestors.length && activeAncestors.every((item, i) => prev[i] === item);
+    if (!isSame) {
+      setOpenGroups(activeAncestors);
+      if (activeAncestors.length > 0) {
+        triggerScrollForGroup(activeAncestors[activeAncestors.length - 1]);
       }
-      return activeAncestors;
-    });
-  }, [location.pathname, location.search]);
+    }
+  }, [location.pathname, location.search, triggerScrollForGroup]);
   
   const isGroupActive = (item: any): boolean => {
     if (item.path && isPathActive(item.path)) return true;
@@ -319,18 +408,18 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     // Primary Top Level Groups
     if (label === 'Gestão Escolar') {
       return {
-        iconColor: 'text-indigo-400',
+        iconColor: 'text-teal-300',
         textColor: 'text-slate-100',
-        activeIconColor: 'text-indigo-300',
+        activeIconColor: 'text-white',
         activeTextColor: 'text-white'
       };
     }
     
     if (label === 'Impressos') {
       return {
-        iconColor: 'text-sky-400',
+        iconColor: 'text-cyan-300',
         textColor: 'text-slate-100',
-        activeIconColor: 'text-sky-300',
+        activeIconColor: 'text-white',
         activeTextColor: 'text-white'
       };
     }
@@ -343,9 +432,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       item.path?.startsWith('/parishes')
     ) {
       return {
-        iconColor: 'text-amber-500',
+        iconColor: 'text-amber-300',
         textColor: 'text-amber-100',
-        activeIconColor: 'text-amber-400',
+        activeIconColor: 'text-white',
         activeTextColor: 'text-white'
       };
     }
@@ -353,7 +442,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     // Dashboard
     if (label === 'Dashboard' || item.path === '/') {
       return {
-        iconColor: 'text-indigo-400',
+        iconColor: 'text-teal-300',
         textColor: 'text-slate-100',
         activeIconColor: 'text-white',
         activeTextColor: 'text-white'
@@ -372,14 +461,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       item.path === '/receipts'
     ) {
       return {
-        iconColor: 'text-emerald-500',
-        textColor: 'text-slate-300',
-        activeIconColor: 'text-emerald-400',
+        iconColor: 'text-emerald-300',
+        textColor: 'text-slate-100',
+        activeIconColor: 'text-white',
         activeTextColor: 'text-white'
       };
     }
 
-    // Impressos Children (Sky)
+    // Impressos Children (Cyan)
     if (
       parentLabel === 'Impressos' ||
       item.path?.includes('type=carta') ||
@@ -389,14 +478,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       item.path?.includes('type=etiquetas')
     ) {
       return {
-        iconColor: 'text-sky-400',
-        textColor: 'text-slate-300',
-        activeIconColor: 'text-sky-300',
+        iconColor: 'text-cyan-300',
+        textColor: 'text-slate-100',
+        activeIconColor: 'text-white',
         activeTextColor: 'text-white'
       };
     }
 
-    // Acadêmico Groups and Children (Indigo / Blue)
+    // Acadêmico Groups and Children (Teal)
     if (
       label === 'Cadastros' || parentLabel === 'Cadastros' ||
       label === 'Avaliações' || parentLabel === 'Avaliações' ||
@@ -407,17 +496,17 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       item.path === '/attendance' || item.path === '/monthly-attendance' || item.path?.includes('calendar')
     ) {
       return {
-        iconColor: 'text-indigo-400/80',
-        textColor: 'text-slate-300',
-        activeIconColor: 'text-indigo-300',
+        iconColor: 'text-teal-300',
+        textColor: 'text-slate-100',
+        activeIconColor: 'text-white',
         activeTextColor: 'text-white'
       };
     }
 
     // Defaults / Config / Users
     return {
-      iconColor: 'text-slate-400',
-      textColor: 'text-slate-300',
+      iconColor: 'text-slate-200',
+      textColor: 'text-slate-100',
       activeIconColor: 'text-white',
       activeTextColor: 'text-white'
     };
@@ -435,19 +524,19 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         const theme = getItemTheme(item);
         
         return (
-          <div key={item.label} className="space-y-1 my-3">
+          <div key={item.label} ref={setGroupRef(item.label)} className="space-y-1 my-3">
             {/* Linha Divisória Sutil entre os blocos (apenas se não for o primeiro) */}
-            {!isGestao && <div className="border-t border-slate-800/50 my-4 mx-3" />}
+            {!isGestao && <div className="border-t border-[#1F4A54] my-4 mx-3" />}
 
             {/* Pasta Toggle Principal */}
             <button
               onClick={() => toggleGroup(item.label)}
               className={cn(
-                "w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-md transition-all duration-200",
-                isGestao ? "border-l-4 border-indigo-500 bg-indigo-950/15" : "border-l-4 border-sky-500 bg-sky-950/15",
+                "w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-md transition-all duration-200 cursor-pointer",
+                isGestao ? "border-l-4 border-teal-400 bg-teal-900/35" : "border-l-4 border-cyan-400 bg-cyan-900/30",
                 isActive 
                   ? "text-white" 
-                  : "text-slate-200 hover:text-white hover:bg-white/5"
+                  : "text-slate-100 hover:text-white hover:bg-teal-800/45"
               )}
             >
               <div className="flex items-center gap-2.5">
@@ -460,14 +549,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                     )} 
                   />
                 )}
-                <span className="text-[12.5px] font-extrabold uppercase tracking-wide text-slate-100">
+                <span className="text-[12.5px] font-extrabold uppercase tracking-wide text-slate-50">
                   {item.label}
                 </span>
               </div>
               {isOpen ? (
-                <ChevronDown size={14} className={isGestao ? "text-indigo-400" : "text-sky-400"} />
+                <ChevronDown size={14} className={isGestao ? "text-teal-300" : "text-cyan-300"} />
               ) : (
-                <ChevronRight size={14} className={isGestao ? "text-indigo-400" : "text-sky-400"} />
+                <ChevronRight size={14} className={isGestao ? "text-teal-300" : "text-cyan-300"} />
               )}
             </button>
 
@@ -479,11 +568,24 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2, ease: "easeInOut" }}
+                  onAnimationComplete={(definition) => {
+                    const isEnter = typeof definition === 'object' && definition !== null && 'height' in definition
+                      ? (definition as { height?: unknown }).height === 'auto'
+                      : true;
+                    if (isEnter && pendingScrollGroupRef.current === item.label) {
+                      pendingScrollGroupRef.current = null;
+                      if (scrollFallbackTimerRef.current !== null) {
+                        window.clearTimeout(scrollFallbackTimerRef.current);
+                        scrollFallbackTimerRef.current = null;
+                      }
+                      scrollGroupIntoView(item.label);
+                    }
+                  }}
                   className="overflow-hidden"
                 >
                   <div className={cn(
                     "space-y-1 mt-1 pl-3.5 ml-4 border-l-2",
-                    isGestao ? "border-indigo-500/20" : "border-sky-500/20"
+                    isGestao ? "border-teal-500/35" : "border-cyan-500/35"
                   )}>
                     {renderNavItems(item.children, depth + 1, item.label)}
                   </div>
@@ -497,7 +599,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       if (hasChildren) {
         const theme = getItemTheme(item, parentLabel);
         return (
-          <div key={item.label} className="space-y-0.5">
+          <div key={item.label} ref={setGroupRef(item.label)} className="space-y-0.5">
             <button
               onClick={() => {
                 if (item.path) {
@@ -512,7 +614,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               }}
               className={cn(
                 "w-full flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-md transition-all duration-200 cursor-pointer",
-                isActive && !isOpen ? "bg-white/5 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"
+                isActive && !isOpen ? "bg-teal-800/50 text-white" : "text-slate-200 hover:text-white hover:bg-teal-800/45"
               )}
             >
               <div className="flex items-center gap-3">
@@ -526,8 +628,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   />
                 )}
                 <span className={cn(
-                  "text-[10px] font-bold uppercase tracking-wider",
-                  isActive ? "text-white" : "text-slate-400"
+                  "text-[10.5px] font-bold uppercase tracking-wider",
+                  isActive ? "text-white" : "text-slate-200"
                 )}>
                   {item.label}
                 </span>
@@ -537,7 +639,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   e.stopPropagation();
                   toggleGroup(item.label);
                 }}
-                className="p-1 hover:text-white cursor-pointer"
+                className="p-1 text-slate-300 hover:text-white cursor-pointer"
                 title={isOpen ? "Recolher menu" : "Expandir menu"}
               >
                 {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -551,11 +653,24 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2, ease: "easeInOut" }}
+                  onAnimationComplete={(definition) => {
+                    const isEnter = typeof definition === 'object' && definition !== null && 'height' in definition
+                      ? (definition as { height?: unknown }).height === 'auto'
+                      : true;
+                    if (isEnter && pendingScrollGroupRef.current === item.label) {
+                      pendingScrollGroupRef.current = null;
+                      if (scrollFallbackTimerRef.current !== null) {
+                        window.clearTimeout(scrollFallbackTimerRef.current);
+                        scrollFallbackTimerRef.current = null;
+                      }
+                      scrollGroupIntoView(item.label);
+                    }
+                  }}
                   className="overflow-hidden"
                 >
                   <div className={cn(
                     "space-y-0.5 mt-0.5",
-                    depth === 0 ? "ml-4 border-l border-white/5 pl-2" : "ml-3 border-l border-white/5 pl-2"
+                    depth === 0 ? "ml-4 border-l border-teal-500/30 pl-2" : "ml-3 border-l border-teal-500/30 pl-2"
                   )}>
                     {renderNavItems(item.children, depth + 1, item.label)}
                   </div>
@@ -580,8 +695,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             className={cn(
               "flex-1 flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200 min-w-0",
               isActive 
-                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/15" 
-                : "text-slate-300 hover:text-white hover:bg-white/5"
+                ? "bg-teal-600 text-white shadow-sm ring-1 ring-teal-400/50 font-semibold" 
+                : "text-slate-200 hover:text-white hover:bg-teal-800/45"
             )}
           >
             {item.icon && (
@@ -605,14 +720,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                 handleToggleFavorite(item.path);
               }}
               className={cn(
-                "p-1.5 transition-all shrink-0 cursor-pointer rounded hover:bg-white/10 mr-1.5",
+                "p-1.5 transition-all shrink-0 cursor-pointer rounded hover:bg-teal-700/50 mr-1.5",
                 isFav 
-                  ? "text-amber-400 opacity-100 hover:scale-125" 
-                  : "text-slate-500 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-amber-400 hover:scale-125"
+                  ? "text-amber-300 opacity-100 hover:scale-125" 
+                  : "text-slate-300 opacity-0 group-hover:opacity-80 hover:!opacity-100 hover:text-amber-300 hover:scale-125"
               )}
               title={isFav ? "Remover da barra de acesso rápido do Dashboard" : "Fixar na barra de acesso rápido do Dashboard (máx. 10)"}
             >
-              <Star size={13} className={cn(isFav ? "fill-amber-400" : "")} />
+              <Star size={13} className={cn(isFav ? "fill-amber-300" : "")} />
             </button>
           )}
         </div>
@@ -621,16 +736,16 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <aside className="h-full max-h-screen w-60 bg-slate-900 text-white flex flex-col border-r border-slate-800 print:hidden overflow-hidden shrink-0 select-none">
-      <div className="h-16 px-5 border-b border-slate-800 flex items-center justify-between shrink-0">
+    <aside className="h-full max-h-screen w-60 bg-[#0F2A30] text-white flex flex-col border-r border-[#1F4A54] print:hidden overflow-hidden shrink-0 select-none">
+      <div className="h-16 px-5 bg-[#0B2025] border-b border-[#1F4A54] flex items-center justify-between shrink-0">
         <div className="flex flex-col">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.05em] text-blue-400">SISTEMA ACADEMICO ESCMIN</h2>
-          <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Diocese de Guarulhos</span>
+          <h2 className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-teal-300">SISTEMA ACADEMICO ESCMIN</h2>
+          <span className="text-[9.5px] font-medium text-slate-200 uppercase tracking-wider">Diocese de Guarulhos</span>
         </div>
         {onClose && (
           <button 
             onClick={onClose}
-            className="lg:hidden p-1 text-white/40 hover:text-white transition-colors"
+            className="lg:hidden p-1 text-white/60 hover:text-white transition-colors"
           >
             <XCircle size={18} />
           </button>
@@ -642,39 +757,39 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Aviso de Limite de Atalhos (se tentar ultrapassar 10) */}
       {notice && (
-        <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-[10px] text-amber-300 font-semibold text-center shrink-0 animate-fade-in">
+        <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-400/50 text-[10px] text-amber-200 font-semibold text-center shrink-0 animate-fade-in">
           {notice}
         </div>
       )}
 
-      <nav className="flex-1 min-h-0 px-2 py-3 space-y-1 overflow-y-auto overscroll-contain sidebar-scrollbar">
+      <nav ref={navRef} className="flex-1 min-h-0 px-2 py-3 space-y-1 overflow-y-auto overscroll-contain sidebar-scrollbar">
         {renderNavItems(filteredNavItems)}
       </nav>
 
-      <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col items-center shrink-0 mt-auto select-none">
+      <div className="p-4 bg-[#091C21] border-t border-[#1F4A54] flex flex-col items-center shrink-0 mt-auto select-none">
         {/* Database Connection Indicator */}
-        <div className="w-full px-3 py-2 bg-slate-900/50 border border-slate-800/80 flex items-center justify-between">
+        <div className="w-full px-3 py-2 bg-[#102E35] border border-[#1F4A54] rounded-md flex items-center justify-between">
           <div className="flex items-center gap-2">
             {dbStatus === 'online' ? (
-              <div className="w-2 h-2 bg-emerald-500 shrink-0"></div>
+              <div className="w-2 h-2 bg-emerald-400 rounded-full shrink-0"></div>
             ) : dbStatus === 'offline' ? (
-              <div className="w-2 h-2 bg-red-500 shrink-0"></div>
+              <div className="w-2 h-2 bg-red-400 rounded-full shrink-0"></div>
             ) : (
-              <div className="w-2 h-2 bg-yellow-500 shrink-0 animate-pulse"></div>
+              <div className="w-2 h-2 bg-yellow-400 rounded-full shrink-0 animate-pulse"></div>
             )}
             <span className={cn(
               "text-[9px] font-black uppercase tracking-widest leading-none",
-              dbStatus === 'online' ? "text-emerald-500" : dbStatus === 'offline' ? "text-red-500" : "text-yellow-500"
+              dbStatus === 'online' ? "text-emerald-400" : dbStatus === 'offline' ? "text-red-400" : "text-yellow-400"
             )}>
               {dbStatus === 'online' ? 'ONLINE' : dbStatus === 'offline' ? 'OFFLINE' : 'CONECTANDO'}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5" title={latency !== null ? `Latência do banco: ${latency} ms` : 'Verificando latência'}>
-            <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest leading-none">LATÊNCIA:</span>
+            <span className="text-[7.5px] font-bold text-slate-300 uppercase tracking-widest leading-none">LATÊNCIA:</span>
             <span className={cn(
               "text-[8.5px] font-bold font-mono tabular-nums leading-none",
-              latency === null ? "text-slate-500" : latency < 600 ? "text-emerald-400" : latency < 1500 ? "text-amber-400" : "text-rose-400"
+              latency === null ? "text-slate-300" : latency < 600 ? "text-emerald-300" : latency < 1500 ? "text-amber-300" : "text-rose-300"
             )}>
               {latency !== null ? `${latency} ms` : '...'}
             </span>
@@ -682,9 +797,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
 
         {/* Copyright Text */}
-        <div className="text-[8px] text-slate-500 font-bold text-center mt-3 leading-normal w-full uppercase tracking-wider">
+        <div className="text-[8px] text-slate-300 font-bold text-center mt-3 leading-normal w-full uppercase tracking-wider">
           <p>© Escmin Gestão Acadêmica</p>
-          <p className="text-[7.5px] text-slate-500/80 mt-0.5">Desenvolvido por Mauricio Santos</p>
+          <p className="text-[7.5px] text-teal-200/80 mt-0.5">Desenvolvido por Mauricio Santos</p>
         </div>
       </div>
     </aside>

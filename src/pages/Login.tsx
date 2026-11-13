@@ -4,11 +4,10 @@ import { saveData, deleteData, fetchCount, getInstitutionSettings } from '../lib
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { DEFAULT_LOGO } from '../lib/default-logo';
-import sedePropriaImg from '../assets/images/sede_propria_guarulhos_1783557147440.jpg';
-import docentesGrupoImg from '../assets/images/corpo_docente_real_1783556897371.jpg';
-import dioceseMapaImg from '../assets/images/diocese_map_exact_1783556695984.jpg';
+import sanctuaryBgImg from '../assets/images/login_bg_sanctuary_1794530752025.jpg';
+import seminaryBgImg from '../assets/images/login_bg_seminary_1794530753129.jpg';
+import courtyardBgImg from '../assets/images/login_bg_courtyard_1794530753072.jpg';
 import { 
-  Shield, 
   ShieldAlert,
   Mail, 
   Lock, 
@@ -17,21 +16,28 @@ import {
   AlertTriangle,
   RefreshCw,
   CheckCircle2,
-  Database,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  BookOpen,
-  Users,
-  GraduationCap,
-  Calendar,
   CheckCircle,
   ArrowRight,
-  Map,
-  Zap
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+
+const BACKGROUND_IMAGES = [
+  {
+    src: sanctuaryBgImg,
+    alt: 'Nave e santuário paroquial da Diocese'
+  },
+  {
+    src: seminaryBgImg,
+    alt: 'Biblioteca e sala de estudos teológicos'
+  },
+  {
+    src: courtyardBgImg,
+    alt: 'Pátio e capela do centro de formação pastoral'
+  }
+];
 
 export function Login() {
   const [email, setEmail] = useState(() => {
@@ -39,6 +45,10 @@ export function Login() {
   });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [bgIndex, setBgIndex] = useState(0);
+  const [failedBgIndexes, setFailedBgIndexes] = useState<Record<number, boolean>>({});
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,6 +217,19 @@ export function Login() {
       setEmail(savedEmail);
       setRememberMe(true);
     }
+  }, []);
+
+  // Rotate background images smoothly (respecting prefers-reduced-motion)
+  useEffect(() => {
+    const prefersReducedMotion = typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    const timer = window.setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % BACKGROUND_IMAGES.length);
+    }, 8000);
+
+    return () => window.clearInterval(timer);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -642,487 +665,508 @@ export function Login() {
     }
   };
 
+  const dioceseTitle = (() => {
+    const cityRaw = (institution?.city || institution?.city_uf || 'GUARULHOS').split('/')[0].trim();
+    return cityRaw.toUpperCase().startsWith('DIOCESE DE') ? cityRaw.toUpperCase() : `DIOCESE DE ${cityRaw.toUpperCase()}`;
+  })();
+  const institutionName = institution?.name || 'Escola Diocesana de Ministério';
+
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col lg:flex-row overflow-hidden font-sans">
-      {/* Left side: Information (Fixed Presentation with Original Map & Branding) - Hidden on Mobile */}
-      <div className="hidden lg:flex lg:w-[48%] xl:w-[50%] bg-[#00174b] p-6 sm:p-8 lg:p-12 xl:p-14 flex-col justify-between relative overflow-hidden shrink-0">
-        {/* Background Patterns */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-400/5 rounded-full -ml-32 -mb-32 blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col justify-between h-full space-y-6">
-          {/* Top Header */}
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-              <img 
-                src={institution?.logo_url || DEFAULT_LOGO} 
-                alt="Logo" 
-                className="w-full h-full object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:scale-105 transition-transform"
+    <div className="min-h-screen w-full bg-[#09292F] relative flex flex-col justify-between items-center px-4 py-6 sm:px-6 sm:py-8 overflow-x-hidden font-sans">
+      {/* Full-Screen Rotating Photographic Backdrop with Teal/Petrol Overlay */}
+      <div className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden bg-[#09292F]">
+        {BACKGROUND_IMAGES.map((img, idx) => (
+          !failedBgIndexes[idx] && (
+            <img
+              key={img.alt}
+              src={img.src}
+              alt={img.alt}
+              referrerPolicy="no-referrer"
+              onError={() => setFailedBgIndexes((prev) => ({ ...prev, [idx]: true }))}
+              className={cn(
+                "absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000 ease-in-out scale-[1.02]",
+                bgIndex === idx ? "opacity-100" : "opacity-0"
+              )}
+            />
+          )
+        ))}
+        {/* Measured Petrol-Teal Scrim for visual harmony and high legibility */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(7, 45, 52, 0.86) 0%, rgba(13, 89, 92, 0.78) 50%, rgba(6, 33, 38, 0.90) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 45%, rgba(20, 184, 166, 0.14) 0%, rgba(4, 24, 28, 0.45) 100%)',
+          }}
+        />
+      </div>
+
+      {/* Connection Error Full-Screen Modal Overlay */}
+      {!isConnected && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative overflow-hidden bg-slate-900 border-2 border-red-500 rounded-2xl shadow-2xl max-w-md w-full p-8 text-white flex flex-col items-center text-center"
+          >
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,#ff000005_25%,transparent_25%,transparent_50%,#ff000005_50%,#ff000005_75%,transparent_75%,transparent)] bg-[size:30px_30px] opacity-40 pointer-events-none" />
+
+            <div className="relative mb-6">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-20 animate-ping" />
+              <div className="relative p-5 bg-red-600 text-white rounded-full border border-red-400 shadow-lg shadow-red-600/30 flex items-center justify-center">
+                <AlertTriangle size={36} className="animate-bounce" />
+              </div>
+            </div>
+
+            <span className="px-3 py-1 bg-red-600/20 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+              Alerta de Conectividade
+            </span>
+
+            <h5 className="text-lg font-black uppercase tracking-wider text-white leading-tight">
+              Falha de Conexão com o Servidor
+            </h5>
+
+            <p className="text-xs font-medium text-slate-300 mt-3 leading-relaxed">
+              Não foi possível conectar ao banco de dados principal. Por favor, verifique a sua conexão com a internet.
+            </p>
+
+            <div className="my-4 px-4 py-3 bg-red-950/50 border border-red-900/50 rounded-lg w-full text-left">
+              <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest block mb-0.5">Detalhes da conexão:</span>
+              <p className="text-[11px] font-mono text-red-200 break-words">{connError || 'Dispositivo offline ou rede instável.'}</p>
+            </div>
+
+            <p className="text-xs text-slate-400 font-medium mb-2">
+              Como este sistema opera de modo 100% online, é necessário estabelecer contato estável com o servidor principal para assegurar a integridade das operações.
+            </p>
+
+            <p className="text-xs text-red-400 font-semibold mb-6">
+              Se o problema persistir, sugerimos atualizar a página (F5) ou fechar o sistema e tentar novamente mais tarde.
+            </p>
+
+            <div className="flex flex-col gap-2 w-full">
+              <button
+                onClick={handleManualReconnect}
+                disabled={isRetrying}
+                className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 active:scale-[0.98] text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-600/40 uppercase tracking-widest border border-red-500 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isRetrying ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    Tentando reconectar...
+                  </>
+                ) : (
+                  'Tentar Reconectar Agora'
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Top balance spacer */}
+      <div className="relative z-10 h-2 sm:h-4 shrink-0" />
+
+      {/* Centered Split Login Card (Modeled on Reference Layout) */}
+      <motion.main
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-[840px] my-auto rounded-2xl bg-white shadow-[0_28px_70px_-15px_rgba(0,0,0,0.6)] border border-white/20 overflow-hidden grid grid-cols-1 md:grid-cols-12"
+      >
+        {/* Left Brand Panel: Preserves Top-Left Circled Institution Identity */}
+        <div className="md:col-span-5 relative overflow-hidden bg-gradient-to-br from-[#0F766E] via-[#0C5A60] to-[#08343B] text-white px-7 py-8 sm:px-8 sm:py-10 flex flex-col items-center justify-center text-center">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.14) 0%, transparent 65%)',
+            }}
+          />
+
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 mb-5 flex items-center justify-center">
+              <img
+                src={institution?.logo_url || DEFAULT_LOGO}
+                alt={`Brasão ${institutionName}`}
+                className="w-full h-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.45)] transition-transform duration-300 hover:scale-105"
                 referrerPolicy="no-referrer"
               />
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">
-                {(() => {
-                  const cityRaw = (institution?.city || institution?.city_uf || 'GUARULHOS').split('/')[0].trim();
-                  return cityRaw.toUpperCase().startsWith('DIOCESE DE') ? cityRaw.toUpperCase() : `DIOCESE DE ${cityRaw.toUpperCase()}`;
-                })()}
-              </p>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
-            </div>
-          </div>
 
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col space-y-6 my-auto"
-          >
-            {/* Connection Error Full-Screen Modal Overlay */}
-            {!isConnected && (
-              <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="relative overflow-hidden bg-slate-900 border-2 border-red-500 rounded-2xl shadow-2xl max-w-md w-full p-8 text-white flex flex-col items-center text-center"
-                >
-                  <div className="absolute inset-0 bg-[linear-gradient(45deg,#ff000005_25%,transparent_25%,transparent_50%,#ff000005_50%,#ff000005_75%,transparent_75%,transparent)] bg-[size:30px_30px] opacity-40 pointer-events-none" />
-                  
-                  <div className="relative mb-6">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-20 animate-ping" />
-                    <div className="relative p-5 bg-red-600 text-white rounded-full border border-red-400 shadow-lg shadow-red-600/30 flex items-center justify-center">
-                      <AlertTriangle size={36} className="animate-bounce" />
-                    </div>
-                  </div>
-                  
-                  <span className="px-3 py-1 bg-red-600/20 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
-                    Alerta de Conectividade
-                  </span>
-                  
-                  <h5 className="text-lg font-black uppercase tracking-wider text-white leading-tight">
-                    Falha de Conexão com o Servidor
-                  </h5>
-                  
-                  <p className="text-xs font-medium text-slate-300 mt-3 leading-relaxed">
-                    Não foi possível conectar ao banco de dados principal. Por favor, verifique a sua conexão com a internet.
-                  </p>
-                  
-                  <div className="my-4 px-4 py-3 bg-red-950/50 border border-red-900/50 rounded-lg w-full text-left">
-                    <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest block mb-0.5">Detalhes da conexão:</span>
-                    <p className="text-[11px] font-mono text-red-200 break-words">{connError || 'Dispositivo offline ou rede instável.'}</p>
-                  </div>
-                  
-                  <p className="text-xs text-slate-400 font-medium mb-2">
-                    Como este sistema opera de modo 100% online, é necessário estabelecer contato estável com o servidor principal para assegurar a integridade das operações.
-                  </p>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.26em] text-amber-400 mb-2">
+              {dioceseTitle}
+            </p>
 
-                  <p className="text-xs text-red-400 font-semibold mb-6">
-                    Se o problema persistir, sugerimos atualizar a página (F5) ou fechar o sistema e tentar novamente mais tarde.
-                  </p>
+            <h1 className="text-xl sm:text-[22px] font-extrabold text-white tracking-tight leading-snug max-w-[260px] text-balance">
+              {institutionName}
+            </h1>
 
-                  <div className="flex flex-col gap-2 w-full">
-                    <button
-                      onClick={handleManualReconnect}
-                      disabled={isRetrying}
-                      className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 active:scale-[0.98] text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-600/40 uppercase tracking-widest border border-red-500 cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      {isRetrying ? (
-                        <>
-                          <RefreshCw size={12} className="animate-spin" />
-                          Tentando reconectar...
-                        </>
-                      ) : (
-                        'Tentar Reconectar Agora'
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
+            <div className="w-12 h-px bg-white/25 my-4" />
 
-            {/* Presentation Headline */}
-            <div className="space-y-4">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.1] tracking-tight">
-                Formação para o <span className="text-amber-500">Serviço</span> e Missão
-              </h2>
-              <p className="text-white/70 font-medium text-sm lg:text-base max-w-lg leading-relaxed">
-                Espaço de crescimento teológico e pastoral para leigos e leigas. {institution?.city ? `Atuando em ${institution.city}.` : ''}
-              </p>
-            </div>
-
-            {/* Clean Feature Pillars (No image) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm space-y-1.5 hover:bg-white/10 transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                  <Shield size={20} />
-                </div>
-                <h3 className="text-sm font-bold text-white">Sede Própria & Formativa</h3>
-                <p className="text-xs text-white/65 leading-relaxed">Infraestrutura dedicada a salas de aula, secretaria e momentos formativos.</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm space-y-1.5 hover:bg-white/10 transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
-                  <Users size={20} />
-                </div>
-                <h3 className="text-sm font-bold text-white">Corpo Docente de Excelência</h3>
-                <p className="text-xs text-white/65 leading-relaxed">Professores e orientadores qualificados na formação do clero e laicato.</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm sm:col-span-2 space-y-1.5 hover:bg-white/10 transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <Map size={20} />
-                </div>
-                <h3 className="text-sm font-bold text-white">Atuação Diocesana Integrada</h3>
-                <p className="text-xs text-white/65 leading-relaxed">Alcance integrado para paróquias, comunidades e foranias regionais.</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Footer Branding */}
-          <div className="relative z-10 pt-4 border-t border-white/10 flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="text-amber-500" size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Sistema de Gestão Acadêmica v2.0</span>
-            </div>
-            <p className="text-[9px] font-bold uppercase tracking-wider text-white/25 ml-5">
-              Escola Diocesana de Ministério
+            <p className="text-xs font-medium text-teal-50/85 leading-relaxed max-w-[240px]">
+              Formação teológica e pastoral para o serviço e missão na Igreja.
             </p>
           </div>
         </div>
-      </div>
 
-      {/* Right side: Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-white relative">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-sm"
-        >
-          {/* Mobile Institution Header (visible only on mobile) */}
-          <div className="lg:hidden flex flex-col items-center text-center mb-8">
-            <div className="w-16 h-16 mb-2.5 flex items-center justify-center">
-              <img 
-                src={institution?.logo_url || DEFAULT_LOGO} 
-                alt="Logo" 
-                className="w-full h-full object-contain drop-shadow-sm"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-600">
-              {(() => {
-                const cityRaw = (institution?.city || institution?.city_uf || 'GUARULHOS').split('/')[0].trim();
-                return cityRaw.toUpperCase().startsWith('DIOCESE DE') ? cityRaw.toUpperCase() : `DIOCESE DE ${cityRaw.toUpperCase()}`;
-              })()}
-            </p>
-            <h1 className="text-lg font-bold text-[#00174b] tracking-tight leading-snug">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
-          </div>
-          {isResettingPassword ? (
-             <div className="space-y-6">
-               <div className="text-center mb-8">
-                 <h2 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">
-                   Definir Nova Senha
-                 </h2>
-                 <p className="text-slate-400 font-semibold text-[10px] uppercase tracking-[0.2em]">
-                   Digite a nova senha para sua conta
-                 </p>
-               </div>
-
-               <AnimatePresence mode="wait">
-                 {error && (
-                   <motion.div 
-                     key="reset-password-error"
-                     initial={{ opacity: 0, height: 0 }}
-                     animate={{ opacity: 1, height: 'auto' }}
-                     exit={{ opacity: 0, height: 0 }}
-                     className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
-                   >
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
-                     <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
-                   </motion.div>
-                 )}
-                 {successMessage && (
-                   <motion.div 
-                     key="reset-password-success"
-                     initial={{ opacity: 0 }}
-                     animate={{ opacity: 1 }}
-                     exit={{ opacity: 0 }}
-                     className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3"
-                   >
-                     <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
-                     <p className="text-xs font-bold text-emerald-700 leading-tight">{successMessage}</p>
-                   </motion.div>
-                 )}
-               </AnimatePresence>
-
-               <form onSubmit={handleUpdatePassword} className="space-y-4">
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nova Senha</label>
-                   <div className="relative group">
-                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                     <input 
-                       type="password"
-                       required
-                       value={newPassword}
-                       onChange={e => setNewPassword(e.target.value)}
-                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                       placeholder="Mínimo de 6 caracteres"
-                     />
-                   </div>
-                 </div>
-
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirmar Nova Senha</label>
-                   <div className="relative group">
-                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                     <input 
-                       type="password"
-                       required
-                       value={confirmNewPassword}
-                       onChange={e => setConfirmNewPassword(e.target.value)}
-                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                       placeholder="Repita sua nova senha"
-                     />
-                   </div>
-                 </div>
-
-                 <div className="pt-4">
-                   <button 
-                     type="submit"
-                     disabled={loading}
-                     className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
-                   >
-                     {loading ? (
-                       <React.Fragment key="save-loading">
-                         <Loader2 className="animate-spin" size={20} />
-                         <span>Salvando...</span>
-                       </React.Fragment>
-                     ) : (
-                       <React.Fragment key="save-ready">
-                         <CheckCircle2 size={20} />
-                         <span>Salvar Nova Senha</span>
-                       </React.Fragment>
-                     )}
-                   </button>
-
-                   <button 
-                     type="button"
-                     onClick={() => {
-                       localStorage.removeItem('supabase_recovery_mode');
-                       setIsResettingPassword(false);
-                       setError(null);
-                     }}
-                     className="w-full mt-4 text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
-                   >
-                     Cancelar e Voltar ao Login
-                   </button>
-                 </div>
-               </form>
-             </div>
-          ) : (
-            <>
-              <div className="text-center mb-6 sm:mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-1.5 uppercase tracking-tight">
-                  {isRegistering ? 'Primeiro Acesso' : isForgotPassword ? 'Recuperar Acesso' : 'Bem-vindo'}
-                </h2>
-                <p className="text-slate-400 font-semibold text-[10px] uppercase tracking-[0.2em]">
-                  {isRegistering ? 'Crie sua senha de estudante' : isForgotPassword ? 'Redefina sua senha por e-mail' : 'Portal Administrativo e Acadêmico'}
-                </p>
-              </div>
-
-              {/* Tabs for Login/Register */}
-              {!isForgotPassword && (
-                <div className="flex bg-slate-100 p-1 rounded-xl mb-5 border border-slate-200">
-                  <button 
-                    onClick={() => { setIsRegistering(false); setError(null); }}
-                    className={cn(
-                      "flex-1 py-2.5 sm:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                      !isRegistering ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Entrar
-                  </button>
-                  <button 
-                    onClick={() => { setIsRegistering(true); setError(null); }}
-                    className={cn(
-                      "flex-1 py-2.5 sm:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                      isRegistering ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Primeiro Acesso
-                  </button>
+        {/* Right Form Panel: Preserves Circled Login Module */}
+        <div className="md:col-span-7 bg-white px-6 py-8 sm:px-10 sm:py-10 flex flex-col justify-center">
+          <div className="w-full max-w-sm mx-auto">
+            {isResettingPassword ? (
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-1.5 uppercase tracking-tight">
+                    Definir Nova Senha
+                  </h2>
+                  <p className="text-slate-500 font-semibold text-[10px] uppercase tracking-[0.2em]">
+                    Digite a nova senha para sua conta
+                  </p>
                 </div>
-              )}
 
+                <AnimatePresence mode="wait">
+                  {error && (
+                    <motion.div
+                      key="reset-password-error"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3"
+                    >
+                      <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
+                      <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
+                    </motion.div>
+                  )}
+                  {successMessage && (
+                    <motion.div
+                      key="reset-password-success"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3"
+                    >
+                      <CheckCircle2 className="text-emerald-600 shrink-0 mt-0.5" size={16} />
+                      <p className="text-xs font-bold text-emerald-700 leading-tight">{successMessage}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-
-              <AnimatePresence mode="wait">
-                {logoutNotice && (
-                  <motion.div 
-                    key="login-logout-notice"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 shadow-sm"
-                  >
-                    <ShieldAlert className="text-amber-600 shrink-0 mt-0.5" size={18} />
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-amber-900 leading-tight">Sessão Finalizada</p>
-                      <p className="text-[11px] text-amber-800 leading-relaxed font-medium mt-0.5">{logoutNotice}</p>
-                    </div>
-                  </motion.div>
-                )}
-                {error && (
-                  <motion.div 
-                    key="login-error-message"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
-                  >
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
-                    <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
-                  </motion.div>
-                )}
-                {resetSent && (
-                  <motion.div 
-                    key="login-reset-sent-message"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3"
-                  >
-                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
-                    <p className="text-xs font-bold text-emerald-700 leading-tight">Link enviado! Verifique seu e-mail.</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {isForgotPassword && resetSent ? (
-                <div className="space-y-6">
-                  <div className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl space-y-4">
-                    <div className="flex items-start gap-3">
-                      <RefreshCw className="text-indigo-600 shrink-0 mt-0.5 animate-spin-slow" size={18} />
-                      <div>
-                        <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-wider">
-                          Dificuldade com o redirecionamento?
-                        </h3>
-                        <p className="text-[11px] text-slate-600 leading-relaxed font-medium mt-1">
-                          Se o redirecionamento automático do e-mail não funcionar no seu navegador, você pode colar o link recebido no campo abaixo para concluir a redefinição de senha com segurança.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/80 p-4 rounded-xl border border-indigo-100/55 space-y-3">
-                      <p className="text-[11px] text-slate-700 leading-relaxed font-semibold">
-                        Copie o link completo recebido em seu e-mail e cole-o aqui:
-                      </p>
-
-                      <form onSubmit={handleProcessPastedUrl} className="space-y-3">
-                        <input 
-                          type="text"
-                          required
-                          value={pastedUrl}
-                          onChange={e => setPastedUrl(e.target.value)}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/5 transition-all"
-                          placeholder="Cole o link completo do e-mail (ex: https://...)"
-                        />
-                        <button 
-                          type="submit"
-                          disabled={loading}
-                          className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md shadow-indigo-900/10 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-                        >
-                          {loading ? (
-                            <React.Fragment key="pasted-process-loading">
-                              <Loader2 className="animate-spin" size={16} />
-                              <span>Processando...</span>
-                            </React.Fragment>
-                          ) : (
-                            <React.Fragment key="pasted-process-ready">
-                              <CheckCircle2 size={16} />
-                              <span>Processar Link e Redefinir Senha</span>
-                            </React.Fragment>
-                          )}
-                        </button>
-                      </form>
+                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-1 block">
+                      Nova Senha
+                    </label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-600 transition-colors pointer-events-none" size={17} />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
+                        placeholder="Mínimo de 6 caracteres"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(prev => !prev)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-teal-700 p-1 transition-colors cursor-pointer"
+                        title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
                   </div>
 
-                  <div className="pt-2 flex flex-col gap-3">
-                    <button 
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-1 block">
+                      Confirmar Nova Senha
+                    </label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-600 transition-colors pointer-events-none" size={17} />
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={confirmNewPassword}
+                        onChange={e => setConfirmNewPassword(e.target.value)}
+                        className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
+                        placeholder="Repita sua nova senha"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(prev => !prev)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-teal-700 p-1 transition-colors cursor-pointer"
+                        title={showConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      >
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-3">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.18em] shadow-lg shadow-teal-900/20 hover:bg-teal-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 cursor-pointer"
+                    >
+                      {loading ? (
+                        <React.Fragment key="save-loading">
+                          <Loader2 className="animate-spin" size={18} />
+                          <span>Salvando...</span>
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment key="save-ready">
+                          <CheckCircle2 size={18} />
+                          <span>Salvar Nova Senha</span>
+                        </React.Fragment>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.removeItem('supabase_recovery_mode');
+                        setIsResettingPassword(false);
+                        setError(null);
+                      }}
+                      className="w-full mt-4 text-center text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest cursor-pointer"
+                    >
+                      Cancelar e Voltar ao Login
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <>
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-1 uppercase tracking-tight">
+                    {isRegistering ? 'Primeiro Acesso' : isForgotPassword ? 'Recuperar Acesso' : 'Bem-vindo'}
+                  </h2>
+                  <p className="text-slate-500 font-semibold text-[10px] uppercase tracking-[0.2em]">
+                    {isRegistering ? 'Crie sua senha de estudante' : isForgotPassword ? 'Redefina sua senha por e-mail' : 'Portal Administrativo e Acadêmico'}
+                  </p>
+                </div>
+
+                {/* Tabs for Login / Primeiro Acesso */}
+                {!isForgotPassword && (
+                  <div className="flex bg-slate-100 p-1 rounded-xl mb-5 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => { setIsRegistering(false); setError(null); }}
+                      className={cn(
+                        "flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
+                        !isRegistering ? "bg-white text-teal-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      Entrar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsRegistering(true); setError(null); }}
+                      className={cn(
+                        "flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
+                        isRegistering ? "bg-white text-teal-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      Primeiro Acesso
+                    </button>
+                  </div>
+                )}
+
+                <AnimatePresence mode="wait">
+                  {logoutNotice && (
+                    <motion.div
+                      key="login-logout-notice"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3"
+                    >
+                      <ShieldAlert className="text-amber-600 shrink-0 mt-0.5" size={17} />
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-amber-900 leading-tight">Sessão Finalizada</p>
+                        <p className="text-[11px] text-amber-800 leading-relaxed font-medium mt-0.5">{logoutNotice}</p>
+                      </div>
+                    </motion.div>
+                  )}
+                  {error && (
+                    <motion.div
+                      key="login-error-message"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3"
+                    >
+                      <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
+                      <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
+                    </motion.div>
+                  )}
+                  {resetSent && (
+                    <motion.div
+                      key="login-reset-sent-message"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3"
+                    >
+                      <CheckCircle2 className="text-emerald-600 shrink-0 mt-0.5" size={16} />
+                      <p className="text-xs font-bold text-emerald-700 leading-tight">Link enviado! Verifique seu e-mail.</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {isForgotPassword && resetSent ? (
+                  <div className="space-y-5">
+                    <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-xl space-y-3">
+                      <div className="flex items-start gap-3">
+                        <RefreshCw className="text-teal-700 shrink-0 mt-0.5" size={17} />
+                        <div>
+                          <h3 className="text-xs font-bold text-teal-900 uppercase tracking-wider">
+                            Dificuldade com o redirecionamento?
+                          </h3>
+                          <p className="text-[11px] text-slate-600 leading-relaxed font-medium mt-1">
+                            Se o redirecionamento automático do e-mail não funcionar no seu navegador, cole o link recebido abaixo para concluir a redefinição de senha com segurança.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-3.5 rounded-lg border border-teal-100 space-y-2.5">
+                        <p className="text-[11px] text-slate-700 leading-relaxed font-semibold">
+                          Copie o link completo recebido em seu e-mail e cole-o aqui:
+                        </p>
+
+                        <form onSubmit={handleProcessPastedUrl} className="space-y-2.5">
+                          <input
+                            type="text"
+                            required
+                            value={pastedUrl}
+                            onChange={e => setPastedUrl(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-lg text-xs font-semibold outline-none"
+                            placeholder="Cole o link completo do e-mail (ex: https://...)"
+                          />
+                          <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3 bg-teal-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md shadow-teal-900/15 hover:bg-teal-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
+                          >
+                            {loading ? (
+                              <React.Fragment key="pasted-process-loading">
+                                <Loader2 className="animate-spin" size={16} />
+                                <span>Processando...</span>
+                              </React.Fragment>
+                            ) : (
+                              <React.Fragment key="pasted-process-ready">
+                                <CheckCircle2 size={16} />
+                                <span>Processar Link e Redefinir Senha</span>
+                              </React.Fragment>
+                            )}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+
+                    <button
                       type="button"
                       onClick={() => { setIsForgotPassword(false); setResetSent(false); setError(null); }}
-                      className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+                      className="w-full text-center text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest cursor-pointer"
                     >
                       Voltar para o Login
                     </button>
                   </div>
-                </div>
-              ) : (
-                <form onSubmit={isForgotPassword ? handleForgotPassword : (isRegistering ? handleRegister : handleLogin)} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail Institucional</label>
-                    <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                      <input 
-                        type="email"
-                        required
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                        placeholder="aluno@diocese.com"
-                      />
-                    </div>
-                  </div>
-
-                  {!isForgotPassword && (
+                ) : (
+                  <form onSubmit={isForgotPassword ? handleForgotPassword : (isRegistering ? handleRegister : handleLogin)} className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
+                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-1 block">
+                        E-mail Institucional
+                      </label>
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                        <input 
-                          type="password"
-                          required={!isForgotPassword}
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                          placeholder="••••••••"
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-600 transition-colors pointer-events-none" size={17} />
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          className="w-full pl-11 pr-4 py-3.5 rounded-xl font-medium text-sm outline-none"
+                          placeholder="aluno@diocese.com"
                         />
                       </div>
                     </div>
-                  )}
 
-                  {isRegistering && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="space-y-1.5"
-                    >
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar Senha</label>
-                      <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
-                        <input 
-                          type="password"
-                          required
-                          value={confirmPassword}
-                          onChange={e => setConfirmPassword(e.target.value)}
-                          className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
-                          placeholder="••••••••"
-                        />
+                    {!isForgotPassword && (
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-1 block">
+                          Senha de Acesso
+                        </label>
+                        <div className="relative group">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-600 transition-colors pointer-events-none" size={17} />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            required={!isForgotPassword}
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(prev => !prev)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-teal-700 p-1 transition-colors cursor-pointer"
+                            title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                          >
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
-                    </motion.div>
-                  )}
+                    )}
 
-                  {!isRegistering && !isForgotPassword && (
-                     <div className="flex items-center justify-between px-1 gap-2">
-                        <label 
+                    {isRegistering && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="space-y-1.5"
+                      >
+                        <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-1 block">
+                          Confirmar Senha
+                        </label>
+                        <div className="relative group">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-600 transition-colors pointer-events-none" size={17} />
+                          <input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            required
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                            className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
+                            placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(prev => !prev)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-teal-700 p-1 transition-colors cursor-pointer"
+                            title={showConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                          >
+                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {!isRegistering && !isForgotPassword && (
+                      <div className="flex flex-wrap items-center justify-between px-0.5 gap-2 pt-0.5">
+                        <label
                           className="flex items-center gap-2 cursor-pointer group select-none"
                           title="Se desmarcado, a sessão expira ao fechar o navegador."
                         >
-                          <div className={cn(
-                            "w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0",
-                            rememberMe ? "bg-indigo-600 border-indigo-600" : "bg-slate-50 border-slate-300 group-hover:border-slate-400"
-                          )}>
-                            <input 
+                          <div
+                            className={cn(
+                              "w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0",
+                              rememberMe ? "bg-teal-600 border-teal-600" : "bg-slate-50 border-slate-400 group-hover:border-teal-600"
+                            )}
+                          >
+                            <input
                               type="checkbox"
                               className="hidden"
                               checked={rememberMe}
@@ -1130,283 +1174,106 @@ export function Login() {
                             />
                             {rememberMe && <CheckCircle size={10} className="text-white" />}
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lembrar e-mail neste dispositivo</span>
+                          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">
+                            Lembrar e-mail neste dispositivo
+                          </span>
                         </label>
 
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => setIsForgotPassword(true)}
-                          className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-wider whitespace-nowrap shrink-0"
+                          className="text-[10px] font-bold text-teal-700 hover:text-teal-900 transition-colors uppercase tracking-wider whitespace-nowrap shrink-0 cursor-pointer"
                         >
-                           Esqueceu a senha?
+                          Esqueceu a senha?
                         </button>
-                     </div>
-                  )}
-
-                  <div className="pt-4 space-y-4">
-                    <button 
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
-                    >
-                      {loading ? (
-                        <React.Fragment key="login-loading">
-                          <Loader2 className="animate-spin" size={20} />
-                          <span>{isForgotPassword ? 'Enviando...' : isRegistering ? 'Ativando...' : 'Acessando...'}</span>
-                        </React.Fragment>
-                      ) : (
-                        <React.Fragment key="login-ready">
-                          <ArrowRight size={20} />
-                          <span>{isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}</span>
-                        </React.Fragment>
-                      )}
-                    </button>
-
-
-
-                    {(isForgotPassword || isRegistering) && (
-                      <button 
-                        type="button"
-                        onClick={() => { setIsForgotPassword(false); setIsRegistering(false); setError(null); }}
-                        className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
-                      >
-                        Voltar para o Login
-                      </button>
+                      </div>
                     )}
-                  </div>
-                </form>
-              )}
-            </>
-          )}
 
-          {/* Emergency session reset if stuck */}
-          {user && !profile && !authLoading && (
-            <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col items-center gap-3">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sessão Ativa: {user.email}</p>
-              <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl mb-2">
-                <p className="text-[10px] font-bold text-amber-700 uppercase mb-1">Perfil em Sincronização</p>
-                <p className="text-[11px] text-amber-600 leading-tight"> Detectamos seu login, mas seu perfil ainda não foi carregado. Isso pode ocorrer no primeiro acesso ou devido a instabilidades na rede.</p>
+                    <div className="pt-3 space-y-3">
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.18em] shadow-lg shadow-teal-900/25 hover:bg-teal-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 cursor-pointer"
+                      >
+                        {loading ? (
+                          <React.Fragment key="login-loading">
+                            <Loader2 className="animate-spin" size={18} />
+                            <span>{isForgotPassword ? 'Enviando...' : isRegistering ? 'Ativando...' : 'Acessando...'}</span>
+                          </React.Fragment>
+                        ) : (
+                          <React.Fragment key="login-ready">
+                            <ArrowRight size={18} />
+                            <span>{isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}</span>
+                          </React.Fragment>
+                        )}
+                      </button>
+
+                      {(isForgotPassword || isRegistering) && (
+                        <button
+                          type="button"
+                          onClick={() => { setIsForgotPassword(false); setIsRegistering(false); setError(null); }}
+                          className="w-full text-center text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest cursor-pointer"
+                        >
+                          Voltar para o Login
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                )}
+              </>
+            )}
+
+            {/* Emergency session reset if stuck */}
+            {user && !profile && !authLoading && (
+              <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col items-center gap-3">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sessão Ativa: {user.email}</p>
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl w-full">
+                  <p className="text-[10px] font-bold text-amber-800 uppercase mb-1">Perfil em Sincronização</p>
+                  <p className="text-[11px] text-amber-700 leading-tight">Detectamos seu login, mas seu perfil ainda não foi carregado. Isso pode ocorrer no primeiro acesso ou devido a instabilidades na rede.</p>
+                </div>
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={() => refreshProfile(user?.uid)}
+                    disabled={loading}
+                    className="flex-1 px-4 py-3 bg-teal-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-teal-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? (
+                      <React.Fragment key="sync-loading">
+                        <Loader2 className="animate-spin" size={14} />
+                        <span>Sincronizando...</span>
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment key="sync-ready">
+                        <CheckCircle size={14} />
+                        <span>Tentar Sincronizar</span>
+                      </React.Fragment>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => logout()}
+                    className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-200 cursor-pointer"
+                  >
+                    Sair
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 w-full">
-                <button 
-                  onClick={() => refreshProfile(user?.uid)}
-                  disabled={loading}
-                  className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <React.Fragment key="sync-loading">
-                      <Loader2 className="animate-spin" size={14} />
-                      <span>Sincronizando...</span>
-                    </React.Fragment>
-                  ) : (
-                    <React.Fragment key="sync-ready">
-                      <CheckCircle size={14} />
-                      <span>Tentar Sincronizar</span>
-                    </React.Fragment>
-                  )}
-                </button>
-                <button 
-                  onClick={() => logout()}
-                  className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-100"
-                >
-                  Sair
-                </button>
-              </div>
-            </div>
-          )}
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-function InfoFeature({ icon, title, text }: { icon: React.ReactNode, title: string, text: string }) {
-  return (
-    <div className="bg-white/5 border border-white/5 p-4 rounded-2xl hover:bg-white/10 transition-all group">
-       <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-[#b4941d] mb-3 group-hover:scale-110 transition-transform">
-          {icon}
-       </div>
-       <p className="text-[10px] font-black uppercase text-[#b4941d] tracking-widest mb-1">{title}</p>
-       <p className="text-sm font-bold text-white/80">{text}</p>
-    </div>
-  );
-}
-
-function SchoolPillarsCarousel({ stats }: { stats: { classes: number; students: number; subjects: number } }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(0);
-
-  const slides = [
-    {
-      id: 'sede',
-      icon: <Shield size={20} />,
-      title: "Sede Própria & Formativa",
-      text: "Sede própria da escola para abrigar salas de aula, secretaria e momentos formativos.",
-      badge: "Sede Própria",
-      image: sedePropriaImg
-    },
-    {
-      id: 'professores',
-      icon: <Users size={20} />,
-      title: "Corpo Docente de Excelência",
-      text: "Professores e orientadores qualificados na formação e ensino do clero e laicato diocesano.",
-      badge: "Nossos Professores",
-      image: docentesGrupoImg
-    },
-    {
-      id: 'diocese',
-      icon: <Map size={20} />,
-      title: "Formação para a Diocese",
-      text: "Formação teológica atuante e de longo alcance para todas as paróquias e foranias.",
-      badge: "Toda a Diocese",
-      image: dioceseMapaImg
-    }
-  ];
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    
-    const intervalTime = 5000; // 5 seconds per slide
-    const step = 50;
-    const increment = (step / intervalTime) * 100;
-
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          setCurrentIndex((prevIdx) => (prevIdx + 1) % slides.length);
-          return 0;
-        }
-        return prev + increment;
-      });
-    }, step);
-
-    return () => clearInterval(timer);
-  }, [isPlaying, slides.length, currentIndex]);
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % slides.length);
-    setProgress(0);
-  };
-
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
-    setProgress(0);
-  };
-
-  const handleSelect = (idx: number) => {
-    setCurrentIndex(idx);
-    setProgress(0);
-  };
-
-  const currentSlide = slides[currentIndex];
-
-  return (
-    <div 
-      className="relative w-full min-h-[250px] rounded-[2rem] border border-white/10 overflow-hidden bg-gradient-to-br from-[#0c1e45] to-[#03112a] shadow-2xl group/carousel select-none cursor-pointer p-6"
-      onMouseEnter={() => setIsPlaying(false)}
-      onMouseLeave={() => setIsPlaying(true)}
-    >
-      {/* Slide Content Layout */}
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 min-h-[200px] h-full">
-        {/* Left column: Info + Controls */}
-        <div className="flex-1 flex flex-col justify-between h-full space-y-4 w-full">
-          {/* Top bar: Icon and Badge */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-amber-500 shadow-inner">
-              {currentSlide.icon}
-            </div>
-            <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-black text-[9px] uppercase tracking-wider rounded-full">
-              {currentSlide.badge}
-            </span>
-          </div>
-
-          {/* Middle part: Title and Description */}
-          <div className="my-2 space-y-1.5">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentIndex}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-1"
-              >
-                <h3 className="text-white font-black text-sm md:text-base tracking-wide uppercase">
-                  {currentSlide.title}
-                </h3>
-                <p className="text-white/85 text-[11px] md:text-xs font-semibold leading-relaxed">
-                  {currentSlide.text}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Bottom bar: Indicator Dots + Arrow controls */}
-          <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
-            {/* Custom Indicator dots with progress fills */}
-            <div className="flex items-center gap-2">
-              {slides.map((slide, idx) => (
-                <button
-                  key={slide.id}
-                  onClick={() => handleSelect(idx)}
-                  className="group relative h-1.5 rounded-full transition-all duration-300 overflow-hidden bg-white/20"
-                  style={{ width: currentIndex === idx ? '32px' : '8px' }}
-                >
-                  {currentIndex === idx && (
-                    <motion.div 
-                      className="absolute top-0 left-0 h-full bg-amber-500 rounded-full"
-                      style={{ width: `${progress}%` }}
-                      layoutId="progress-bar"
-                    />
-                  )}
-                  {currentIndex !== idx && (
-                    <div className="absolute inset-0 bg-transparent group-hover:bg-white/40 rounded-full" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Quick Nav Controls */}
-            <div className="flex items-center gap-1.5">
-              <button 
-                onClick={handlePrev}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <button 
-                onClick={handleNext}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
+            )}
           </div>
         </div>
+      </motion.main>
 
-        {/* Right column: Highlighted & Enlarged Featured Image without background box */}
-        <div className="shrink-0 flex items-center justify-center relative w-full md:w-auto h-40 md:h-52">
-          <AnimatePresence mode="wait">
-            <motion.img 
-              key={currentIndex}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.4 }}
-              src={currentSlide.image} 
-              alt={currentSlide.title}
-              className={cn(
-                "h-full max-h-52 md:max-h-64 w-auto object-contain transition-all duration-500",
-                currentSlide.id === 'diocese' 
-                  ? "scale-125 md:scale-135 drop-shadow-[0_12px_32px_rgba(0,0,0,0.9)] contrast-110 saturate-110" 
-                  : "rounded-2xl border border-white/20 shadow-2xl brightness-105 scale-105"
-              )}
-              referrerPolicy="no-referrer"
-            />
-          </AnimatePresence>
+      {/* Bottom Footer Branding: Preserves Bottom-Left Circled System Info */}
+      <footer className="relative z-10 pt-5 pb-1 flex flex-col items-center justify-center text-center gap-1 shrink-0">
+        <div className="flex items-center justify-center gap-2">
+          <CheckCircle className="text-amber-400 shrink-0" size={14} />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/90">
+            Sistema de Gestão Acadêmica v2.0
+          </span>
         </div>
-      </div>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100/75">
+          {institutionName}
+        </p>
+      </footer>
     </div>
   );
 }
