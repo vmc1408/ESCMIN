@@ -1902,6 +1902,19 @@ export function AnnualCalendarManager({
                                 {dayRecord.event_name || (dayRecord.is_class_day ? 'Dia Letivo' : 'Sem Aula')}
                               </p>
 
+                              {dayRecord.is_class_day && (() => {
+                                const ids = weekdayClasses[dayRecord.day_of_week] || [];
+                                const cNames = (ids.length > 0
+                                  ? ids.map(id => unitClasses.find(c => c.id === id)?.name).filter(Boolean)
+                                  : unitClasses.filter(c => getClassWeekdays(c).includes(dayRecord.day_of_week)).map(c => c.name)) as string[];
+                                if (cNames.length === 0) return null;
+                                return (
+                                  <p className="text-[9px] font-bold text-teal-800 bg-teal-50/90 border border-teal-200 rounded px-1 py-0.5 mt-1 leading-tight line-clamp-2" title={cNames.join(', ')}>
+                                    Turmas: {cNames.join(' • ')}
+                                  </p>
+                                );
+                              })()}
+
                               {isManual && (
                                 <p className="text-[9px] text-purple-700 font-bold mt-0.5 truncate" title={dayRecord.override_reason}>
                                   ★ {dayRecord.override_reason}
@@ -2571,31 +2584,36 @@ export function AnnualCalendarManager({
                 {metricsStrip}
                 {periodsAndLegendStrip}
 
-                <div className="grid grid-cols-3 gap-2 flex-1 min-h-0">
+                <div className="grid grid-cols-3 grid-rows-4 gap-2 flex-1 min-h-0">
                   {MONTH_NAMES_BR.map((monthName, mIdx) => {
                     const daysInMonth = getDaysInMonth(targetYear, mIdx);
                     const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
                     const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
+                    const weekRows = Math.ceil((firstDayOfWeek + daysInMonth) / 7);
+                    const trailingBlanks = weekRows * 7 - firstDayOfWeek - daysInMonth;
                     const mSummary = summary.by_month[mIdx];
 
                     return (
-                      <div key={monthName} className="border border-slate-300 p-1.5 bg-white flex flex-col justify-between text-[7.5pt]">
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-0.5 mb-0.5">
+                      <div key={monthName} className="border border-slate-300 p-1.5 bg-white flex flex-col h-full min-h-0 text-[7.5pt]">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-0.5 mb-0.5 shrink-0">
                           <strong className="font-black text-[8pt] text-slate-900 uppercase">{monthName}</strong>
                           <span className="font-mono font-bold text-emerald-900 bg-emerald-50 px-1 border border-emerald-300 text-[6.5pt]">
                             {mSummary.class_days} let.
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-7 gap-0.5 text-center font-bold text-slate-500 mb-0.5 text-[6.5pt]">
+                        <div className="grid grid-cols-7 gap-0.5 text-center font-bold text-slate-500 mb-0.5 text-[6.5pt] shrink-0">
                           {WEEKDAY_SHORT_BR.map(w => (
                             <span key={w}>{w[0]}</span>
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-7 gap-0.5 text-center">
+                        <div
+                          className="grid grid-cols-7 gap-0.5 text-center flex-1 min-h-0"
+                          style={{ gridTemplateRows: `repeat(${weekRows}, minmax(0, 1fr))` }}
+                        >
                           {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                            <div key={`print_blank_${i}`} className="h-[15px]" />
+                            <div key={`print_blank_${i}`} className="h-full min-h-0" />
                           ))}
 
                           {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -2611,7 +2629,7 @@ export function AnnualCalendarManager({
                               <div
                                 key={`print_${dateKey}`}
                                 className={cn(
-                                  "h-[15px] flex items-center justify-center font-bold border text-[7pt] leading-none",
+                                  "h-full min-h-0 flex items-center justify-center font-bold border text-[7pt] leading-none",
                                   badgeCls
                                 )}
                               >
@@ -2619,6 +2637,10 @@ export function AnnualCalendarManager({
                               </div>
                             );
                           })}
+
+                          {Array.from({ length: trailingBlanks }).map((_, i) => (
+                            <div key={`print_trail_${i}`} className="h-full min-h-0" />
+                          ))}
                         </div>
                       </div>
                     );
@@ -2635,6 +2657,8 @@ export function AnnualCalendarManager({
               const daysInMonth = getDaysInMonth(targetYear, mIdx);
               const firstDateStr = `${targetYear}-${String(mIdx + 1).padStart(2, '0')}-01`;
               const firstDayOfWeek = new Date(firstDateStr + 'T12:00:00Z').getUTCDay();
+              const weekRows = Math.ceil((firstDayOfWeek + daysInMonth) / 7);
+              const trailingBlanks = weekRows * 7 - firstDayOfWeek - daysInMonth;
               const mSummary = summary.by_month[mIdx];
 
               return (
@@ -2666,9 +2690,12 @@ export function AnnualCalendarManager({
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-7 gap-px bg-slate-300 flex-1">
+                    <div
+                      className="grid grid-cols-7 gap-px bg-slate-300 flex-1 min-h-0"
+                      style={{ gridTemplateRows: `repeat(${weekRows}, minmax(0, 1fr))` }}
+                    >
                       {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                        <div key={`print_m_blank_${i}`} className="bg-slate-50 min-h-[58px] p-1" />
+                        <div key={`print_m_blank_${i}`} className="bg-slate-50/75 h-full min-h-0 p-1" />
                       ))}
 
                       {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -2679,24 +2706,41 @@ export function AnnualCalendarManager({
 
                         const isManual = dayRecord.is_manual_override;
                         const badgeCls = getBadgeStyleForClassification(dayRecord.classification, isManual);
+                        const idsForDay = weekdayClasses[dayRecord.day_of_week] || [];
+                        const linkedClassNames = dayRecord.is_class_day
+                          ? ((idsForDay.length > 0
+                              ? idsForDay.map(id => unitClasses.find(c => c.id === id)?.name).filter(Boolean)
+                              : unitClasses.filter(c => getClassWeekdays(c).includes(dayRecord.day_of_week)).map(c => c.name)) as string[])
+                          : [];
 
                         return (
-                          <div key={`print_m_${dateKey}`} className={cn("bg-white min-h-[58px] p-1 flex flex-col justify-between text-[7.5pt]", dayRecord.is_class_day && "bg-emerald-50/20")}>
-                            <div className="flex items-center justify-between">
+                          <div key={`print_m_${dateKey}`} className={cn("bg-white h-full min-h-0 p-1 flex flex-col justify-between text-[7.5pt] overflow-hidden", dayRecord.is_class_day && "bg-emerald-50/25")}>
+                            <div className="flex items-center justify-between shrink-0">
                               <span className="font-black text-[9pt] font-mono">{dayNum}</span>
-                              <span className={cn("px-1 py-0.2 rounded text-[6.5pt] font-bold border", badgeCls)}>
+                              <span className={cn("px-1 py-0.2 rounded text-[6pt] font-bold border", badgeCls)}>
                                 {dayRecord.is_class_day ? 'Aula' : 'Sem Aula'}
                               </span>
                             </div>
-                            <p className="text-[7pt] font-semibold text-slate-800 line-clamp-2 leading-tight">
-                              {dayRecord.event_name || (dayRecord.is_class_day ? 'Dia Letivo' : '')}
-                            </p>
+                            <div className="flex flex-col gap-0.5 min-h-0 overflow-hidden">
+                              <p className="text-[6.8pt] font-bold text-slate-900 leading-tight break-words">
+                                {dayRecord.event_name || (dayRecord.is_class_day ? 'Aula Regular' : '')}
+                              </p>
+                              {linkedClassNames.length > 0 && (
+                                <p className="text-[6pt] font-semibold text-teal-900 bg-teal-50/80 border border-teal-200 rounded px-1 py-0.5 leading-tight break-words">
+                                  Turma(s): {linkedClassNames.join(' • ')}
+                                </p>
+                              )}
+                            </div>
                             {isManual && (
-                              <p className="text-[6.5pt] text-purple-800 font-bold truncate">★ {dayRecord.override_reason}</p>
+                              <p className="text-[6pt] text-purple-800 font-bold truncate shrink-0">★ {dayRecord.override_reason}</p>
                             )}
                           </div>
                         );
                       })}
+
+                      {Array.from({ length: trailingBlanks }).map((_, i) => (
+                        <div key={`print_m_trail_${i}`} className="bg-slate-50/75 h-full min-h-0 p-1" />
+                      ))}
                     </div>
                   </div>
 

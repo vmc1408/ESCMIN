@@ -795,7 +795,7 @@ export async function syncCalendarEventsWithPublishedDays(
         });
       } else {
         newItems.push({
-          title: `Aula - ${day.period_name || 'Calendário Anual'}`,
+          title: `Dia de Aula - ${day.period_name || 'Calendário Anual'}`,
           start_date: day.date,
           end_date: day.date,
           type: 'class_day',
