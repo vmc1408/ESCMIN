@@ -48,7 +48,7 @@ import {
   Copy
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
-import { sanitizeAcademicSettings, normalizeClassWeekdays, getClassWeekdays } from '../lib/academicUtils';
+import { sanitizeAcademicSettings, normalizeClassWeekdays, getClassWeekdays, normalizeScheduleDate } from '../lib/academicUtils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
@@ -2035,9 +2035,11 @@ export function AcademicCalendar() {
     const NON_BLOCKING = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'];
     const blockingHolidays = new Set<string>();
     yearEvents.forEach(e => {
-      if (!e.type?.includes('holiday')) return;
       const tLow = (e.title || '').toLowerCase();
-      if (NON_BLOCKING.some(nb => tLow.includes(nb))) return;
+      const isHoliday = !!e.type?.includes('holiday');
+      const isExplicitBreak = e.type === 'event' && (tLow.includes('férias') || tLow.includes('recesso') || tLow.includes('suspensão'));
+      if (!isHoliday && !isExplicitBreak) return;
+      if (isHoliday && NON_BLOCKING.some(nb => tLow.includes(nb))) return;
       blockingHolidays.add(e.start_date);
       if (e.end_date && e.end_date !== e.start_date) {
         const cur = new Date(e.start_date + 'T12:00:00');
@@ -2056,24 +2058,64 @@ export function AcademicCalendar() {
     const weekdayNamesFull = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
     activeWeekdays.forEach(wDay => {
-      const alreadyHasWeekdayClasses = yearEvents.some(e => {
-        if (!['class_day', 'excused_class', 'cancelled_class'].includes(e.type)) return false;
-        return new Date(e.start_date + 'T12:00:00').getDay() === wDay;
-      });
-      if (alreadyHasWeekdayClasses) return;
-
       const dayTerms = academicSettings.weekday_terms?.[wDay] || academicSettings.weekday_terms?.[String(wDay)] || {};
-      const t1s = dayTerms.term1_start || academicSettings.term1_start || '';
-      const t1e = dayTerms.term1_end || academicSettings.term1_end || '';
-      const t2s = dayTerms.term2_start || academicSettings.term2_start || '';
-      const t2e = dayTerms.term2_end || academicSettings.term2_end || '';
+      const inferredTerms = (!dayTerms.term1_start && !academicSettings.term1_start)
+        ? inferTermsForWeekday(wDay, yearEvents, academicSettings)
+        : null;
+
+      const t1s = normalizeScheduleDate(dayTerms.term1_start || academicSettings.term1_start || inferredTerms?.term1_start || '');
+      const t1e = normalizeScheduleDate(dayTerms.term1_end || academicSettings.term1_end || inferredTerms?.term1_end || '');
+      const t2s = normalizeScheduleDate(dayTerms.term2_start || academicSettings.term2_start || inferredTerms?.term2_start || '');
+      const t2e = normalizeScheduleDate(dayTerms.term2_end || academicSettings.term2_end || inferredTerms?.term2_end || '');
 
       const ranges = [
         { s: t1s, e: t1e },
         { s: t2s, e: t2e }
-      ].filter(r => r.s && r.e && (r.s.startsWith(yearStr) || r.e.startsWith(yearStr)));
+      ].filter(r => r.s && r.e && (r.s.startsWith(yearStr) || r.e.startsWith(yearStr) || (r.s <= `${yearStr}-12-31` && r.e >= `${yearStr}-01-01`)));
 
       if (ranges.length === 0) return;
+
+      // Compute all valid expected class dates strictly within this weekday's semester bounds
+      const expectedDatesSet = new Set<string>();
+      ranges.forEach(r => {
+        const cur = new Date(r.s + 'T12:00:00');
+        const end = new Date(r.e + 'T12:00:00');
+        if (isNaN(cur.getTime()) || isNaN(end.getTime())) return;
+        while (cur <= end) {
+          if (cur.getDay() === wDay && cur.getFullYear() === year) {
+            const dateStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+            if (!blockingHolidays.has(dateStr)) {
+              expectedDatesSet.add(dateStr);
+            }
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+      });
+
+      const uniqueExpectedDates = Array.from(expectedDatesSet).sort();
+      if (uniqueExpectedDates.length === 0) return;
+
+      const existingAcademicOnWday = yearEvents.filter(e => {
+        if (!e.start_date || !['class_day', 'excused_class', 'cancelled_class'].includes(e.type)) return false;
+        return new Date(e.start_date + 'T12:00:00').getDay() === wDay;
+      });
+      const existingDatesOnWday = new Set(existingAcademicOnWday.map(e => e.start_date));
+      const existingAutoDatesOnWday = new Set(
+        existingAcademicOnWday
+          .filter(e => {
+            const desc = (e.description || '').toLowerCase();
+            return desc.includes('cronograma automático') || desc.includes('calendário anual');
+          })
+          .map(e => e.start_date)
+      );
+
+      // Only skip fallback synthesis when the automatic schedule was already generated for this weekday
+      // (>= 5 auto dates and at least 50% of expected semester dates), preserving deliberate single-date deletions.
+      const isSchedulePopulated =
+        existingAutoDatesOnWday.size >= 5 &&
+        existingDatesOnWday.size >= Math.ceil(uniqueExpectedDates.length * 0.5);
+
+      if (isSchedulePopulated) return;
 
       const configuredIds: string[] = academicSettings.weekday_classes?.[wDay] || academicSettings.weekday_classes?.[String(wDay)] || [];
       let targetClasses = configuredIds
@@ -2091,39 +2133,28 @@ export function AcademicCalendar() {
         ? rawDayTitle
         : `Aula Regular (${weekdayNamesFull[wDay]})`;
 
-      ranges.forEach(r => {
-        const cur = new Date(r.s + 'T12:00:00');
-        const end = new Date(r.e + 'T12:00:00');
-        if (isNaN(cur.getTime()) || isNaN(end.getTime())) return;
-        while (cur <= end) {
-          if (cur.getDay() === wDay && cur.getFullYear() === year) {
-            const dateStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-            const pType = getPeriodType(dateStr, academicSettings);
-            if (!blockingHolidays.has(dateStr) && pType !== 'vacation' && pType !== 'recess') {
-              classIdsOrNull.forEach(cid => {
-                const cls = cid ? classes.find(c => c.id === cid) : null;
-                derived.push({
-                  id: `derived_${wDay}_${dateStr}_${cid || 'all'}`,
-                  title: cls ? `${cleanDayTitle} - ${cls.name}` : cleanDayTitle,
-                  start_date: dateStr,
-                  end_date: dateStr,
-                  type: 'class_day',
-                  description: 'Cronograma automático',
-                  class_id: cid,
-                  unit_id: cls?.unit_id || (selectedUnitId !== 'all' ? selectedUnitId : 'matriz'),
-                  user_id: userAuth?.uid || '',
-                  created_at: ''
-                });
-              });
-            }
-          }
-          cur.setDate(cur.getDate() + 1);
-        }
+      uniqueExpectedDates.forEach(dateStr => {
+        if (existingDatesOnWday.has(dateStr)) return;
+        classIdsOrNull.forEach(cid => {
+          const cls = cid ? classes.find(c => c.id === cid) : null;
+          derived.push({
+            id: `derived_${wDay}_${dateStr}_${cid || 'all'}`,
+            title: cls ? `${cleanDayTitle} - ${cls.name}` : cleanDayTitle,
+            start_date: dateStr,
+            end_date: dateStr,
+            type: 'class_day',
+            description: 'Cronograma automático',
+            class_id: cid,
+            unit_id: cls?.unit_id || (selectedUnitId !== 'all' ? selectedUnitId : 'matriz'),
+            user_id: userAuth?.uid || '',
+            created_at: ''
+          });
+        });
       });
     });
 
     return derived.length > 0 ? [...baseEvents, ...derived] : baseEvents;
-  }, [events, academicSettings, classes, currentDate.getFullYear(), selectedUnitId, getPeriodType]);
+  }, [events, academicSettings, classes, currentDate.getFullYear(), selectedUnitId]);
 
   // Helper to resolve clean event label + linked classes (Turmas) for screen and A4 print cells
   const getDayEventCellDisplay = React.useCallback((event: CalendarEvent, rawDayEvents: CalendarEvent[], dateStr: string) => {
@@ -2184,7 +2215,8 @@ export function AcademicCalendar() {
   // Deduplicate events for the current year
   const uniqueYearEvents = React.useMemo(() => {
     let filtered = effectiveEvents.filter(e => {
-      const date = new Date(e.start_date + 'T00:00:00');
+      if (!e.start_date) return false;
+      const date = new Date(e.start_date + 'T12:00:00');
       const matchesYear = date.getFullYear() === currentDate.getFullYear();
       return matchesYear;
     });
@@ -2340,22 +2372,50 @@ export function AcademicCalendar() {
     return acc;
   }, {} as Record<string, CalendarEvent[]>);
 
-  // Improved Stats for the filters using the memoized unique events
+  // Blocking holiday dates for the active year so stray class records on holidays are never double/mis-counted
+  const blockingHolidayDates = React.useMemo(() => {
+    const set = new Set<string>();
+    const nonBlocking = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'];
+    uniqueYearEvents.forEach(e => {
+      if (!e.type?.includes('holiday')) return;
+      const tLow = (e.title || '').toLowerCase();
+      if (nonBlocking.some(nb => tLow.includes(nb))) return;
+      set.add(e.start_date);
+      if (e.end_date && e.end_date !== e.start_date) {
+        const cur = new Date(e.start_date + 'T12:00:00');
+        const end = new Date(e.end_date + 'T12:00:00');
+        while (cur <= end) {
+          set.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`);
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+    });
+    return set;
+  }, [uniqueYearEvents]);
+
+  // Improved Stats for the filters using the memoized unique events (date-deduplicated)
   const getEventCount = (type: string, weekday?: number) => {
     if (type === 'all') return uniqueYearEvents.length;
     
     if (type === 'class_day') {
-      const classEvents = uniqueYearEvents.filter(e => e.type === 'class_day');
+      const validClassEvents = uniqueYearEvents.filter(
+        e => e.type === 'class_day' && e.start_date && !blockingHolidayDates.has(e.start_date)
+      );
       if (weekday !== undefined) {
-        const filtered = classEvents.filter(e => new Date(e.start_date + 'T00:00:00').getDay() === weekday);
+        const uniqueDates = Array.from(new Set(
+          validClassEvents
+            .filter(e => new Date(e.start_date + 'T12:00:00').getDay() === weekday)
+            .map(e => e.start_date)
+        ));
         return {
-          weeks: new Set(filtered.map(e => getWeekId(e.start_date))).size,
-          days: filtered.length
+          weeks: new Set(uniqueDates.map(d => getWeekId(d))).size,
+          days: uniqueDates.length
         };
       }
+      const uniqueAllDates = Array.from(new Set(validClassEvents.map(e => e.start_date)));
       return {
-        weeks: new Set(classEvents.map(e => getWeekId(e.start_date))).size,
-        days: classEvents.length
+        weeks: new Set(uniqueAllDates.map(d => getWeekId(d))).size,
+        days: uniqueAllDates.length
       };
     }
 
@@ -2382,22 +2442,86 @@ export function AcademicCalendar() {
     return uniqueYearEvents.filter(e => e.type === type).length;
   };
 
-  // Função para calcular progresso de aulas passadas vs total
+  // Função para calcular progresso de aulas passadas vs total (contagem por datas únicas)
   const getClassProgress = (weekday: number) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const uniqueClassDates = Array.from(new Set(
+      uniqueYearEvents
+        .filter(e =>
+          e.type === 'class_day' &&
+          !!e.start_date &&
+          !blockingHolidayDates.has(e.start_date) &&
+          new Date(e.start_date + 'T12:00:00').getDay() === weekday
+        )
+        .map(e => e.start_date)
+    ));
     
-    const classEvents = uniqueYearEvents.filter(e => 
-      e.type === 'class_day' && 
-      new Date(e.start_date + 'T00:00:00').getDay() === weekday
-    );
-    
-    const total = classEvents.length;
-    const completed = classEvents.filter(e => new Date(e.start_date + 'T00:00:00') < today).length;
+    const total = uniqueClassDates.length;
+    const completed = uniqueClassDates.filter(d => d < todayStr).length;
     const remaining = total - completed;
     
     return { total, completed, remaining };
   };
+
+  // Helper unificado para sincronizar Grade Acadêmica (lista por turma, inspeção e estatísticas) com effectiveEvents
+  const getClassManagementData = React.useCallback((cls: Class, yearStr: string) => {
+    const yearEvents = effectiveEvents.filter(e => e.start_date && e.start_date.startsWith(yearStr));
+    const targetWeekdays = getClassWeekdays(cls, academicSettings, yearEvents);
+
+    const specificEvents = yearEvents.filter(e => String(e.class_id) === String(cls.id));
+    const specificDatesSet = new Set(specificEvents.map(e => e.start_date));
+
+    const globalWeekdayEvents = yearEvents.filter(e => {
+      if (e.class_id) return false;
+      const isAcademic = ['class_day', 'excused_class', 'cancelled_class', 'exam'].includes(e.type);
+      if (!isAcademic) return false;
+      if (specificDatesSet.has(e.start_date)) return false;
+      if (targetWeekdays.length === 0) return false;
+      const wDay = new Date(e.start_date + 'T12:00:00').getDay();
+      return targetWeekdays.includes(wDay);
+    });
+
+    const combinedEvents = [...specificEvents, ...globalWeekdayEvents].filter(e => {
+      const isAcademic = ['class_day', 'excused_class', 'cancelled_class'].includes(e.type);
+      if (!isAcademic) return true;
+      if (e.type === 'class_day' && blockingHolidayDates.has(e.start_date)) return false;
+      if (targetWeekdays.length > 0) {
+        const wDay = new Date(e.start_date + 'T12:00:00').getDay();
+        return targetWeekdays.includes(wDay);
+      }
+      return true;
+    });
+
+    const uniqueByDateType = new Map<string, CalendarEvent>();
+    combinedEvents.forEach(e => {
+      const key = `${e.start_date}_${e.type}`;
+      const existing = uniqueByDateType.get(key);
+      if (!existing || (String(existing.id).startsWith('derived_') && !String(e.id).startsWith('derived_')) || (!existing.class_id && e.class_id)) {
+        uniqueByDateType.set(key, e);
+      }
+    });
+
+    const uniqueEvents = Array.from(uniqueByDateType.values()).sort((a, b) => a.start_date.localeCompare(b.start_date));
+    const classDaysList = uniqueEvents.filter(e => e.type === 'class_day');
+    const letivos = classDaysList.length;
+    const completed = classDaysList.filter(e => e.start_date < todayStr).length;
+    const excused = uniqueEvents.filter(e => e.type === 'excused_class').length;
+    const cancelled = uniqueEvents.filter(e => e.type === 'cancelled_class').length;
+
+    const scheduleRangeEvents = uniqueEvents.filter(e => ['class_day', 'excused_class', 'start_term', 'end_term', 'exam'].includes(e.type));
+    const startDate = scheduleRangeEvents.length > 0 ? scheduleRangeEvents[0].start_date : '';
+    const endDate = scheduleRangeEvents.length > 0 ? scheduleRangeEvents[scheduleRangeEvents.length - 1].start_date : '';
+
+    return {
+      targetWeekdays,
+      uniqueEvents,
+      letivos,
+      completed,
+      excused,
+      cancelled,
+      startDate,
+      endDate
+    };
+  }, [effectiveEvents, academicSettings, blockingHolidayDates, todayStr]);
 
   const renderIntegratedToolbar = () => {
     return null;
@@ -2408,29 +2532,59 @@ export function AcademicCalendar() {
     <>
       <div className="w-full space-y-3 sm:space-y-3.5 pb-6 print:hidden">
         {/* Sticky Header Wrapper */}
-        <div className="sticky top-0 z-[40] bg-white/95 backdrop-blur-md py-2 sm:py-2.5 border-b border-slate-200/90 -mx-2 sm:-mx-3.5 lg:-mx-5 px-2 sm:px-3.5 lg:px-5 space-y-2 md:space-y-2.5 shadow-2xs mb-2.5 sm:mb-3.5">
-          {/* Row 1: Title and Action Buttons */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4 pb-1">
-            <div className="space-y-0.5 md:space-y-1">
+        <div className="sticky top-0 z-[40] bg-white/95 backdrop-blur-md py-2.5 sm:py-3 border-b border-slate-200/90 -mx-2 sm:-mx-3.5 lg:-mx-5 px-2 sm:px-3.5 lg:px-5 space-y-2.5 shadow-2xs mb-2.5 sm:mb-3.5">
+          {/* Row 1: Identidade da Página e Hierarquia de Ações (Configurar -> Imprimir -> Criar) */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2.5 md:gap-4">
+            <div className="space-y-0.5 min-w-0">
               <div className="flex items-center gap-2">
-                <Calendar className="text-teal-700" size={18} />
-                <h1 className="text-lg md:text-2xl font-bold text-slate-900 tracking-tight">Cronograma Acadêmico</h1>
+                <Calendar className="text-teal-700 shrink-0" size={19} />
+                <h1 className="text-lg md:text-2xl font-bold text-slate-900 tracking-tight truncate">Cronograma Acadêmico</h1>
               </div>
-              <p className="hidden md:block text-slate-500 text-[11px] md:text-xs font-medium">Gestão de ciclos letivos e atividades escolares.</p>
+              <p className="hidden md:block text-slate-500 text-xs font-medium">Gestão de ciclos letivos, turmas e atividades escolares.</p>
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+              {canManageCalendar && (
+                <>
+                  <button 
+                    onClick={() => {
+                      setParametersTab('weekly');
+                      setShowSettings(true);
+                    }}
+                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-200 shadow-2xs active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+                    title="Parâmetros Semanais e Ciclos"
+                  >
+                    <Settings size={14} className="text-slate-500 shrink-0" />
+                    <span className="hidden sm:inline">Parâmetros</span>
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      setParametersTab('annual');
+                      setShowSettings(true);
+                    }}
+                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-teal-600 text-white hover:bg-teal-700 transition-all rounded-lg text-[10px] font-bold uppercase tracking-wider active:scale-95 shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                    title="Geração Automática do Calendário Anual de Aulas"
+                  >
+                    <CalendarDays size={14} className="text-amber-300 shrink-0" />
+                    <span className="hidden sm:inline">Calendário Anual</span>
+                    <span className="inline sm:hidden">Anual</span>
+                  </button>
+                </>
+              )}
+
               <button 
                 onClick={() => setShowPrintOptions(true)}
-                className="flex items-center gap-1.5 px-2.5 md:px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-[#0F2A30] hover:text-white transition-all active:scale-95 border border-slate-200 h-[36px] cursor-pointer"
+                className="h-[36px] px-2.5 sm:px-3.5 flex items-center gap-1.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#0F2A30] hover:text-white transition-all active:scale-95 border border-slate-200 cursor-pointer whitespace-nowrap shrink-0"
               >
-                <Printer size={14} />
+                <Printer size={14} className="shrink-0" />
                 <span className="hidden sm:inline">Imprimir Relatórios</span>
                 <span className="inline sm:hidden">Relatórios</span>
               </button>
 
               {canManageCalendar && (
-                <div className="flex items-center gap-2 animate-in fade-in duration-200">
+                <>
+                  <div className="hidden sm:block w-px h-5 bg-slate-200 mx-0.5 shrink-0" />
                   <button 
                     onClick={() => {
                       setSelectedEvent(null);
@@ -2446,83 +2600,31 @@ export function AcademicCalendar() {
                       });
                       setIsEditing(true);
                     }}
-                    className="h-[36px] px-2.5 md:px-4 flex items-center gap-1.5 bg-[#0F2A30] text-white hover:bg-[#163B42] transition-all rounded-lg text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm cursor-pointer"
+                    className="h-[36px] px-3 sm:px-4 flex items-center gap-1.5 bg-[#0F2A30] text-white hover:bg-[#163B42] transition-all rounded-lg text-[10px] font-bold uppercase tracking-wider active:scale-95 shadow-sm cursor-pointer whitespace-nowrap shrink-0 ml-auto sm:ml-0"
                     title="Novo Registro"
                   >
-                    <Plus size={14} />
+                    <Plus size={14} className="shrink-0" />
                     <span className="hidden sm:inline">Novo Registro</span>
                     <span className="inline sm:hidden">Novo</span>
                   </button>
-                  <button 
-                    onClick={() => {
-                      setParametersTab('annual');
-                      setShowSettings(true);
-                    }}
-                    className="h-[36px] px-2.5 sm:px-3 flex items-center gap-1.5 bg-teal-600 text-white hover:bg-teal-700 transition-all rounded-lg text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm cursor-pointer"
-                    title="Geração Automática do Calendário Anual de Aulas"
-                  >
-                    <CalendarDays size={14} className="text-amber-300" />
-                    <span className="hidden sm:inline">Calendário Anual</span>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setParametersTab('weekly');
-                      setShowSettings(true);
-                    }}
-                    className="h-[36px] w-[36px] flex items-center justify-center bg-slate-50 text-slate-500 hover:bg-[#0F2A30] hover:text-white transition-all rounded-lg border border-slate-200 shadow-xs active:scale-95 cursor-pointer"
-                    title="Parâmetros Semanais e Ciclos"
-                  >
-                    <Settings size={14} />
-                  </button>
-                </div>
+                </>
               )}
             </div>
           </div>
 
-          {/* Row 2: Status Panels on Left and View selectors + Navigation on Right */}
+          {/* Row 2: Controles de Visão e Período à Esquerda; Resumo de Aulas à Direita */}
           {viewMode !== 'management' && (
-            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 animate-in fade-in duration-300">
+            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-2.5 pt-2 border-t border-slate-100 animate-in fade-in duration-300">
               
-              {/* Row 2.1: Navigation, View selectors and Toggle Button */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 w-full lg:w-auto order-1 lg:order-2">
-                {/* Navegação de Data Dinâmica */}
-                <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 shadow-sm w-fit animate-in fade-in zoom-in-95 duration-200">
-                  <button 
-                    onClick={viewMode === 'month' ? prevMonth : prevYear}
-                    className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-slate-800 active:scale-90"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                  
-                  <div className="px-3 min-w-[95px] text-center border-x border-slate-100 font-sans">
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 uppercase tracking-[0.05em] sm:tracking-[0.08em] select-none">
-                      {viewMode === 'month' 
-                        ? currentDate.toLocaleDateString('pt-BR', { month: 'long' }).replace('.', '')
-                        : currentDate.getFullYear()
-                      }
-                    </span>
-                    {viewMode === 'month' && (
-                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 ml-1 select-none">
-                        {currentDate.getFullYear()}
-                      </span>
-                    )}
-                  </div>
-
-                  <button 
-                    onClick={viewMode === 'month' ? nextMonth : nextYear}
-                    className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-slate-800 active:scale-90"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-
+              {/* Esquerda: Seletor de Visão + Navegação de Período */}
+              <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
                 {/* Seletor de Visão */}
-                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200/50 shadow-inner w-fit">
+                <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200/70 shadow-inner h-[36px] w-fit shrink-0">
                   <button 
                     onClick={() => setViewMode('month')}
                     className={cn(
-                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
-                      viewMode === 'month' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-700"
+                      "px-2.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap",
+                      viewMode === 'month' ? "bg-white text-slate-900 shadow-xs border border-slate-200/70" : "text-slate-500 hover:text-slate-800"
                     )}
                   >
                     Mês
@@ -2530,8 +2632,8 @@ export function AcademicCalendar() {
                   <button 
                     onClick={() => setViewMode('year')}
                     className={cn(
-                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
-                      viewMode === 'year' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-700"
+                      "px-2.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap",
+                      viewMode === 'year' ? "bg-white text-slate-900 shadow-xs border border-slate-200/70" : "text-slate-500 hover:text-slate-800"
                     )}
                   >
                     Ano
@@ -2539,28 +2641,61 @@ export function AcademicCalendar() {
                   <button 
                     onClick={() => setViewMode('list')}
                     className={cn(
-                      "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all",
-                      viewMode === 'list' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-700"
+                      "px-2.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap",
+                      viewMode === 'list' ? "bg-white text-slate-900 shadow-xs border border-slate-200/70" : "text-slate-500 hover:text-slate-800"
                     )}
                   >
                     Lista
                   </button>
                 </div>
 
+                {/* Navegação de Data Dinâmica */}
+                <div className="flex items-center bg-white border border-slate-200 rounded-lg px-1 h-[36px] shadow-2xs w-fit shrink-0 animate-in fade-in zoom-in-95 duration-200">
+                  <button 
+                    onClick={viewMode === 'month' ? prevMonth : prevYear}
+                    className="p-1.5 hover:bg-slate-100 rounded-md transition-all text-slate-500 hover:text-slate-900 active:scale-90 cursor-pointer"
+                    title={viewMode === 'month' ? 'Mês anterior' : 'Ano anterior'}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  
+                  <div className="px-3 min-w-[115px] text-center border-x border-slate-100 font-sans whitespace-nowrap">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 uppercase tracking-[0.06em] select-none">
+                      {viewMode === 'month' 
+                        ? currentDate.toLocaleDateString('pt-BR', { month: 'long' }).replace('.', '')
+                        : currentDate.getFullYear()
+                      }
+                    </span>
+                    {viewMode === 'month' && (
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 ml-1.5 tabular-nums select-none">
+                        {currentDate.getFullYear()}
+                      </span>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={viewMode === 'month' ? nextMonth : nextYear}
+                    className="p-1.5 hover:bg-slate-100 rounded-md transition-all text-slate-500 hover:text-slate-900 active:scale-90 cursor-pointer"
+                    title={viewMode === 'month' ? 'Próximo mês' : 'Próximo ano'}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+
                 {/* Botão de Resumo (Apenas Visível no Mobile/Tablet) */}
                 <button
                   onClick={() => setShowStats(!showStats)}
-                  className="lg:hidden h-[34px] px-2.5 flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-widest transition-all active:scale-95"
+                  className="lg:hidden ml-auto h-[36px] px-2.5 flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                   title="Exibir Resumo de Aulas"
                 >
                   <Filter size={12} className="text-slate-500" />
-                  <span>{showStats ? 'Ocultar Resumo' : 'Filtrar/Resumo'}</span>
+                  <span>{showStats ? 'Ocultar Resumo' : 'Resumo'}</span>
                 </button>
               </div>
 
-              {/* Status Panels Dinâmicos por Dia da Semana Ativo */}
+              {/* Direita: Painel Unificado de Contagem por Dia da Semana Ativo */}
               <div className={cn(
-                "flex-wrap items-center gap-2 order-2 lg:order-1",
+                "items-center justify-start lg:justify-end",
                 showStats ? "flex animate-in slide-in-from-top-2 duration-200" : "hidden lg:flex"
               )}>
                 {(() => {
@@ -2569,38 +2704,46 @@ export function AcademicCalendar() {
                     1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado'
                   };
                   const weekdayAccentText: Record<number, string> = {
-                    1: 'text-teal-600',
-                    2: 'text-emerald-600',
-                    3: 'text-sky-600',
-                    4: 'text-amber-600',
-                    5: 'text-rose-600',
-                    6: 'text-violet-600'
+                    1: 'text-teal-700',
+                    2: 'text-emerald-700',
+                    3: 'text-sky-700',
+                    4: 'text-amber-700',
+                    5: 'text-rose-700',
+                    6: 'text-violet-700'
                   };
-                  return activeWeekdays.map((wDay, idx) => {
-                    const count = getEventCount('class_day', wDay);
-                    const days = typeof count === 'object' ? count.days : 0;
-                    const progress = getClassProgress(wDay);
-                    return (
-                      <React.Fragment key={`header-stat-wday-${wDay}`}>
-                        {idx > 0 && <div className="hidden sm:block w-[1.5px] h-[30px] bg-teal-500/35 mx-0.5" />}
-                        <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                            {weekdayShortLabels[wDay] || `Dia ${wDay}`}
-                          </span>
-                          <div className="w-px h-3.5 bg-slate-200" />
-                          <div className="flex items-baseline gap-1 bg-slate-50 px-1.5 py-0.5 border border-slate-100 rounded">
-                            <span className="text-[11px] font-extrabold text-slate-800 leading-none">{days}</span>
-                            <span className={cn("text-[8px] font-semibold uppercase tracking-tighter", weekdayAccentText[wDay] || 'text-teal-600')}>Aulas</span>
+                  return (
+                    <div className="inline-flex flex-wrap items-center bg-slate-50/90 border border-slate-200 rounded-lg min-h-[36px] divide-y sm:divide-y-0 sm:divide-x divide-slate-200 shadow-2xs overflow-hidden">
+                      {activeWeekdays.map((wDay) => {
+                        const count = getEventCount('class_day', wDay);
+                        const days = typeof count === 'object' ? count.days : 0;
+                        const progress = getClassProgress(wDay);
+                        return (
+                          <div
+                            key={`header-stat-wday-${wDay}`}
+                            className="flex items-center gap-2 px-3 py-1.5 font-sans whitespace-nowrap"
+                          >
+                            <span className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider">
+                              {weekdayShortLabels[wDay] || `Dia ${wDay}`}
+                            </span>
+                            <span aria-hidden="true" className="text-slate-300">·</span>
+                            <div className="flex items-baseline gap-1 tabular-nums">
+                              <span className="text-[11px] font-extrabold text-slate-900 leading-none">{days}</span>
+                              <span className={cn("text-[9px] font-bold uppercase tracking-tight", weekdayAccentText[wDay] || 'text-teal-700')}>
+                                {days === 1 ? 'Aula' : 'Aulas'}
+                              </span>
+                            </div>
+                            <span aria-hidden="true" className="text-slate-300">·</span>
+                            <div className="flex items-baseline gap-1 tabular-nums">
+                              <span className="text-[11px] font-extrabold text-orange-600 leading-none">{progress.remaining}</span>
+                              <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-tight">
+                                {progress.remaining === 1 ? 'Resta' : 'Restam'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="w-px h-3.5 bg-slate-200" />
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-extrabold text-orange-600 leading-none">{progress.remaining}</span>
-                            <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Restam</span>
-                          </div>
-                        </div>
-                      </React.Fragment>
-                    );
-                  });
+                        );
+                      })}
+                    </div>
+                  );
                 })()}
               </div>
             </div>
@@ -2710,384 +2853,404 @@ export function AcademicCalendar() {
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {inspectingClassId ? (
                 // --- MODO INSPEÇÃO DE TURMA ---
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <button 
-                        onClick={() => setInspectingClassId(null)}
-                        className="w-10 h-10 flex items-center justify-center bg-white text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-lg border border-slate-200"
-                      >
-                        <ChevronLeft size={18} />
-                      </button>
-                      <div>
-                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                          {classes.find(c => c.id === inspectingClassId)?.name}
-                        </h2>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cronograma de Aulas Detalhado</p>
+                (() => {
+                  const currentCls = classes.find(c => c.id === inspectingClassId);
+                  const currentYearStr = currentDate.getFullYear().toString();
+                  const mgmtData = currentCls ? getClassManagementData(currentCls, currentYearStr) : null;
+                  const weekdayLabels: Record<number, string> = {
+                    1: 'Segunda-feira', 2: 'Terça-feira', 3: 'Quarta-feira', 4: 'Quinta-feira', 5: 'Sexta-feira', 6: 'Sábado'
+                  };
+                  const activeWeekdayNames = (mgmtData?.targetWeekdays || []).map(d => weekdayLabels[d]).filter(Boolean).join(', ');
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <button 
+                            onClick={() => setInspectingClassId(null)}
+                            className="w-10 h-10 flex items-center justify-center bg-white text-slate-500 hover:bg-[#0F2A30] hover:text-white transition-all rounded-lg border border-slate-200 cursor-pointer"
+                            title="Voltar para lista de turmas"
+                          >
+                            <ChevronLeft size={18} />
+                          </button>
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                              {currentCls?.name}
+                            </h2>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                              Cronograma de Aulas Detalhado • {currentYearStr}
+                              {activeWeekdayNames ? ` · ${activeWeekdayNames}` : ''}
+                              {mgmtData ? ` · ${mgmtData.completed}/${mgmtData.letivos} concluídas` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center bg-white border border-slate-200 rounded-lg px-1 h-[36px] shadow-2xs">
+                            <button onClick={prevYear} className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-slate-900 cursor-pointer" title="Ano anterior">
+                              <ChevronLeft size={14} />
+                            </button>
+                            <span className="px-2.5 text-xs font-bold text-slate-800 tabular-nums">{currentYearStr}</span>
+                            <button onClick={nextYear} className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-slate-900 cursor-pointer" title="Próximo ano">
+                              <ChevronRight size={14} />
+                            </button>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setSettingsForm(prev => ({
+                                ...prev,
+                                target_class_ids: [inspectingClassId]
+                              }));
+                              setParametersTab('weekly');
+                              setShowSettings(true);
+                            }}
+                            className="h-[36px] px-4 bg-[#0F2A30] text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-[#163B42] transition-all flex items-center gap-2 cursor-pointer"
+                          >
+                            <Settings size={14} />
+                            Ajustar Regras
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* Lista Cronológica */}
+                        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto min-h-[400px]">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-16">#</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Semana</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Título do Registro</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {(() => {
+                                const listEvents = mgmtData?.uniqueEvents || [];
+                                if (listEvents.length === 0) {
+                                  return (
+                                    <tr>
+                                      <td colSpan={6} className="px-8 py-14 text-center text-xs font-medium text-slate-500">
+                                        Nenhuma data de aula registrada para esta turma em {currentYearStr}. Verifique o dia da semana da turma ou os parâmetros letivos.
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+                                return listEvents.map((ev, idx) => {
+                                  const date = new Date(ev.start_date + 'T12:00:00');
+                                  const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+                                  const isDerivedOrGlobal = (typeof ev.id === 'string' && ev.id.startsWith('derived_')) || !ev.class_id;
+
+                                  return (
+                                    <tr key={`${ev.id}_${ev.start_date}`} className={cn(
+                                      "hover:bg-slate-50/50 transition-colors group",
+                                      ev.type === 'excused_class' && "opacity-60 grayscale-[0.5]"
+                                    )}>
+                                      <td className="px-8 py-4 text-xs font-bold text-slate-400 tabular-nums">
+                                        {String(idx + 1).padStart(2, '0')}
+                                      </td>
+                                      <td className="px-8 py-4">
+                                        <div className="flex flex-col">
+                                          <span className="text-sm font-bold text-slate-900 tabular-nums">{formatDateForDisplay(ev.start_date)}</span>
+                                          <span className="text-[10px] font-bold text-slate-500 uppercase">{weekday}</span>
+                                        </div>
+                                      </td>
+                                      <td className="px-8 py-4">
+                                        <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                                          W{getWeekId(ev.start_date).split('W')[1]}
+                                        </span>
+                                      </td>
+                                      <td className="px-8 py-4">
+                                        <span className="text-sm font-bold text-slate-600">{ev.title}</span>
+                                      </td>
+                                      <td className="px-8 py-4">
+                                        <span className={cn(
+                                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                                          ev.type === 'class_day' ? "bg-slate-50 text-blue-700 border-slate-200" : 
+                                          ev.type === 'cancelled_class' ? "bg-rose-50 text-rose-700 border-rose-100" :
+                                          ev.type === 'exam' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                          "bg-slate-100 text-slate-500 border-slate-200"
+                                        )}>
+                                          {ev.type === 'class_day' ? 'Letivo' : ev.type === 'cancelled_class' ? 'Cancelado' : ev.type === 'exam' ? 'Avaliação' : 'Abonado'}
+                                        </span>
+                                      </td>
+                                      <td className="px-8 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button 
+                                            onClick={async () => {
+                                              let nextType: CalendarEvent['type'] = 'class_day';
+                                              let nextTitle = 'Dia de Aula';
+                                              
+                                              if (ev.type === 'class_day') {
+                                                nextType = 'excused_class';
+                                                nextTitle = 'Aula Abonada';
+                                              } else if (ev.type === 'excused_class') {
+                                                nextType = 'cancelled_class';
+                                                nextTitle = 'Aula Cancelada';
+                                              }
+
+                                              if (isDerivedOrGlobal) {
+                                                await saveData('calendar_events', null, {
+                                                  title: nextTitle + (currentCls ? ` - ${currentCls.name}` : ''),
+                                                  description: ev.description || 'Ajuste via Grade Acadêmica',
+                                                  start_date: ev.start_date,
+                                                  end_date: ev.end_date || ev.start_date,
+                                                  type: nextType,
+                                                  class_id: currentCls?.id || null,
+                                                  unit_id: currentCls?.unit_id || ev.unit_id || (selectedUnitId !== 'all' ? selectedUnitId : 'matriz'),
+                                                  user_id: userAuth?.uid || '',
+                                                  created_at: new Date().toISOString()
+                                                });
+                                              } else {
+                                                const baseTitle = ev.title.split(' - ')[0].trim();
+                                                const relatedEvents = events.filter(rv => 
+                                                  rv.start_date === ev.start_date && 
+                                                  ['class_day', 'excused_class', 'cancelled_class'].includes(rv.type) &&
+                                                  rv.title.split(' - ')[0].trim() === baseTitle
+                                                );
+
+                                                if (relatedEvents.length > 1) {
+                                                  const updates = relatedEvents.map(re => {
+                                                    const suffix = re.title.includes(' - ') ? ' - ' + re.title.split(' - ')[1] : '';
+                                                    return saveData('calendar_events', re.id, { 
+                                                      ...re, 
+                                                      type: nextType, 
+                                                      title: nextTitle + suffix 
+                                                    });
+                                                  });
+                                                  await Promise.all(updates);
+                                                } else {
+                                                  await saveData('calendar_events', ev.id, { ...ev, type: nextType, title: nextTitle });
+                                                }
+                                              }
+                                              
+                                              fetchData();
+                                            }}
+                                            className={cn(
+                                              "p-2 rounded-lg transition-all cursor-pointer",
+                                              ev.type === 'class_day' ? "bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white" : 
+                                              ev.type === 'cancelled_class' ? "bg-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
+                                              "bg-blue-100 text-slate-800 hover:bg-slate-800 hover:text-white"
+                                            )}
+                                            title={ev.type === 'class_day' ? 'Abonar Aula' : ev.type === 'excused_class' ? 'Cancelar Aula' : 'Retornar para Letivo'}
+                                          >
+                                            <CheckCircle2 size={16} />
+                                          </button>
+                                          {canDelete && (
+                                            <button 
+                                              onClick={async () => {
+                                                if (isDerivedOrGlobal) {
+                                                  await saveData('calendar_events', null, {
+                                                    title: `Aula Cancelada${currentCls ? ` - ${currentCls.name}` : ''}`,
+                                                    description: 'Data removida via Grade Acadêmica',
+                                                    start_date: ev.start_date,
+                                                    end_date: ev.end_date || ev.start_date,
+                                                    type: 'cancelled_class',
+                                                    class_id: currentCls?.id || null,
+                                                    unit_id: currentCls?.unit_id || ev.unit_id || (selectedUnitId !== 'all' ? selectedUnitId : 'matriz'),
+                                                    user_id: userAuth?.uid || '',
+                                                    created_at: new Date().toISOString()
+                                                  });
+                                                  fetchData();
+                                                } else {
+                                                  handleDelete(ev.id);
+                                                }
+                                              }}
+                                              className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-all cursor-pointer"
+                                              title={isDerivedOrGlobal ? 'Cancelar esta data' : 'Remover Data'}
+                                            >
+                                              <Trash2 size={16} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                });
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                       <button 
-                        onClick={() => {
-                          setSettingsForm(prev => ({
-                            ...prev,
-                            target_class_ids: [inspectingClassId]
-                          }));
-                          setParametersTab('weekly');
-                          setShowSettings(true);
-                        }}
-                        className="px-4 py-2 bg-[#0F2A30] text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-[#163B42] transition-all flex items-center gap-2 cursor-pointer"
-                      >
-                        <Settings size={14} />
-                        Ajustar Regras
-                      </button>
-                    </div>
-                  </div>
+                  );
+                })()
+              ) : (
+                // --- MODO LISTA DE TURMAS ---
+                (() => {
+                  const currentYearStr = currentDate.getFullYear().toString();
+                  const weekdayLabels: Record<number, string> = {
+                    1: 'Segunda-feira', 2: 'Terça-feira', 3: 'Quarta-feira', 4: 'Quinta-feira', 5: 'Sexta-feira', 6: 'Sábado'
+                  };
+                  const yearEvents = effectiveEvents.filter(e => e.start_date && e.start_date.startsWith(currentYearStr));
+                  const holidayDates = new Set(
+                    yearEvents
+                      .filter(e => e.type?.includes('holiday') && blockingHolidayDates.has(e.start_date))
+                      .map(e => e.start_date)
+                  );
+                  const allHolidayCount = new Set(
+                    yearEvents
+                      .filter(e => e.type?.includes('holiday'))
+                      .map(e => e.start_date)
+                  ).size;
 
-                  <div className="grid grid-cols-1 gap-4">
-                    {/* Lista Cronológica */}
-                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto min-h-[400px]">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-16">#</th>
-                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data</th>
-                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Semana</th>
-                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Título do Registro</th>
-                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {(() => {
-                            const currentCls = classes.find(c => c.id === inspectingClassId);
-                            const targetWeekdays = currentCls ? getClassWeekdays(currentCls, academicSettings, events) : [];
+                  const academicInstitutionDates = new Set(
+                    yearEvents
+                      .filter(e =>
+                        (e.type === 'class_day' && !blockingHolidayDates.has(e.start_date)) ||
+                        e.type === 'excused_class' ||
+                        e.type === 'exam' ||
+                        (e.type === 'event' && e.title?.toLowerCase().includes('aula'))
+                      )
+                      .map(e => e.start_date)
+                  );
 
-                            return events
-                              .filter(e => {
-                                const isForThisClass = String(e.class_id) === String(inspectingClassId);
-                                if (!isForThisClass) return false;
-                                
-                                const isAcademic = e.type === 'class_day' || e.type === 'excused_class' || e.type === 'cancelled_class';
-                                if (!isAcademic) return true;
+                  const classSummaries = classes.map(cls => ({
+                    cls,
+                    summary: getClassManagementData(cls, currentYearStr)
+                  }));
 
-                                if (targetWeekdays.length > 0) {
-                                  const d = new Date(e.start_date + 'T12:00:00').getDay();
-                                  return targetWeekdays.includes(d);
-                                }
-                                return true;
-                              })
-                              .sort((a, b) => a.start_date.localeCompare(b.start_date))
-                              .map((ev, idx) => {
-                                const date = new Date(ev.start_date + 'T00:00:00');
-                                const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+                  const activeSummaries = classSummaries.filter(item => !item.cls.status || item.cls.status === 'Ativo');
+                  const totalTurmasAulas = activeSummaries.reduce((sum, item) => sum + item.summary.letivos, 0);
+                  const totalTurmasAulasConcluidas = activeSummaries.reduce((sum, item) => sum + item.summary.completed, 0);
+                  const completionRate = totalTurmasAulas > 0 ? Math.round((totalTurmasAulasConcluidas / totalTurmasAulas) * 100) : 0;
+
+                  return (
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                      <div className="xl:col-span-2 space-y-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Cronograma de Aulas por Turma</h2>
+                            <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo anual ({currentYearStr}) e ajuste individual de datas</p>
+                          </div>
+
+                          <div className="flex items-center bg-white border border-slate-200 rounded-lg px-1 h-[36px] shadow-2xs shrink-0">
+                            <button
+                              onClick={prevYear}
+                              className="p-1.5 hover:bg-slate-100 rounded-md transition-all text-slate-500 hover:text-slate-900 cursor-pointer"
+                              title="Ano anterior"
+                            >
+                              <ChevronLeft size={14} />
+                            </button>
+                            <span className="px-3 text-xs font-bold text-slate-800 tabular-nums select-none">
+                              {currentYearStr}
+                            </span>
+                            <button
+                              onClick={nextYear}
+                              className="p-1.5 hover:bg-slate-100 rounded-md transition-all text-slate-500 hover:text-slate-900 cursor-pointer"
+                              title="Próximo ano"
+                            >
+                              <ChevronRight size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Turma</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Início/Fim</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Dias Letivos</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Concluídas</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {classSummaries.map(({ cls, summary }) => {
+                                const weekdayText = summary.targetWeekdays
+                                  .map(d => weekdayLabels[d])
+                                  .filter(Boolean)
+                                  .join(' / ');
 
                                 return (
-                                  <tr key={ev.id} className={cn(
-                                    "hover:bg-slate-50/50 transition-colors group",
-                                    ev.type === 'excused_class' && "opacity-60 grayscale-[0.5]"
-                                  )}>
-                                    <td className="px-8 py-4 text-xs font-bold text-slate-400">
-                                      {String(idx + 1).padStart(2, '0')}
-                                    </td>
-                                    <td className="px-8 py-4">
+                                  <tr key={cls.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-6 py-4">
                                       <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-slate-900">{formatDateForDisplay(ev.start_date)}</span>
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase">{weekday}</span>
+                                        <span className="text-sm font-bold text-slate-900">{cls.name}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                          {cls.code}{weekdayText ? ` · ${weekdayText}` : ''}
+                                        </span>
                                       </div>
                                     </td>
-                                    <td className="px-8 py-4">
-                                      <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                                        W{getWeekId(ev.start_date).split('W')[1]}
-                                      </span>
+                                    <td className="px-6 py-4 text-center">
+                                      <div className="flex flex-col items-center tabular-nums">
+                                        <span className="text-[10px] font-bold text-slate-600">
+                                          {summary.startDate ? formatDateForDisplay(summary.startDate) : '-'}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">até</span>
+                                        <span className="text-[10px] font-bold text-slate-600">
+                                          {summary.endDate ? formatDateForDisplay(summary.endDate) : '-'}
+                                        </span>
+                                      </div>
                                     </td>
-                                    <td className="px-8 py-4">
-                                      <span className="text-sm font-bold text-slate-600">{ev.title}</span>
-                                    </td>
-                                    <td className="px-8 py-4">
-                                      <span className={cn(
-                                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                                        ev.type === 'class_day' ? "bg-slate-50 text-blue-700 border-slate-200" : 
-                                        ev.type === 'cancelled_class' ? "bg-rose-50 text-rose-700 border-rose-100" :
-                                        "bg-slate-100 text-slate-500 border-slate-200"
-                                      )}>
-                                        {ev.type === 'class_day' ? 'Letivo' : ev.type === 'cancelled_class' ? 'Cancelado' : 'Abonado'}
-                                      </span>
-                                    </td>
-                                    <td className="px-8 py-4 text-right">
-                                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                          onClick={async () => {
-                                            let nextType: CalendarEvent['type'] = 'class_day';
-                                            let nextTitle = 'Dia de Aula';
-                                            
-                                            if (ev.type === 'class_day') {
-                                              nextType = 'excused_class';
-                                              nextTitle = 'Aula Abonada';
-                                            } else if (ev.type === 'excused_class') {
-                                              nextType = 'cancelled_class';
-                                              nextTitle = 'Aula Cancelada';
-                                            }
-
-                                            // Identifica se este evento faz parte de um grupo compartilhado no mesmo dia
-                                            const baseTitle = ev.title.split(' - ')[0].trim();
-                                            const relatedEvents = events.filter(rv => 
-                                              rv.start_date === ev.start_date && 
-                                              ['class_day', 'excused_class', 'cancelled_class'].includes(rv.type) &&
-                                              rv.title.split(' - ')[0].trim() === baseTitle
-                                            );
-
-                                            if (relatedEvents.length > 1) {
-                                              const updates = relatedEvents.map(re => {
-                                                const suffix = re.title.includes(' - ') ? ' - ' + re.title.split(' - ')[1] : '';
-                                                return saveData('calendar_events', re.id, { 
-                                                  ...re, 
-                                                  type: nextType, 
-                                                  title: nextTitle + suffix 
-                                                });
-                                              });
-                                              await Promise.all(updates);
-                                            } else {
-                                              await saveData('calendar_events', ev.id, { ...ev, type: nextType, title: nextTitle });
-                                            }
-                                            
-                                            fetchData();
-                                          }}
-                                          className={cn(
-                                            "p-2 rounded-lg transition-all",
-                                            ev.type === 'class_day' ? "bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white" : 
-                                            ev.type === 'cancelled_class' ? "bg-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
-                                            "bg-blue-100 text-slate-800 hover:bg-slate-800 hover:text-white"
-                                          )}
-                                          title={ev.type === 'class_day' ? 'Abonar Aula' : ev.type === 'excused_class' ? 'Cancelar Aula' : 'Retornar para Letivo'}
-                                        >
-                                          <CheckCircle2 size={16} />
-                                        </button>
-                                        {canDelete && (
-                                          <button 
-                                            onClick={() => handleDelete(ev.id)}
-                                            className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-all"
-                                            title="Remover Data"
-                                          >
-                                            <Trash2 size={16} />
-                                          </button>
+                                    <td className="px-6 py-4 text-center">
+                                      <div className="flex flex-col items-center gap-0.5 tabular-nums">
+                                        <span className={cn(
+                                          "px-3 py-1 rounded-full text-[11px] font-bold border",
+                                          summary.letivos > 0 ? "bg-slate-50 text-teal-700 border-teal-200/80" : "bg-slate-50 text-slate-400 border-slate-100"
+                                        )}>
+                                          {summary.letivos} {summary.letivos === 1 ? 'DIA' : 'DIAS'}
+                                        </span>
+                                        {summary.excused > 0 && (
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase italic">
+                                            ({summary.excused} {summary.excused === 1 ? 'abonado' : 'abonados'})
+                                          </span>
                                         )}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                      <div className="flex flex-col items-center gap-1 tabular-nums">
+                                        <span className="text-xs font-bold text-slate-700">{summary.completed} / {summary.letivos}</span>
+                                        <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                          <div 
+                                            className="h-full bg-emerald-500 transition-all duration-300" 
+                                            style={{ width: `${summary.letivos ? (summary.completed / summary.letivos) * 100 : 0}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button 
+                                          onClick={() => setInspectingClassId(cls.id)}
+                                          className="px-4 py-2 bg-white text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-[#0F2A30] hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200 cursor-pointer whitespace-nowrap"
+                                        >
+                                          Ver Lista
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            setSettingsForm({
+                                              ...academicSettings,
+                                              target_class_ids: [cls.id]
+                                            });
+                                            setParametersTab('weekly');
+                                            setLastLoadedKey('custom');
+                                            setShowSettings(true);
+                                          }}
+                                          className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-[#0F2A30] hover:text-white transition-all border border-slate-200 cursor-pointer"
+                                          title="Configurações"
+                                        >
+                                          <Settings2 size={16} />
+                                        </button>
                                       </div>
                                     </td>
                                   </tr>
                                 );
-                              });
-                          })()}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                // --- MODO LISTA DE TURMAS ---
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                  <div className="xl:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Cronograma de Aulas por Turma</h2>
-                        <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo anual e ajuste individual de datas</p>
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Turma</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Início/Fim</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Dias Letivos</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Concluídas</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {classes.map(cls => {
-                            const targetWeekdays = getClassWeekdays(cls, academicSettings, events);
-
-                            // Strict filter: only count events that match the class and its intended weekdays (for class_day type)
-                            const classEvents = events.filter(e => {
-                              const isForThisClass = String(e.class_id) === String(cls.id);
-                              if (!isForThisClass) return false;
-                              
-                              const isAcademic = e.type === 'class_day' || e.type === 'excused_class';
-                              if (!isAcademic) return true; // Keep other types
-                              
-                              if (targetWeekdays.length > 0) {
-                                const d = new Date(e.start_date + 'T12:00:00').getDay();
-                                return targetWeekdays.includes(d);
-                              }
-                              return true;
-                            });
-
-                            // Deduplicate events for this class by date & type to ensure clean counts
-                            const uniqueClassEventsMap = new Map<string, CalendarEvent>();
-                            classEvents.forEach(e => {
-                              const key = `${e.start_date}_${e.type}`;
-                              if (!uniqueClassEventsMap.has(key)) {
-                                uniqueClassEventsMap.set(key, e);
-                              }
-                            });
-                            const uniqueClassEvents = Array.from(uniqueClassEventsMap.values());
-
-                            const letivos = uniqueClassEvents.filter(e => e.type === 'class_day').length;
-                            const sortedEvents = [...uniqueClassEvents].sort((a,b) => a.start_date.localeCompare(b.start_date));
-                            const completed = uniqueClassEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
-                            const excused = uniqueClassEvents.filter(e => e.type === 'excused_class').length;
-                            
-                            return (
-                              <tr key={cls.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-6 py-4">
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-slate-900">{cls.name}</span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{cls.code}</span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  <div className="flex flex-col items-center">
-                                    <span className="text-[10px] font-bold text-slate-600">
-                                      {sortedEvents.length > 0 ? formatDateForDisplay(sortedEvents[0].start_date) : '-'}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">até</span>
-                                    <span className="text-[10px] font-bold text-slate-600">
-                                      {sortedEvents.length > 0 ? formatDateForDisplay(sortedEvents[sortedEvents.length - 1].start_date) : '-'}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  <div className="flex flex-col items-center gap-0.5">
-                                    <span className={cn(
-                                      "px-3 py-1 rounded-full text-[11px] font-bold border",
-                                      letivos > 0 ? "bg-slate-50 text-blue-700 border-slate-200" : "bg-slate-50 text-slate-400 border-slate-100"
-                                    )}>
-                                      {letivos} DIAS
-                                    </span>
-                                    {excused > 0 && (
-                                      <span className="text-[9px] font-bold text-slate-400 uppercase italic">
-                                        ({excused} abonados)
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span className="text-xs font-bold text-slate-700">{completed} / {letivos}</span>
-                                    <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full bg-emerald-500" 
-                                        style={{ width: `${letivos ? (completed / letivos) * 100 : 0}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <button 
-                                      onClick={() => setInspectingClassId(cls.id)}
-                                      className="px-4 py-2 bg-white text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-[#0F2A30] hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200 cursor-pointer"
-                                    >
-                                      Ver Lista
-                                    </button>
-                                    <button 
-                                      onClick={() => {
-                                        setSettingsForm({
-                                          ...academicSettings,
-                                          target_class_ids: [cls.id]
-                                        });
-                                        setParametersTab('weekly');
-                                        setLastLoadedKey('custom');
-                                        setShowSettings(true);
-                                      }}
-                                      className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-[#0F2A30] hover:text-white transition-all border border-slate-200 cursor-pointer"
-                                      title="Configurações"
-                                    >
-                                      <Settings2 size={16} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900 tracking-tight">Estatísticas de {currentDate.getFullYear()}</h2>
-                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo geral da instituição</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 gap-4">
-                      {(() => {
-                        const currentYearStr = currentDate.getFullYear().toString();
-                        const yearEvents = events.filter(e => e.start_date && e.start_date.startsWith(currentYearStr));
+                      <div className="space-y-6">
+                        <div>
+                          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Estatísticas de {currentYearStr}</h2>
+                          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo geral da instituição</p>
+                        </div>
                         
-                        const holidayDates = new Set(
-                          yearEvents
-                            .filter(e => e.type?.includes('holiday'))
-                            .map(e => e.start_date)
-                        );
-                        
-                        const academicEvents = yearEvents.filter(e => 
-                          e.type === 'class_day' || 
-                          e.type === 'excused_class' ||
-                          e.type === 'exam' ||
-                          (e.type === 'event' && e.title?.toLowerCase().includes('aula'))
-                        );
-
-                        // Unique calendar days with classes in the institution
-                        const uniqueDatesCount = new Set(academicEvents.map(e => e.start_date)).size;
-
-                        // Calculate total and completed classes strictly aligned with active classes
-                        const activeClasses = (classes || []).filter(c => c.status === 'Ativo');
-                        let totalTurmasAulas = 0;
-                        let totalTurmasAulasConcluidas = 0;
-
-                        if (activeClasses.length > 0) {
-                          activeClasses.forEach(cls => {
-                            const targetWeekdays = getClassWeekdays(cls, academicSettings, yearEvents);
-
-                            const classEvents = yearEvents.filter(e => {
-                              const isForThisClass = String(e.class_id) === String(cls.id);
-                              if (!isForThisClass) return false;
-                              const isAcademic = e.type === 'class_day' || e.type === 'excused_class';
-                              if (!isAcademic) return true;
-                              if (targetWeekdays.length > 0) {
-                                const d = new Date(e.start_date + 'T00:00:00').getDay();
-                                return targetWeekdays.includes(d);
-                              }
-                              return true;
-                            });
-
-                            const uniqueClassEventsMap = new Map<string, CalendarEvent>();
-                            classEvents.forEach(e => {
-                              const key = `${e.start_date}_${e.type}`;
-                              if (!uniqueClassEventsMap.has(key)) {
-                                uniqueClassEventsMap.set(key, e);
-                              }
-                            });
-                            const uniqueClassEvents = Array.from(uniqueClassEventsMap.values());
-                            const letivos = uniqueClassEvents.filter(e => e.type === 'class_day').length;
-                            const completed = uniqueClassEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
-
-                            totalTurmasAulas += letivos;
-                            totalTurmasAulasConcluidas += completed;
-                          });
-                        } else {
-                          // Fallback if no classes are loaded
-                          totalTurmasAulas = uniqueDatesCount;
-                          totalTurmasAulasConcluidas = academicEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
-                        }
-
-                        const completionRate = totalTurmasAulas > 0 ? Math.round((totalTurmasAulasConcluidas / totalTurmasAulas) * 100) : 0;
-
-                        return (
+                        <div className="grid grid-cols-1 gap-4">
                           <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-800">
@@ -3095,7 +3258,7 @@ export function AcademicCalendar() {
                               </div>
                               <div>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Feriados Únicos</p>
-                                <p className="text-2xl font-bold text-slate-900">{holidayDates.size}</p>
+                                <p className="text-2xl font-bold text-slate-900 tabular-nums">{allHolidayCount || holidayDates.size}</p>
                               </div>
                             </div>
                             <div className="h-px bg-slate-100 w-full" />
@@ -3106,7 +3269,7 @@ export function AcademicCalendar() {
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dias Letivos</p>
-                                  <p className="text-lg font-bold text-slate-900">{uniqueDatesCount}</p>
+                                  <p className="text-lg font-bold text-slate-900 tabular-nums">{academicInstitutionDates.size}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-4">
@@ -3115,7 +3278,7 @@ export function AcademicCalendar() {
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Aulas</p>
-                                  <p className="text-lg font-bold text-slate-900">{totalTurmasAulas}</p>
+                                  <p className="text-lg font-bold text-slate-900 tabular-nums">{totalTurmasAulas}</p>
                                 </div>
                               </div>
                             </div>
@@ -3123,7 +3286,7 @@ export function AcademicCalendar() {
                             <div className="space-y-1.5 pt-1">
                               <div className="flex justify-between items-center text-xs">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aulas Concluídas</span>
-                                <span className="font-bold text-slate-800">{totalTurmasAulasConcluidas} / {totalTurmasAulas} ({completionRate}%)</span>
+                                <span className="font-bold text-slate-800 tabular-nums">{totalTurmasAulasConcluidas} / {totalTurmasAulas} ({completionRate}%)</span>
                               </div>
                               <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div 
@@ -3133,34 +3296,11 @@ export function AcademicCalendar() {
                               </div>
                             </div>
                           </div>
-                        );
-                      })()}
-
-                      <div className="bg-[#0F2A30] p-8 rounded-[32px] text-white relative overflow-hidden group border border-teal-800/40">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-400/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-teal-400/20 transition-all duration-700" />
-                        <Settings className="mb-6 text-teal-300/80" size={32} />
-                        <h3 className="text-xl font-bold leading-tight mb-4 pr-12">Deseja atualizar o calendário?</h3>
-                        <p className="text-teal-100/75 text-xs font-medium leading-relaxed mb-6">
-                          Você pode ajustar os ciclos letivos ou gerar automaticamente todas as datas e turmas no calendário anual.
-                        </p>
-                        <button 
-                          onClick={() => {
-                            setSettingsForm({
-                              ...academicSettings,
-                              target_class_ids: []
-                            });
-                            setParametersTab('annual');
-                            setLastLoadedKey('custom');
-                            setShowSettings(true);
-                          }}
-                          className="w-full py-4 bg-teal-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-teal-500 transition-all shadow-xl shadow-black/20 cursor-pointer"
-                        >
-                          Abrir Ferramenta de Geração
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()
               )}
             </div>
           ) : viewMode === 'month' ? (
@@ -5740,14 +5880,18 @@ export function AcademicCalendar() {
                   idx += slice.length;
                 }
               } else {
-                const yearLessons = events
-                  .filter(e =>
-                    e.start_date.startsWith(yearStr) &&
-                    e.class_id === printFilters.class_id &&
-                    ['class_day', 'exam', 'excused_class'].includes(e.type) &&
-                    !events.some(h => (h.type?.includes('holiday') || h.type === 'cancelled_class') && h.start_date === e.start_date)
-                  )
-                  .sort((a, b) => a.start_date.localeCompare(b.start_date));
+                const targetClassObj = classes.find(c => String(c.id) === String(printFilters.class_id));
+                const yearLessons = targetClassObj
+                  ? getClassManagementData(targetClassObj, yearStr).uniqueEvents.filter(e => ['class_day', 'exam', 'excused_class'].includes(e.type))
+                  : effectiveEvents
+                      .filter(e =>
+                        e.start_date.startsWith(yearStr) &&
+                        String(e.class_id) === String(printFilters.class_id) &&
+                        ['class_day', 'exam', 'excused_class'].includes(e.type) &&
+                        !blockingHolidayDates.has(e.start_date) &&
+                        !effectiveEvents.some(h => h.type === 'cancelled_class' && h.start_date === e.start_date)
+                      )
+                      .sort((a, b) => a.start_date.localeCompare(b.start_date));
                 const specificCount = autoEvents.filter(e => ['class_day', 'exam', 'excused_class'].includes(e.type)).length;
 
                 let idx = 0;
