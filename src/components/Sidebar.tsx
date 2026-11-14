@@ -101,7 +101,6 @@ const navItems = [
         icon: Wallet,
         path: '/financial',
         children: [
-          { icon: DashboardIcon, label: 'Dashboard Financeiro', path: '/financial' },
           { icon: PixIcon, label: 'Contribuições', path: '/contributions' },
           { icon: ReportsIcon, label: 'Relatório Financeiro', path: '/financial-report' },
           { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference' },
@@ -372,6 +371,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       for (const item of items) {
         if (item.path && isPathActive(item.path)) {
           activeAncestors.push(...currentPathAncestors);
+          if (item.children && item.children.length > 0) {
+            activeAncestors.push(item.label);
+          }
           return true;
         }
         if (item.children) {
@@ -598,53 +600,88 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       if (hasChildren) {
         const theme = getItemTheme(item, parentLabel);
+        const isOwnPathActive = Boolean(item.path && isPathActive(item.path));
+        const isFav = item.path ? favorites.includes(item.path) : false;
+
         return (
           <div key={item.label} ref={setGroupRef(item.label)} className="space-y-0.5">
-            <button
-              onClick={() => {
-                if (item.path) {
-                  navigate(item.path);
-                  if (!isOpen) {
-                    toggleGroup(item.label);
-                  }
-                  onClose?.();
-                } else {
-                  toggleGroup(item.label);
-                }
-              }}
+            <div
               className={cn(
-                "w-full flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-md transition-all duration-200 cursor-pointer",
-                isActive && !isOpen ? "bg-teal-800/50 text-white" : "text-slate-200 hover:text-white hover:bg-teal-800/45"
+                "w-full flex items-center justify-between gap-1 rounded-md transition-all duration-200 group",
+                isOwnPathActive
+                  ? "bg-teal-600 text-white shadow-sm ring-1 ring-teal-400/50 font-semibold"
+                  : isActive && !isOpen
+                    ? "bg-teal-800/50 text-white"
+                    : "text-slate-200 hover:text-white hover:bg-teal-800/45"
               )}
             >
-              <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (item.path) {
+                    navigate(item.path);
+                    if (!isOpen) {
+                      toggleGroup(item.label);
+                    }
+                    onClose?.();
+                  } else {
+                    toggleGroup(item.label);
+                  }
+                }}
+                className="flex-1 flex items-center gap-3 px-3.5 py-1.5 min-w-0 text-left cursor-pointer"
+              >
                 {item.icon && (
                   <item.icon 
                     size={15} 
                     className={cn(
                       "transition-colors duration-200 shrink-0",
-                      isActive ? "text-white" : theme.iconColor
+                      isOwnPathActive || isActive ? "text-white" : theme.iconColor
                     )} 
                   />
                 )}
                 <span className={cn(
-                  "text-[10.5px] font-bold uppercase tracking-wider",
-                  isActive ? "text-white" : "text-slate-200"
+                  "text-[10.5px] font-bold uppercase tracking-wider truncate",
+                  isOwnPathActive || isActive ? "text-white" : "text-slate-200"
                 )}>
                   {item.label}
                 </span>
-              </div>
-              <div
+              </button>
+
+              {item.path && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleToggleFavorite(item.path);
+                  }}
+                  className={cn(
+                    "p-1 transition-all shrink-0 cursor-pointer rounded hover:bg-teal-700/50",
+                    isFav 
+                      ? "text-amber-300 opacity-100 hover:scale-125" 
+                      : "text-slate-300 opacity-0 group-hover:opacity-80 hover:!opacity-100 hover:text-amber-300 hover:scale-125"
+                  )}
+                  title={isFav ? "Remover da barra de acesso rápido do Dashboard" : "Fixar na barra de acesso rápido do Dashboard (máx. 10)"}
+                >
+                  <Star size={12} className={cn(isFav ? "fill-amber-300" : "")} />
+                </button>
+              )}
+
+              <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleGroup(item.label);
                 }}
-                className="p-1 text-slate-300 hover:text-white cursor-pointer"
+                className={cn(
+                  "p-1.5 mr-1 shrink-0 cursor-pointer rounded transition-colors",
+                  isOwnPathActive ? "text-white/90 hover:text-white" : "text-slate-300 hover:text-white"
+                )}
                 title={isOpen ? "Recolher menu" : "Expandir menu"}
               >
                 {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              </div>
-            </button>
+              </button>
+            </div>
             
             <AnimatePresence mode="wait">
               {isOpen && (
