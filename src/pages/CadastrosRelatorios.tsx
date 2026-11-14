@@ -146,13 +146,13 @@ function StandardReportFooter({
 export function CadastrosRelatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Helper to parse values from URL searchParams
-  const parseTab = (params: URLSearchParams): ReportTab => {
+  // Helper to parse values from URL searchParams (returns null when no tab is pre-selected)
+  const parseTab = (params: URLSearchParams): ReportTab | null => {
     const t = params.get('tab');
     if (t === 'alunos' || t === 'professores' || t === 'cursos' || t === 'turmas' || t === 'disciplinas') {
       return t;
     }
-    return 'alunos';
+    return null;
   };
 
   const parseStatus = (params: URLSearchParams): 'Todos' | 'Ativo' | 'Inativo' => {
@@ -200,7 +200,7 @@ export function CadastrosRelatorios() {
   };
 
   // State initialized directly from searchParams
-  const [activeTab, setActiveTab] = useState<ReportTab>(() => parseTab(searchParams));
+  const [activeTab, setActiveTab] = useState<ReportTab | null>(() => parseTab(searchParams));
   const [statusFilter, setStatusFilter] = useState<'Todos' | 'Ativo' | 'Inativo'>(() => parseStatus(searchParams));
   const [selectedClassId, setSelectedClassId] = useState<string>(() => parseClassId(searchParams));
   const [selectedCourseId, setSelectedCourseId] = useState<string>(() => parseCourseId(searchParams));
@@ -629,6 +629,7 @@ export function CadastrosRelatorios() {
 
   // Report Title and Metadata
   const reportConfig = useMemo(() => {
+    if (!activeTab) return null;
     switch (activeTab) {
       case 'alunos': {
         const orderLabel = studentSortBy === 'numeric' ? 'NUMÉRICA (MATRÍCULA)' : 'ALFABÉTICA (A-Z)';
@@ -680,11 +681,13 @@ export function CadastrosRelatorios() {
 
   // Action: Print native HTML (window.print())
   const handlePrintHTML = () => {
+    if (!activeTab) return;
     window.print();
   };
 
   // Action: Export PDF via jsPDF with AutoTable and Aspect-Ratio Corrected Header
   const handleExportPDF = () => {
+    if (!activeTab || !reportConfig) return;
     try {
       const doc = new jsPDF();
       const margin = 15;
@@ -887,22 +890,24 @@ export function CadastrosRelatorios() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handlePrintHTML}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-98"
-          >
-            <Printer size={15} />
-            <span>Imprimir Listagem</span>
-          </button>
-          <button
-            onClick={handleExportPDF}
-            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-98"
-          >
-            <Download size={15} />
-            <span>Baixar PDF</span>
-          </button>
-        </div>
+        {activeTab && (
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={handlePrintHTML}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-98"
+            >
+              <Printer size={15} />
+              <span>Imprimir Listagem</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-98"
+            >
+              <Download size={15} />
+              <span>Baixar PDF</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tabs Navigation (Hidden in Print) */}
@@ -988,7 +993,23 @@ export function CadastrosRelatorios() {
         </button>
       </div>
 
+      {/* Empty clean state when no category has been selected */}
+      {!activeTab && (
+        <div className="print:hidden bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 sm:p-14 text-center flex flex-col items-center justify-center gap-3 shadow-2xs">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center">
+            <FileText size={24} />
+          </div>
+          <div className="space-y-1 max-w-md">
+            <h2 className="text-base font-bold text-slate-800">Selecione um relatório acima</h2>
+            <p className="text-xs text-slate-500">
+              Escolha entre Alunos, Professores, Cursos, Turmas ou Disciplinas para visualizar os filtros e gerar a listagem em formato A4.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Filter Controls Bar (Hidden in Print) */}
+      {activeTab && reportConfig && (
       <div className="print:hidden bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3.5">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 flex-wrap">
           {/* Status Buttons */}
@@ -1209,8 +1230,10 @@ export function CadastrosRelatorios() {
           </span>
         </div>
       </div>
+      )}
 
       {/* A4 PRINTABLE DOCUMENT CONTAINER */}
+      {activeTab && reportConfig && (
       <div id="printable-cadastral-report" className="flex flex-col items-center gap-6 print:gap-0 print:block">
         {activeTab === 'alunos' && (
           studentSheets.map((sheet) => (
@@ -1535,6 +1558,7 @@ export function CadastrosRelatorios() {
           ))
         )}
       </div>
+      )}
     </div>
   );
 }
