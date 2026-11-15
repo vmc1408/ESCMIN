@@ -127,10 +127,12 @@ const navItems = [
   {
     label: 'Administração & Diocese',
     isSectionTitle: true,
+    hideTitle: true,
     children: [
       {
-        label: 'Guia Diocese',
+        label: 'Guia Diocesano',
         icon: Church,
+        dividerAfter: true,
         tooltip: 'Cadastro e relatórios de paróquias, regiões pastorais e clero',
         children: [
           { icon: Scroll, label: 'Gestão da Diocese', path: '/parishes?view=management', tooltip: 'Gerenciar paróquias, comunidades, padres e regiões diocesanas' },
@@ -438,8 +440,10 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       };
     }
 
-    // Guia Diocese
+    // Guia Diocesano
     if (
+      label === 'Guia Diocesano' || 
+      parentLabel === 'Guia Diocesano' || 
       label === 'Guia Diocese' || 
       parentLabel === 'Guia Diocese' || 
       item.path === '/parishes' ||
@@ -532,17 +536,21 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       const isOpen = openGroups.includes(item.label);
       const isActive = item.path ? isPathActive(item.path) : isGroupActive(item);
 
-      // Título de Grupo não-clicável (ex: Gestão Escolar, Serviços & Administração)
+      // Título de Grupo não-clicável (ex: Gestão Escolar) ou separador de seção
       if (item.isSectionTitle) {
         return (
-          <div key={item.label} className={cn("space-y-1", index === 0 ? "pt-0.5" : "pt-2")}>
-            {index > 0 && <div className="border-t border-[#1F4A54] mb-3 mx-2" />}
-            <div className="px-3 pt-1 pb-1.5 flex items-center gap-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-teal-300/80 whitespace-nowrap">
-                {item.label}
-              </span>
-              <div className="h-px flex-1 bg-[#1F4A54]" />
-            </div>
+          <div key={item.label} className={cn("space-y-1", index === 0 ? "pt-0.5" : item.hideTitle ? "pt-1" : "pt-2")}>
+            {index > 0 && (
+              <div className={cn("border-t border-[#1F4A54] mx-2", item.hideTitle ? "my-2" : "mb-3")} />
+            )}
+            {!item.hideTitle && (
+              <div className="px-3 pt-1 pb-1.5 flex items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-teal-300/80 whitespace-nowrap">
+                  {item.label}
+                </span>
+                <div className="h-px flex-1 bg-[#1F4A54]" />
+              </div>
+            )}
             <div className="space-y-1">
               {renderNavItems(item.children || [], depth, item.label)}
             </div>
@@ -556,7 +564,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         const isFav = item.path ? favorites.includes(item.path) : false;
 
         return (
-          <div key={item.label} ref={setGroupRef(item.label)} className="space-y-0.5">
+          <React.Fragment key={item.label}>
+            <div ref={setGroupRef(item.label)} className="space-y-0.5">
             <div
               className={cn(
                 "w-full flex items-center justify-between gap-1 rounded-md transition-all duration-200 group",
@@ -677,7 +686,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+            </div>
+            {item.dividerAfter && index < items.length - 1 && (
+              <div className="border-t border-[#1F4A54] my-2 mx-2" />
+            )}
+          </React.Fragment>
         );
       }
 
