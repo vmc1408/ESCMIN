@@ -774,15 +774,38 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
   return (
     <aside className="h-full max-h-screen w-60 bg-[#0F2A30] text-white flex flex-col border-r border-[#1F4A54] print:hidden overflow-hidden shrink-0 select-none">
-      <div className="h-16 px-5 bg-[#0B2025] border-b border-[#1F4A54] flex items-center justify-between shrink-0">
-        <div className="flex flex-col">
-          <h2 className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-teal-300">SISTEMA ACADEMICO ESCMIN</h2>
-          <span className="text-[9.5px] font-medium text-slate-200 uppercase tracking-wider">Diocese de Guarulhos</span>
-        </div>
+      <div className="h-16 px-3 bg-[#0B2025] border-b border-[#1F4A54] flex items-center justify-between shrink-0 overflow-hidden">
+        <Link
+          to="/"
+          onClick={() => onClose?.()}
+          title="ESCMIN by VMC — Diocese de Guarulhos"
+          className="flex-1 h-full flex items-center justify-center gap-2.5 cursor-pointer group min-w-0"
+        >
+          <div className="w-12 h-12 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+            <img
+              src="/assets/aistudio/vmc_logo_transparent_dark.png"
+              alt="Logo Oficial VMC"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-contain select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
+            />
+          </div>
+          <div className="flex flex-col items-end leading-none select-none shrink-0 pr-2">
+            <span className="font-brand text-[26px] font-bold tracking-[-0.015em] text-[#2DD4BF] leading-none flex items-baseline">
+              <span>escm</span>
+              <span className="inline-block leading-none bg-[linear-gradient(to_bottom,#F8D15B_0%,#F2BE42_36%,#2DD4BF_36%,#2DD4BF_100%)] bg-clip-text text-transparent">
+                i
+              </span>
+              <span>n</span>
+            </span>
+            <span className="font-signature text-[15px] font-semibold bg-gradient-to-r from-[#FCE38A] via-[#E5B84B] to-[#F5D675] bg-clip-text text-transparent leading-none -mt-0.5 px-1.5 py-0.5 translate-x-4 sm:translate-x-5 tracking-wide">
+              by VMC
+            </span>
+          </div>
+        </Link>
         {onClose && (
           <button 
             onClick={onClose}
-            className="lg:hidden p-1 text-white/60 hover:text-white transition-colors"
+            className="lg:hidden p-1 text-white/60 hover:text-white transition-colors shrink-0 ml-1"
           >
             <XCircle size={18} />
           </button>
