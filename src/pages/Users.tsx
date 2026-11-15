@@ -8,12 +8,13 @@ import { UserProfile, UserRole, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { findTeacherForUser } from '../lib/teacherScope';
+import { getItemUnitId, isItemInUnit } from '../lib/unitService';
 import { PageHeader } from '../components/PageHeader';
 import Webcam from 'react-webcam';
 
 export function Users() {
   const { user: userAuth, profile: currentProfile, refreshProfile, isAdmin, isDirector, isSecretary, switchUser } = useAuth();
-  const { units, activeUnits, getUnitName } = useUnits();
+  const { units, activeUnits, getUnitName, isRestricted, selectedUnitId } = useUnits();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,6 +152,7 @@ export function Users() {
               status: 'inactive', // Default to inactive if profile not created
               is_pre_registered: true,
               teacher_id: reg.teacher_id || undefined,
+              unit_id: getItemUnitId(reg) || 'all',
               created_at: reg.registered_at || reg.created_at || new Date().toISOString()
             } as UserProfile);
           }
@@ -193,7 +195,7 @@ export function Users() {
       avatar_url: user.avatar_url || '',
       pin: user.pin || '',
       teacher_id: user.teacher_id || matchedTeacher?.id || '',
-      unit_id: user.unit_id || 'all'
+      unit_id: getItemUnitId(user) || 'all'
     });
     setNewEmail(user.email);
     setPasswordData({ newPassword: '', confirmPassword: '' });
@@ -211,7 +213,7 @@ export function Users() {
       avatar_url: '',
       pin: '',
       teacher_id: '',
-      unit_id: 'all'
+      unit_id: isRestricted ? selectedUnitId : 'all'
     });
     setNewEmail('');
     setPasswordData({ newPassword: '', confirmPassword: '' });
@@ -309,10 +311,18 @@ export function Users() {
           throw new Error('Não é possível desativar ou alterar o cargo do único administrador ativo do sistema.');
         }
 
+        const resolvedUnitId = (isRestricted ? selectedUnitId : formData.unit_id) || 'all';
+        const rawObs = (selectedUser as any).observations;
+        const cleanObservations = typeof rawObs === 'string'
+          ? rawObs.replace(/\s*\[UNIT_ID:[^\]]+\]/g, '').trim()
+          : rawObs;
+
         // Sync name/full_name
         const updatePayload = {
           ...selectedUser,
           ...formData,
+          unit_id: resolvedUnitId,
+          ...(cleanObservations !== undefined ? { observations: cleanObservations } : {}),
           is_pre_registered: selectedUser.is_pre_registered,
           full_name: formData.name,
           last_login: selectedUser.last_login || null,
@@ -352,23 +362,28 @@ export function Users() {
         if (selectedUser.email) {
           const emailId = selectedUser.email.toLowerCase().trim();
           try {
-            const registryCheck = await fetchById('email_registry', emailId);
-            if (registryCheck) {
-              await saveData('email_registry', emailId, {
-                ...registryCheck,
-                role: formData.role,
-                teacher_id: formData.teacher_id || null,
-                unit_id: formData.unit_id || 'all'
-              });
-              console.log("[Segurança] Registro central em email_registry atualizado para o cargo e polo:", formData.role, formData.unit_id);
-            }
+            const registryCheck = await fetchById('email_registry', emailId).catch(() => null);
+            const rawRegObs = (registryCheck as any)?.observations;
+            const cleanRegObs = typeof rawRegObs === 'string'
+              ? rawRegObs.replace(/\s*\[UNIT_ID:[^\]]+\]/g, '').trim()
+              : rawRegObs;
+            await saveData('email_registry', emailId, {
+              ...(registryCheck || { id: emailId, email: emailId, registered_at: new Date().toISOString(), status: 'active' }),
+              id: emailId,
+              email: emailId,
+              role: formData.role,
+              teacher_id: formData.teacher_id || null,
+              unit_id: resolvedUnitId,
+              ...(cleanRegObs !== undefined ? { observations: cleanRegObs } : {})
+            });
+            console.log("[Segurança] Registro central em email_registry atualizado para o cargo e polo:", formData.role, resolvedUnitId);
           } catch (regErr) {
             console.warn("Falha ao atualizar email_registry durante edição:", regErr);
           }
 
           try {
-            localStorage.setItem(`user_unit_${emailId}`, formData.unit_id || 'all');
-            localStorage.setItem(`user_unit_${selectedUser.id}`, formData.unit_id || 'all');
+            localStorage.setItem(`user_unit_${emailId}`, resolvedUnitId);
+            localStorage.setItem(`user_unit_${selectedUser.id}`, resolvedUnitId);
           } catch {}
         }
         
@@ -376,8 +391,14 @@ export function Users() {
         if (userAuth?.uid === selectedUser.id) {
           try {
             await supabase.auth.updateUser({
-              data: { unit_id: formData.unit_id || 'all' }
+              data: { unit_id: resolvedUnitId }
             });
+          } catch {}
+          try {
+            if (resolvedUnitId !== 'all') {
+              localStorage.setItem('selected_global_unit_id', resolvedUnitId);
+            }
+            window.dispatchEvent(new Event('units-updated'));
           } catch {}
           if (newEmail !== userAuth.email || passwordData.newPassword) {
             await handleUpdateSecurity();
@@ -431,6 +452,8 @@ export function Users() {
           if (e.message.includes('vinculado') || e.message.includes('ativa')) throw e;
         }
 
+        const assignedUnitId = (isRestricted ? selectedUnitId : formData.unit_id) || 'all';
+
         // 3. Register in the global registry FIRST
         try {
           await saveData('email_registry', emailId, { 
@@ -438,7 +461,7 @@ export function Users() {
             email: emailId, 
             role: formData.role,
             teacher_id: formData.teacher_id || null,
-            unit_id: formData.unit_id || 'all',
+            unit_id: assignedUnitId,
             registered_at: new Date().toISOString(),
             status: 'blocked'
           });
@@ -456,13 +479,13 @@ export function Users() {
           status: formData.status,
           pin: formData.pin,
           teacher_id: formData.teacher_id || null,
-          unit_id: formData.unit_id || 'all',
+          unit_id: assignedUnitId,
           created_at: new Date().toISOString(),
           is_pre_registered: true
         });
 
         try {
-          localStorage.setItem(`user_unit_${emailId}`, formData.unit_id || 'all');
+          localStorage.setItem(`user_unit_${emailId}`, assignedUnitId);
         } catch {}
 
         setNotification({ type: 'success', message: 'Usuário pré-cadastrado com sucesso!' });
@@ -599,15 +622,22 @@ export function Users() {
     
     if (!matchesSearch) return false;
 
-    // 2. Role-Based Access Control (RBAC) Filter
+    // 2. Role-Based Access Control (RBAC) & Unit Filter
     // ALWAYS permit self-visibility (Identification)
     const isSelf = u.id === userAuth?.uid || (u.email && userAuth?.email && u.email.toLowerCase() === userAuth?.email?.toLowerCase());
     if (isSelf) return true;
 
-    if (isAdmin) return true; // Admin sees everyone
+    if (isRestricted) {
+      const targetUnit = getItemUnitId(u);
+      if (!targetUnit || targetUnit === 'all' || !isItemInUnit(targetUnit, selectedUnitId, units)) {
+        return false;
+      }
+    }
+
+    if (isAdmin) return true; // Admin sees everyone in scope
     
     if (isDirector) {
-      // Director sees all secretaries, assistants and teachers
+      // Director sees secretaries, assistants and teachers in scope
       return u.role === 'secretario' || u.role === 'assistente' || u.role === 'professor' || u.role === 'docente';
     }
     
@@ -940,23 +970,26 @@ export function Users() {
                             )}>
                               {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : user.role === 'assistente' ? 'Assistente de Secretaria' : 'Professor / Docente'}
                             </span>
-                            {user.unit_id && user.unit_id !== 'all' ? (
-                              <span 
-                                className="inline-flex items-center gap-1 text-[8px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 max-w-[190px] truncate"
-                                title={`Polo: ${getUnitName(user.unit_id)}`}
-                              >
-                                <Building2 size={10} className="text-blue-600 shrink-0" />
-                                <span className="truncate">{getUnitName(user.unit_id)}</span>
-                              </span>
-                            ) : (
-                              <span 
-                                className="inline-flex items-center gap-1 text-[8px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200"
-                                title="Acesso a todas as unidades e filiais"
-                              >
-                                <Building2 size={10} className="text-slate-400 shrink-0" />
-                                <span>Acesso Global</span>
-                              </span>
-                            )}
+                            {(() => {
+                              const userUnit = getItemUnitId(user);
+                              return userUnit && userUnit !== 'all' ? (
+                                <span 
+                                  className="inline-flex items-center gap-1 text-[8px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 max-w-[190px] truncate"
+                                  title={`Polo: ${getUnitName(userUnit)}`}
+                                >
+                                  <Building2 size={10} className="text-blue-600 shrink-0" />
+                                  <span className="truncate">{getUnitName(userUnit)}</span>
+                                </span>
+                              ) : (
+                                <span 
+                                  className="inline-flex items-center gap-1 text-[8px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200"
+                                  title="Acesso a todas as unidades e filiais"
+                                >
+                                  <Building2 size={10} className="text-slate-400 shrink-0" />
+                                  <span>Acesso Global</span>
+                                </span>
+                              );
+                            })()}
                             {(user.role === 'professor' || user.role === 'docente') && (() => {
                               const linked = teachers.find(t => t.id === user.teacher_id) || findTeacherForUser(user, teachers);
                               return linked ? (
@@ -1068,17 +1101,20 @@ export function Users() {
                   )}>
                     {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : user.role === 'assistente' ? 'Assistente de Secretaria' : 'Professor / Docente'}
                   </span>
-                  {user.unit_id && user.unit_id !== 'all' ? (
-                    <span className="inline-flex items-center gap-1 text-[7.5px] font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 max-w-[130px] truncate">
-                      <Building2 size={9} className="text-blue-600 shrink-0" />
-                      <span className="truncate">{getUnitName(user.unit_id)}</span>
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[7.5px] font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
-                      <Building2 size={9} className="text-slate-400 shrink-0" />
-                      <span>Global</span>
-                    </span>
-                  )}
+                  {(() => {
+                    const userUnit = getItemUnitId(user);
+                    return userUnit && userUnit !== 'all' ? (
+                      <span className="inline-flex items-center gap-1 text-[7.5px] font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 max-w-[130px] truncate">
+                        <Building2 size={9} className="text-blue-600 shrink-0" />
+                        <span className="truncate">{getUnitName(userUnit)}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[7.5px] font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                        <Building2 size={9} className="text-slate-400 shrink-0" />
+                        <span>Global</span>
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-50">
@@ -1647,9 +1683,10 @@ export function Users() {
                               <div className="relative">
                                 <select
                                   title="Selecione a unidade ou polo de acesso permitido"
-                                  value={formData.unit_id || 'all'}
+                                  disabled={isRestricted}
+                                  value={(isRestricted ? selectedUnitId : formData.unit_id) || 'all'}
                                   onChange={e => setFormData({...formData, unit_id: e.target.value})}
-                                  className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none cursor-pointer"
+                                  className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none cursor-pointer disabled:opacity-65 disabled:cursor-not-allowed"
                                 >
                                   <option value="all">🌐 Todas as Unidades (Acesso Geral / Sede + Filiais)</option>
                                   {activeUnits.map(u => {
@@ -1664,9 +1701,11 @@ export function Users() {
                                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                               </div>
                               <p className="text-[8px] font-medium text-slate-500 mt-1 ml-1 leading-relaxed">
-                                {formData.unit_id === 'all' 
-                                  ? 'Este usuário terá visão global consolidada, podendo transitar livremente por todos os polos e sede.' 
-                                  : `Usuário restrito: acessará e gerenciará estritamente os alunos, turmas, notas e relatórios vinculados a esta unidade.`
+                                {isRestricted
+                                  ? `Seu acesso está vinculado exclusivamente à unidade ${getUnitName(selectedUnitId)}. Novos usuários ou edições ficam restritos a este polo.`
+                                  : formData.unit_id === 'all' 
+                                    ? 'Este usuário terá visão global consolidada, podendo transitar livremente por todos os polos e sede.' 
+                                    : `Usuário restrito: acessará e gerenciará estritamente os alunos, turmas, notas e relatórios vinculados a esta unidade.`
                                 }
                               </p>
                             </div>

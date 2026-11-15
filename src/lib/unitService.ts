@@ -1104,7 +1104,7 @@ export const filterListByUnit = <T>(
 
 export const getUserRestrictedUnit = (profile: any): string | null => {
   if (!profile) return null;
-  const unitId = profile.unit_id || (profile as any).unitId || (profile as any).unit || (profile as any).polo;
+  const unitId = getItemUnitId(profile);
   if (!unitId || typeof unitId !== 'string') return null;
   const norm = unitId.trim().toLowerCase();
   if (norm === '' || norm === 'all' || norm === 'todas' || norm === 'global') {
@@ -1115,31 +1115,19 @@ export const getUserRestrictedUnit = (profile: any): string | null => {
 
 /**
  * Determina se o usuário possui permissão para alternar entre unidades no sistema.
- * Conforme regra da instituição:
- * - A opção de alternância entre unidades fica acessível SOMENTE para usuários com níveis de:
- *   1. Administrador ('admin', 'adm', 'administrador')
- *   2. Diretor ('diretor', 'diretoria')
- *   3. Secretário Acadêmico ('secretario', 'secretario_academico', 'secretario academico')
- * - Para os demais usuários (assistente de secretaria, financeiro local, professor, docente, etc.),
- *   o sistema NÃO habilita a opção de troca de unidade.
+ * Critério de segurança por polo:
+ * - Acesso a todos os polos/unidades (unit_id === 'all' / sem unidade específica): pode transitar entre unidades (exceto modo docente multi-polo).
+ * - Acesso específico a uma unidade selecionada (unit_id definida): fica ESTRITAMENTE restrito àquela unidade, independente do cargo.
  */
 export const canUserSwitchUnit = (profile: any): boolean => {
   if (!profile) return false;
-  const role = String(profile.role || '').toLowerCase().trim();
-  // Assistentes e docentes não possuem o privilégio de alternância de unidades
-  if (role === 'assistente' || role.includes('assist')) return false;
-  if (role === 'professor' || role === 'docente' || role.includes('prof') || role.includes('docent')) return false;
-  return (
-    role === 'admin' ||
-    role === 'administrador' ||
-    role === 'diretor' ||
-    role === 'secretario' ||
-    role === 'secretario_academico' ||
-    role === 'secretario academico' ||
-    role.includes('adm') ||
-    role.includes('diretor') ||
-    role.includes('secretar')
-  );
+  if (getUserRestrictedUnit(profile)) {
+    return false;
+  }
+  if (isTeacherProfileRole(profile)) {
+    return false;
+  }
+  return true;
 };
 
 /**

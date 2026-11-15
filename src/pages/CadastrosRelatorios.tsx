@@ -19,6 +19,8 @@ import { DEFAULT_LOGO } from '../lib/default-logo';
 import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
 import { cn, detectSubjectSemester } from '../lib/utils';
 import { Student, Teacher, Course, Class, Subject, Enrollment } from '../types';
+import { useUnits } from '../contexts/UnitContext';
+import { getItemUnitId, isItemInUnit, isTeacherAssignedToUnit } from '../lib/unitService';
 
 type ReportTab = 'alunos' | 'professores' | 'cursos' | 'turmas' | 'disciplinas';
 type StudentSortBy = 'alphabetical' | 'numeric';
@@ -145,6 +147,7 @@ function StandardReportFooter({
 
 export function CadastrosRelatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { selectedUnitId, activeUnits, getUnitName } = useUnits();
 
   // Helper to parse values from URL searchParams (returns null when no tab is pre-selected)
   const parseTab = (params: URLSearchParams): ReportTab | null => {
@@ -416,23 +419,79 @@ export function CadastrosRelatorios() {
     return enr?.class_id || s.class_id || '';
   };
 
-  // Filtered Alunos: Responde com rigor aos filtros de Status, Turma e Ano
-  const filteredStudents = useMemo(() => {
+  // Unit-scoped base datasets (enforces active/restricted polo across all tabs, counters, dropdowns and PDFs)
+  const unitClasses = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
+  }, [classes, selectedUnitId, activeUnits]);
+
+  const unitStudents = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return students;
     return students.filter(s => {
+      const directUnit = getItemUnitId(s);
+      if (directUnit) return isItemInUnit(directUnit, selectedUnitId, activeUnits);
+      const effClassId = getStudentEffectiveClassId(s);
+      const effClass = classes.find(c => c.id === effClassId);
+      return isItemInUnit(effClass ? getItemUnitId(effClass) : undefined, selectedUnitId, activeUnits);
+    });
+  }, [students, classes, enrollments, selectedUnitId, activeUnits]);
+
+  const unitTeachers = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return teachers;
+    return teachers.filter(t => isTeacherAssignedToUnit(t, selectedUnitId, activeUnits, classes));
+  }, [teachers, classes, selectedUnitId, activeUnits]);
+
+  const unitCourses = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return courses;
+    return courses.filter(c => {
+      const cUnit = getItemUnitId(c);
+      if (cUnit === 'all' || cUnit === 'todas') return true;
+      if (cUnit && isItemInUnit(cUnit, selectedUnitId, activeUnits)) return true;
+      const hasClassInUnit = unitClasses.some(cls =>
+        (cls.course && c.name && cls.course.trim().toLowerCase() === c.name.trim().toLowerCase()) ||
+        (cls as any).course_id === c.id
+      );
+      if (hasClassInUnit) return true;
+      if (!cUnit) return isItemInUnit('matriz', selectedUnitId, activeUnits);
+      return false;
+    });
+  }, [courses, unitClasses, selectedUnitId, activeUnits]);
+
+  const unitSubjects = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return subjects;
+    return subjects.filter(s => {
+      const sUnit = getItemUnitId(s) || 'matriz';
+      return sUnit === 'all' || sUnit === 'todas' || isItemInUnit(sUnit, selectedUnitId, activeUnits);
+    });
+  }, [subjects, selectedUnitId, activeUnits]);
+
+  // Reset selected class/course filter if active unit changes and the selection is outside unit scope
+  useEffect(() => {
+    if (selectedClassId !== 'all' && !unitClasses.some(c => c.id === selectedClassId)) {
+      setSelectedClassId('all');
+    }
+    if (selectedCourseId !== 'all' && !unitCourses.some(c => c.id === selectedCourseId)) {
+      setSelectedCourseId('all');
+    }
+  }, [selectedUnitId, unitClasses, unitCourses, selectedClassId, selectedCourseId]);
+
+  // Filtered Alunos: Responde com rigor aos filtros de Unidade, Status, Turma e Ano
+  const filteredStudents = useMemo(() => {
+    return unitStudents.filter(s => {
       if (!matchesStatus(s.status, statusFilter)) return false;
       
       const effClassId = getStudentEffectiveClassId(s);
       if (selectedClassId !== 'all' && effClassId !== selectedClassId) return false;
       
       if (selectedYear !== 'all') {
-        const cls = classes.find(c => c.id === effClassId);
+        const cls = unitClasses.find(c => c.id === effClassId);
         const matchClassYear = cls?.year === selectedYear;
         const matchRegYear = s.registration_number?.endsWith(`/${selectedYear}`);
         if (!matchClassYear && !matchRegYear) return false;
       }
       return true;
     });
-  }, [students, statusFilter, selectedClassId, selectedYear, classes, enrollments]);
+  }, [unitStudents, statusFilter, selectedClassId, selectedYear, unitClasses, enrollments]);
 
   // Sorted Alunos (Ordem Alfabética ou Numérica por Matrícula)
   const sortedStudents = useMemo(() => {
@@ -454,7 +513,7 @@ export function CadastrosRelatorios() {
       const items: StudentRowItem[] = [];
       
       // Order classes by name
-      const sortedClasses = [...classes].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+      const sortedClasses = [...unitClasses].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
       
       sortedClasses.forEach(cls => {
         const clsStudents = sortedStudents.filter(s => getStudentEffectiveClassId(s) === cls.id);
@@ -472,7 +531,7 @@ export function CadastrosRelatorios() {
 
       const unallocated = sortedStudents.filter(s => {
         const effId = getStudentEffectiveClassId(s);
-        return !effId || !classes.some(c => c.id === effId);
+        return !effId || !unitClasses.some(c => c.id === effId);
       });
       if (unallocated.length > 0) {
         items.push({
@@ -489,7 +548,7 @@ export function CadastrosRelatorios() {
     } else {
       return sortedStudents.map(s => ({ type: 'student', student: s }));
     }
-  }, [sortByTurma, selectedClassId, classes, sortedStudents, enrollments]);
+  }, [sortByTurma, selectedClassId, unitClasses, sortedStudents, enrollments]);
 
   // Calibrate exact rows per sheet to fill the A4 page without large empty gaps
   const ROWS_PER_PAGE = 37;
@@ -518,19 +577,19 @@ export function CadastrosRelatorios() {
     return sheets;
   }, [studentItems]);
 
-  // Filtered Professores: Responde com rigor aos filtros de Status, Disciplina e Semestre
+  // Filtered Professores: Responde com rigor aos filtros de Unidade, Status, Disciplina e Semestre
   const filteredTeachers = useMemo(() => {
-    return teachers.filter(t => {
+    return unitTeachers.filter(t => {
       if (!matchesStatus(t.status, statusFilter)) return false;
       if (selectedSubjectId !== 'all' && !t.subject_ids?.includes(selectedSubjectId)) return false;
       if (selectedSemester !== 'all') {
-        const teacherSubjects = subjects.filter(s => t.subject_ids?.includes(s.id));
+        const teacherSubjects = unitSubjects.filter(s => t.subject_ids?.includes(s.id));
         const matchesSem = teacherSubjects.some(s => detectSubjectSemester(s).includes(selectedSemester));
         if (!matchesSem) return false;
       }
       return true;
     });
-  }, [teachers, statusFilter, selectedSubjectId, selectedSemester, subjects]);
+  }, [unitTeachers, statusFilter, selectedSubjectId, selectedSemester, unitSubjects]);
 
   // Professores sheets
   const teacherSheets = useMemo(() => {
@@ -547,13 +606,13 @@ export function CadastrosRelatorios() {
     return sheets;
   }, [filteredTeachers]);
 
-  // Filtered Cursos: Responde com rigor ao filtro de Status
+  // Filtered Cursos: Responde com rigor aos filtros de Unidade e Status
   const filteredCourses = useMemo(() => {
-    return courses.filter(c => {
+    return unitCourses.filter(c => {
       if (!matchesStatus(c.status, statusFilter)) return false;
       return true;
     });
-  }, [courses, statusFilter]);
+  }, [unitCourses, statusFilter]);
 
   // Cursos sheets
   const courseSheets = useMemo(() => {
@@ -570,19 +629,19 @@ export function CadastrosRelatorios() {
     return sheets;
   }, [filteredCourses]);
 
-  // Filtered Turmas: Responde com rigor aos filtros de Status, Ano Letivo e Curso
+  // Filtered Turmas: Responde com rigor aos filtros de Unidade, Status, Ano Letivo e Curso
   const filteredClasses = useMemo(() => {
-    return classes.filter(cls => {
+    return unitClasses.filter(cls => {
       if (!matchesStatus(cls.status, statusFilter)) return false;
       if (selectedYear !== 'all' && cls.year !== selectedYear) return false;
       if (selectedCourseId !== 'all') {
-        const targetCourse = courses.find(c => c.id === selectedCourseId);
+        const targetCourse = unitCourses.find(c => c.id === selectedCourseId);
         const matchesCourse = cls.course === targetCourse?.name || (cls as any).course_id === selectedCourseId;
         if (!matchesCourse) return false;
       }
       return true;
     });
-  }, [classes, statusFilter, selectedYear, selectedCourseId, courses]);
+  }, [unitClasses, statusFilter, selectedYear, selectedCourseId, unitCourses]);
 
   // Turmas sheets
   const classSheets = useMemo(() => {
@@ -599,9 +658,9 @@ export function CadastrosRelatorios() {
     return sheets;
   }, [filteredClasses]);
 
-  // Filtered Disciplinas: Responde com rigor aos filtros de Status, Semestre e Ano
+  // Filtered Disciplinas: Responde com rigor aos filtros de Unidade, Status, Semestre e Ano
   const filteredSubjects = useMemo(() => {
-    return subjects.filter(s => {
+    return unitSubjects.filter(s => {
       if (!matchesStatus(s.status, statusFilter)) return false;
       if (selectedSemester !== 'all') {
         const sem = detectSubjectSemester(s);
@@ -610,7 +669,7 @@ export function CadastrosRelatorios() {
       if (selectedYear !== 'all' && s.year !== selectedYear) return false;
       return true;
     });
-  }, [subjects, statusFilter, selectedSemester, selectedYear]);
+  }, [unitSubjects, statusFilter, selectedSemester, selectedYear]);
 
   // Disciplinas sheets
   const subjectSheets = useMemo(() => {
@@ -630,6 +689,7 @@ export function CadastrosRelatorios() {
   // Report Title and Metadata
   const reportConfig = useMemo(() => {
     if (!activeTab) return null;
+    const unitPart = selectedUnitId && selectedUnitId !== 'all' ? `POLO: ${getUnitName(selectedUnitId).toUpperCase()}  •  ` : '';
     switch (activeTab) {
       case 'alunos': {
         const orderLabel = studentSortBy === 'numeric' ? 'NUMÉRICA (MATRÍCULA)' : 'ALFABÉTICA (A-Z)';
@@ -639,7 +699,7 @@ export function CadastrosRelatorios() {
           title: 'RELAÇÃO GERAL DE ALUNOS',
           totalLabel: 'Total de Alunos',
           count: filteredStudents.length,
-          filterText: `STATUS: ${statusFilter.toUpperCase()}  •  TURMA: ${selectedClassId === 'all' ? 'TODAS' : (classes.find(c => c.id === selectedClassId)?.name?.toUpperCase() || 'ESPECÍFICA')}${yearPart}  •  ORDEM: ${orderLabel}  •  ${turmaLabel}`
+          filterText: `${unitPart}STATUS: ${statusFilter.toUpperCase()}  •  TURMA: ${selectedClassId === 'all' ? 'TODAS' : (unitClasses.find(c => c.id === selectedClassId)?.name?.toUpperCase() || 'ESPECÍFICA')}${yearPart}  •  ORDEM: ${orderLabel}  •  ${turmaLabel}`
         };
       }
       case 'professores': {
@@ -648,7 +708,7 @@ export function CadastrosRelatorios() {
           title: 'RELAÇÃO DE CORPO DOCENTE',
           totalLabel: 'Total de Professores',
           count: filteredTeachers.length,
-          filterText: `STATUS: ${statusFilter.toUpperCase()}  •  DISCIPLINA: ${selectedSubjectId === 'all' ? 'TODAS' : (subjects.find(s => s.id === selectedSubjectId)?.name?.toUpperCase() || 'ESPECÍFICA')}${semPart}`
+          filterText: `${unitPart}STATUS: ${statusFilter.toUpperCase()}  •  DISCIPLINA: ${selectedSubjectId === 'all' ? 'TODAS' : (unitSubjects.find(s => s.id === selectedSubjectId)?.name?.toUpperCase() || 'ESPECÍFICA')}${semPart}`
         };
       }
       case 'cursos':
@@ -656,15 +716,15 @@ export function CadastrosRelatorios() {
           title: 'RELAÇÃO DE CURSOS',
           totalLabel: 'Total de Cursos',
           count: filteredCourses.length,
-          filterText: `STATUS: ${statusFilter.toUpperCase()}`
+          filterText: `${unitPart}STATUS: ${statusFilter.toUpperCase()}`
         };
       case 'turmas': {
-        const coursePart = selectedCourseId !== 'all' ? `  •  CURSO: ${(courses.find(c => c.id === selectedCourseId)?.name || 'ESPECÍFICO').toUpperCase()}` : '';
+        const coursePart = selectedCourseId !== 'all' ? `  •  CURSO: ${(unitCourses.find(c => c.id === selectedCourseId)?.name || 'ESPECÍFICO').toUpperCase()}` : '';
         return {
           title: 'RELAÇÃO DE TURMAS',
           totalLabel: 'Total de Turmas',
           count: filteredClasses.length,
-          filterText: `STATUS: ${statusFilter.toUpperCase()}  •  ANO LETIVO: ${selectedYear === 'all' ? 'TODOS' : selectedYear}${coursePart}`
+          filterText: `${unitPart}STATUS: ${statusFilter.toUpperCase()}  •  ANO LETIVO: ${selectedYear === 'all' ? 'TODOS' : selectedYear}${coursePart}`
         };
       }
       case 'disciplinas': {
@@ -673,11 +733,11 @@ export function CadastrosRelatorios() {
           title: 'RELAÇÃO DE DISCIPLINAS',
           totalLabel: 'Total de Disciplinas',
           count: filteredSubjects.length,
-          filterText: `STATUS: ${statusFilter.toUpperCase()}  •  SEMESTRE: ${selectedSemester === 'all' ? 'TODOS' : `${selectedSemester}º SEMESTRE`}${yearPart}`
+          filterText: `${unitPart}STATUS: ${statusFilter.toUpperCase()}  •  SEMESTRE: ${selectedSemester === 'all' ? 'TODOS' : `${selectedSemester}º SEMESTRE`}${yearPart}`
         };
       }
     }
-  }, [activeTab, statusFilter, selectedClassId, selectedSubjectId, selectedYear, selectedSemester, selectedCourseId, studentSortBy, sortByTurma, filteredStudents.length, filteredTeachers.length, filteredCourses.length, filteredClasses.length, filteredSubjects.length, classes, subjects, courses]);
+  }, [activeTab, selectedUnitId, getUnitName, statusFilter, selectedClassId, selectedSubjectId, selectedYear, selectedSemester, selectedCourseId, studentSortBy, sortByTurma, filteredStudents.length, filteredTeachers.length, filteredCourses.length, filteredClasses.length, filteredSubjects.length, unitClasses, unitSubjects, unitCourses]);
 
   // Action: Print native HTML (window.print())
   const handlePrintHTML = () => {
@@ -698,7 +758,7 @@ export function CadastrosRelatorios() {
 
         if (sortByTurma && selectedClassId === 'all') {
           // Grouped by class with section banners
-          const sortedClasses = [...classes].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+          const sortedClasses = [...unitClasses].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
           sortedClasses.forEach(cls => {
             const clsStudents = sortedStudents.filter(s => getStudentEffectiveClassId(s) === cls.id);
             if (clsStudents.length > 0) {
@@ -721,7 +781,7 @@ export function CadastrosRelatorios() {
 
           const unallocated = sortedStudents.filter(s => {
             const effId = getStudentEffectiveClassId(s);
-            return !effId || !classes.some(c => c.id === effId);
+            return !effId || !unitClasses.some(c => c.id === effId);
           });
           if (unallocated.length > 0) {
             body.push([{
@@ -927,7 +987,7 @@ export function CadastrosRelatorios() {
           <Users size={15} />
           <span>Alunos</span>
           <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[10px] rounded-md font-mono">
-            {students.length}
+            {unitStudents.length}
           </span>
         </button>
 
@@ -944,7 +1004,7 @@ export function CadastrosRelatorios() {
           <GraduationCap size={15} />
           <span>Professores</span>
           <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[10px] rounded-md font-mono">
-            {teachers.length}
+            {unitTeachers.length}
           </span>
         </button>
 
@@ -961,7 +1021,7 @@ export function CadastrosRelatorios() {
           <Layers size={15} />
           <span>Cursos</span>
           <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[10px] rounded-md font-mono">
-            {courses.length}
+            {unitCourses.length}
           </span>
         </button>
 
@@ -978,7 +1038,7 @@ export function CadastrosRelatorios() {
           <School size={15} />
           <span>Turmas</span>
           <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[10px] rounded-md font-mono">
-            {classes.length}
+            {unitClasses.length}
           </span>
         </button>
 
@@ -995,7 +1055,7 @@ export function CadastrosRelatorios() {
           <BookOpen size={15} />
           <span>Disciplinas</span>
           <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[10px] rounded-md font-mono">
-            {subjects.length}
+            {unitSubjects.length}
           </span>
         </button>
       </div>
@@ -1052,7 +1112,7 @@ export function CadastrosRelatorios() {
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todas as Turmas</option>
-                  {classes.map(c => (
+                  {unitClasses.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -1068,7 +1128,7 @@ export function CadastrosRelatorios() {
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>
-                  {Array.from(new Set(classes.map(c => c.year).filter(Boolean))).sort().map(yr => (
+                  {Array.from(new Set(unitClasses.map(c => c.year).filter(Boolean))).sort().map(yr => (
                     <option key={yr} value={yr}>{yr}</option>
                   ))}
                 </select>
@@ -1147,7 +1207,7 @@ export function CadastrosRelatorios() {
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todas as Disciplinas</option>
-                  {subjects.map(s => (
+                  {unitSubjects.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
@@ -1180,7 +1240,7 @@ export function CadastrosRelatorios() {
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>
-                  {Array.from(new Set(classes.map(c => c.year).filter(Boolean))).sort().map(yr => (
+                  {Array.from(new Set(unitClasses.map(c => c.year).filter(Boolean))).sort().map(yr => (
                     <option key={yr} value={yr}>{yr}</option>
                   ))}
                 </select>
@@ -1195,7 +1255,7 @@ export function CadastrosRelatorios() {
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Cursos</option>
-                  {courses.map(c => (
+                  {unitCourses.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -1228,7 +1288,7 @@ export function CadastrosRelatorios() {
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>
-                  {Array.from(new Set(subjects.map(s => s.year).filter(Boolean))).sort().map(yr => (
+                  {Array.from(new Set(unitSubjects.map(s => s.year).filter(Boolean))).sort().map(yr => (
                     <option key={yr} value={yr}>{yr}º Ano</option>
                   ))}
                 </select>

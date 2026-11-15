@@ -237,9 +237,11 @@ export function getTeacherScope(
   });
 
   // 2. Regra de Multi-Unidades para Professores:
-  // Conforme requisito da instituição, o professor pode dar aula em várias unidades/polos.
-  // Neste caso, ele DEVE conseguir acessar todas as turmas às quais está vinculado, sem bloqueios de unidade.
-  const scopedClasses = globalClassesWithTeacherSubjects;
+  // Se o docente estiver vinculado a uma unidade específica (restrictedUnitId), enxerga apenas as turmas dessa unidade.
+  // Caso tenha acesso global ('all'), acessa todas as turmas em que leciona, independente do polo.
+  const scopedClasses = restrictedUnitId
+    ? globalClassesWithTeacherSubjects.filter(cls => isItemInUnit(getItemUnitId(cls), restrictedUnitId, units))
+    : globalClassesWithTeacherSubjects;
   const allowedClassIds = new Set<string>(scopedClasses.map(c => c.id));
 
   // Mapeia todas as unidades em que o professor atua

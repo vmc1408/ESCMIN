@@ -26,11 +26,14 @@ import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNum
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 import { getStudentContributionPlan, formatContributionMonth, isPeriodOverdue } from '../lib/contributionRules';
+import { useUnits } from '../contexts/UnitContext';
+import { getItemUnitId, isItemInUnit } from '../lib/unitService';
 
 type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'quitacao' | 'carta' | 'etiquetas';
 
 export function Impressos() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { selectedUnitId, activeUnits } = useUnits();
   const typeParam = searchParams.get('type') as PrintType | null;
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -239,12 +242,37 @@ export function Impressos() {
     }
   }, [signerRole]);
 
+  // Unit-scoped classes & students so restricted polo users cannot access other polos
+  const unitClasses = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
+  }, [classes, selectedUnitId, activeUnits]);
+
+  const unitStudents = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return students;
+    return students.filter(s => {
+      const directUnit = getItemUnitId(s);
+      if (directUnit) return isItemInUnit(directUnit, selectedUnitId, activeUnits);
+      const cls = classes.find(c => c.id === s.class_id);
+      return isItemInUnit(cls ? getItemUnitId(cls) : undefined, selectedUnitId, activeUnits);
+    });
+  }, [students, classes, selectedUnitId, activeUnits]);
+
+  useEffect(() => {
+    if (selectedStudentId && !unitStudents.some(s => s.id === selectedStudentId)) {
+      setSelectedStudentId('');
+    }
+    if (selectedClassId && !unitClasses.some(c => c.id === selectedClassId)) {
+      setSelectedClassId('');
+    }
+  }, [selectedUnitId, unitStudents, unitClasses, selectedStudentId, selectedClassId]);
+
   // Derived filtered students list for dropdowns/search
   const filteredStudents = useMemo(() => {
     const term = studentSearch.trim();
-    if (!term) return students;
+    if (!term) return unitStudents;
 
-    const matched = students.filter(s => matchesStudentSearch(s, term));
+    const matched = unitStudents.filter(s => matchesStudentSearch(s, term));
 
     return matched.sort((a, b) => {
       const rankA = calculateStudentSearchRank(a, term);
@@ -253,15 +281,15 @@ export function Impressos() {
 
       return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
     });
-  }, [students, studentSearch]);
+  }, [unitStudents, studentSearch]);
 
   const activeStudent = useMemo(() => {
-    return students.find(s => s.id === selectedStudentId) || null;
-  }, [students, selectedStudentId]);
+    return unitStudents.find(s => s.id === selectedStudentId) || null;
+  }, [unitStudents, selectedStudentId]);
 
   const activeClass = useMemo(() => {
-    return classes.find(c => c.id === selectedClassId) || null;
-  }, [classes, selectedClassId]);
+    return unitClasses.find(c => c.id === selectedClassId) || null;
+  }, [unitClasses, selectedClassId]);
 
   // Find pending payments for the activeStudent
   const pendingPayments = useMemo(() => {
@@ -301,7 +329,7 @@ export function Impressos() {
   // Students enrolled in selected class, sorted by name or registration number
   const classStudents = useMemo(() => {
     if (!selectedClassId) return [];
-    const filtered = filterStudentsForClass(students, selectedClassId, enrollments, true);
+    const filtered = filterStudentsForClass(unitStudents, selectedClassId, enrollments, true);
     return filtered.sort((a, b) => {
       if (studentSortOrder === 'registration') {
         const aReg = a.registration_number || '';
@@ -313,7 +341,7 @@ export function Impressos() {
       }
       return a.name.localeCompare(b.name, 'pt-BR');
     });
-  }, [students, selectedClassId, enrollments, studentSortOrder]);
+  }, [unitStudents, selectedClassId, enrollments, studentSortOrder]);
 
   // Reset student selection when class changes
   useEffect(() => {
@@ -728,7 +756,7 @@ export function Impressos() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase bg-slate-50"
                   >
                     <option value="">Selecione uma turma...</option>
-                    {classes.map((c, idx) => (
+                    {unitClasses.map((c, idx) => (
                       <option key={`imp-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
                     ))}
                   </select>

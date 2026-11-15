@@ -50,32 +50,40 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
 
   const [selectedUnitIdState, setSelectedUnitIdState] = useState<string>(() => {
     try {
-      // 1. Se acabou de logar (flag explícita de login)
+      const cachedProfileRaw = localStorage.getItem('current_user_profile');
+      if (cachedProfileRaw) {
+        try {
+          const cachedProfile = JSON.parse(cachedProfileRaw);
+          const cachedRestricted = getUserRestrictedUnit(cachedProfile);
+          if (cachedRestricted) {
+            localStorage.setItem('selected_global_unit_id', cachedRestricted);
+            return cachedRestricted;
+          }
+          if (isTeacherProfileRole(cachedProfile)) {
+            return 'all';
+          }
+          if (canUserSwitchUnit(cachedProfile)) {
+            if (sessionStorage.getItem('just_logged_in') === 'true') {
+              sessionStorage.removeItem('just_logged_in');
+              localStorage.setItem('selected_global_unit_id', 'matriz');
+              return 'matriz';
+            }
+            const sessionKey = `unit_session_init_${cachedProfile.id || cachedProfile.email || 'privileged_user'}`;
+            if (sessionStorage.getItem(sessionKey) !== 'true') {
+              sessionStorage.setItem(sessionKey, 'true');
+              localStorage.setItem('selected_global_unit_id', 'matriz');
+              return 'matriz';
+            }
+          }
+        } catch {}
+      }
+
       if (sessionStorage.getItem('just_logged_in') === 'true') {
         sessionStorage.removeItem('just_logged_in');
         try {
           localStorage.setItem('selected_global_unit_id', 'matriz');
         } catch {}
         return 'matriz';
-      }
-
-      // 2. Se há perfil em cache local e o perfil tem privilégio de alternância (admin, diretor, secretário acadêmico),
-      // verifica se a sessão atual do navegador já foi inicializada. Se for nova sessão, sempre inicia na Matriz.
-      const cachedProfileRaw = localStorage.getItem('current_user_profile');
-      if (cachedProfileRaw) {
-        try {
-          const cachedProfile = JSON.parse(cachedProfileRaw);
-          if (canUserSwitchUnit(cachedProfile)) {
-            const sessionKey = `unit_session_init_${cachedProfile.id || cachedProfile.email || 'privileged_user'}`;
-            if (sessionStorage.getItem(sessionKey) !== 'true') {
-              sessionStorage.setItem(sessionKey, 'true');
-              try {
-                localStorage.setItem('selected_global_unit_id', 'matriz');
-              } catch {}
-              return 'matriz';
-            }
-          }
-        } catch {}
       }
 
       return localStorage.getItem('selected_global_unit_id') || 'matriz';
@@ -103,29 +111,28 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
     };
   }, [selectedUnitIdState]);
 
-  // 2. Determina se o usuário possui restrição de unidade pelo seu cadastro
-  // Se canSwitchUnit for verdadeiro (admin, diretor, secretário acadêmico), o usuário pode alternar entre unidades.
-  // Se canSwitchUnit for falso, o usuário fica estritamente restrito à unidade definida no seu cadastro (ou Matriz por padrão).
+  // 2. Determina se o usuário possui restrição de unidade pelo seu cadastro:
+  // - Se tiver uma unidade específica definida no cadastro -> estritamente restrito a essa unidade.
+  // - Se estiver com acesso global ('all') -> sem restrição (null).
   const restrictedUnitId = useMemo(() => {
-    if (canSwitchUnit) {
-      return null;
-    }
-    const userUnit = getUserRestrictedUnit(profile);
-    return userUnit || 'matriz';
-  }, [canSwitchUnit, profile]);
+    return getUserRestrictedUnit(profile);
+  }, [profile]);
 
   const isRestricted = Boolean(restrictedUnitId);
 
   // Sincroniza a unidade ativa a partir do cadastro do usuário ao autenticar
   useEffect(() => {
     if (!profile) return;
-    const userUnit = profile.unit_id || (profile as any).unitId || (profile as any).unit || (profile as any).polo;
-    const norm = (userUnit || '').trim().toLowerCase();
-    const hasSpecificUnit = norm !== '' && norm !== 'all' && norm !== 'todas' && norm !== 'global';
 
-    if (canSwitchUnit) {
-      // REGRA INSTITUCIONAL: Perfis que possuem privilégio de alternância (Admin, Diretor, Secretário Acadêmico)
-      // devem SEMPRE logar com a unidade Matriz selecionada e ativa!
+    if (restrictedUnitId) {
+      // Usuário restrito a uma unidade específica: trava rigidamente na unidade do cadastro
+      setSelectedUnitIdState(restrictedUnitId);
+      try {
+        localStorage.setItem('selected_global_unit_id', restrictedUnitId);
+        sessionStorage.removeItem('just_logged_in');
+      } catch {}
+    } else if (canSwitchUnit) {
+      // Usuário com acesso a todos os polos: inicia sessão na Matriz permitindo alternância livre
       const sessionKey = `unit_session_init_${profile.id || profile.email || 'privileged_user'}`;
       const isSessionInitialized = sessionStorage.getItem(sessionKey) === 'true';
       const justLoggedIn = sessionStorage.getItem('just_logged_in') === 'true';
@@ -138,20 +145,15 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
           sessionStorage.removeItem('just_logged_in');
         } catch {}
       }
-    } else if (hasSpecificUnit) {
-      // O usuário restrito possui uma unidade específica definida em seu cadastro
-      setSelectedUnitIdState(userUnit.trim());
+    } else if (isTeacherUser) {
+      // Docente com acesso global ('all'): mantém visão multi-polo das próprias turmas
+      setSelectedUnitIdState('all');
       try {
-        localStorage.setItem('selected_global_unit_id', userUnit.trim());
-      } catch {}
-    } else {
-      // Usuário sem permissão de troca e sem unidade específica: cai na Matriz
-      setSelectedUnitIdState('matriz');
-      try {
-        localStorage.setItem('selected_global_unit_id', 'matriz');
+        localStorage.setItem('selected_global_unit_id', 'all');
+        sessionStorage.removeItem('just_logged_in');
       } catch {}
     }
-  }, [profile, canSwitchUnit]);
+  }, [profile, canSwitchUnit, restrictedUnitId, isTeacherUser]);
 
   // Se o usuário possuir restrição de unidade, a unidade ativa é rigidamente travada na unidade dele
   const effectiveSelectedUnitId = useMemo(() => {
@@ -188,16 +190,16 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUnits]);
 
   const setSelectedUnitId = useCallback((id: string) => {
-    // Somente administradores, diretores e secretários acadêmicos podem alternar entre unidades
-    if (!canSwitchUnit) {
-      console.warn('[UnitContext] A alternância de unidades é restrita a administradores, diretores e secretários acadêmicos.');
+    // Somente usuários com acesso global ('all') podem alternar entre unidades
+    if (restrictedUnitId || !canSwitchUnit) {
+      console.warn('[UnitContext] Usuário restrito a uma unidade específica não pode alternar de polo.');
       return;
     }
     setSelectedUnitIdState(id);
     try {
       localStorage.setItem('selected_global_unit_id', id);
     } catch {}
-  }, [canSwitchUnit]);
+  }, [canSwitchUnit, restrictedUnitId]);
 
   const activeUnits = useMemo(() => {
     return units.filter(u => u.active !== false);

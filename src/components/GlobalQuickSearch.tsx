@@ -16,6 +16,7 @@ import {
 import { fetchAll } from '../lib/database';
 import { normalizeSearchString } from '../lib/utils';
 import { useUnits } from '../contexts/UnitContext';
+import { getItemUnitId, isItemInUnit, isTeacherAssignedToUnit } from '../lib/unitService';
 import { cn } from '../lib/utils';
 
 export type SearchCategory = 'all' | 'students' | 'teachers' | 'classes';
@@ -30,6 +31,7 @@ export interface QuickSearchItem {
   status?: string;
   photo_url?: string;
   additionalInfo?: string;
+  teacherRecord?: any;
 }
 
 export function GlobalQuickSearch() {
@@ -61,9 +63,9 @@ export function GlobalQuickSearch() {
     setLoading(true);
     try {
       const [studentsData, teachersData, classesData] = await Promise.all([
-        fetchAll('students', 'id,name,registration_number,status,class_id,course,unit_id,photo_url').catch(() => []),
-        fetchAll('teachers', 'id,name,code,status,unit_id,photo_url,observations').catch(() => []),
-        fetchAll('classes', 'id,name,code,shift,year,unit_id,course').catch(() => [])
+        fetchAll('students').catch(() => []),
+        fetchAll('teachers').catch(() => []),
+        fetchAll('classes').catch(() => [])
       ]);
 
       setStudents(Array.isArray(studentsData) ? studentsData : []);
@@ -120,19 +122,27 @@ export function GlobalQuickSearch() {
   const allItems = useMemo<QuickSearchItem[]>(() => {
     const items: QuickSearchItem[] = [];
 
+    const classUnitMap = new Map<string, string>();
+    for (const c of classes) {
+      if (c && c.id) {
+        classUnitMap.set(c.id, getItemUnitId(c) || 'matriz');
+      }
+    }
+
     // 1. Students
     for (const s of students) {
       if (!s || !s.id) continue;
       const name = s.name || s.full_name || 'Aluno sem nome';
       const reg = s.registration_number || s.code || '';
       const courseOrClass = s.course || 'Sem turma definida';
+      const resolvedUnit = getItemUnitId(s) || (s.class_id ? classUnitMap.get(s.class_id) : undefined) || 'matriz';
       items.push({
         id: s.id,
         type: 'student',
         title: name,
         subtitle: courseOrClass,
         codeOrId: reg ? `Matrícula: ${reg}` : '',
-        unit_id: s.unit_id || 'matriz',
+        unit_id: resolvedUnit,
         status: s.status || 'Ativo',
         photo_url: s.photo_url,
         additionalInfo: s.status ? `Status: ${s.status}` : undefined
@@ -150,10 +160,11 @@ export function GlobalQuickSearch() {
         title: name,
         subtitle: 'Corpo Docente',
         codeOrId: code ? `Cód: ${code}` : '',
-        unit_id: t.unit_id || 'matriz',
+        unit_id: getItemUnitId(t) || 'matriz',
         status: t.status || 'Ativo',
         photo_url: t.photo_url,
-        additionalInfo: t.status ? `Status: ${t.status}` : undefined
+        additionalInfo: t.status ? `Status: ${t.status}` : undefined,
+        teacherRecord: t
       });
     }
 
@@ -169,7 +180,7 @@ export function GlobalQuickSearch() {
         title: name,
         subtitle: c.course || details,
         codeOrId: code ? `Turma: ${code}` : '',
-        unit_id: c.unit_id || 'matriz',
+        unit_id: getItemUnitId(c) || 'matriz',
         additionalInfo: details
       });
     }
@@ -177,13 +188,21 @@ export function GlobalQuickSearch() {
     return items;
   }, [students, teachers, classes]);
 
+  const isItemAllowedInActiveUnit = useCallback((item: QuickSearchItem) => {
+    if (!selectedUnitId || selectedUnitId === 'all') return true;
+    if (item.type === 'teacher' && item.teacherRecord) {
+      return isTeacherAssignedToUnit(item.teacherRecord, selectedUnitId, activeUnits, classes);
+    }
+    return isItemInUnit(item.unit_id, selectedUnitId, activeUnits);
+  }, [selectedUnitId, activeUnits, classes]);
+
   // Filter items according to search query, selected category and unit
   const filteredItems = useMemo(() => {
     const normQuery = normalizeSearchString(query);
 
     return allItems.filter(item => {
-      // Unit filter: if user is restricted to a unit, strictly enforce it
-      if (isRestricted && item.unit_id && item.unit_id !== selectedUnitId) {
+      // Unit filter: strictly enforce active unit when restricted or filtered to a specific unit
+      if ((isRestricted || (selectedUnitId && selectedUnitId !== 'all')) && !isItemAllowedInActiveUnit(item)) {
         return false;
       }
 
@@ -221,13 +240,13 @@ export function GlobalQuickSearch() {
 
       return false;
     }).slice(0, 30); // Max 30 results for crisp rendering
-  }, [allItems, query, selectedCategory, isRestricted, selectedUnitId]);
+  }, [allItems, query, selectedCategory, isRestricted, selectedUnitId, isItemAllowedInActiveUnit]);
 
   // Counts for each category
   const categoryCounts = useMemo(() => {
     const normQuery = normalizeSearchString(query);
     const filterFn = (item: QuickSearchItem) => {
-      if (isRestricted && item.unit_id && item.unit_id !== selectedUnitId) return false;
+      if ((isRestricted || (selectedUnitId && selectedUnitId !== 'all')) && !isItemAllowedInActiveUnit(item)) return false;
       if (!normQuery) return true;
       const normTitle = normalizeSearchString(item.title);
       const normSubtitle = normalizeSearchString(item.subtitle);
@@ -243,7 +262,7 @@ export function GlobalQuickSearch() {
       teachers: matched.filter(i => i.type === 'teacher').length,
       classes: matched.filter(i => i.type === 'class').length
     };
-  }, [allItems, query, isRestricted, selectedUnitId]);
+  }, [allItems, query, isRestricted, selectedUnitId, isItemAllowedInActiveUnit]);
 
   // Reset selected index when query or category changes
   useEffect(() => {
@@ -256,11 +275,11 @@ export function GlobalQuickSearch() {
     setQuery('');
 
     if (item.type === 'student') {
-      navigate('/alunos', { state: { studentId: item.id } });
+      navigate('/students', { state: { studentId: item.id } });
     } else if (item.type === 'teacher') {
-      navigate('/professores', { state: { teacherId: item.id } });
+      navigate('/teachers', { state: { teacherId: item.id } });
     } else if (item.type === 'class') {
-      navigate('/turmas', { state: { classId: item.id } });
+      navigate('/classes', { state: { classId: item.id } });
     }
   };
 

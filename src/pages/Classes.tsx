@@ -250,7 +250,7 @@ export function Classes() {
   const canManipulateClass = React.useCallback((cls: Class | null) => {
     if (!cls) return true;
     if (canSwitchUnit) return true;
-    const cUnit = cls.unit_id || 'matriz';
+    const cUnit = getItemUnitId(cls) || 'matriz';
     return isItemInUnit(cUnit, globalUnitId, activeUnits);
   }, [canSwitchUnit, globalUnitId, activeUnits]);
   const [statusFilter, setStatusFilterState] = useState<'Ativo' | 'Inativo' | 'Encerrada' | 'Todos'>(() => {

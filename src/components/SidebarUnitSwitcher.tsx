@@ -23,15 +23,15 @@ export function SidebarUnitSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Se por ventura a unidade ativa estiver como 'all' (legado), migra imediatamente para a Matriz ou primeira unidade válida
+  // Se o usuário pode alternar unidades e a unidade ativa estiver como 'all' (legado), migra para a Matriz
   useEffect(() => {
-    if (selectedUnitId === 'all' && activeUnits.length > 0) {
+    if (canSwitchUnit && selectedUnitId === 'all' && activeUnits.length > 0) {
       const mainUnit = activeUnits.find(u => u.is_main || u.id === 'matriz') || activeUnits[0];
       if (mainUnit) {
         setSelectedUnitId(mainUnit.id);
       }
     }
-  }, [selectedUnitId, activeUnits, setSelectedUnitId]);
+  }, [canSwitchUnit, selectedUnitId, activeUnits, setSelectedUnitId]);
 
   // Fechar ao clicar fora (sem desfocar o restante da tela)
   useEffect(() => {
@@ -71,11 +71,11 @@ export function SidebarUnitSwitcher() {
   return (
     <div className="px-3 pt-2 pb-2 border-b border-[#1F4A54] shrink-0 select-none relative" ref={dropdownRef}>
       {!canSwitchUnit ? (
-        // Modo estático para Docentes ou Usuários com Unidade Fixa
+        // Modo estático para Usuários com Unidade Fixa ou Docentes
         isTeacherUser ? (
           <div 
             className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-[#14373F] border border-[#245661] text-slate-100 shadow-2xs"
-            title="Perfil Docente: Acesso direto às turmas sob sua regência pedagógica."
+            title={isRestricted ? `Docente restrito ao polo: ${currentUnitDisplayName}` : 'Perfil Docente: Acesso direto às turmas sob sua regência pedagógica.'}
           >
             <div className="w-6 h-6 rounded-md bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 shrink-0">
               <GraduationCap size={13} />
@@ -84,16 +84,16 @@ export function SidebarUnitSwitcher() {
               <span className="font-bold text-white text-xs truncate">
                 {profile?.name || 'Docente'}
               </span>
-              <span className="text-[8px] font-bold text-teal-300 uppercase tracking-wider flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-300 inline-block animate-pulse"></span>
-                Área Docente
+              <span className="text-[8px] font-bold text-teal-300 uppercase tracking-wider flex items-center gap-1 mt-0.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-300 inline-block animate-pulse shrink-0"></span>
+                {isRestricted ? `Área Docente • ${currentUnitDisplayName}` : 'Área Docente'}
               </span>
             </div>
           </div>
         ) : (
           <div 
             className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-[#14373F] border border-[#245661] text-slate-100 shadow-2xs"
-            title={`Unidade vinculada: ${currentUnitDisplayName}`}
+            title={`Acesso restrito exclusivamente à unidade: ${currentUnitDisplayName}`}
           >
             <div className="w-6 h-6 rounded-md bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 shrink-0">
               <Building2 size={13} />

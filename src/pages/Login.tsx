@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured, fetchWithTimeout, testConnection } from
 import { saveData, deleteData, fetchCount, getInstitutionSettings } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getItemUnitId, getUserRestrictedUnit } from '../lib/unitService';
 import { DEFAULT_LOGO } from '../lib/default-logo';
 import sanctuaryBgImg from '../assets/images/login_bg_sanctuary_1794530752025.jpg';
 import seminaryBgImg from '../assets/images/login_bg_seminary_1794530753129.jpg';
@@ -276,7 +277,10 @@ export function Login() {
       if (result?.data?.user) {
         sessionStorage.setItem('app_session_active', 'true');
         try {
-          await refreshProfile(result.data.user.id);
+          await refreshProfile(result.data.user.id, false, {
+            email: result.data.user.email,
+            user_metadata: result.data.user.user_metadata
+          });
         } catch (profErr) {
           console.warn("[Login] Erro ao sincronizar perfil imediatamente:", profErr);
         }
@@ -343,9 +347,13 @@ export function Login() {
       }
 
       // Dados para o perfil - preferir o perfil rico pré-cadastrado na tabela 'users' se existir
+      const inheritedUnitId = getItemUnitId(existingUserRes.data) || getItemUnitId(preRegRes.data) || 'all';
       const userData = {
         name: existingUserRes.data?.full_name || existingUserRes.data?.name || preRegRes.data?.name || preRegRes.data?.metadata?.name || emailLower.split('@')[0],
-        role: existingUserRes.data?.role || preRegRes.data?.role || (isSystemEmpty ? 'admin' : 'secretario')
+        role: existingUserRes.data?.role || preRegRes.data?.role || (isSystemEmpty ? 'admin' : 'secretario'),
+        unit_id: inheritedUnitId,
+        teacher_id: existingUserRes.data?.teacher_id || preRegRes.data?.teacher_id || null,
+        pin: existingUserRes.data?.pin || '1234'
       };
 
       // Tenta registrar no Supabase Auth
@@ -354,7 +362,8 @@ export function Login() {
         password,
         options: { 
           data: { 
-            full_name: userData.name
+            full_name: userData.name,
+            unit_id: userData.unit_id
           } 
         }
       });
@@ -391,14 +400,16 @@ export function Login() {
           }
         }
 
-        // Criação do perfil do usuário na tabela 'users'
+        // Criação do perfil do usuário na tabela 'users' preservando o polo e vínculo docente
         await saveData('users', finalUserId, {
           id: finalUserId,
           email: emailLower,
           name: userData.name,
           full_name: userData.name,
           role: userData.role,
-          unit_id: (userData as any)?.unit_id || 'all',
+          unit_id: userData.unit_id || 'all',
+          teacher_id: userData.teacher_id || null,
+          pin: userData.pin || '1234',
           status: 'active',
           is_pre_registered: false, // Agora é um usuário real
           created_at: new Date().toISOString(),
@@ -411,6 +422,7 @@ export function Login() {
             id: emailLower,
             email: emailLower,
             role: 'admin',
+            unit_id: 'all',
             status: 'active',
             registered_at: new Date().toISOString()
           }, 60000);
@@ -422,8 +434,8 @@ export function Login() {
           setError("Conta ativada! Verifique seu e-mail para confirmar o cadastro antes de entrar.");
           setIsRegistering(false);
         } else {
-          // Garante que o novo login inicie sempre com a unidade Matriz selecionada e ativa
-          localStorage.setItem('selected_global_unit_id', 'matriz');
+          const restrictedUnit = getUserRestrictedUnit(userData);
+          localStorage.setItem('selected_global_unit_id', restrictedUnit || 'matriz');
           sessionStorage.setItem('just_logged_in', 'true');
           try {
             Object.keys(sessionStorage).forEach(k => {

@@ -3,11 +3,14 @@ import { supabase, isSupabaseConfigured, fetchWithTimeout, clearCorruptedAuthTok
 import { saveData, deleteData, fetchById, fetchQuery } from '../lib/database';
 import { UserProfile } from '../types';
 
+import { getItemUnitId, getUserRestrictedUnit } from '../lib/unitService';
+
 type AppUser = {
   uid: string;
   email: string | null;
   displayName?: string | null;
   photoURL?: string | null;
+  userMetadata?: Record<string, any>;
 };
 
 interface AuthContextType {
@@ -40,7 +43,11 @@ interface AuthContextType {
   latency: number | null;
   unlock: (pin: string) => boolean;
   logout: (reason?: string | unknown) => Promise<void>;
-  refreshProfile: (uid?: string) => Promise<void>;
+  refreshProfile: (
+    uid?: string,
+    isRetry?: boolean,
+    authUserOverride?: { id?: string; email?: string | null; user_metadata?: Record<string, any> }
+  ) => Promise<void>;
   switchUser: (newProfile: UserProfile) => void;
   resetToMaster: () => void;
   canAccess: (path: string) => boolean;
@@ -93,88 +100,133 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('supabase-status-change', handleStatusChange);
   }, []);
 
-  // Busca perfil do usuário do banco de dados
-  const refreshProfile = useCallback(async (uid?: string, isRetry = false) => {
-    const targetUid = uid || userRef.current?.uid;
+  // Busca perfil do usuário do banco de dados garantindo recuperação da unidade/polo
+  const refreshProfile = useCallback(async (
+    uid?: string,
+    isRetry = false,
+    authUserOverride?: { id?: string; email?: string | null; user_metadata?: Record<string, any> }
+  ) => {
+    const targetUid = uid || authUserOverride?.id || userRef.current?.uid;
     if (!targetUid) {
       setProfile(null);
       setLoading(false);
       return;
     }
 
-    try {
-      // Primeira tentativa com timeout balanceado (8s)
-      let data = await fetchById('users', targetUid, isRetry ? 15000 : 8000); 
-      
-      // Se não encontrou pelo UID diretamente e o usuário possui e-mail, busca pelo e-mail (usuários pré-cadastrados ou salvos por e-mail)
-      if (!data && userRef.current?.email) {
-        const userEmail = userRef.current.email.toLowerCase().trim();
+    let resolvedEmail = (authUserOverride?.email || userRef.current?.email || '').toLowerCase().trim();
+    let resolvedMeta = authUserOverride?.user_metadata || userRef.current?.userMetadata;
+
+    if ((!resolvedEmail || !resolvedMeta) && isSupabaseConfigured) {
+      try {
+        const { data: authRes } = await supabase.auth.getUser();
+        if (authRes?.user) {
+          if (!resolvedEmail && authRes.user.email) {
+            resolvedEmail = authRes.user.email.toLowerCase().trim();
+          }
+          if (!resolvedMeta && authRes.user.user_metadata) {
+            resolvedMeta = authRes.user.user_metadata;
+          }
+        }
+      } catch {}
+    }
+
+    const resolveAndApplyProfile = async (rawData: any) => {
+      const userEmail = (rawData?.email || resolvedEmail || '').toLowerCase().trim();
+      let resolvedUnit = getItemUnitId(rawData);
+      let resolvedRole = rawData?.role;
+      let resolvedTeacherId = rawData?.teacher_id;
+
+      // Se unit_id não veio na linha de users (ou estava vazio), recupera de metadados/email_registry/cache
+      if (!resolvedUnit) {
+        if (resolvedMeta?.unit_id) {
+          resolvedUnit = String(resolvedMeta.unit_id).trim();
+        }
+      }
+
+      if ((!resolvedUnit || !resolvedRole || !resolvedTeacherId) && userEmail) {
         try {
-          data = await fetchById('users', userEmail, 5000);
+          const regData: any = await fetchById('email_registry', userEmail, 8000);
+          if (regData) {
+            const regUnit = getItemUnitId(regData);
+            if (!resolvedUnit && regUnit) resolvedUnit = regUnit;
+            if (!resolvedRole && regData.role) resolvedRole = regData.role;
+            if (!resolvedTeacherId && regData.teacher_id) resolvedTeacherId = regData.teacher_id;
+          }
+        } catch {}
+      }
+
+      if (!resolvedUnit && userEmail) {
+        try {
+          const cached = localStorage.getItem(`user_unit_${userEmail}`) || localStorage.getItem(`user_unit_${rawData?.id || targetUid}`);
+          if (cached) resolvedUnit = cached;
+        } catch {}
+      }
+
+      const finalProfile: UserProfile = {
+        ...rawData,
+        role: resolvedRole || rawData?.role || 'secretario',
+        teacher_id: resolvedTeacherId ?? rawData?.teacher_id,
+        unit_id: resolvedUnit || 'all'
+      };
+
+      // Persiste perfil e garante trava imediata da unidade restrita antes do próximo render
+      try {
+        localStorage.setItem('current_user_profile', JSON.stringify({
+          id: finalProfile.id,
+          name: finalProfile.name,
+          role: finalProfile.role,
+          unit_id: finalProfile.unit_id
+        }));
+        const restricted = getUserRestrictedUnit(finalProfile);
+        if (restricted) {
+          localStorage.setItem('selected_global_unit_id', restricted);
+          window.dispatchEvent(new Event('units-updated'));
+        }
+      } catch {}
+
+      setProfile(finalProfile);
+    };
+
+    const fetchProfileRecord = async (timeout: number) => {
+      let data = await fetchById('users', targetUid, timeout);
+      if (!data && resolvedEmail) {
+        try {
+          data = await fetchById('users', resolvedEmail, 5000);
         } catch {}
         if (!data) {
           try {
-            const byQuery = await fetchQuery('users', 'email', '==', userEmail);
+            const byQuery = await fetchQuery('users', 'email', 'ilike', resolvedEmail);
             if (Array.isArray(byQuery) && byQuery.length > 0) {
               data = byQuery[0];
             }
           } catch {}
         }
       }
+      return data;
+    };
+
+    try {
+      const data = await fetchProfileRecord(isRetry ? 15000 : 8000);
 
       if (data) {
-        // Garante a recuperação resiliente de unit_id caso o Supabase não tenha a coluna na tabela users
-        const userEmail = (data.email || userRef.current?.email || '').toLowerCase().trim();
-        if (!data.unit_id) {
-          // 1. Tenta recuperar dos metadados da sessão Supabase
-          const currentMeta = (userRef.current as any)?.user_metadata;
-          const metaUnit = currentMeta?.unit_id || (userRef.current as any)?.unit_id;
-          if (metaUnit) {
-            data.unit_id = metaUnit;
-          }
-          // 2. Tenta recuperar do cache local persistente (instantâneo e síncrono)
-          if (!data.unit_id && userEmail) {
-            try {
-              const cached = localStorage.getItem(`user_unit_${userEmail}`) || localStorage.getItem(`user_unit_${data.id}`);
-              if (cached) {
-                data.unit_id = cached;
-              }
-            } catch {}
-          }
-          // 3. Tenta recuperar do registro central email_registry (apenas se ainda não definido e com timeout adequado)
-          if (!data.unit_id && userEmail) {
-            try {
-              const regData: any = await fetchById('email_registry', userEmail, 8000);
-              if (regData?.unit_id) {
-                data.unit_id = regData.unit_id;
-              }
-            } catch {}
-          }
-          if (!data.unit_id) {
-            data.unit_id = 'all';
-          }
-        }
-        setProfile(data as UserProfile);
+        await resolveAndApplyProfile(data);
         setLoading(false);
       } else if (!isRetry) {
-        // Tenta uma segunda vez após breve intervalo
         await new Promise(resolve => setTimeout(resolve, 1000));
-        const retryData = await fetchById('users', targetUid, 8000);
+        const retryData = await fetchProfileRecord(8000);
         if (retryData) {
-          setProfile(retryData as UserProfile);
+          await resolveAndApplyProfile(retryData);
         } else {
-          // Fallback para perfil básico baseado nas informações da sessão
-          const currentUser = userRef.current;
-          const defaultRole = (currentUser?.email && (currentUser.email.includes('admin') || currentUser.email.includes('master') || currentUser.email.includes('diret') || currentUser.email.includes('vmcjobnow'))) ? 'admin' : 'secretario';
+          const defaultRole = (resolvedEmail && (resolvedEmail.includes('admin') || resolvedEmail.includes('master') || resolvedEmail.includes('diret') || resolvedEmail.includes('vmcjobnow'))) ? 'admin' : 'secretario';
           const fallbackProfile: UserProfile = {
             id: targetUid,
-            name: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Usuário',
-            email: currentUser?.email || '',
+            name: authUserOverride?.user_metadata?.full_name || userRef.current?.displayName || resolvedEmail?.split('@')[0] || 'Usuário',
+            email: resolvedEmail || '',
             role: defaultRole as any,
             status: 'active',
             created_at: new Date().toISOString()
           };
-          setProfile(fallbackProfile);
+          await resolveAndApplyProfile(fallbackProfile);
         }
         setLoading(false);
       } else {
@@ -182,17 +234,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e: any) {
       console.warn("[AuthContext] Erro ao buscar perfil:", e?.message || e);
-      const currentUser = userRef.current;
-      if (currentUser?.email) {
+      if (resolvedEmail) {
         const fallbackProfile: UserProfile = {
           id: targetUid,
-          name: currentUser.displayName || currentUser.email.split('@')[0] || 'Usuário',
-          email: currentUser.email,
+          name: authUserOverride?.user_metadata?.full_name || userRef.current?.displayName || resolvedEmail.split('@')[0] || 'Usuário',
+          email: resolvedEmail,
           role: 'admin',
           status: 'active',
           created_at: new Date().toISOString()
         };
-        setProfile(fallbackProfile);
+        await resolveAndApplyProfile(fallbackProfile);
       }
       setLoading(false);
     }
@@ -260,10 +311,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return {
               uid: session.user.id,
               email: session.user.email || null,
-              displayName: session.user.user_metadata?.full_name || null
+              displayName: session.user.user_metadata?.full_name || null,
+              userMetadata: session.user.user_metadata
             };
           });
-          refreshProfile(session.user.id);
+          refreshProfile(session.user.id, false, session.user);
         } else {
           setUser(null);
           setProfile(null);
@@ -299,7 +351,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (event === 'SIGNED_IN') {
         sessionStorage.setItem('app_session_active', 'true');
-        localStorage.setItem('selected_global_unit_id', 'matriz');
+        const metaUnit = session?.user?.user_metadata?.unit_id;
+        const initialUnit = (metaUnit && metaUnit !== 'all' && metaUnit !== 'todas' && metaUnit !== 'global') ? metaUnit : 'matriz';
+        localStorage.setItem('selected_global_unit_id', initialUnit);
         sessionStorage.setItem('just_logged_in', 'true');
         try {
           Object.keys(sessionStorage).forEach(k => {
@@ -331,10 +385,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return {
             uid: session.user.id,
             email: session.user.email || null,
-            displayName: session.user.user_metadata?.full_name || null
+            displayName: session.user.user_metadata?.full_name || null,
+            userMetadata: session.user.user_metadata
           };
         });
-        refreshProfile(session.user.id);
+        refreshProfile(session.user.id, false, session.user);
       } else {
         setUser(null);
         setProfile(null);
@@ -601,9 +656,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchUser = useCallback((newProfile: UserProfile) => {
     // Apenas muda o contexto visual/de permissão atual se o admin quiser "simular" outro usuário
     // ou se o sistema permitir troca rápida. Para autenticação real, usamos switch real.
+    const resolvedUnit = getItemUnitId(newProfile) || 'all';
+    const normalizedProfile: UserProfile = {
+      ...newProfile,
+      unit_id: resolvedUnit
+    };
+    const restricted = getUserRestrictedUnit(normalizedProfile);
     try {
       sessionStorage.setItem('just_logged_in', 'true');
-      localStorage.setItem('selected_global_unit_id', 'matriz');
+      localStorage.setItem('selected_global_unit_id', restricted || 'matriz');
+      localStorage.setItem('current_user_profile', JSON.stringify({
+        id: normalizedProfile.id,
+        name: normalizedProfile.name,
+        role: normalizedProfile.role,
+        unit_id: normalizedProfile.unit_id
+      }));
       Object.keys(sessionStorage).forEach(k => {
         if (k.startsWith('unit_session_init_')) {
           sessionStorage.removeItem(k);
@@ -611,7 +678,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       window.dispatchEvent(new Event('units-updated'));
     } catch {}
-    setProfile(newProfile);
+    setProfile(normalizedProfile);
     window.location.hash = '#/';
   }, []);
 
