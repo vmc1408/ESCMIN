@@ -766,6 +766,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       }
     }
 
+    const classUnit = (currentClassObj?.unit_id || (currentClassObj as any)?.polo || 'matriz').toLowerCase();
+
     return classEvents.some(event => {
       const isCorrectDate = event.start_date === dbDate;
       const isForThisClass = String(event.class_id) === String(selectedClass);
@@ -774,6 +776,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       if (!isCorrectDate) return false;
       if (isForThisClass) return true;
       if (isGlobal) {
+        const eventUnit = (event.unit_id || 'matriz').toLowerCase();
+        if (eventUnit !== 'all' && eventUnit !== 'todas' && eventUnit !== classUnit) {
+          return false;
+        }
         // For global events, only count as scheduled if it matches the class weekdays
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(dbDate + 'T12:00:00');
@@ -812,16 +818,19 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     if (!selectedClass) return [];
     
     // 1. Get all academic events for this class in the current year
-    const academicEvents = classEvents.filter(e => 
-      e.start_date.startsWith(selectedYear.toString()) &&
-      (
-        String(e.class_id) === String(selectedClass) || 
-        !e.class_id || 
-        e.type === 'cancelled_class' || 
-        e.type === 'excused_class' ||
-        e.type?.includes('holiday')
-      )
-    );
+    const classUnit = (currentClassObj?.unit_id || (currentClassObj as any)?.polo || 'matriz').toLowerCase();
+    const academicEvents = classEvents.filter(e => {
+      if (!e.start_date.startsWith(selectedYear.toString())) return false;
+      if (String(e.class_id) === String(selectedClass)) return true;
+      if (e.type?.includes('holiday')) {
+        return !e.unit_id || e.unit_id.toLowerCase() === 'all' || e.unit_id.toLowerCase() === classUnit;
+      }
+      if (!e.class_id) {
+        const evUnit = (e.unit_id || 'matriz').toLowerCase();
+        return evUnit === 'all' || evUnit === 'todas' || evUnit === classUnit;
+      }
+      return false;
+    });
 
     // 2. Identify holidays
     const holidayDates = new Set(
@@ -936,11 +945,16 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const dateKey = event.start_date;
       if (!uniqueMap.has(dateKey)) {
         // Filter which days to show in the dropdown:
-        // Include events specific to this class OR global holidays/cancellations
+        // Include events specific to this class OR same-unit global events
         const isGlobal = !event.class_id;
         const isThisClass = String(event.class_id) === String(selectedClass);
         
         if (!isGlobal && !isThisClass) return;
+        if (isGlobal) {
+          const classUnit = (currentClassObj?.unit_id || (currentClassObj as any)?.polo || 'matriz').toLowerCase();
+          const evUnit = (event.unit_id || 'matriz').toLowerCase();
+          if (evUnit !== 'all' && evUnit !== 'todas' && evUnit !== classUnit) return;
+        }
 
         // Only include actual lesson days (class_day, exam, excused_class)
         if (!['class_day', 'exam', 'excused_class'].includes(event.type)) return;

@@ -48,6 +48,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getStudentContributionPlan, formatContributionMonth, isFirstYearOrStarting } from '../lib/contributionRules';
+import { resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -309,11 +310,18 @@ export function FinancialReport() {
     });
   }, [students, classes, selectedUnitId, activeUnits]);
 
-  // Aluno atualmente selecionado no filtro individual
+  // Aluno atualmente selecionado no filtro individual (restrito ao polo ativo)
   const selectedStudent = useMemo(() => {
     if (!selectedStudentId) return null;
-    return students.find(s => s.id === selectedStudentId) || null;
-  }, [students, selectedStudentId]);
+    return scopedStudents.find(s => s.id === selectedStudentId) || null;
+  }, [scopedStudents, selectedStudentId]);
+
+  useEffect(() => {
+    if (selectedStudentId && students.length > 0 && !scopedStudents.some(s => s.id === selectedStudentId)) {
+      setSelectedStudentId('');
+      setStudentSearchQuery('');
+    }
+  }, [selectedStudentId, students.length, scopedStudents]);
 
   // Lista de alunos correspondentes à busca de aluno no 1º filtro (apenas quando houver termo digitado)
   const searchedStudents = useMemo(() => {
@@ -497,9 +505,9 @@ const getExpectedMonthsForStudent = useCallback((student: Student, year: number,
 
   const studentClass = classes.find(c => c.id === student.class_id);
   const classSettings = academicSettingsList.find(s => s && (s.id === student.class_id || s.id === `academic_settings_${student.class_id}`));
-  const unitSettings = academicSettingsList.find(s => s && s.id === `academic_settings_${student.unit_id}`);
-  const generalSettings = academicSettingsList.find(s => s && s.id === 'current');
-  const activeSettings = classSettings || unitSettings || generalSettings;
+  const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+  const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
+  const activeSettings = classSettings || unitSettings;
 
   const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings);
   return plan.expectedPeriods;
@@ -536,21 +544,24 @@ const getStudentFee = useCallback((student: Student) => {
   if (studentContrib && Number(studentContrib.amount) > 0) {
     return Number(studentContrib.amount);
   }
-  // Procura histórico na turma
+  // Procura histórico na turma dentro da unidade ativa
   const classContrib = contributions.find(c => {
-    const s = students.find(st => st.id === c.student_id);
+    const s = scopedStudents.find(st => st.id === c.student_id);
     return s?.class_id === student.class_id && Number(c.amount) > 0;
   });
   if (classContrib && Number(classContrib.amount) > 0) {
     return Number(classContrib.amount);
   }
-  // Procura no geral
-  const anyContrib = contributions.find(c => Number(c.amount) > 0);
+  // Procura no geral dentro da unidade ativa
+  const anyContrib = contributions.find(c => {
+    const s = scopedStudents.find(st => st.id === c.student_id);
+    return !!s && Number(c.amount) > 0;
+  });
   if (anyContrib && Number(anyContrib.amount) > 0) {
     return Number(anyContrib.amount);
   }
   return Number(financialSettings?.default_monthly_fee) || 100;
-}, [selectedYear, classes, financialSettings, contributions, students]);
+}, [selectedYear, classes, financialSettings, contributions, scopedStudents]);
 
 // Lista de todos os alunos pertencentes à turma selecionada
 const studentsInSelectedClass = useMemo(() => {
@@ -570,7 +581,7 @@ const reportData = useMemo(() => {
   const filteredStudents = filterTarget === 'student'
     ? (() => {
         if (!selectedStudentId) return [];
-        const found = scopedStudents.find(s => s.id === selectedStudentId) || students.find(s => s.id === selectedStudentId);
+        const found = scopedStudents.find(s => s.id === selectedStudentId);
         return found ? [found] : [];
       })()
     : (() => {

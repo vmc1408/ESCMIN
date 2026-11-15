@@ -251,6 +251,7 @@ export function Classes() {
     if (!cls) return true;
     if (canSwitchUnit) return true;
     const cUnit = getItemUnitId(cls) || 'matriz';
+    if (cUnit === 'all' || cUnit === 'todas') return false;
     return isItemInUnit(cUnit, globalUnitId, activeUnits);
   }, [canSwitchUnit, globalUnitId, activeUnits]);
   const [statusFilter, setStatusFilterState] = useState<'Ativo' | 'Inativo' | 'Encerrada' | 'Todos'>(() => {
@@ -1350,6 +1351,12 @@ export function Classes() {
     if (classId && classes.length > 0) {
       const targetCls = classes.find(c => c.id === classId);
       if (targetCls) {
+        const clsUnit = getItemUnitId(targetCls);
+        if (globalUnitId && globalUnitId !== 'all' && clsUnit !== 'all' && clsUnit !== 'todas' && !isItemInUnit(clsUnit, globalUnitId, activeUnits)) {
+          setNotification({ type: 'error', message: 'Acesso restrito: esta turma pertence a outro polo/unidade.' });
+          window.history.replaceState({}, document.title);
+          return;
+        }
         handleSelectClass(targetCls);
         if (reopenModal) {
           handleOpenStudentsModal(targetCls);
@@ -1357,7 +1364,7 @@ export function Classes() {
       }
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, classes, handleSelectClass, handleOpenStudentsModal]);
+  }, [location.state, classes, globalUnitId, activeUnits, handleSelectClass, handleOpenStudentsModal]);
 
   const generateClassListPDF = async () => {
     try {
@@ -1559,7 +1566,9 @@ export function Classes() {
       // PROACTIVE METADATA SYNC:
       // Always sync year, semester, subject slots, subject_ids and is_special into observations metadata 
       // before saving. This ensures data persistence even if Supabase columns are missing.
-      const targetUnitId = formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
+      const targetUnitId = (!canSwitchUnit && isRestricted && globalUnitId && globalUnitId !== 'all')
+        ? globalUnitId
+        : (formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz'));
       const metadata: any = {};
       if (formData.course) metadata.course = formData.course;
       if (validatedAcademicYear) metadata.year = validatedAcademicYear;
@@ -2218,12 +2227,13 @@ export function Classes() {
 
       const matchesUnit = (() => {
         const classUnitId = getItemUnitId(c);
+        const isSharedAll = classUnitId === 'all' || classUnitId === 'todas';
         // Regra de autoridade: unidade ativa selecionada prevalece sobre filtros secundários
         if (globalUnitId && globalUnitId !== 'all') {
-          return isItemInUnit(classUnitId, globalUnitId, activeUnits);
+          return isSharedAll || isItemInUnit(classUnitId, globalUnitId, activeUnits);
         }
         if (selectedUnitFilter !== 'Todos') {
-          return isItemInUnit(classUnitId, selectedUnitFilter, activeUnits);
+          return isSharedAll || isItemInUnit(classUnitId, selectedUnitFilter, activeUnits);
         }
         return true;
       })();
@@ -3167,6 +3177,7 @@ export function Classes() {
                                 title="Selecionar a unidade ou polo educacional desta turma"
                                 className="w-full px-3 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase h-[42px] disabled:opacity-60"
                               >
+                                {canSwitchUnit && <option value="all">🌐 Ambos / Todas as Unidades (Geral)</option>}
                                 {activeUnits.map(u => (
                                   <option key={u.id} value={u.id}>
                                     {u.name} {u.is_main || u.id === 'matriz' ? '(Matriz)' : ''}

@@ -422,8 +422,14 @@ export function Grades() {
       
       const newGradesMap = { ...grades };
       
-      // Filter calendar events for THIS class Specifically
-      const classSpecificEvents = (calendarEvents || []).filter(e => !e.class_id || e.class_id === selectedClass);
+      // Filter calendar events for THIS class and unit specifically
+      const currentClassObj = classes.find(c => c.id === selectedClass);
+      const currentClassUnit = (currentClassObj?.unit_id || (currentClassObj as any)?.polo || 'matriz').toLowerCase();
+      const classSpecificEvents = (calendarEvents || []).filter(e => {
+        if (e.class_id) return e.class_id === selectedClass;
+        const evUnit = (e.unit_id || 'matriz').toLowerCase();
+        return evUnit === 'all' || evUnit === 'todas' || evUnit === currentClassUnit;
+      });
       const totalSchoolDays = (classSpecificEvents.length || 0); // Total intended class days
       
       // Total effective days (Total - Excused)

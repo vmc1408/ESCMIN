@@ -138,18 +138,6 @@ export function Courses() {
     loadData();
   }, [loadData]);
 
-  // Reabre a lista de alunos do curso ao retornar da ficha do aluno
-  useEffect(() => {
-    const courseId = (location.state as any)?.courseId;
-    if (courseId && courses.length > 0) {
-      const c = courses.find(item => item.id === courseId);
-      if (c) {
-        setViewingStudentsCourse(c);
-      }
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state, courses]);
-
   // Scoped classes and students strictly matching user's selected unit
   const scopedClasses = useMemo(() => {
     if (!globalUnitId || globalUnitId === 'all') return classes;
@@ -192,6 +180,20 @@ export function Courses() {
     }
     return false;
   }, [globalUnitId, activeUnits, scopedClasses, courses]);
+
+  // Reabre a lista de alunos do curso ao retornar da ficha do aluno (respeitando unidade ativa)
+  useEffect(() => {
+    const courseId = (location.state as any)?.courseId;
+    if (courseId && courses.length > 0) {
+      const c = courses.find(item => item.id === courseId);
+      if (c && isCourseInActiveUnit(c)) {
+        setViewingStudentsCourse(c);
+      } else if (c) {
+        showNotification('error', 'Acesso restrito: este curso pertence a outro polo/unidade.');
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, courses, isCourseInActiveUnit, showNotification]);
 
   // Check if the current user has permission to edit or delete this specific course
   const canManipulateCourse = useCallback((c: Course) => {
@@ -707,7 +709,15 @@ export function Courses() {
         ? (formData.meeting_days || []).slice(0, meetingsCount).filter(Boolean)
         : [];
       
-      const targetUnitId = formData.unit_id || (globalUnitId && globalUnitId !== 'all' ? globalUnitId : 'all');
+      if (editingCourse && !canManipulateCourse(editingCourse)) {
+        showNotification('error', 'Permissão negada: Este curso pertence à Matriz ou a outra unidade e não pode ser alterado por este polo.');
+        setIsSaving(false);
+        return;
+      }
+
+      const targetUnitId = (!canSwitchUnit && isRestricted && globalUnitId && globalUnitId !== 'all')
+        ? globalUnitId
+        : (formData.unit_id || (globalUnitId && globalUnitId !== 'all' ? globalUnitId : 'all'));
 
       const payload: Course = {
         id,
@@ -1731,7 +1741,7 @@ export function Courses() {
                     title="Definir a unidade ou polo responsável pelo curso"
                     className="w-full px-3 py-2 border border-slate-300 text-xs font-medium text-slate-900 bg-white focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                   >
-                    <option value="all">🌐 Todas as Unidades (Geral / Institucional)</option>
+                    <option value="all">🌐 Ambos / Todas as Unidades (Geral)</option>
                     {activeUnits.map(unit => (
                       <option key={unit.id} value={unit.id}>
                         🏢 {unit.name} ({unit.code})

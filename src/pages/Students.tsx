@@ -212,7 +212,7 @@ const INITIAL_STUDENT_STATE: Partial<Student> = {
 export function Students() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, getUnitName } = useUnits();
+  const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, isRestricted, canSwitchUnit, getUnitName } = useUnits();
   const [returnOrigin, setReturnOrigin] = useState<{
     path: string;
     classId?: string;
@@ -888,6 +888,13 @@ export function Students() {
     if (studentId && students.length > 0) {
       const student = students.find(s => s.id === studentId);
       if (student) {
+        const studentClass = classes.find(c => c.id === student.class_id);
+        const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+        if (globalUnitId && globalUnitId !== 'all' && !isItemInUnit(studentUnit, globalUnitId, activeUnits)) {
+          setNotification({ type: 'error', message: 'Acesso restrito: este aluno pertence a outro polo/unidade.' });
+          window.history.replaceState({}, document.title);
+          return;
+        }
         if (student.status === 'Inativo') {
           setStatusFilter('Todos');
         }
@@ -896,7 +903,7 @@ export function Students() {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [students, location.state, handleNew, handleSelectStudent]);
+  }, [students, classes, globalUnitId, activeUnits, location.state, handleNew, handleSelectStudent]);
 
   // Auto-fill student start date and course based on selected class
   useEffect(() => {
@@ -1545,7 +1552,13 @@ export function Students() {
       
       const resolvedCourse = effectiveCourseName || formData.course || (targetClass ? (targetClass.course || detectCourseFromClass(targetClass, coursesList)) : null);
 
-      const studentUnitId = formData.unit_id || targetClass?.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
+      const rawRequestedUnit = (isRestricted && !canSwitchUnit && globalUnitId && globalUnitId !== 'all')
+        ? globalUnitId
+        : (formData.unit_id || targetClass?.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz'));
+      // Alunos nunca podem ser salvos em "Ambos / Todas as Unidades" ('all') — sempre vínculo específico a um polo
+      const studentUnitId = (rawRequestedUnit === 'all' || rawRequestedUnit === 'todas')
+        ? (targetClass?.unit_id && targetClass.unit_id !== 'all' ? targetClass.unit_id : 'matriz')
+        : rawRequestedUnit;
 
       const dataToSave: any = { 
         ...formData,
@@ -3202,9 +3215,9 @@ export function Students() {
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <select
-                              disabled={!isEditing}
-                              title="Selecionar polo ou unidade educacional do aluno"
-                              value={formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
+                              disabled={!isEditing || (isRestricted && !canSwitchUnit)}
+                              title={isRestricted && !canSwitchUnit ? 'Polo fixado conforme seu acesso restrito' : 'Selecionar polo ou unidade educacional específica do aluno'}
+                              value={formData.unit_id && formData.unit_id !== 'all' ? formData.unit_id : (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
                               onChange={(e) => {
                                 const newUnitId = e.target.value;
                                 const currentCls = classes.find(c => c.id === formData.class_id);
@@ -3228,7 +3241,9 @@ export function Students() {
                               ))}
                             </select>
                             <span className="text-[11px] text-blue-700 font-medium">
-                              {formData.unit_id ? `Polo: ${getUnitName(formData.unit_id)}` : 'Polo Padrão Matriz'}
+                              {isRestricted && !canSwitchUnit
+                                ? `Fixo no polo: ${getUnitName(globalUnitId)}`
+                                : (formData.unit_id ? `Polo: ${getUnitName(formData.unit_id)}` : 'Polo Padrão Matriz')}
                             </span>
                           </div>
                         </div>

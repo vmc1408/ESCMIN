@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
 import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
-import { fetchAll, fetchQuery, fetchAcademicSettings } from '../lib/database';
-import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
+import { fetchAll, fetchQuery } from '../lib/database';
+import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
@@ -52,7 +52,7 @@ export function Bulletin() {
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [institution, setInstitution] = useState<any>(null);
-  const [academicSettings, setAcademicSettings] = useState<any>(null);
+  const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
   const [academicParams, setAcademicParams] = useState<AcademicParameters>({
     approval_grade: 7.0,
     recovery_grade: 5.0,
@@ -106,7 +106,7 @@ export function Bulletin() {
           fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]),
           fetchAll('academic_parameters'),
           financialService.getInstitutionSettings(),
-          fetchAcademicSettings()
+          fetchAll('academic_settings').catch(() => [])
         ]);
 
         // Normalize classes and subjects
@@ -126,7 +126,7 @@ export function Bulletin() {
         setAssessments(assessmentsData || []);
         setAttendanceData(attendancesData || []);
         setCalendarEvents(calendarData || []);
-        setAcademicSettings(acadSettings || null);
+        setAcademicSettingsList(Array.isArray(acadSettings) ? acadSettings : []);
         
         if (paramsData && paramsData.length > 0) {
           setAcademicParams(paramsData[0] as AcademicParameters);
@@ -205,7 +205,13 @@ export function Bulletin() {
     return getClassSubjects(classObj, subjects, assessments, dbGrades);
   }, [selectedClassId, classes, subjects, assessments, dbGrades]);
 
-  // Calendar specific events strictly matching the class's scheduled weekdays
+  const academicSettings = useMemo(() => {
+    const classObj = classes.find(c => c.id === selectedClassId);
+    const targetUnit = classObj ? getItemUnitId(classObj) : (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+    return resolveAcademicSettingsForUnit(targetUnit, academicSettingsList).settings;
+  }, [classes, selectedClassId, selectedUnitId, academicSettingsList]);
+
+  // Calendar specific events strictly matching the class's scheduled weekdays and unit
   const classSchoolDays = useMemo(() => {
     if (!selectedClassId) return [];
     const classObj = classes.find(c => c.id === selectedClassId);

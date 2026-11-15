@@ -3749,7 +3749,7 @@ export function Reports() {
                       </div>
                    </div>
 
-                   {renderCertificateInnerContent(certItem.type, certItem.student_name || students.find(s => s.id === certItem.student_id)?.name || 'Estudante Sem Nome', certItem.course, certItem.issuance_date, institution)}
+                   {renderCertificateInnerContent(certItem.type, certItem.student_name || scopedStudents.find(s => s.id === certItem.student_id)?.name || 'Estudante Sem Nome', certItem.course, certItem.issuance_date, institution)}
 
                     
                  </div>

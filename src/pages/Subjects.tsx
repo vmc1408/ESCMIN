@@ -444,7 +444,9 @@ export function Subjects() {
         syncData.monthly_fee = Number(formData.monthly_fee);
       }
       
-      const subjectUnitId = formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
+      const subjectUnitId = (!canSwitchUnit && isRestricted && globalUnitId && globalUnitId !== 'all')
+        ? globalUnitId
+        : (formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz'));
       metadata.unit_id = subjectUnitId;
       syncData.unit_id = subjectUnitId;
       
@@ -1018,7 +1020,7 @@ export function Subjects() {
                           title="Selecionar unidade ou polo ao qual a disciplina pertence"
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
                         >
-                          {canSwitchUnit && <option value="all">🌐 Institucional (Todas as Unidades)</option>}
+                          {canSwitchUnit && <option value="all">🌐 Ambos / Todas as Unidades (Geral)</option>}
                           {activeUnits.map(u => (
                             <option key={u.id} value={u.id}>
                               {u.name} {u.is_main || u.id === 'matriz' ? '(Matriz)' : ''}

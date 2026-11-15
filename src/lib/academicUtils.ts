@@ -137,6 +137,11 @@ export function getClassSchoolDays(
       seenDates.add(dateStr);
       result.push(e);
     } else if (isGlobal) {
+      const classUnit = (classObj.unit_id || classObj.polo || 'matriz').toLowerCase();
+      const eventUnit = (e.unit_id || 'matriz').toLowerCase();
+      const sameUnit = eventUnit === 'all' || eventUnit === 'todas' || classUnit === eventUnit;
+      if (!sameUnit) return;
+
       if (classWeekdays.length > 0) {
         const dateObj = new Date(dateStr + 'T12:00:00');
         const wDay = dateObj.getDay();
@@ -145,7 +150,7 @@ export function getClassSchoolDays(
           result.push(e);
         }
       } else {
-        // If class has no weekday detected, keep global
+        // If class has no weekday detected, keep global within same unit
         seenDates.add(dateStr);
         result.push(e);
       }
@@ -836,11 +841,14 @@ export const resolveAcademicSettingsForUnit = (
   unitId: string | null | undefined,
   settingsList: any[]
 ): { settings: any; isCustom: boolean } => {
-  const matrizDefault = Array.isArray(settingsList) 
-    ? (settingsList.find(s => s && (s.id === 'current' || s.unit_id === 'matriz')) || settingsList[0] || null)
+  const normUnit = (unitId || '').trim().toLowerCase();
+  const isMatrizOrGlobal = !normUnit || normUnit === 'all' || normUnit === 'todas' || normUnit === 'matriz' || normUnit === 'mat' || normUnit === 'sede' || normUnit === 'global';
+
+  const matrizDefault = Array.isArray(settingsList)
+    ? (settingsList.find(s => s && (s.id === 'current' || s.unit_id === 'matriz')) || null)
     : null;
 
-  if (!unitId || unitId === 'all' || unitId === 'matriz' || unitId === 'global') {
+  if (isMatrizOrGlobal) {
     if (matrizDefault) return { settings: sanitizeAcademicSettings(matrizDefault), isCustom: false };
     try {
       const stored = localStorage.getItem('academic_settings_current');
@@ -851,11 +859,11 @@ export const resolveAcademicSettingsForUnit = (
 
   const targetId = `academic_settings_${unitId}`;
   if (Array.isArray(settingsList) && settingsList.length > 0) {
-    const custom = settingsList.find(s => 
+    const custom = settingsList.find(s =>
       s && (
-        s.id === targetId || 
-        s.id === unitId || 
-        (s.unit_id && s.unit_id.toLowerCase() === unitId.toLowerCase())
+        s.id === targetId ||
+        s.id === unitId ||
+        (s.unit_id && s.unit_id.toLowerCase() === normUnit)
       )
     );
 
@@ -864,9 +872,9 @@ export const resolveAcademicSettingsForUnit = (
     }
   }
 
-  // Tenta recuperar do cache local do polo
+  // Tenta recuperar do cache local exclusivo deste polo
   try {
-    const stored = localStorage.getItem(`academic_settings_${targetId}`) 
+    const stored = localStorage.getItem(`academic_settings_${targetId}`)
       || localStorage.getItem(`academic_settings_${unitId}`);
     if (stored) {
       const parsed = JSON.parse(stored);
@@ -876,18 +884,7 @@ export const resolveAcademicSettingsForUnit = (
     }
   } catch {}
 
-  // Fallback para matriz
-  if (matrizDefault) {
-    return { settings: sanitizeAcademicSettings(matrizDefault), isCustom: false };
-  }
-
-  try {
-    const storedMatriz = localStorage.getItem('academic_settings_current');
-    if (storedMatriz) {
-      return { settings: sanitizeAcademicSettings(JSON.parse(storedMatriz)), isCustom: false };
-    }
-  } catch {}
-
+  // Cada polo possui seu próprio calendário independente (não herda automaticamente da Matriz)
   return { settings: null, isCustom: false };
 };
 

@@ -81,7 +81,7 @@ export function AnnualCalendarManager({
   initialYear
 }: AnnualCalendarManagerProps) {
   const { user: userAuth, profile } = useAuth();
-  const { selectedUnitId, getUnitName, activeUnits } = useUnits();
+  const { selectedUnitId, getUnitName, activeUnits, isRestricted, canSwitchUnit } = useUnits();
   const [institution, setInstitution] = useState<any>(null);
   const [allActiveClasses, setAllActiveClasses] = useState<Class[]>([]);
   const [weekdayClasses, setWeekdayClasses] = useState<Record<number, string[]>>({});
@@ -107,6 +107,12 @@ export function AnnualCalendarManager({
   const [targetUnitId, setTargetUnitId] = useState<string>(() => {
     return selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz';
   });
+
+  useEffect(() => {
+    if (isRestricted && !canSwitchUnit && selectedUnitId && selectedUnitId !== 'all') {
+      setTargetUnitId(selectedUnitId);
+    }
+  }, [isRestricted, canSwitchUnit, selectedUnitId]);
   const [stateUf, setStateUf] = useState<string>('SP');
   const [cityName, setCityName] = useState<string>('Guarulhos');
 
@@ -722,14 +728,23 @@ export function AnnualCalendarManager({
             <span>Unidade:</span>
             <select
               value={targetUnitId}
-              onChange={(e) => setTargetUnitId(e.target.value)}
-              title="Selecionar unidade escolar para configurar o calendário anual"
-              className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer"
+              disabled={isRestricted && !canSwitchUnit}
+              onChange={(e) => {
+                if (isRestricted && !canSwitchUnit) return;
+                setTargetUnitId(e.target.value);
+              }}
+              title={isRestricted && !canSwitchUnit ? "Unidade fixa conforme perfil atribuído" : "Selecionar unidade escolar para configurar o calendário anual"}
+              className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <option value="matriz">Matriz (Padrão Geral)</option>
-              {activeUnits.filter(u => u.id !== 'matriz').map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
+              {(!isRestricted || canSwitchUnit || selectedUnitId === 'matriz') && (
+                <option value="matriz">Matriz - Itapegica</option>
+              )}
+              {activeUnits
+                .filter(u => u.id !== 'matriz')
+                .filter(u => (!isRestricted || canSwitchUnit) || u.id === selectedUnitId)
+                .map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
             </select>
           </div>
 

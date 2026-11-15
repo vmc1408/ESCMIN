@@ -177,8 +177,18 @@ const TeacherItem = React.memo(({
 export function Teachers() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, getUnitName } = useUnits();
-  const { canDelete } = useAuth();
+  const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, getUnitName, isRestricted, canSwitchUnit } = useUnits();
+  const { isAdmin, isDirector, isSecretary, isAssistant, canDelete } = useAuth();
+  const canEdit = isAdmin || isDirector || isSecretary || isAssistant;
+
+  const canManipulateTeacher = React.useCallback((teacher: Teacher | null | undefined) => {
+    if (!teacher) return true;
+    if (!canEdit) return false;
+    if (canSwitchUnit) return true;
+    const tUnit = getItemUnitId(teacher);
+    if (tUnit === 'all' || tUnit === 'todas') return false;
+    return isItemInUnit(tUnit, globalUnitId, activeUnits);
+  }, [canEdit, canSwitchUnit, globalUnitId, activeUnits]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -380,6 +390,16 @@ export function Teachers() {
     if (teacherId && teachers.length > 0) {
       const targetTeacher = teachers.find(t => t.id === teacherId);
       if (targetTeacher) {
+        const tUnit = getItemUnitId(targetTeacher);
+        const isAllowed = !globalUnitId || globalUnitId === 'all' || tUnit === 'all' || tUnit === 'todas' || isItemInUnit(tUnit, globalUnitId, activeUnits);
+        if (!isAllowed) {
+          setNotification({
+            type: 'error',
+            message: 'Acesso restrito: este professor está vinculado a outro polo/unidade e não pode ser acessado.'
+          });
+          window.history.replaceState({}, document.title);
+          return;
+        }
         if (targetTeacher.status === 'Inativo') {
           setStatusFilter('Todos');
         }
@@ -387,7 +407,7 @@ export function Teachers() {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [teachers, location.state, handleSelectTeacher]);
+  }, [teachers, location.state, handleSelectTeacher, globalUnitId, activeUnits]);
 
   const generateTeacherListPDF = async () => {
     try {
@@ -577,20 +597,33 @@ export function Teachers() {
       code: nextCode,
       status: 'Ativo',
       subject_ids: [],
-      unit_id: globalUnitId !== 'all' ? globalUnitId : (activeUnits[0]?.id || 'matriz')
+      unit_id: (!canSwitchUnit && isRestricted && globalUnitId && globalUnitId !== 'all')
+        ? globalUnitId
+        : (globalUnitId !== 'all' ? globalUnitId : 'all')
     });
     setIsEditing(true);
     setHoverShowList(false);
   };
 
   const handleSave = async () => {
+    if (selectedTeacher && !canManipulateTeacher(selectedTeacher)) {
+      setNotification({
+        type: 'error',
+        message: 'Acesso restrito: este professor pertence a outro polo ou é compartilhado ("Ambos") e não pode ser editado pelo seu usuário.'
+      });
+      return;
+    }
     try {
       setLoading(true);
       
+      const forcedUnitId = (!canSwitchUnit && isRestricted && globalUnitId && globalUnitId !== 'all')
+        ? globalUnitId
+        : (formData.unit_id || 'matriz');
+
       const syncData = { 
         ...formData,
         subject_ids: formData.subject_ids || [],
-        unit_id: formData.unit_id || 'matriz'
+        unit_id: forcedUnitId
       };
 
       // PROACTIVE METADATA SYNC:
@@ -657,6 +690,13 @@ export function Teachers() {
 
   const handleToggleTeacherStatus = React.useCallback(async () => {
     if (!selectedTeacher?.id) return;
+    if (!canManipulateTeacher(selectedTeacher)) {
+      setNotification({
+        type: 'error',
+        message: 'Acesso restrito: você não tem permissão para alterar o status de professores de outro polo ou compartilhados.'
+      });
+      return;
+    }
     const isCurrentlyInactive = formData.status === 'Inativo';
     const newStatus = isCurrentlyInactive ? 'Ativo' : 'Inativo';
     const confirmMsg = isCurrentlyInactive
@@ -684,10 +724,18 @@ export function Teachers() {
       setLoading(false);
       setTimeout(() => setNotification(null), 3000);
     }
-  }, [selectedTeacher, formData.status, fetchTeachers]);
+  }, [selectedTeacher, formData.status, fetchTeachers, canManipulateTeacher]);
 
   const handleDelete = React.useCallback(async () => {
     if (!selectedTeacher?.id) return;
+    if (!canManipulateTeacher(selectedTeacher)) {
+      setNotification({
+        type: 'error',
+        message: 'Acesso restrito: você não tem permissão para excluir professores de outro polo ou compartilhados.'
+      });
+      setShowDeleteConfirm(false);
+      return;
+    }
     if (!canDelete) {
       alert('Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Professor.');
       setShowDeleteConfirm(false);
@@ -1254,7 +1302,7 @@ export function Teachers() {
       let matchesUnit = true;
       if (globalUnitId && globalUnitId !== 'all') {
         const teacherUnit = getItemUnitId(t);
-        matchesUnit = isItemInUnit(teacherUnit, globalUnitId, activeUnits);
+        matchesUnit = teacherUnit === 'all' || teacherUnit === 'todas' || isItemInUnit(teacherUnit, globalUnitId, activeUnits);
       }
 
       return matchesSearch && matchesStatus && matchesSubject && matchesSemester && matchesUnit;
@@ -1264,7 +1312,7 @@ export function Teachers() {
       if (sortBy === 'code') return (a.code || '').localeCompare(b.code || '');
       if (sortBy === 'subject') {
         const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
-        const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
+        const subB = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
         return subA.localeCompare(subB);
       }
       return (a.name || '').localeCompare(b.name || '');
@@ -1273,7 +1321,10 @@ export function Teachers() {
 
   const teachersInActiveUnitCount = React.useMemo(() => {
     if (!globalUnitId || globalUnitId === 'all') return teachers.length;
-    return teachers.filter(t => isItemInUnit(getItemUnitId(t), globalUnitId, activeUnits)).length;
+    return teachers.filter(t => {
+      const tUnit = getItemUnitId(t);
+      return tUnit === 'all' || tUnit === 'todas' || isItemInUnit(tUnit, globalUnitId, activeUnits);
+    }).length;
   }, [teachers, globalUnitId, activeUnits]);
 
   const actualListCollapsed = selectedTeacher !== null || isEditing;
@@ -1593,9 +1644,24 @@ export function Teachers() {
                       </button>
 
                       <button 
-                        onClick={() => setIsEditing(true)}
-                        className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                        title="Editar Ficha"
+                        onClick={() => {
+                          if (!canManipulateTeacher(selectedTeacher)) {
+                            setNotification({
+                              type: 'error',
+                              message: 'Acesso restrito: professor vinculado a outro polo ou compartilhado ("Ambos").'
+                            });
+                            return;
+                          }
+                          setIsEditing(true);
+                        }}
+                        disabled={!canManipulateTeacher(selectedTeacher)}
+                        className={cn(
+                          "h-10 w-10 border rounded-lg transition-all flex items-center justify-center shadow-sm",
+                          canManipulateTeacher(selectedTeacher)
+                            ? "bg-blue-50 border-blue-200 text-blue-700 hover:text-blue-900 hover:bg-blue-100/60 cursor-pointer"
+                            : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
+                        )}
+                        title={canManipulateTeacher(selectedTeacher) ? "Editar Ficha" : "Edição bloqueada: professor vinculado a outro polo ou institucional"}
                         aria-label="Editar Ficha"
                       >
                         <Edit2 size={16} />
@@ -1739,14 +1805,17 @@ export function Teachers() {
                           Polo / Unidade Principal
                         </label>
                         <select 
-                          disabled={!isEditing}
+                          disabled={!isEditing || (!canSwitchUnit && isRestricted)}
                           value={formData.unit_id || 'matriz'}
                           onChange={(e) => setFormData({...formData, unit_id: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          title="Polo ou unidade principal de atuação do professor"
+                          title={!canSwitchUnit && isRestricted ? "Polo fixo conforme unidade atribuída ao usuário" : "Polo ou unidade principal de atuação do professor (ou Ambos/Todas)"}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
                           tabIndex={6}
                         >
+                          {canSwitchUnit && (
+                            <option value="all">🌐 Ambos / Todas as Unidades (Geral)</option>
+                          )}
                           {activeUnits.map(u => (
                             <option key={u.id} value={u.id}>
                               {u.name} {u.is_main || u.id === 'matriz' ? '(Matriz)' : ''}
@@ -1936,6 +2005,7 @@ export function Teachers() {
                       .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
                       .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
                       .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
+                      .replace(/\[UNIT_ID:[\s\S]*?\]/g, '')
                       .replace(/\]\]$/g, '')
                       .trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}

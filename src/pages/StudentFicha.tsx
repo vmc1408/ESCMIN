@@ -24,7 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
-import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
+import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
@@ -331,74 +331,6 @@ export function StudentFicha() {
       setStudentContributions([]);
     }
   }, [selectedStudentId]);
-
-  // Compute unpaid months alert for the current year
-  const unpaidMonthsAlert = useMemo(() => {
-    const student = students.find(s => s.id === selectedStudentId);
-    if (!student || student.status !== 'Ativo') return null;
-
-    const currentYear = new Date().getFullYear();
-
-    const studentClass = classes.find(c => 
-      c.id === student.class_id ||
-      ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
-      ((student as any).course && c.course && c.course.trim().toLowerCase() === (student as any).course.trim().toLowerCase()) ||
-      ((student as any).course && c.name && c.name.toLowerCase().includes((student as any).course.toLowerCase()))
-    );
-
-    const classSettings = academicSettingsList.find(s => s.id === student.class_id);
-    const generalSettings = academicSettingsList.find(s => s.id === 'current');
-    const activeSettings = classSettings || generalSettings;
-
-    const paidMonths = studentContributions.map(c => c.reference_month);
-    const plan = getStudentContributionPlan(student, studentClass, currentYear, paidMonths, activeSettings);
-
-    // Meses ou períodos vencidos até o momento atual
-    const unpaidMonths = plan.expectedPeriods.filter(m => {
-      if (paidMonths.includes(m)) return false;
-      return isPeriodOverdue(m, currentYear, plan.meetingsStartMonth);
-    });
-
-    if (unpaidMonths.length > 0) {
-      const studentFee = financialConfigService.resolveFee({
-        year: currentYear,
-        classId: student.class_id || studentClass?.id,
-        className: studentClass?.name,
-        studentClass,
-        student,
-        subjectId: (student as any).subject_id || (student as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
-        courseName: studentClass?.course || (student as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
-        period: (student as any).period || studentClass?.period
-      });
-
-      return {
-        months: unpaidMonths,
-        count: unpaidMonths.length,
-        studentFee,
-        totalEstimated: unpaidMonths.length * studentFee
-      };
-    }
-
-    return null;
-  }, [selectedStudentId, studentContributions, students, classes, academicSettingsList]);
-
-  // Handle auto-selection when coming from other screens (e.g. Ficha Acadêmica button in Students)
-  useEffect(() => {
-    const passedStudentId = location.state?.studentId;
-    if (passedStudentId && students.length > 0) {
-      const targetStudent = students.find(s => s.id === passedStudentId);
-      if (targetStudent) {
-        setSearchTerm(targetStudent.name || '');
-        setSelectedStudentId(targetStudent.id);
-        // Clear the history state to prevent re-opening on manual refresh or back navigations
-        try {
-          window.history.replaceState({}, document.title);
-        } catch (e) {
-          console.warn("Could not clear router state", e);
-        }
-      }
-    }
-  }, [location.state, students]);
   
   // Academic Configs
   const [academicParams, setAcademicParams] = useState({
@@ -591,6 +523,76 @@ export function StudentFicha() {
     });
   }, [students, classes, selectedUnitId, activeUnits]);
 
+  // Compute unpaid months alert for the current year
+  const unpaidMonthsAlert = useMemo(() => {
+    const student = scopedStudents.find(s => s.id === selectedStudentId);
+    if (!student || student.status !== 'Ativo') return null;
+
+    const currentYear = new Date().getFullYear();
+
+    const studentClass = classes.find(c => 
+      c.id === student.class_id ||
+      ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
+      ((student as any).course && c.course && c.course.trim().toLowerCase() === (student as any).course.trim().toLowerCase()) ||
+      ((student as any).course && c.name && c.name.toLowerCase().includes((student as any).course.toLowerCase()))
+    );
+
+    const classSettings = academicSettingsList.find(s => s.id === student.class_id || s.id === `academic_settings_${student.class_id}`);
+    const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+    const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
+    const activeSettings = classSettings || unitSettings;
+
+    const paidMonths = studentContributions.map(c => c.reference_month);
+    const plan = getStudentContributionPlan(student, studentClass, currentYear, paidMonths, activeSettings);
+
+    // Meses ou períodos vencidos até o momento atual
+    const unpaidMonths = plan.expectedPeriods.filter(m => {
+      if (paidMonths.includes(m)) return false;
+      return isPeriodOverdue(m, currentYear, plan.meetingsStartMonth);
+    });
+
+    if (unpaidMonths.length > 0) {
+      const studentFee = financialConfigService.resolveFee({
+        year: currentYear,
+        classId: student.class_id || studentClass?.id,
+        className: studentClass?.name,
+        studentClass,
+        student,
+        subjectId: (student as any).subject_id || (student as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+        courseName: studentClass?.course || (student as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+        period: (student as any).period || studentClass?.period
+      });
+
+      return {
+        months: unpaidMonths,
+        count: unpaidMonths.length,
+        studentFee,
+        totalEstimated: unpaidMonths.length * studentFee
+      };
+    }
+
+    return null;
+  }, [selectedStudentId, studentContributions, scopedStudents, classes, academicSettingsList]);
+
+  // Handle auto-selection when coming from other screens (bloqueia aluno de outro polo)
+  useEffect(() => {
+    const passedStudentId = location.state?.studentId;
+    if (passedStudentId && students.length > 0) {
+      const targetStudent = scopedStudents.find(s => s.id === passedStudentId);
+      if (targetStudent) {
+        setSearchTerm(targetStudent.name || '');
+        setSelectedStudentId(targetStudent.id);
+      } else if (students.some(s => s.id === passedStudentId)) {
+        setNotification({ type: 'error', message: 'Acesso restrito: este aluno pertence a outro polo/unidade.' });
+      }
+      try {
+        window.history.replaceState({}, document.title);
+      } catch (e) {
+        console.warn("Could not clear router state", e);
+      }
+    }
+  }, [location.state, students, scopedStudents]);
+
   // Sidebar list of students: searches across active unit students
   const filteredStudentsList = useMemo(() => {
     const term = searchTerm.trim();
@@ -624,9 +626,16 @@ export function StudentFicha() {
 
 
 
+  useEffect(() => {
+    if (selectedStudentId && students.length > 0 && !scopedStudents.some(s => s.id === selectedStudentId)) {
+      setSelectedStudentId('');
+      setSearchTerm('');
+    }
+  }, [selectedStudentId, students.length, scopedStudents]);
+
   const activeStudent = useMemo(() => {
-    return students.find(s => s.id === selectedStudentId);
-  }, [students, selectedStudentId]);
+    return scopedStudents.find(s => s.id === selectedStudentId);
+  }, [scopedStudents, selectedStudentId]);
 
   // Calculate current active student metrics
   const activeStudentMetrics = useMemo(() => {
@@ -635,8 +644,12 @@ export function StudentFicha() {
     const classId = activeStudent.class_id;
     const cls = classId ? classes.find(c => c.id === classId) : null;
     
-    // Class school days according to official calendar & class schedule
-    const classSchoolDays = getClassSchoolDays(cls, calendarEvents, academicSettings, attendanceData);
+    // Class school days according to official calendar & independent unit schedule
+    const studentUnit = getItemUnitId(activeStudent) || (cls ? getItemUnitId(cls) : 'matriz');
+    const { settings: unitResolvedSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
+    const classSettings = cls ? academicSettingsList.find(s => s && (s.id === cls.id || s.id === `academic_settings_${cls.id}`)) : null;
+    const effectiveAcademicSettings = classSettings || unitResolvedSettings;
+    const classSchoolDays = getClassSchoolDays(cls, calendarEvents, effectiveAcademicSettings, attendanceData);
     const scheduledDaysByMonth = getScheduledDaysByMonth(classSchoolDays);
     
     // Total scheduled days in this specific class
@@ -873,7 +886,7 @@ export function StudentFicha() {
       studentDocs,
       finalStatus
     };
-  }, [activeStudent, classes, subjects, assessments, dbGrades, attendanceData, certificates, academicParams, calendarEvents, academicSettings]);
+  }, [activeStudent, classes, subjects, assessments, dbGrades, attendanceData, certificates, academicParams, calendarEvents, academicSettingsList]);
 
   const handleIssueCertificate = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -176,6 +176,10 @@ export function Receipts() {
   };
 
   const handleStartEdit = (receipt: Receipt) => {
+    if (selectedUnitId && selectedUnitId !== 'all' && !isItemInUnit(getItemUnitId(receipt), selectedUnitId, activeUnits)) {
+      setNotification({ type: 'error', message: 'Acesso restrito: este recibo pertence a outra unidade/polo.' });
+      return;
+    }
     setEditingReceipt(receipt);
     setReceiptNumber(receipt.receipt_number);
     setAmount(receipt.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -406,6 +410,12 @@ export function Receipts() {
   const handleDeleteReceipt = async (id: string) => {
     if (!canDelete) {
       setNotification({ type: 'error', message: 'Ação não permitida: O perfil de Assistente é vedado de excluir recibos.' });
+      setDeleteConfirmationFor(null);
+      return;
+    }
+    const targetReceipt = receipts.find(r => r.id === id);
+    if (targetReceipt && selectedUnitId && selectedUnitId !== 'all' && !isItemInUnit(getItemUnitId(targetReceipt), selectedUnitId, activeUnits)) {
+      setNotification({ type: 'error', message: 'Acesso restrito: este recibo pertence a outra unidade/polo.' });
       setDeleteConfirmationFor(null);
       return;
     }

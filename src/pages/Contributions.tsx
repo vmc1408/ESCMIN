@@ -16,14 +16,8 @@ import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { PinInput } from '../components/PinInput';
-import { 
-  getStudentContributionPlan, 
-  formatContributionMonth, 
-  isFirstYearOrStarting,
-  isPeriodOverdue,
-  isPeriodFuture,
-  isPeriodCurrent
-} from '../lib/contributionRules';
+import { isPeriodOverdue, isPeriodFuture, isPeriodCurrent, getStudentContributionPlan, formatContributionMonth, isFirstYearOrStarting } from '../lib/contributionRules';
+import { resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -114,7 +108,7 @@ export function Contributions() {
   const location = useLocation();
   const initialStudentId = (location.state as any)?.studentId;
   const requestedViewMode = (location.state as any)?.viewMode || (location.state as any)?.tab;
-  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName, isRestricted, canSwitchUnit } = useUnits();
   
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,6 +267,15 @@ export function Contributions() {
     if (!selectedUnitId || selectedUnitId === 'all') return classes;
     return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
   }, [classes, selectedUnitId, activeUnits]);
+
+  const isStudentInActiveUnit = useCallback((student: Student | null | undefined, extraClasses?: Class[]) => {
+    if (!student) return false;
+    if (!selectedUnitId || selectedUnitId === 'all') return true;
+    const poolClasses = extraClasses && extraClasses.length > 0 ? extraClasses : classes;
+    const studentClass = resolveStudentClass(student) || poolClasses.find(c => String(c.id).trim() === String(student.class_id || '').trim());
+    const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+    return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+  }, [classes, resolveStudentClass, selectedUnitId, activeUnits]);
   const [institution, setInstitution] = useState<any>(null);
   const [selectedForPrint, setSelectedForPrint] = useState<Contribution[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -302,8 +305,9 @@ export function Contributions() {
 
     const studentClass = resolveStudentClass(student);
     const classSettings = academicSettingsList.find(s => s.id === student.class_id);
-    const generalSettings = academicSettingsList.find(s => s.id === 'current');
-    const activeSettings = classSettings || generalSettings;
+    const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+    const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
+    const activeSettings = classSettings || unitSettings;
 
     const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings);
     return plan.expectedPeriods;
@@ -485,7 +489,20 @@ export function Contributions() {
     setIsPrinting(true);
   };
 
-  const fetchRecentContributions = async () => {
+  // Clear selected student and refresh recent contributions when active polo changes
+  useEffect(() => {
+    if (selectedStudent && selectedUnitId && selectedUnitId !== 'all' && classes.length > 0) {
+      if (!isStudentInActiveUnit(selectedStudent)) {
+        setSelectedStudent(null);
+        setContributions([]);
+        setFormRAInput('');
+        setFormNameInput('');
+      }
+    }
+    fetchRecentContributions();
+  }, [selectedUnitId, classes.length]);
+
+  const fetchRecentContributions = async (loadedClasses?: Class[]) => {
     const fifteenDaysAgo = new Date();
     fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
     const fifteenDaysAgoStr = fifteenDaysAgo.toISOString().split('T')[0];
@@ -502,9 +519,22 @@ export function Contributions() {
         }
         return { ...c, student };
       }));
-      setRecentContributions(dataWithStudents as any);
+
+      const scopedRecent = (!selectedUnitId || selectedUnitId === 'all')
+        ? dataWithStudents
+        : dataWithStudents.filter((c: any) => {
+            const st = c.student;
+            const poolClasses = loadedClasses && loadedClasses.length > 0 ? loadedClasses : classes;
+            const matchedCls = st
+              ? (resolveStudentClass(st) || poolClasses.find(cl => String(cl.id).trim() === String(st.class_id || '').trim()))
+              : undefined;
+            const itemUnit = c.unit_id || (st ? getItemUnitId(st) : undefined) || (matchedCls ? getItemUnitId(matchedCls) : 'matriz');
+            return isItemInUnit(itemUnit, selectedUnitId, activeUnits);
+          });
+
+      setRecentContributions(scopedRecent as any);
       if (!selectedStudent && viewMode === 'individual' && !initialStudentId) {
-        setPeriodData(dataWithStudents as any);
+        setPeriodData(scopedRecent as any);
       }
     } catch (error) {
       console.error('Error fetching recent:', error);
@@ -546,16 +576,27 @@ export function Contributions() {
       const activeStuds = (rawStudents || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
       allStudentsCacheRef.current = activeStuds;
       setAllActiveStudents(activeStuds as Student[]);
+      fetchRecentContributions(normalizedClasses);
 
       if (initialStudentId) {
         const studentData = await fetchById('students', initialStudentId);
         
         if (studentData) {
           const typedStudent = studentData as Student;
-          setSelectedStudent(typedStudent);
-          setStudents([typedStudent]);
-          setViewMode('individual');
-          fetchContributions(typedStudent.id, selectedYear);
+          const matchedCls = normalizedClasses.find((c: any) => String(c.id).trim() === String(typedStudent.class_id || '').trim());
+          const stUnit = getItemUnitId(typedStudent) || (matchedCls ? getItemUnitId(matchedCls) : 'matriz');
+          if (selectedUnitId && selectedUnitId !== 'all' && !isItemInUnit(stUnit, selectedUnitId, activeUnits)) {
+            setNotification({
+              type: 'error',
+              message: 'Acesso restrito: este aluno pertence a outro polo/unidade e não pode ser acessado.'
+            });
+            window.history.replaceState({}, document.title);
+          } else {
+            setSelectedStudent(typedStudent);
+            setStudents([typedStudent]);
+            setViewMode('individual');
+            fetchContributions(typedStudent.id, selectedYear);
+          }
         }
       }
     } catch (error) {
@@ -868,8 +909,9 @@ export function Contributions() {
     if (!selectedStudent) return null;
     const studentClass = resolveStudentClass(selectedStudent);
     const classSettings = academicSettingsList.find(s => s.id === selectedStudent.class_id);
-    const generalSettings = academicSettingsList.find(s => s.id === 'current');
-    const activeSettings = classSettings || generalSettings;
+    const studentUnit = getItemUnitId(selectedStudent) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+    const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
+    const activeSettings = classSettings || unitSettings;
     const paidMonths = contributions.map(c => c.reference_month);
     return getStudentContributionPlan(selectedStudent, studentClass, selectedYear, paidMonths, activeSettings);
   }, [selectedStudent, selectedYear, contributions, academicSettingsList, classes]);
@@ -1123,6 +1165,13 @@ export function Contributions() {
   }, [selectedYear, selectedStudent]);
 
   const handleSelectStudent = (student: Student) => {
+    if (!isStudentInActiveUnit(student)) {
+      setNotification({
+        type: 'error',
+        message: 'Acesso restrito: este aluno pertence a outro polo/unidade e não pode ser acessado.'
+      });
+      return;
+    }
     setSelectedStudent(student);
     setSelectedForPrint([]);
     setIsResultsCollapsed(true);
@@ -1130,6 +1179,13 @@ export function Contributions() {
   };
 
   const handleSelectStudentForForm = useCallback((student: Student) => {
+    if (!isStudentInActiveUnit(student)) {
+      setNotification({
+        type: 'error',
+        message: 'Acesso restrito: este aluno pertence a outro polo/unidade e não pode ser acessado.'
+      });
+      return;
+    }
     setSelectedStudent(student);
     setIsSearchModalOpen(false);
     setSelectedHistoryId(null);
@@ -1168,22 +1224,44 @@ export function Contributions() {
       monthInputRef.current?.focus();
       monthInputRef.current?.select();
     }, 120);
-  }, [resolveStudentClass, selectedYear, financialSettings]);
+  }, [resolveStudentClass, isStudentInActiveUnit, selectedYear, financialSettings]);
 
   // Busca rápida por RA ao pressionar Enter ou perder foco no input de RA
   const handleLookupByRA = (raValue: string) => {
     const cleanRA = raValue.trim().toLowerCase();
     if (!cleanRA) return;
-    const found = allActiveStudents.find(s => 
-      (s.registration_number && s.registration_number.toLowerCase().includes(cleanRA)) ||
-      (s.id && s.id === cleanRA)
+    const scopedPool = (!selectedUnitId || selectedUnitId === 'all')
+      ? allActiveStudents
+      : allActiveStudents.filter(s => isStudentInActiveUnit(s));
+
+    const found = scopedPool.find(s =>
+      (s.registration_number && s.registration_number.toLowerCase() === cleanRA) ||
+      (s.id && s.id.toLowerCase() === cleanRA)
+    ) || scopedPool.find(s =>
+      s.registration_number && s.registration_number.toLowerCase().includes(cleanRA)
     );
+
     if (found) {
       handleSelectStudentForForm(found);
-    } else {
-      setSearchModalQuery(cleanRA);
-      setIsSearchModalOpen(true);
+      return;
     }
+
+    const outsideUnitMatch = allActiveStudents.find(s =>
+      (s.registration_number && s.registration_number.toLowerCase().includes(cleanRA)) ||
+      (s.id && s.id.toLowerCase() === cleanRA)
+    );
+    if (outsideUnitMatch) {
+      setNotification({
+        type: 'error',
+        message: 'Acesso restrito: este código de matrícula (RA) pertence a outro polo/unidade e não pode ser acessado.'
+      });
+      setFormRAInput('');
+      setSelectedStudent(null);
+      return;
+    }
+
+    setSearchModalQuery(cleanRA);
+    setIsSearchModalOpen(true);
   };
 
   // Busca rápida por Nome do Aluno
@@ -1192,11 +1270,7 @@ export function Contributions() {
     if (!clean) return;
     const pool = (!selectedUnitId || selectedUnitId === 'all')
       ? allActiveStudents
-      : allActiveStudents.filter(student => {
-          const studentClass = resolveStudentClass(student);
-          const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
-          return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
-        });
+      : allActiveStudents.filter(student => isStudentInActiveUnit(student));
     const exact = pool.find(s => s.name.trim().toLowerCase() === clean);
     if (exact) {
       handleSelectStudentForForm(exact);
@@ -1209,6 +1283,16 @@ export function Contributions() {
       setNameSuggestions(matches.slice(0, 8));
       setIsSuggestionsOpen(true);
     } else {
+      const outsideUnitMatch = allActiveStudents.find(s => s.name.toLowerCase().includes(clean));
+      if (outsideUnitMatch) {
+        setNotification({
+          type: 'error',
+          message: 'Acesso restrito: aluno(s) encontrado(s) apenas em outro polo/unidade.'
+        });
+        setFormNameInput('');
+        setSelectedStudent(null);
+        return;
+      }
       setSearchModalQuery(clean);
       setIsSearchModalOpen(true);
     }

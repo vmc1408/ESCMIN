@@ -404,7 +404,7 @@ export function Documents() {
     });
   }, [certificates, students, classes, selectedUnitId, activeUnits]);
 
-  // Auto clear selected class if not in scopedClasses
+  // Auto clear selected class or student if not in active unit
   useEffect(() => {
     if (selectedClassId && scopedClasses.length > 0) {
       const exists = scopedClasses.some(c => c.id === selectedClassId);
@@ -413,6 +413,12 @@ export function Documents() {
       }
     }
   }, [selectedClassId, scopedClasses]);
+
+  useEffect(() => {
+    if (selectedFichaStudentId && students.length > 0 && !scopedStudents.some(s => s.id === selectedFichaStudentId)) {
+      setSelectedFichaStudentId('');
+    }
+  }, [selectedFichaStudentId, students.length, scopedStudents]);
   
   // Modals / Issue Action State
   const [isIssuing, setIsIssuing] = useState(false);
@@ -651,7 +657,7 @@ export function Documents() {
       });
   }, [selectedClassId, classObj, classes, students, enrollments, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
 
-  const fichaStudent = students.find(s => s.id === selectedFichaStudentId);
+  const fichaStudent = scopedStudents.find(s => s.id === selectedFichaStudentId);
 
   const studentFichaData = React.useMemo(() => {
     if (!fichaStudent) return null;
@@ -826,9 +832,9 @@ export function Documents() {
     e.preventDefault();
     if (!userAuth) return;
 
-    const student = students.find(s => s.id === formData.student_id);
+    const student = scopedStudents.find(s => s.id === formData.student_id);
     if (!student) {
-      showToast('error', 'Estudante não encontrado.');
+      showToast('error', 'Estudante não encontrado ou pertence a outro polo/unidade.');
       return;
     }
 
@@ -1677,7 +1683,7 @@ export function Documents() {
                 {/* Requisitions Validation Alert */}
                 {(() => {
                   const currentStudId = formData.student_id || (issuingStudentData?.student.id);
-                  const currentStud = students.find(s => s.id === currentStudId);
+                  const currentStud = scopedStudents.find(s => s.id === currentStudId);
                   if (!currentStud) return null;
 
                   const foundCs = calculatedClassStudents.find(c => c.student.id === currentStud.id) || issuingStudentData;
@@ -1766,7 +1772,7 @@ export function Documents() {
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                       >
                         <option value="">Selecione o aluno...</option>
-                        {students.map((s, sIdx) => <option key={`doc-form-st-${s.id || sIdx}-${sIdx}`} value={s.id}>{s.name} ({formatRegistrationNumber(s.registration_number)})</option>)}
+                        {scopedStudents.map((s, sIdx) => <option key={`doc-form-st-${s.id || sIdx}-${sIdx}`} value={s.id}>{s.name} ({formatRegistrationNumber(s.registration_number)})</option>)}
                       </select>
                     </div>
                   )}
@@ -1842,7 +1848,7 @@ export function Documents() {
                     disabled={(() => {
                       const currentStudId = formData.student_id || (issuingStudentData?.student.id);
                       if (!currentStudId) return true;
-                      const currentStud = students.find(s => s.id === currentStudId);
+                      const currentStud = scopedStudents.find(s => s.id === currentStudId);
                       if (!currentStud) return true;
 
                       const foundCs = calculatedClassStudents.find(c => c.student.id === currentStud.id) || issuingStudentData;
@@ -1969,7 +1975,7 @@ export function Documents() {
 
                         {renderCertificateInnerContent(
                            viewingCertificate.type,
-                           viewingCertificate.student_name || students.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
+                           viewingCertificate.student_name || scopedStudents.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
                            viewingCertificate.course || '',
                            viewingCertificate.issuance_date,
                            institution
@@ -2081,7 +2087,7 @@ export function Documents() {
              {/* Certificate Content Parser */}
              {renderCertificateInnerContent(
                 viewingCertificate.type,
-                viewingCertificate.student_name || students.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
+                viewingCertificate.student_name || scopedStudents.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
                 viewingCertificate.course || '',
                 viewingCertificate.issuance_date,
                 institution

@@ -252,7 +252,7 @@ export function PixConference() {
     if (activeTab === 'new' || activeTab === 'extrato') {
       fetchRegisteredPixIds();
     }
-  }, [activeTab]);
+  }, [activeTab, selectedUnitId]);
 
   const fetchRegisteredPixIds = async () => {
     try {
@@ -306,15 +306,26 @@ export function PixConference() {
     setHistoryLoading(true);
     try {
       const raw = await fetchAll('pix_reconciliations', '*', 'created_at', true);
+      const scopedStudentIds = new Set(scopedStudents.map(s => s.id));
       
       // Group by batch_id
       const grouped = (raw || []).reduce((acc: any, curr: any) => {
         const batchId = curr.batch_id || 'sem-lote';
         const isMeta = (curr.transaction_id && curr.transaction_id.startsWith('META_BATCH_')) || curr.origin_bank === 'METADATA_ROW';
+
+        if (selectedUnitId && selectedUnitId !== 'all') {
+          if (curr.unit_id && !isItemInUnit(curr.unit_id, selectedUnitId, activeUnits)) {
+            return acc;
+          }
+          if (!isMeta && curr.matched_student_id && scopedStudents.length > 0 && !scopedStudentIds.has(curr.matched_student_id)) {
+            return acc;
+          }
+        }
         
         if (!acc[batchId]) {
           acc[batchId] = {
             batch_id: batchId,
+            unit_id: curr.unit_id || null,
             file_name: 'Arquivo sem nome',
             created_at: curr.created_at || new Date().toISOString(),
             payer_name: curr.payer_name || 'N/A',
@@ -328,14 +339,15 @@ export function PixConference() {
         if (isMeta) {
           // Update the batch's file_name with the persisted custom name stored in payer_name
           acc[batchId].file_name = curr.payer_name || 'Arquivo sem nome';
+          if (curr.unit_id) acc[batchId].unit_id = curr.unit_id;
           if (curr.created_at) {
             acc[batchId].created_at = curr.created_at;
           }
         } else {
-          // Link student locally if we have them in state
+          // Link student locally if we have them in scoped state
           try {
-            if (curr.matched_student_id && students && students.length > 0) {
-              curr.student = students.find(s => s.id === curr.matched_student_id);
+            if (curr.matched_student_id && scopedStudents && scopedStudents.length > 0) {
+              curr.student = scopedStudents.find(s => s.id === curr.matched_student_id);
             }
           } catch (err) {
             console.warn('Error linking student in history:', err);
@@ -353,9 +365,13 @@ export function PixConference() {
         return acc;
       }, {});
 
-      // For any batches that did not have any metadata record (like legacy or manual single edits), fallback cleanly
+      // Filter out batches whose transactions were entirely filtered out by unit scoping
       Object.keys(grouped).forEach(batchId => {
         const b = grouped[batchId];
+        if (!b.transactions || b.transactions.length === 0) {
+          delete grouped[batchId];
+          return;
+        }
         if (b.file_name === 'Arquivo sem nome' || !b.file_name) {
           const firstTx = b.transactions[0];
           if (firstTx && firstTx.file_name) {
@@ -892,7 +908,7 @@ export function PixConference() {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const student = students.find(s => s.id === t.matched_student_id);
+      const student = scopedStudents.find(s => s.id === t.matched_student_id);
       const term = searchQuery.trim();
       const matchesSearch = !term || 
                            matchesSearchText(t.payer_name, term) || 
@@ -901,16 +917,23 @@ export function PixConference() {
       const matchesFilter = filter === 'all' || t.status === filter;
       return matchesSearch && matchesFilter;
     });
-  }, [transactions, searchQuery, filter, students]);
+  }, [transactions, searchQuery, filter, scopedStudents]);
 
   const historyByMonth = useMemo(() => {
     const months: { [key: string]: any[] } = {};
     const term = historySearchQuery.trim();
     
     history.forEach(batch => {
-      // Filter transactions inside the batch based on history search and filter
+      if (selectedUnitId && selectedUnitId !== 'all' && batch.unit_id && !isItemInUnit(batch.unit_id, selectedUnitId, activeUnits)) {
+        return;
+      }
+      // Filter transactions inside the batch based on history search, filter, and active unit
       const filteredTransactions = batch.transactions.filter((t: any) => {
-        const student = t.student;
+        if (selectedUnitId && selectedUnitId !== 'all') {
+          if (t.unit_id && !isItemInUnit(t.unit_id, selectedUnitId, activeUnits)) return false;
+          if (t.matched_student_id && scopedStudents.length > 0 && !scopedStudents.some(s => s.id === t.matched_student_id)) return false;
+        }
+        const student = t.student || (t.matched_student_id ? scopedStudents.find(s => s.id === t.matched_student_id) : undefined);
         const matchesSearch = !term ||
                              matchesSearchText(t.payer_name, term) || 
                              matchesSearchText(t.origin_bank, term) ||
@@ -943,7 +966,7 @@ export function PixConference() {
         batches: months[key]
       };
     });
-  }, [history, historySearchQuery, historyFilter]);
+  }, [history, historySearchQuery, historyFilter, selectedUnitId, activeUnits, scopedStudents]);
 
   const stats = useMemo(() => ({
     total: transactions.length,
@@ -1398,6 +1421,7 @@ export function PixConference() {
       console.info(`Salvando ${total} registros de conciliação...`);
 
       // Persist the custom batch name via an isolated metadata row
+      const activeSaveUnitId = selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz';
       try {
         const metaDocId = crypto.randomUUID();
         const metaDataToSave = {
@@ -1407,6 +1431,7 @@ export function PixConference() {
           origin_bank: 'METADATA_ROW',
           amount: 0,
           status: 'unmatched',
+          unit_id: activeSaveUnitId,
           date: new Date().toISOString(),
           created_at: new Date().toISOString()
         };
@@ -1425,6 +1450,10 @@ export function PixConference() {
         
         const existingId = reconciliationMap.get(String(t.transaction_id));
         const docId = existingId || crypto.randomUUID();
+        const matchedStudent = isMatched ? scopedStudents.find(s => s.id === t.matched_student_id) : undefined;
+        const rowUnitId = matchedStudent
+          ? (getItemUnitId(matchedStudent) || classes.find(c => c.id === matchedStudent.class_id)?.unit_id || activeSaveUnitId)
+          : activeSaveUnitId;
         
         const dataToSave = {
           batch_id: t.batch_id || sessionBatchId,
@@ -1435,6 +1464,7 @@ export function PixConference() {
           origin_bank: t.origin_bank,
           amount: Number(t.amount) || 0,
           status: t.status,
+          unit_id: rowUnitId,
           matched_student_id: (isMatched && isValidUUID(t.matched_student_id)) ? t.matched_student_id : null,
           created_at: new Date().toISOString()
         };
@@ -1526,7 +1556,7 @@ export function PixConference() {
 
       // Table Data
       const tableData = transactions.map(t => {
-        const student = students.find(s => s.id === t.matched_student_id);
+        const student = scopedStudents.find(s => s.id === t.matched_student_id);
         const className = student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : '';
         
         let statusSymbol = '-';
@@ -1743,11 +1773,11 @@ export function PixConference() {
     try {
       const user = userAuth;
       const totalAmount = registeringContribution.amount;
-      const studentData = registeringContribution.student || students.find(s => s.id === registeringContribution.matched_student_id);
+      const studentData = registeringContribution.student || scopedStudents.find(s => s.id === registeringContribution.matched_student_id);
       const studentId = studentData?.id || registeringContribution.matched_student_id;
       
-      if (!studentId) {
-        throw new Error("Aluno não identificado para este registro.");
+      if (!studentId || (selectedUnitId && selectedUnitId !== 'all' && !scopedStudents.some(s => s.id === studentId))) {
+        throw new Error("Aluno não identificado ou pertence a outro polo/unidade.");
       }
 
       const amountPerMonth = totalAmount / selectedPeriods.length;
@@ -1788,7 +1818,7 @@ export function PixConference() {
         return;
       }
 
-      const studentObj = registeringContribution.student || students.find(s => s.id === studentId);
+      const studentObj = registeringContribution.student || scopedStudents.find(s => s.id === studentId);
       const studentUnitId = getItemUnitId(studentObj) || (classes.find(c => c.id === studentObj?.class_id)?.unit_id) || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
 
       const newContribs = selectedPeriods.map(period => ({
@@ -1814,7 +1844,7 @@ export function PixConference() {
         setRegisteredPixIds(prev => new Set([...Array.from(prev), String(currentPixId)]));
       }
 
-      const student = registeringContribution.student || students.find(s => s.id === studentId);
+      const student = registeringContribution.student || scopedStudents.find(s => s.id === studentId);
       setNotification({ type: 'success', message: 'Contribuições registradas com sucesso!' });
       
       if (confirm(`Deseja emitir o recibo para os ${selectedPeriods.length} períodos agora?`)) {
@@ -2381,7 +2411,7 @@ export function PixConference() {
                                 <div className="max-w-[280px]">
                                   <p className="text-xs font-bold text-slate-900 line-clamp-1">
                                     {(() => {
-                                      const student = students.find(s => s.id === t.matched_student_id);
+                                      const student = scopedStudents.find(s => s.id === t.matched_student_id);
                                       if (!student) return 'Não identificado';
                                       const className = classes.find(c => c.id === student.class_id)?.name || 'Sem Turma';
                                       return `${student.name} (${formatRegistrationNumber(student.registration_number)})`;
@@ -2791,7 +2821,7 @@ export function PixConference() {
                                               <div>
                                                 <p className="text-xs font-bold text-slate-800 tracking-tight uppercase">
                                                   {(() => {
-                                                    const student = students.find(s => s.id === t.matched_student_id);
+                                                    const student = scopedStudents.find(s => s.id === t.matched_student_id);
                                                     return student ? student.name : `Aluno ID: ${t.matched_student_id}`;
                                                   })()}
                                                 </p>
@@ -2803,7 +2833,7 @@ export function PixConference() {
                                                   )}
                                                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">
                                                     {(() => {
-                                                      const student = students.find(s => s.id === t.matched_student_id);
+                                                      const student = scopedStudents.find(s => s.id === t.matched_student_id);
                                                       return student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : 'N/I';
                                                     })()}
                                                   </span>
@@ -3266,7 +3296,7 @@ export function PixConference() {
                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 relative group hover:bg-white hover:border-indigo-100 transition-all duration-300">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Aluno Selecionado</p>
                   <p className="text-xl font-bold text-slate-900 tracking-tight">
-                    {(registeringContribution.student || students.find((s: any) => s.id === registeringContribution.matched_student_id))?.name}
+                    {(registeringContribution.student || scopedStudents.find((s: any) => s.id === registeringContribution.matched_student_id))?.name}
                   </p>
                   <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
                     <span className="text-sm font-bold text-slate-500">Valor do Recebimento</span>
@@ -3490,7 +3520,7 @@ export function PixConference() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {transactions.map((t, i) => {
-                            const student = students.find(s => s.id === t.matched_student_id);
+                            const student = scopedStudents.find(s => s.id === t.matched_student_id);
                             const className = student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : '';
                             
                             return (
@@ -3807,7 +3837,7 @@ export function PixConference() {
           </thead>
           <tbody>
             {transactions.map((t, i) => {
-              const student = students.find(s => s.id === t.matched_student_id);
+              const student = scopedStudents.find(s => s.id === t.matched_student_id);
               const className = student ? (classes.find(c => c.id === student.class_id)?.name || '---') : '---';
               return (
                 <tr key={`print-tx-${t.transaction_id || t.id || i}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
