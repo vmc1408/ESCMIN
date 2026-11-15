@@ -109,18 +109,18 @@ export function Navbar() {
 
   return (
     <>
-      <header className="h-14 bg-white border-b border-slate-200 z-50 relative print:hidden shrink-0">
+      <header className="h-16 bg-white border-b border-slate-200 z-50 relative print:hidden shrink-0">
         <div className="h-full max-w-[1560px] w-full mx-auto px-3 sm:px-4 md:px-5 flex items-center justify-between gap-2 md:gap-4">
           {/* Lado Esquerdo: Logo e Instituição (Clique volta para a tela inicial sem animação) */}
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
-            <div className="lg:hidden w-8" />
+            <div className="lg:hidden w-9" />
             
             <Link 
               to="/" 
               className="flex items-center gap-2.5 sm:gap-3 select-none cursor-pointer group"
               title="Voltar para a tela inicial"
             >
-              <div className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-transparent transition-transform duration-200 group-hover:scale-105">
+              <div className="flex-shrink-0 w-[52px] h-12 flex items-center justify-center bg-transparent transition-transform duration-200 group-hover:scale-105">
                 <img 
                   src={institution?.logo_url || DEFAULT_LOGO} 
                   alt={institution?.name || "Logo"}
