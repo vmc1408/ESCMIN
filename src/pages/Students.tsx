@@ -642,14 +642,18 @@ export function Students() {
     fetchForaries();
     fetchAllEnrollments();
     fetchInstitution();
-    // Run background integrity check to clean historical orphan enrollments and identify courses
-    cleanOrphanEnrollments().catch(() => {});
-    autoIdentifyAllStudentsCourses().then(res => {
-      if (res.updatedStudents > 0) {
-        fetchStudents();
-      }
-    }).catch(() => {});
-  }, [fetchStudents]);
+    // Run background integrity check once per session to avoid redundant full-table queries on every navigation
+    const integrityKey = 'escmin_students_integrity_checked';
+    if (canDelete && !sessionStorage.getItem(integrityKey)) {
+      sessionStorage.setItem(integrityKey, '1');
+      cleanOrphanEnrollments().catch(() => {});
+      autoIdentifyAllStudentsCourses().then(res => {
+        if (res.updatedStudents > 0) {
+          fetchStudents();
+        }
+      }).catch(() => {});
+    }
+  }, [fetchStudents, canDelete]);
 
   const fetchInstitution = async () => {
     try {

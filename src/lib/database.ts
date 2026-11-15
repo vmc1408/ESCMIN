@@ -30,45 +30,7 @@ export const clearAllDatabaseFallbacks = () => {
 // Executa na inicialização do módulo
 clearAllDatabaseFallbacks();
 
-// Funções mantidas para compatibilidade de tipagem/importações, operando sem cache local
-export const isTableUsingFallback = (_tableName?: string): boolean => false;
-
-export const setTableUsingFallback = (tableName: string, _active?: boolean) => {
-  try {
-    localStorage.removeItem(`db_fallback_active_${tableName}`);
-    localStorage.removeItem(`db_fallback_${tableName}`);
-  } catch (e) {}
-};
-
-export const getLocalCollection = (_collectionName: string): any[] => [];
-
-export const saveLocalCollection = (_collectionName: string, _data: any[]) => {};
-
-export const saveLocalItem = (_collectionName: string, id: string, _item: any) => id;
-
 export const deleteLocalItem = (_collectionName: string, _id: string) => {};
-
-export const isDatabaseMissingOrCacheError = (err: any): boolean => {
-  if (!err) return false;
-  const msg = (typeof err === 'string' ? err : err.message || err.details || String(err)).toLowerCase();
-  const code = String(err.code || '').toLowerCase();
-  
-  if (msg.includes('column') || msg.includes('property')) {
-    return false;
-  }
-  
-  return (
-    (msg.includes('relation') && msg.includes('does not exist')) ||
-    msg.includes('could not find the table') ||
-    (msg.includes('table') && msg.includes('not found')) ||
-    (msg.includes('table') && msg.includes('does not exist')) ||
-    (msg.includes('table') && msg.includes('schema cache')) ||
-    code === '42p01' ||
-    code === 'pgrst205'
-  );
-};
-
-export const tryRecoveryFromFallback = async (_collectionName: string) => false;
 
 // Helper to handle Errors
 export interface DbErrorInfo {

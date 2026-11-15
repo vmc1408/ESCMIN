@@ -1,45 +1,56 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import React, { Component, ReactNode, ErrorInfo } from 'react';
+import React, { Component, ReactNode, ErrorInfo, Suspense, lazy } from 'react';
 import { Layout } from './components/Layout';
-// ... other imports repeated here for context if needed, but I'll replace the block
-import { Dashboard } from './pages/Dashboard';
-import { Students } from './pages/Students';
-import { Teachers } from './pages/Teachers';
-import { Courses } from './pages/Courses';
-import { Classes } from './pages/Classes';
-import { Subjects } from './pages/Subjects';
-import { CadastrosRelatorios } from './pages/CadastrosRelatorios';
-import { AcademicCalendar } from './pages/AcademicCalendar';
-import { Attendance } from './pages/Attendance';
-import { Grades } from './pages/Grades';
-import { Assessments } from './pages/Assessments';
-import { Bulletin } from './pages/Bulletin';
-import { Documents } from './pages/Documents';
-import { Impressos } from './pages/Impressos';
-import { StudentFicha } from './pages/StudentFicha';
-import { Diocese } from './pages/Diocese';
-import { Import } from './pages/Import';
-import { Reports } from './pages/Reports';
-import { FinancialDashboard } from './pages/FinancialDashboard';
-import { Contributions } from './pages/Contributions';
-import { FinancialReport } from './pages/FinancialReport';
-import { PixConference } from './pages/PixConference';
-import { Receipts } from './pages/Receipts';
-import { Settings } from './pages/Settings';
-import { BackupPage } from './pages/Backup';
-import { ArchivePage } from './pages/Archive';
-import { Users } from './pages/Users';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
 import { ImportProvider } from './contexts/ImportContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnitProvider } from './contexts/UnitContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { GlobalImportOverlay } from './components/GlobalImportOverlay';
 import { PinLock } from './components/PinLock';
 import { InactivityWarningModal } from './components/InactivityWarningModal';
 import { GlobalTooltipProvider } from './components/GlobalTooltipProvider';
+import { isSupabaseConfigured, clearCorruptedAuthTokens } from './lib/supabase';
 import { AlertCircle, RefreshCw, Unplug } from 'lucide-react';
+
+// Code-splitting por módulo (carregamento sob demanda das páginas autenticadas)
+const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Students = lazy(() => import('./pages/Students').then((m) => ({ default: m.Students })));
+const Teachers = lazy(() => import('./pages/Teachers').then((m) => ({ default: m.Teachers })));
+const Courses = lazy(() => import('./pages/Courses').then((m) => ({ default: m.Courses })));
+const Classes = lazy(() => import('./pages/Classes').then((m) => ({ default: m.Classes })));
+const Subjects = lazy(() => import('./pages/Subjects').then((m) => ({ default: m.Subjects })));
+const CadastrosRelatorios = lazy(() => import('./pages/CadastrosRelatorios').then((m) => ({ default: m.CadastrosRelatorios })));
+const AcademicCalendar = lazy(() => import('./pages/AcademicCalendar').then((m) => ({ default: m.AcademicCalendar })));
+const Attendance = lazy(() => import('./pages/Attendance').then((m) => ({ default: m.Attendance })));
+const Grades = lazy(() => import('./pages/Grades').then((m) => ({ default: m.Grades })));
+const Assessments = lazy(() => import('./pages/Assessments').then((m) => ({ default: m.Assessments })));
+const Bulletin = lazy(() => import('./pages/Bulletin').then((m) => ({ default: m.Bulletin })));
+const Documents = lazy(() => import('./pages/Documents').then((m) => ({ default: m.Documents })));
+const Impressos = lazy(() => import('./pages/Impressos').then((m) => ({ default: m.Impressos })));
+const StudentFicha = lazy(() => import('./pages/StudentFicha').then((m) => ({ default: m.StudentFicha })));
+const Diocese = lazy(() => import('./pages/Diocese').then((m) => ({ default: m.Diocese })));
+const Import = lazy(() => import('./pages/Import').then((m) => ({ default: m.Import })));
+const Reports = lazy(() => import('./pages/Reports').then((m) => ({ default: m.Reports })));
+const FinancialDashboard = lazy(() => import('./pages/FinancialDashboard').then((m) => ({ default: m.FinancialDashboard })));
+const Contributions = lazy(() => import('./pages/Contributions').then((m) => ({ default: m.Contributions })));
+const FinancialReport = lazy(() => import('./pages/FinancialReport').then((m) => ({ default: m.FinancialReport })));
+const PixConference = lazy(() => import('./pages/PixConference').then((m) => ({ default: m.PixConference })));
+const Receipts = lazy(() => import('./pages/Receipts').then((m) => ({ default: m.Receipts })));
+const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const BackupPage = lazy(() => import('./pages/Backup').then((m) => ({ default: m.BackupPage })));
+const ArchivePage = lazy(() => import('./pages/Archive').then((m) => ({ default: m.ArchivePage })));
+const Users = lazy(() => import('./pages/Users').then((m) => ({ default: m.Users })));
+
+function PageLoader() {
+  return (
+    <div className="min-h-[55vh] flex flex-col items-center justify-center gap-3 text-slate-500">
+      <div className="w-8 h-8 rounded-full border-3 border-teal-200 border-t-teal-600 animate-spin" />
+      <span className="text-xs font-semibold tracking-wide uppercase">Carregando módulo...</span>
+    </div>
+  );
+}
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -105,9 +116,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-import { useAuth } from './contexts/AuthContext';
-import { isSupabaseConfigured, clearCorruptedAuthTokens } from './lib/supabase';
-
 // Neutraliza erros não capturados de tokens de atualização inválidos/expirados do Supabase
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
@@ -139,8 +147,8 @@ export default function App() {
 }
 
 function AppContent() {
-  const { isConnected, connError, isLocked, user } = useAuth();
-  const [showDiagnostic, setShowDiagnostic] = React.useState(false);
+  const { isConnected, isLocked, user } = useAuth();
+  const [, setShowDiagnostic] = React.useState(false);
 
   React.useEffect(() => {
     let timer: any;
@@ -182,46 +190,48 @@ function AppContent() {
       {user && <InactivityWarningModal />}
       <ImportProvider>
         <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Dashboard />} />
-              <Route path="students" element={<ProtectedRoute requiredModule="/students"><Students /></ProtectedRoute>} />
-              <Route path="teachers" element={<ProtectedRoute requiredModule="/teachers"><Teachers /></ProtectedRoute>} />
-              <Route path="courses" element={<ProtectedRoute requiredModule="/courses"><Courses /></ProtectedRoute>} />
-              <Route path="classes" element={<ProtectedRoute requiredModule="/classes"><Classes /></ProtectedRoute>} />
-              <Route path="subjects" element={<ProtectedRoute requiredModule="/subjects"><Subjects /></ProtectedRoute>} />
-              <Route path="cadastros-relatorios" element={<ProtectedRoute requiredModule="/students"><CadastrosRelatorios /></ProtectedRoute>} />
-              <Route path="cadastros/relatorios" element={<ProtectedRoute requiredModule="/students"><CadastrosRelatorios /></ProtectedRoute>} />
-              <Route path="calendar" element={<ProtectedRoute requiredModule="/calendar"><AcademicCalendar /></ProtectedRoute>} />
-              <Route path="attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance initialMode="marking" /></ProtectedRoute>} />
-              <Route path="monthly-attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance initialMode="monthly" /></ProtectedRoute>} />
-              <Route path="grades" element={<ProtectedRoute requiredModule="/grades"><Grades /></ProtectedRoute>} />
-              <Route path="assessments" element={<ProtectedRoute requiredModule="/assessments"><Assessments /></ProtectedRoute>} />
-              <Route path="bulletin" element={<ProtectedRoute requiredModule="/grades"><Bulletin /></ProtectedRoute>} />
-              <Route path="documents" element={<ProtectedRoute requiredModule="/documents"><Documents /></ProtectedRoute>} />
-              <Route path="impressos" element={<ProtectedRoute requiredModule="/documents"><Impressos /></ProtectedRoute>} />
-              <Route path="student-ficha" element={<ProtectedRoute requiredModule="/students"><StudentFicha /></ProtectedRoute>} />
-              <Route path="parishes" element={<ProtectedRoute requiredModule="/parishes"><Diocese /></ProtectedRoute>} />
-              <Route path="import" element={<ProtectedRoute requiredModule="/import"><Import /></ProtectedRoute>} />
-              <Route path="reports" element={<ProtectedRoute requiredModule="/reports"><Reports /></ProtectedRoute>} />
-              <Route path="financial" element={<ProtectedRoute requiredModule="/contributions"><FinancialDashboard /></ProtectedRoute>} />
-              <Route path="contributions" element={<ProtectedRoute requiredModule="/contributions"><Contributions /></ProtectedRoute>} />
-              <Route path="financial-report" element={<ProtectedRoute requiredModule="/contributions"><FinancialReport /></ProtectedRoute>} />
-              <Route path="pix-conference" element={<ProtectedRoute requiredModule="/pix-conference"><PixConference /></ProtectedRoute>} />
-              <Route path="receipts" element={<ProtectedRoute requiredModule="/receipts"><Receipts /></ProtectedRoute>} />
-              <Route path="settings" element={<ProtectedRoute requiredModule="/settings"><Settings /></ProtectedRoute>} />
-              <Route path="backup" element={<ProtectedRoute requiredModule="/settings"><BackupPage /></ProtectedRoute>} />
-              <Route path="archive" element={<ProtectedRoute requiredModule="/settings"><ArchivePage /></ProtectedRoute>} />
-              <Route path="users" element={<ProtectedRoute requiredModule="/users"><Users /></ProtectedRoute>} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<Dashboard />} />
+                <Route path="students" element={<ProtectedRoute requiredModule="/students"><Students /></ProtectedRoute>} />
+                <Route path="teachers" element={<ProtectedRoute requiredModule="/teachers"><Teachers /></ProtectedRoute>} />
+                <Route path="courses" element={<ProtectedRoute requiredModule="/courses"><Courses /></ProtectedRoute>} />
+                <Route path="classes" element={<ProtectedRoute requiredModule="/classes"><Classes /></ProtectedRoute>} />
+                <Route path="subjects" element={<ProtectedRoute requiredModule="/subjects"><Subjects /></ProtectedRoute>} />
+                <Route path="cadastros-relatorios" element={<ProtectedRoute requiredModule="/students"><CadastrosRelatorios /></ProtectedRoute>} />
+                <Route path="cadastros/relatorios" element={<ProtectedRoute requiredModule="/students"><CadastrosRelatorios /></ProtectedRoute>} />
+                <Route path="calendar" element={<ProtectedRoute requiredModule="/calendar"><AcademicCalendar /></ProtectedRoute>} />
+                <Route path="attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance initialMode="marking" /></ProtectedRoute>} />
+                <Route path="monthly-attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance initialMode="monthly" /></ProtectedRoute>} />
+                <Route path="grades" element={<ProtectedRoute requiredModule="/grades"><Grades /></ProtectedRoute>} />
+                <Route path="assessments" element={<ProtectedRoute requiredModule="/assessments"><Assessments /></ProtectedRoute>} />
+                <Route path="bulletin" element={<ProtectedRoute requiredModule="/grades"><Bulletin /></ProtectedRoute>} />
+                <Route path="documents" element={<ProtectedRoute requiredModule="/documents"><Documents /></ProtectedRoute>} />
+                <Route path="impressos" element={<ProtectedRoute requiredModule="/documents"><Impressos /></ProtectedRoute>} />
+                <Route path="student-ficha" element={<ProtectedRoute requiredModule="/students"><StudentFicha /></ProtectedRoute>} />
+                <Route path="parishes" element={<ProtectedRoute requiredModule="/parishes"><Diocese /></ProtectedRoute>} />
+                <Route path="import" element={<ProtectedRoute requiredModule="/import"><Import /></ProtectedRoute>} />
+                <Route path="reports" element={<ProtectedRoute requiredModule="/reports"><Reports /></ProtectedRoute>} />
+                <Route path="financial" element={<ProtectedRoute requiredModule="/contributions"><FinancialDashboard /></ProtectedRoute>} />
+                <Route path="contributions" element={<ProtectedRoute requiredModule="/contributions"><Contributions /></ProtectedRoute>} />
+                <Route path="financial-report" element={<ProtectedRoute requiredModule="/contributions"><FinancialReport /></ProtectedRoute>} />
+                <Route path="pix-conference" element={<ProtectedRoute requiredModule="/pix-conference"><PixConference /></ProtectedRoute>} />
+                <Route path="receipts" element={<ProtectedRoute requiredModule="/receipts"><Receipts /></ProtectedRoute>} />
+                <Route path="settings" element={<ProtectedRoute requiredModule="/settings"><Settings /></ProtectedRoute>} />
+                <Route path="backup" element={<ProtectedRoute requiredModule="/settings"><BackupPage /></ProtectedRoute>} />
+                <Route path="archive" element={<ProtectedRoute requiredModule="/settings"><ArchivePage /></ProtectedRoute>} />
+                <Route path="users" element={<ProtectedRoute requiredModule="/users"><Users /></ProtectedRoute>} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </Suspense>
           <GlobalImportOverlay />
         </Router>
       </ImportProvider>

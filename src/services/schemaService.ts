@@ -9,27 +9,60 @@ export const schemaService = {
    */
   getColumnType(col: string, tableName?: string) {
     if (col === 'id') return 'TEXT PRIMARY KEY';
-    if (col === 'metadata') return "JSONB DEFAULT '{}'::jsonb";
+    if (
+      col === 'metadata' ||
+      col === 'details' ||
+      col === 'class_weekdays' ||
+      col === 'weekday_titles' ||
+      col === 'target_class_ids' ||
+      col === 'weekday_classes' ||
+      col === 'weekday_terms' ||
+      col === 'class_days_by_month' ||
+      col === 'class_days_by_period' ||
+      col === 'days' ||
+      col === 'parameters_snapshot'
+    ) {
+      return "JSONB DEFAULT '{}'::jsonb";
+    }
     
-    // Booleans
-    if (col === 'is_main' || col === 'is_former_student' || col === 'is_special' || col === 'is_manual' || col === 'unallocated') {
+    // Booleans (default false)
+    if (
+      col === 'is_main' ||
+      col === 'is_former_student' ||
+      col === 'is_special' ||
+      col === 'is_manual' ||
+      col === 'unallocated' ||
+      col === 'is_waived' ||
+      col === 'is_pre_registered' ||
+      col === 'skip_holiday_neighbors' ||
+      col === 'app_lock_enabled' ||
+      col.endsWith('_whatsapp') ||
+      col === 'pastoral_participates_bool'
+    ) {
       return 'BOOLEAN DEFAULT false';
     }
     if (col === 'active') {
       return 'BOOLEAN DEFAULT true';
     }
-    if (col.startsWith('is_') || col === 'app_lock_enabled' || col.endsWith('_whatsapp') || col === 'pastoral_participates_bool') {
+    // Booleans (default true)
+    if (col.startsWith('show_') || col === 'phone_is_whatsapp') {
+      return 'BOOLEAN DEFAULT TRUE';
+    }
+    if (col.startsWith('is_')) {
       return 'BOOLEAN DEFAULT false';
     }
 
-    // JSONB Arrays/Objects
+    // JSONB Arrays
     if (
       col === 'year_fees' || 
       col === 'course_fees' || 
       col === 'class_fees' || 
       col === 'subject_fees' || 
       col === 'period_fees' || 
-      col === 'custom_rules'
+      col === 'custom_rules' ||
+      col === 'periods' ||
+      col === 'recesses' ||
+      col === 'holidays'
     ) {
       return "JSONB DEFAULT '[]'::jsonb";
     }
@@ -55,13 +88,29 @@ export const schemaService = {
       col === 'meetings_per_week' || 
       col === 'workload_hours' || 
       col === 'app_lock_timeout' || 
-      col === 'app_inactivity_timeout'
+      col === 'app_inactivity_timeout' ||
+      col === 'class_weekday' ||
+      col === 'version' ||
+      col === 'minimum_class_days_target' ||
+      col === 'total_class_days' ||
+      col === 'total_holidays' ||
+      col === 'total_recess_days' ||
+      col === 'manual_overrides_count' ||
+      col === 'record_count' ||
+      (col === 'year' && tableName === 'academic_calendar_versions')
     ) {
       return 'INTEGER';
     }
 
     // Numerics
-    if (col.includes('amount') || col.includes('price') || col === 'weight' || col === 'value' || col.includes('grade')) {
+    if (
+      col.includes('amount') ||
+      col.includes('price') ||
+      col === 'weight' ||
+      col === 'value' ||
+      col.includes('grade') ||
+      col === 'absence_limit_percentage'
+    ) {
       return 'NUMERIC(10,2)';
     }
 
@@ -74,7 +123,16 @@ export const schemaService = {
     }
 
     // Arrays
-    if (col === 'days_of_week' || col === 'subject_ids' || col === 'meeting_days' || col === 'enabled_years') {
+    if (col === 'weekdays') {
+      return 'INTEGER[]';
+    }
+    if (
+      col === 'days_of_week' ||
+      col === 'subject_ids' ||
+      col === 'meeting_days' ||
+      col === 'enabled_years' ||
+      col === 'inserted_ids'
+    ) {
       return 'TEXT[]';
     }
 
@@ -86,24 +144,22 @@ export const schemaService = {
       return "TEXT DEFAULT 'matriz'";
     }
 
-    // Booleans
-    if (col.startsWith('show_') || col.startsWith('is_') || col === 'phone_is_whatsapp') {
-      return 'BOOLEAN DEFAULT TRUE';
-    }
-
     // Dates & Timestamps
     if (
       col === 'birth_date' || 
       col === 'start_date' || 
+      col === 'end_date' ||
       col === 'payment_date' || 
       col === 'foundation_date' || 
       col === 'enrollment_date' ||
       col === 'issue_date' ||
+      col === 'issuance_date' ||
+      col === 'fee_payment_date' ||
       (col.endsWith('_date') && !col.includes('created') && !col.includes('updated'))
     ) {
-      return 'TEXT'; // Usar TEXT ou DATE compatível com inputs ISO e máscaras
+      return 'TEXT';
     } 
-    else if (col.includes('timestamp') || col === 'created_at' || col === 'updated_at' || col.endsWith('_at')) {
+    else if (col.includes('timestamp') || col === 'created_at' || col === 'updated_at' || col.endsWith('_at') || col === 'last_login') {
       return "TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())";
     }
 
@@ -274,6 +330,11 @@ export const schemaService = {
           sql += `INSERT INTO public.units (id, code, name, is_main, active)\n`;
           sql += `VALUES ('matriz', 'MAT', 'Sede / Matriz', true, true)\n`;
           sql += `ON CONFLICT (id) DO NOTHING;\n\n`;
+        } else if (tableName === 'financial_settings') {
+          sql += `-- Inserir Configuração Financeira Padrão\n`;
+          sql += `INSERT INTO public.financial_settings (id, default_monthly_fee, due_day, late_fee_percentage, year_fees, course_fees, class_fees, subject_fees, period_fees, custom_rules)\n`;
+          sql += `VALUES ('current', 100.00, 10, 0.00, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb)\n`;
+          sql += `ON CONFLICT (id) DO NOTHING;\n\n`;
         }
 
       } else if (typedInfo.status === 'incomplete' && typedInfo.missing.length > 0) {
@@ -311,9 +372,11 @@ export const schemaService = {
    */
   getFullSchemaSQL() {
     let sql = '-- ============================================================================\n';
-    sql += '-- SCHEMA COMPLETO DO SISTEMA (SCRIPT MESTRE IDEMPOTENTE)\n';
+    sql += '-- SCHEMA COMPLETO DO SISTEMA (SCRIPT MESTRE IDEMPOTENTE - 30 TABELAS)\n';
     sql += '-- Execute este script no SQL Editor do Supabase para criar/atualizar tudo\n';
     sql += '-- ============================================================================\n\n';
+    sql += '-- Limpeza de views legadas não utilizadas pela aplicação\n';
+    sql += 'DROP VIEW IF EXISTS public.foraria;\n\n';
 
     const entities = (blueprint as any).entities || {};
     
@@ -361,6 +424,9 @@ export const schemaService = {
     sql += `-- ============================================================================\n`;
     sql += `INSERT INTO public.units (id, code, name, is_main, active)\n`;
     sql += `VALUES ('matriz', 'MAT', 'Sede / Matriz', true, true)\n`;
+    sql += `ON CONFLICT (id) DO NOTHING;\n\n`;
+    sql += `INSERT INTO public.financial_settings (id, default_monthly_fee, due_day, late_fee_percentage, year_fees, course_fees, class_fees, subject_fees, period_fees, custom_rules)\n`;
+    sql += `VALUES ('current', 100.00, 10, 0.00, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb)\n`;
     sql += `ON CONFLICT (id) DO NOTHING;\n\n`;
 
     return sql;
@@ -415,12 +481,25 @@ CREATE INDEX IF NOT EXISTS idx_assessments_class_id ON public.assessments(class_
 CREATE INDEX IF NOT EXISTS idx_assessments_subject_id ON public.assessments(subject_id);
 CREATE INDEX IF NOT EXISTS idx_assessments_unit_id ON public.assessments(unit_id);
 
--- Índices Financeiros e Contribuições
+-- Índices de Matrículas e Cursos
+CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON public.enrollments(student_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_class_id ON public.enrollments(class_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_unit_id ON public.enrollments(unit_id);
+CREATE INDEX IF NOT EXISTS idx_courses_unit_id ON public.courses(unit_id);
+
+-- Índices de Calendário Acadêmico e Importações
+CREATE INDEX IF NOT EXISTS idx_calendar_events_start_date ON public.calendar_events(start_date);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_unit_id ON public.calendar_events(unit_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_versions_year_unit ON public.academic_calendar_versions(year, unit_id);
+CREATE INDEX IF NOT EXISTS idx_import_history_created_at ON public.import_history(created_at DESC);
+
+-- Índices Financeiros, Recibos e Contribuições
 CREATE INDEX IF NOT EXISTS idx_contributions_student_id ON public.contributions(student_id);
 CREATE INDEX IF NOT EXISTS idx_contributions_ref ON public.contributions(reference_year, reference_month);
 CREATE INDEX IF NOT EXISTS idx_contributions_unit_id ON public.contributions(unit_id);
 CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_status ON public.pix_reconciliations(status);
 CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_batch ON public.pix_reconciliations(batch_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_unit_id ON public.receipts(unit_id);
 
 -- Confirmação
 COMMENT ON INDEX idx_students_class_id IS 'Otimiza listagens e relatórios de alunos por turma';

@@ -32,6 +32,7 @@ import { schemaService } from '../services/schemaService';
 import { supabase, isSupabaseConfigured, testConnection, lastLatency, isDbConnected } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { fetchAll, saveData } from '../lib/database';
+import blueprint from '../../blueprint.json';
 
 export type DatabaseScriptKey = 'fix' | 'master' | 'financial' | 'units' | 'indexes';
 
@@ -49,6 +50,10 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
   const [copied, setCopied] = useState(false);
   const [filterTable, setFilterTable] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'synced' | 'pending' | 'missing'>('all');
+  const totalMonitoredTables = useMemo(
+    () => Object.keys((blueprint as any).firestore || {}).length,
+    []
+  );
   
   // Sincronização de dados
   const [isSyncing, setIsSyncing] = useState(false);
@@ -255,10 +260,11 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
     try {
       setIsSyncing(true);
       const collections = [
-        'institution_settings', 'users', 'email_registry', 'foraries', 'parishes', 
-        'clergy_leity', 'courses', 'subjects', 'teachers', 'classes', 
-        'students', 'attendances', 'grades', 'calendar_events', 
-        'contributions', 'pix_reconciliations', 'certificates', 'assessments', 'units', 'financial_settings'
+        'institution_settings', 'units', 'users', 'email_registry', 'foraries', 'parishes',
+        'clergy_leity', 'courses', 'subjects', 'teachers', 'classes', 'students', 'enrollments',
+        'attendances', 'grades', 'assessments', 'calendar_events', 'academic_parameters',
+        'academic_settings', 'academic_calendar_versions', 'contributions', 'pix_reconciliations',
+        'receipts', 'certificates', 'financial_settings', 'import_history'
       ];
       
       setSyncProgress({
@@ -390,7 +396,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
               <Layers size={12} className="text-indigo-400" /> Tabelas Monitoradas
             </p>
             <p className="text-xl font-black text-white mt-1">
-              {schemaSummary?.totalTables ?? '19'}
+              {schemaSummary?.totalTables ?? totalMonitoredTables}
             </p>
           </div>
 
@@ -399,7 +405,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
               <CheckCircle2 size={12} /> Sincronizadas
             </p>
             <p className="text-xl font-black text-emerald-300 mt-1">
-              {schemaSummary?.syncedTables ?? '19'}
+              {schemaSummary?.syncedTables ?? '—'}
             </p>
           </div>
 
@@ -429,7 +435,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
           <div className="h-2 bg-indigo-200/60 rounded-full overflow-hidden">
             <div 
               className="h-full bg-indigo-600 transition-all duration-300 rounded-full" 
-              style={{ width: `${Math.min(100, Math.max(5, (syncProgress.completed.length / 19) * 100))}%` }}
+              style={{ width: `${Math.min(100, Math.max(5, (syncProgress.completed.length / 26) * 100))}%` }}
             />
           </div>
           <p className="text-[11px] text-indigo-700">
@@ -505,7 +511,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
             <div>
               <p className="text-xs font-black leading-snug">Script Mestre (DDL)</p>
               <p className={cn("text-[10px] mt-0.5", selectedScript === 'master' ? "text-indigo-100" : "text-slate-500")}>
-                Todas as 19 tabelas & RLS
+                Todas as {totalMonitoredTables} tabelas & RLS
               </p>
             </div>
           </button>
