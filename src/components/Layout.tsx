@@ -28,6 +28,7 @@ export function Layout() {
       {/* Botão de Menu Mobile */}
       <button
         onClick={() => setIsSidebarOpen(true)}
+        title="Abrir menu de navegação"
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-teal-600 hover:bg-teal-700 text-white rounded shadow-lg active:scale-90 transition-transform print:hidden"
       >
         <Menu size={20} />

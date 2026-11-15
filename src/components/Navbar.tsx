@@ -166,12 +166,15 @@ export function Navbar() {
             )}
 
             <div className="flex items-center gap-2 md:gap-4 text-slate-500 border-l border-slate-300 pl-2.5 md:pl-4">
-            <div className="relative cursor-pointer hover:text-teal-600 transition-colors hidden xs:block">
+            <div
+              className="relative cursor-pointer hover:text-teal-600 transition-colors hidden xs:block"
+              title="Notificações e avisos do sistema"
+            >
               <Bell size={18} />
               <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>
             </div>
             
-            <div className="flex items-center gap-2 md:gap-3 ml-1 md:ml-2">
+            <div className="flex items-center gap-2 md:gap-3 ml-1 md:ml-2" title={`Usuário conectado: ${userName} (${userRole})`}>
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-semibold text-slate-900 leading-none truncate max-w-[120px]">{userName}</p>
                 <p className="text-[10px] font-semibold text-slate-600 mt-1 truncate">{userRole}</p>
@@ -237,6 +240,7 @@ export function Navbar() {
               onClick={() => {
                 // Clicking resets the timer via the active events listener in AuthContext
               }}
+              title="Reiniciar contagem de inatividade e permanecer conectado"
               className="mt-6 w-full py-3.5 bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-red-600/30 uppercase tracking-widest cursor-pointer"
             >
               Continuar Conectado

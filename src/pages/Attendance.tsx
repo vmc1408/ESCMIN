@@ -1856,6 +1856,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 <button 
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
+                  title={tab.id === 'marking' ? 'Abrir lançamento de chamada diária por turma e disciplina' : 'Abrir emissão de relatórios e listas mensais de frequência'}
                   className={cn(
                     "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] transition-all duration-300",
                     activeTab === tab.id 
@@ -1878,6 +1879,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <button 
                       disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
                       onClick={saveAttendance}
+                      title="Salvar alterações atuais da chamada sem finalizar os lançamentos"
                       className="group relative flex items-center gap-2 h-10 px-4 bg-slate-100 text-slate-700 border border-slate-350 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50"
                     >
                       {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -1886,6 +1888,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <button 
                       disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
                       onClick={closeAttendance}
+                      title="Salvar e finalizar os lançamentos de frequência desta data"
                       className="group relative flex items-center gap-2 h-10 px-5 bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 border border-slate-800 transition-all active:scale-95 disabled:opacity-50"
                     >
                       {closing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
@@ -1919,6 +1922,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           type="button"
                           disabled={closing}
                           onClick={reopenAttendance}
+                          title="Confirmar reabertura da chamada para permitir alterações"
                           className="h-8 px-3 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all"
                         >
                           {closing ? <Loader2 size={10} className="animate-spin" /> : "Reabrir"}
@@ -1927,6 +1931,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           type="button"
                           disabled={closing}
                           onClick={() => setReopenConfirm(false)}
+                          title="Cancelar e manter chamada finalizada"
                           className="h-8 px-2.5 bg-white hover:bg-slate-100 text-slate-600 rounded-lg text-[9px] font-bold uppercase tracking-widest border border-slate-200 transition-all"
                         >
                           Cancelar
@@ -2028,6 +2033,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 <button
                   type="button"
                   onClick={() => setIsFiltersCollapsed(false)}
+                  title="Expandir painel para alterar turma, disciplina ou data"
                   className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 text-white hover:bg-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-700 shadow-sm transition-all duration-200 cursor-pointer h-7"
                 >
                   <Settings size={12} />
@@ -2045,6 +2051,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   <button
                     type="button"
                     onClick={() => setIsFiltersCollapsed(true)}
+                    title="Recolher barra de filtros para ampliar área da chamada"
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-800 text-[9px] font-bold uppercase tracking-widest border border-slate-250 transition-all shadow-sm"
                   >
                     <ChevronUp size={13} />
@@ -2066,6 +2073,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         setSelectedClass(e.target.value);
                         setSelectedSubject('');
                       }}
+                      title="Selecionar turma para consultar ou lançar frequência"
                       className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                     >
                       <option value="">
@@ -2097,6 +2105,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         value={selectedSubject}
                         onChange={e => setSelectedSubject(e.target.value)}
                         disabled={!selectedClass}
+                        title="Selecionar disciplina da turma selecionada"
                         className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
                       >
                         <option value="">SELECIONAR DISCIPLINA...</option>
@@ -2123,6 +2132,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <select
                           value={selectedMonth}
                           onChange={e => setSelectedMonth(parseInt(e.target.value))}
+                          title="Selecionar mês de referência do relatório"
                           className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-805 appearance-none outline-none"
                         >
                           {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
@@ -2135,6 +2145,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <select
                           value={selectedYear}
                           onChange={e => setSelectedYear(parseInt(e.target.value))}
+                          title="Selecionar ano letivo do relatório mensal"
                           className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-805 appearance-none outline-none text-center"
                         >
                           {availableYears.map(y => (
@@ -2202,6 +2213,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           disabled={!selectedClass || !selectedSubject || availableDates.length === 0}
                           value={parseDateToDB(selectedDate)}
                           onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
+                          title="Selecionar data da aula para lançamento da frequência"
                           className={cn(
                             "w-full pl-13 pr-8 py-3 bg-white border rounded-lg text-[12px] font-semibold appearance-none outline-none transition-all",
                             !selectedClass || !selectedSubject ? "border-slate-200 text-slate-400 bg-slate-100/50 cursor-not-allowed" :
@@ -2246,6 +2258,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <select
                           value={selectedYear}
                           onChange={e => setSelectedYear(parseInt(e.target.value))}
+                          title="Selecionar ano letivo das datas disponíveis"
                           className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
                         >
                           {availableYears.map(y => (
@@ -2398,7 +2411,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Notificação do Sistema</p>
                       <p className="text-xs font-semibold uppercase tracking-wide">{notification.message}</p>
                     </div>
-                    <button onClick={() => setNotification(null)} className="ml-auto w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                    <button onClick={() => setNotification(null)} title="Fechar notificação" className="ml-auto w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
                       <X size={16} />
                     </button>
                   </motion.div>
@@ -2440,6 +2453,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             setEnteredPin('');
                             setIsPinModalOpen(true);
                           }}
+                          title="Inserir PIN de autorização para lançar frequência em data futura"
                           className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-900 hover:bg-amber-950 text-white text-[10px] font-bold uppercase tracking-widest transition-all rounded-lg shrink-0 shadow-xs cursor-pointer w-full sm:w-auto justify-center"
                         >
                           <KeyRound size={13} />
@@ -2466,6 +2480,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <button
                           type="button"
                           onClick={() => setUnlockedDate(null)}
+                          title="Bloquear novamente o lançamento nesta data futura"
                           className="text-[9px] font-bold uppercase tracking-widest text-emerald-800 hover:text-emerald-950 underline px-2 py-1 shrink-0"
                         >
                           Bloquear Agora
@@ -2729,6 +2744,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <button 
                                 onClick={() => processPrint('report')}
                                 disabled={isPrinting}
+                                title="Gerar e imprimir relatório mensal consolidado de frequência"
                                 className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
@@ -2762,6 +2778,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <button 
                                 onClick={() => processPrint('marking')}
                                 disabled={isPrinting}
+                                title="Imprimir lista de chamada em branco para assinatura ou controle manual"
                                 className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
@@ -2827,6 +2844,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   setEnteredPin('');
                   setPinError('');
                 }}
+                title="Fechar janela de autorização por PIN"
                 className="text-slate-400 hover:text-slate-600 transition-colors p-1 cursor-pointer"
               >
                 <X size={18} />
@@ -2869,6 +2887,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     setEnteredPin(val);
                     if (pinError) setPinError('');
                   }}
+                  title="Digite o PIN numérico de 4 dígitos para desbloquear a data"
                   placeholder="••••"
                   className="w-full text-center tracking-[1em] text-2xl font-mono font-bold py-3 bg-white border-2 border-slate-300 focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all rounded-lg"
                 />
@@ -2894,6 +2913,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     setEnteredPin('');
                     setPinError('');
                   }}
+                  title="Cancelar desbloqueio por PIN"
                   className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all cursor-pointer"
                 >
                   Cancelar
@@ -2901,6 +2921,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 <button
                   type="submit"
                   disabled={pinSubmitting || enteredPin.length < 4}
+                  title="Validar PIN e liberar lançamentos para esta data"
                   className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-md disabled:opacity-50 cursor-pointer"
                 >
                   {pinSubmitting ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
@@ -2934,6 +2955,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     key={opt.id}
                     type="button"
                     onClick={() => setAbonoModal(prev => prev ? { ...prev, type: opt.id as any } : null)}
+                    title={`Selecionar motivo de abono: ${opt.label}`}
                     className={cn(
                       "flex items-center gap-2.5 p-3 border text-[10px] font-bold uppercase tracking-widest transition-all duration-200 rounded-lg w-full text-left",
                       abonoModal.type === opt.id
@@ -2964,6 +2986,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   }
                 }}
                 maxLength={120}
+                title="Descrever observações ou justificativa detalhada do abono"
                 placeholder="Exemplo: Apresentou atestado de saúde ou justificativa oficial de trabalho..."
                 className="w-full h-24 p-3 bg-slate-50 border border-slate-205 rounded-lg text-xs text-slate-850 focus:bg-white focus:border-slate-400 outline-none resize-none transition-all placeholder:text-slate-400"
               />
@@ -2973,6 +2996,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               <button
                 type="button"
                 onClick={() => setAbonoModal(null)}
+                title="Cancelar lançamento de abono"
                 className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all"
               >
                 Cancelar
@@ -2995,6 +3019,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   }));
                   setAbonoModal(null);
                 }}
+                title="Confirmar abono de falta para este aluno"
                 className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all shadow-md"
               >
                 Confirmar Abono

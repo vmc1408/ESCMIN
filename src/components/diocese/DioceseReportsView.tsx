@@ -176,6 +176,7 @@ export function DioceseReportsView({
           <button
             key={`dio-rep-opt-${option.id || optIdx}-${optIdx}`}
             onClick={() => setReportType(option.id)}
+            title={`Selecionar modelo: ${option.title} — ${option.desc}`}
             className={cn(
               "p-4 sm:p-5 rounded-lg border-2 transition-all text-left flex flex-col gap-2.5 group cursor-pointer",
               reportType === option.id 
@@ -212,6 +213,7 @@ export function DioceseReportsView({
             <select 
               value={reportForaniaFilter}
               onChange={(e) => setReportForaniaFilter(e.target.value)}
+              title="Filtrar relatório por forania específica ou todas"
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
             >
               <option value="all">Todas as Foranias ({foraries.length})</option>
@@ -233,6 +235,7 @@ export function DioceseReportsView({
               <select
                 value={reportParishesByForaniaSort}
                 onChange={(e) => setReportParishesByForaniaSort(e.target.value as 'name' | 'cnpj')}
+                title="Escolher ordenação das paróquias no relatório por foranias"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
               >
                 <option value="name">Ordem Alfabética (Nome A-Z)</option>
@@ -251,6 +254,7 @@ export function DioceseReportsView({
                 <select
                   value={reportClergyRoleFilter}
                   onChange={(e) => setReportClergyRoleFilter(e.target.value)}
+                  title="Filtrar membros do clero por função ou título"
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
                 >
                   <option value="all">Todas as Funções ({clergy.length})</option>
@@ -270,6 +274,7 @@ export function DioceseReportsView({
                 <select
                   value={reportClergyGroupBy}
                   onChange={(e) => setReportClergyGroupBy(e.target.value as 'none' | 'forania' | 'role')}
+                  title="Escolher forma de agrupamento do diretório do clero"
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
                 >
                   <option value="none">Lista Geral Corrida (A-Z)</option>
@@ -289,6 +294,7 @@ export function DioceseReportsView({
               <select
                 value={reportParishesCnpjSort}
                 onChange={(e) => setReportParishesCnpjSort(e.target.value as 'name' | 'cnpj')}
+                title="Escolher ordenação da lista de paróquias e CNPJ"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
               >
                 <option value="name">Por Nome da Paróquia (A-Z)</option>
@@ -312,6 +318,7 @@ export function DioceseReportsView({
                 placeholder="Nome, CNPJ, Padre, Diácono..."
                 value={reportSearch}
                 onChange={(e) => setReportSearch(e.target.value)}
+                title="Pesquisar por nome, CNPJ, padre ou diácono no relatório"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-200"
               />
             </div>

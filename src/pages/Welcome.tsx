@@ -89,14 +89,15 @@ export function Welcome() {
           </div>
           
           <div className="hidden md:flex items-center gap-8 mr-8">
-            <a href="#sobre" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">A Escola</a>
-            <a href="#criterios" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Critérios</a>
-            <a href="#documentos" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Documentos</a>
-            <a href="#contato" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Contato</a>
+            <a href="#sobre" title="Conhecer a missão e os objetivos da escola" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">A Escola</a>
+            <a href="#criterios" title="Ver os critérios de admissão de alunos" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Critérios</a>
+            <a href="#documentos" title="Consultar documentos necessários para matrícula" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Documentos</a>
+            <a href="#contato" title="Ver endereço, horários e canais de atendimento" className="text-[11px] font-black uppercase tracking-widest text-teal-900/70 hover:text-teal-700 transition-colors">Contato</a>
           </div>
 
           <button 
             onClick={() => navigate(isLoggedIn ? '/' : '/login')}
+            title={isLoggedIn ? 'Ir para o painel principal do sistema' : 'Entrar no portal do aluno ou secretaria'}
             className="px-6 py-2.5 bg-teal-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-teal-700 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-teal-900/20"
           >
             {isLoggedIn ? 'Acessar Dashboard' : 'Área do Aluno'}
@@ -132,6 +133,7 @@ export function Welcome() {
             <div className="flex flex-col sm:flex-row gap-5">
               <button 
                 onClick={() => navigate(isLoggedIn ? '/' : '/login')}
+                title={isLoggedIn ? 'Abrir o painel de gestão acadêmica' : 'Acessar o sistema para iniciar matrícula'}
                 className="px-10 py-5 bg-teal-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-teal-700 transition-all shadow-2xl shadow-teal-900/25 active:scale-95 flex items-center justify-center gap-3 group"
               >
                 {isLoggedIn ? 'Ir para o Portal' : 'Fazer Matrícula'}
@@ -140,6 +142,7 @@ export function Welcome() {
               
               <a 
                 href="#sobre"
+                title="Saiba mais sobre a Escola Diocesana de Ministérios"
                 className="px-10 py-5 bg-white text-teal-800 border-2 border-slate-300 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-teal-50 hover:border-teal-500 transition-all flex items-center justify-center gap-3"
               >
                 Saiba Mais
@@ -330,6 +333,7 @@ export function Welcome() {
                  </p>
                  <button 
                    onClick={() => navigate(isLoggedIn ? '/' : '/login')}
+                   title={isLoggedIn ? 'Visualizar seu perfil e dados cadastrais' : 'Iniciar pré-matrícula digital no sistema'}
                    className="w-full py-5 bg-[#b4941d] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-[#967b18] transition-all shadow-xl shadow-amber-900/10 active:scale-95 flex items-center justify-center gap-3"
                  >
                    {isLoggedIn ? 'Acessar meu Perfil' : 'Iniciar Pré-Matrícula'}
@@ -400,10 +404,10 @@ export function Welcome() {
             <div className="space-y-6 flex flex-col items-center md:items-start text-center md:text-left">
                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b4941d]">Links Úteis</h4>
                <ul className="space-y-3">
-                 <li><a href="#" className="text-sm text-blue-200/60 hover:text-white transition-colors">Diocese de Guarulhos</a></li>
-                 <li><a href="#" className="text-sm text-blue-200/60 hover:text-white transition-colors">Cursos Disponíveis</a></li>
-                 <li><a href="#" className="text-sm text-blue-200/60 hover:text-white transition-colors">Calendário Acadêmico</a></li>
-                 <li><a href="#" className="text-sm text-blue-200/60 hover:text-white transition-colors">Material de Estudo</a></li>
+                 <li><a href="#" title="Informações sobre a Diocese de Guarulhos" className="text-sm text-blue-200/60 hover:text-white transition-colors">Diocese de Guarulhos</a></li>
+                 <li><a href="#" title="Consultar cursos ministeriais disponíveis" className="text-sm text-blue-200/60 hover:text-white transition-colors">Cursos Disponíveis</a></li>
+                 <li><a href="#" title="Visualizar calendário acadêmico institucional" className="text-sm text-blue-200/60 hover:text-white transition-colors">Calendário Acadêmico</a></li>
+                 <li><a href="#" title="Acessar materiais de apoio e estudo" className="text-sm text-blue-200/60 hover:text-white transition-colors">Material de Estudo</a></li>
                </ul>
             </div>
           </div>
@@ -413,8 +417,8 @@ export function Welcome() {
                &copy; {new Date().getFullYear()} Diocese de Guarulhos. Desenvolvido para o serviço do Reino.
              </p>
              <div className="flex items-center gap-6">
-                <a href="#" className="text-[10px] font-black uppercase tracking-widest text-blue-200/40 hover:text-white">Privacidade</a>
-                <a href="#" className="text-[10px] font-black uppercase tracking-widest text-blue-200/40 hover:text-white">Termos</a>
+                <a href="#" title="Política de privacidade da instituição" className="text-[10px] font-black uppercase tracking-widest text-blue-200/40 hover:text-white">Privacidade</a>
+                <a href="#" title="Termos de uso do portal" className="text-[10px] font-black uppercase tracking-widest text-blue-200/40 hover:text-white">Termos</a>
              </div>
           </div>
         </div>

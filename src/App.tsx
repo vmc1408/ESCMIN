@@ -38,6 +38,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { GlobalImportOverlay } from './components/GlobalImportOverlay';
 import { PinLock } from './components/PinLock';
 import { InactivityWarningModal } from './components/InactivityWarningModal';
+import { GlobalTooltipProvider } from './components/GlobalTooltipProvider';
 import { AlertCircle, RefreshCw, Unplug } from 'lucide-react';
 
 interface ErrorBoundaryProps {
@@ -90,6 +91,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 sessionStorage.clear();
                 window.location.reload();
               }}
+              title="Limpar cache local e recarregar o sistema"
               className="w-full py-4 bg-slate-900 text-white rounded-lg font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg active:scale-95"
             >
               <RefreshCw size={18} />
@@ -163,6 +165,7 @@ function AppContent() {
           </p>
           <button 
             onClick={() => window.location.reload()}
+            title="Recarregar página e verificar conexão"
             className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-blue-700 transition-all shadow-sm active:scale-95"
           >
             Tentar Novamente
@@ -174,6 +177,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen">
+      <GlobalTooltipProvider />
       {user && isLocked && <PinLock />}
       {user && <InactivityWarningModal />}
       <ImportProvider>

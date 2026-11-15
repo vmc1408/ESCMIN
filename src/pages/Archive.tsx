@@ -770,7 +770,7 @@ export function ArchivePage() {
             {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
             <span>{notification.message}</span>
           </div>
-          <button onClick={() => setNotification(null)} className="text-[10px] hover:underline uppercase pl-4 cursor-pointer">Fechar</button>
+          <button onClick={() => setNotification(null)} title="Fechar aviso" className="text-[10px] hover:underline uppercase pl-4 cursor-pointer">Fechar</button>
         </div>
       )}
 
@@ -845,6 +845,7 @@ export function ArchivePage() {
       <div className="flex bg-slate-100 p-1 border border-slate-200">
         <button
           onClick={() => setActiveTab('scan')}
+          title="Analisar e gerenciar registros inativos para arquivamento"
           className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer ${
             activeTab === 'scan' ? 'bg-[#00174b] text-white' : 'text-slate-500 hover:text-slate-900'
           }`}
@@ -853,6 +854,7 @@ export function ArchivePage() {
         </button>
         <button
           onClick={() => setActiveTab('deep_search')}
+          title="Pesquisar e restaurar registros no arquivo morto"
           className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer ${
             activeTab === 'deep_search' ? 'bg-[#00174b] text-white' : 'text-slate-500 hover:text-slate-900'
           }`}
@@ -910,6 +912,7 @@ export function ArchivePage() {
                   <button
                     onClick={handleRunTestMigration}
                     disabled={loadingTestMigration}
+                    title="Mover todos os registros atualmente inativos para o arquivo morto"
                     className="px-6 py-3 border-2 border-rose-600 text-rose-700 hover:bg-rose-50 disabled:bg-slate-100 disabled:text-slate-400 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer"
                   >
                     {loadingTestMigration ? (
@@ -928,6 +931,7 @@ export function ArchivePage() {
                   <button
                     onClick={handleScanSystem}
                     disabled={loadingScan}
+                    title="Iniciar varredura automática de registros elegíveis para inativação ou arquivamento"
                     className="px-6 py-3 bg-[#00174b] hover:bg-slate-900 disabled:bg-slate-400 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer"
                   >
                     {loadingScan ? (
@@ -975,6 +979,7 @@ export function ArchivePage() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleSelectAll(actionType as 'inactivate' | 'archive')}
+                            title="Selecionar ou desmarcar todos os registros deste grupo"
                             className="px-3 py-1.5 border border-slate-350 text-[9px] font-extrabold uppercase tracking-wider hover:bg-slate-100 transition-all cursor-pointer"
                           >
                             {filteredCandidates.every(c => selectedIds.includes(c.id)) ? 'Deselecionar Todos' : 'Selecionar Todos'}
@@ -982,6 +987,7 @@ export function ArchivePage() {
                           <button
                             onClick={() => handleExecuteSelectedActions(actionType as 'inactivate' | 'archive')}
                             disabled={actionInProgress !== null || !filteredCandidates.some(c => selectedIds.includes(c.id))}
+                            title="Executar ação recomendada para os registros selecionados"
                             className={`px-4 py-2 text-white text-[9px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${actionBtnColor}`}
                           >
                             {actionInProgress === actionType ? (
@@ -1025,6 +1031,7 @@ export function ArchivePage() {
                                   <td className="p-4 text-center">
                                     <input
                                       type="checkbox"
+                                      title="Selecionar este registro para ação em lote"
                                       checked={isSelected}
                                       onChange={() => handleToggleSelect(candidate.id)}
                                       className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-slate-350 cursor-pointer"
@@ -1089,6 +1096,7 @@ export function ArchivePage() {
                 <div>
                   <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Tabela / Tipo de Arquivo</label>
                   <select
+                    title="Selecionar tipo de registro para pesquisa no arquivo morto"
                     value={searchType}
                     onChange={(e) => setSearchType(e.target.value as any)}
                     className="w-full h-11 px-3 bg-slate-50 border border-slate-200 text-xs font-bold uppercase tracking-wider focus:bg-white focus:border-slate-400 transition-all outline-none"
@@ -1105,6 +1113,7 @@ export function ArchivePage() {
                   <div className="relative">
                     <input
                       type="text"
+                      title="Digite o nome, código ou número de matrícula para buscar no arquivo morto"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Pesquisar por correspondência exata ou aproximada..."
@@ -1119,6 +1128,7 @@ export function ArchivePage() {
                 <button
                   type="submit"
                   disabled={loadingSearch}
+                  title="Executar pesquisa no arquivo morto"
                   className="px-6 py-3 bg-[#00174b] hover:bg-slate-950 disabled:bg-slate-400 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   {loadingSearch ? (
@@ -1182,6 +1192,7 @@ export function ArchivePage() {
                               <button
                                 onClick={() => handleRestoreFromArchive(record)}
                                 disabled={loadingSearch}
+                                title="Restaurar este registro de volta para a base ativa"
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00174b] text-white hover:bg-emerald-700 font-bold text-[9px] uppercase tracking-widest transition-all cursor-pointer"
                               >
                                 <RotateCcw size={11} className="shrink-0" />

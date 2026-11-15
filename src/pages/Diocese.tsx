@@ -1399,6 +1399,7 @@ export function Diocese() {
               setFilterClergyMember('');
               setFilterRole('');
             }}
+            title="Visualizar painel geral integrado de paróquias, foranias e clero"
             className={cn(
               "flex-1 md:flex-none px-6 py-2 rounded-md text-[9px] font-bold uppercase tracking-widest tracking-wider transition-all flex items-center justify-center gap-2",
               activeTab === 'dashboard' ? "bg-white text-blue-600 shadow-sm border border-slate-150" : "text-slate-400 hover:text-slate-600"
@@ -1409,6 +1410,7 @@ export function Diocese() {
           </button>
           <button
             onClick={() => { setActiveTab('parishes'); setIsEditing(false); setFilterParish(''); }}
+            title="Visualizar e gerenciar o cadastro de paróquias"
             className={cn(
               "flex-1 md:flex-none px-6 py-2 rounded-md text-[9px] font-bold uppercase tracking-widest tracking-wider transition-all flex items-center justify-center gap-2",
               activeTab === 'parishes' ? "bg-white text-blue-600 shadow-sm border border-slate-150" : "text-slate-400 hover:text-slate-600"
@@ -1419,6 +1421,7 @@ export function Diocese() {
           </button>
           <button
             onClick={() => { setActiveTab('foranias'); setIsEditing(false); setFilterForania(''); }}
+            title="Visualizar e gerenciar as foranias da diocese"
             className={cn(
               "flex-1 md:flex-none px-6 py-2 rounded-md text-[9px] font-bold uppercase tracking-widest tracking-wider transition-all flex items-center justify-center gap-2",
               activeTab === 'foranias' ? "bg-white text-blue-600 shadow-sm border border-slate-150" : "text-slate-400 hover:text-slate-600"
@@ -1429,6 +1432,7 @@ export function Diocese() {
           </button>
           <button
             onClick={() => { setActiveTab('clergy'); setIsEditing(false); setFilterClergyMember(''); }}
+            title="Visualizar e gerenciar padres, diáconos e demais membros do clero"
             className={cn(
               "flex-1 md:flex-none px-6 py-2 rounded-md text-[9px] font-bold uppercase tracking-widest tracking-wider transition-all flex items-center justify-center gap-2",
               activeTab === 'clergy' ? "bg-white text-blue-600 shadow-sm border border-slate-150" : "text-slate-400 hover:text-slate-600"
@@ -1441,6 +1445,7 @@ export function Diocese() {
 
         <button
           onClick={handleAddNew}
+          title="Adicionar um novo cadastro na aba selecionada"
           className="w-full md:w-auto px-5 py-2.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-3"
         >
           <Plus size={16} />
@@ -1455,6 +1460,7 @@ export function Diocese() {
           <input 
             type="text"
             placeholder="Qualquer informação (Nome, Padre, CNPJ, Cidade...)"
+            title="Buscar por nome, padre responsável, CNPJ, cidade ou telefone"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold text-slate-700 placeholder:text-slate-350"
@@ -1473,6 +1479,7 @@ export function Diocese() {
                   setFilterParish('');
                   setFilterClergyMember('');
                 }}
+                title="Filtrar registros por forania"
                 className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
               >
                 <option value="">Selecionar Forania...</option>
@@ -1498,6 +1505,7 @@ export function Diocese() {
                   }
                   setFilterClergyMember('');
                 }}
+                title="Filtrar registros por paróquia"
                 className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
               >
                 <option value="">Selecionar Paróquia...</option>
@@ -1527,6 +1535,7 @@ export function Diocese() {
                     }
                   }
                 }}
+                title="Filtrar registros por membro do clero"
                 className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
               >
                 <option value="">Selecionar Clero...</option>
@@ -1551,6 +1560,7 @@ export function Diocese() {
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
+                title="Filtrar membros do clero por cargo ou função"
                 className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
               >
                 <option value="">Todos Cargos</option>
@@ -1602,6 +1612,7 @@ export function Diocese() {
             </p>
             <button 
               onClick={() => { setSearch(''); setFilterForania(''); setFilterParish(''); setFilterClergyMember(''); setFilterRole(''); }}
+              title="Remover todos os filtros aplicados na consulta"
               className="mt-6 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
             >
               Limpar Filtros
@@ -1709,6 +1720,7 @@ export function Diocese() {
                               else if (item._type === 'forania') { setActiveTab('foranias'); handleView(item); }
                               else { setActiveTab('clergy'); handleView(item); }
                             }} 
+                            title={`Abrir ficha completa de ${item.name}`}
                             className="flex items-center gap-1.5 px-2.5 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all shadow-sm border border-blue-100 text-[10px] font-bold uppercase tracking-wider"
                           >
                             <Eye size={14} />
@@ -1812,9 +1824,9 @@ export function Diocese() {
                   </div>
 
                   <div className="flex items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-4 md:mt-0">
-                    <button onClick={() => handleView(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-all"><Eye size={18} /></button>
-                    <button onClick={() => handleEdit(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-all"><Edit2 size={18} /></button>
-                    <button onClick={() => handleDeleteClick(item)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg transition-all"><Trash2 size={18} /></button>
+                    <button onClick={() => handleView(item)} title={`Visualizar ficha de ${item.name}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-all"><Eye size={18} /></button>
+                    <button onClick={() => handleEdit(item)} title={`Editar cadastro de ${item.name}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-all"><Edit2 size={18} /></button>
+                    <button onClick={() => handleDeleteClick(item)} title={`Excluir cadastro de ${item.name}`} className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg transition-all"><Trash2 size={18} /></button>
                   </div>
                 </div>
               </div>
@@ -1845,7 +1857,7 @@ export function Diocese() {
                       <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Código: #{activeTab === 'foranias' ? forariaForm.code : activeTab === 'parishes' ? parishForm.code : clergyForm.code}</p>
                     </div>
                   </div>
-                  <button onClick={() => setIsEditing(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+                  <button onClick={() => setIsEditing(false)} title="Fechar formulário" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
                     <X size={20} />
                   </button>
                 </div>
@@ -1861,6 +1873,7 @@ export function Diocese() {
                             type="text"
                             readOnly
                             value={forariaForm.code || ''}
+                            title="Código sequencial de cadastro da forania"
                             className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-semibold text-slate-500 cursor-not-allowed"
                           />
                         </div>
@@ -1871,6 +1884,7 @@ export function Diocese() {
                             required
                             value={forariaForm.name || ''}
                             onChange={e => setForariaForm({...forariaForm, name: e.target.value})}
+                            title="Digite o nome da forania"
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all placeholder:text-slate-400"
                             placeholder="Ex: Forania Norte"
                           />
@@ -1890,6 +1904,7 @@ export function Diocese() {
                                 priest_name: priest ? priest.name : ''
                               });
                             }}
+                            title="Selecione o padre forâneo responsável"
                             className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all appearance-none"
                           >
                             <option value="">Selecione um Padre...</option>
@@ -1915,6 +1930,7 @@ export function Diocese() {
                             type="text"
                             readOnly
                             value={parishForm.code || ''}
+                            title="Código sequencial de cadastro da paróquia"
                             className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-semibold text-slate-500"
                           />
                         </div>
@@ -1925,6 +1941,7 @@ export function Diocese() {
                             required
                             value={parishForm.name || ''}
                             onChange={e => setParishForm({...parishForm, name: e.target.value})}
+                            title="Digite o nome completo da paróquia"
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             placeholder="Nome Completo da Unidade"
                           />
@@ -1938,6 +1955,7 @@ export function Diocese() {
                             required
                             value={parishForm.forania_id || ''}
                             onChange={e => setParishForm({...parishForm, forania_id: e.target.value})}
+                            title="Selecione a forania à qual a paróquia pertence"
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                           >
                             <option value="">Selecione...</option>
@@ -1958,6 +1976,7 @@ export function Diocese() {
                                 priest_name: selected?.name || ''
                               });
                             }}
+                            title="Selecione o pároco responsável pela paróquia"
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                           >
                             <option value="">Selecione no clero...</option>
@@ -1991,6 +2010,7 @@ export function Diocese() {
                                 setIsEditing(true);
                                 setSelectedItem(null);
                               }}
+                              title="Vincular novo membro do clero ou diácono a esta paróquia"
                               className="text-[10px] font-bold text-blue-600 hover:underline hover:text-blue-750 uppercase flex items-center gap-1"
                             >
                               <PlusCircle size={12} />
@@ -2023,6 +2043,7 @@ export function Diocese() {
                                   <button
                                     type="button"
                                     onClick={() => { setActiveTab('clergy'); handleEdit(m); }}
+                                    title="Editar cadastro deste membro"
                                     className="p-1 text-slate-300 hover:text-blue-600 hover:bg-slate-50 rounded opacity-0 group-hover/item:opacity-100 transition-all"
                                   >
                                     <Edit2 size={14} />
@@ -2047,6 +2068,7 @@ export function Diocese() {
                               value={parishForm.cnpj || ''}
                               onChange={e => setParishForm({...parishForm, cnpj: e.target.value})}
                               placeholder="00.000.000/0000-00"
+                              title="Digite o CNPJ da paróquia"
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2056,6 +2078,7 @@ export function Diocese() {
                               type="date"
                               value={parishForm.foundation_date || ''}
                               onChange={e => setParishForm({...parishForm, foundation_date: e.target.value})}
+                              title="Selecione a data de fundação da paróquia"
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2068,6 +2091,7 @@ export function Diocese() {
                               value={parishForm.phone || ''}
                               onChange={e => setParishForm({...parishForm, phone: maskPhone(e.target.value)})}
                               placeholder="(00) 0000-0000"
+                              title="Digite o telefone fixo da paróquia"
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2078,6 +2102,7 @@ export function Diocese() {
                               value={parishForm.phone_mobile || ''}
                               onChange={e => setParishForm({...parishForm, phone_mobile: maskPhone(e.target.value)})}
                               placeholder="(00) 00000-0000"
+                              title="Digite o telefone celular da paróquia"
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2088,6 +2113,7 @@ export function Diocese() {
                               value={parishForm.email || ''}
                               onChange={e => setParishForm({...parishForm, email: e.target.value})}
                               placeholder="paroquia@diocese.org.br"
+                              title="Digite o e-mail de contato da paróquia"
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2099,6 +2125,7 @@ export function Diocese() {
                             onChange={e => setParishForm({...parishForm, notes: e.target.value})}
                             rows={3}
                             placeholder="Informações adicionais sobre a paróquia..."
+                            title="Digite observações gerais sobre a paróquia"
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium resize-none focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                           />
                         </div>
@@ -2134,6 +2161,7 @@ export function Diocese() {
                               onChange={e => handleParishCepChange(e.target.value)}
                               placeholder="00000-000"
                               maxLength={9}
+                              title="Digite o CEP para buscar o endereço automaticamente"
                               className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-lg text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all"
                             />
                           </div>
@@ -2145,6 +2173,7 @@ export function Diocese() {
                               value={parishForm.address_street || ''}
                               onChange={e => setParishForm({...parishForm, address_street: e.target.value})}
                               placeholder="Ex: Rua das Flores"
+                              title="Digite o logradouro da paróquia"
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2157,6 +2186,7 @@ export function Diocese() {
                               onChange={e => setParishForm({...parishForm, address_number: e.target.value})}
                               maxLength={6}
                               placeholder="SN"
+                              title="Digite o número do endereço"
                               className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 text-center"
                             />
                           </div>
@@ -2169,6 +2199,7 @@ export function Diocese() {
                               value={parishForm.address_complement || ''}
                               onChange={e => setParishForm({...parishForm, address_complement: e.target.value})}
                               placeholder="Apto, Bloco..."
+                              title="Digite o complemento do endereço"
                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2180,6 +2211,7 @@ export function Diocese() {
                               value={parishForm.address_neighborhood || ''}
                               onChange={e => setParishForm({...parishForm, address_neighborhood: e.target.value})}
                               placeholder="Bairro"
+                              title="Digite o bairro da paróquia"
                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2191,6 +2223,7 @@ export function Diocese() {
                               value={parishForm.address_city || ''}
                               onChange={e => setParishForm({...parishForm, address_city: e.target.value})}
                               placeholder="Cidade"
+                              title="Digite a cidade da paróquia"
                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
@@ -2203,6 +2236,7 @@ export function Diocese() {
                               onChange={e => setParishForm({...parishForm, address_state: e.target.value.toUpperCase()})}
                               placeholder="SP"
                               maxLength={2}
+                              title="Digite a sigla do estado (UF)"
                               className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 uppercase text-center"
                             />
                           </div>
@@ -2217,13 +2251,14 @@ export function Diocese() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Cód. Clero</label>
-                          <input type="text" readOnly value={clergyForm.code || ''} className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-500" />
+                          <input type="text" readOnly value={clergyForm.code || ''} title="Código sequencial de cadastro do clero" className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-500" />
                         </div>
                         <div className="space-y-1 col-span-2">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Nome Completo</label>
                           <input 
                             type="text" 
                             required 
+                            title="Digite o nome completo do membro"
                             value={clergyForm.name || ''} 
                             onChange={e => setClergyForm({...clergyForm, name: e.target.value})} 
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500" 
@@ -2236,6 +2271,7 @@ export function Diocese() {
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Identificação / Função</label>
                           <select 
                             required 
+                            title="Selecione a função eclesial do membro"
                             value={clergyForm.role || ''} 
                             onChange={e => setClergyForm({...clergyForm, role: e.target.value as ClergyRole})} 
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 font-bold"
@@ -2251,6 +2287,7 @@ export function Diocese() {
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Paróquia Vinculada</label>
                           <select 
                             required 
+                            title="Selecione a paróquia vinculada"
                             value={clergyForm.parish_id || ''} 
                             onChange={e => setClergyForm({...clergyForm, parish_id: e.target.value})} 
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
@@ -2268,6 +2305,7 @@ export function Diocese() {
                           <div className="md:col-span-3">
                             <input 
                               type="text" 
+                              title="Digite o logradouro residencial"
                               value={clergyForm.address || ''} 
                               onChange={e => setClergyForm({...clergyForm, address: e.target.value})} 
                               placeholder="Endereço (Rua, Av...)"
@@ -2277,6 +2315,7 @@ export function Diocese() {
                           <div className="md:col-span-1">
                             <input 
                               type="text" 
+                              title="Digite o número residencial"
                               value={clergyForm.address_number || ''} 
                               onChange={e => setClergyForm({...clergyForm, address_number: e.target.value})} 
                               placeholder="Nº"
@@ -2288,6 +2327,7 @@ export function Diocese() {
                           <div className="md:col-span-2">
                             <input 
                               type="text" 
+                              title="Digite o bairro residencial"
                               value={clergyForm.address_neighborhood || ''} 
                                                 placeholder="Bairro"
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500" 
@@ -2296,6 +2336,7 @@ export function Diocese() {
                           <div className="md:col-span-1">
                             <input 
                               type="text" 
+                              title="Digite a cidade residencial"
                               value={clergyForm.address_city || ''} 
                               onChange={e => setClergyForm({...clergyForm, address_city: e.target.value})} 
                               placeholder="Cidade"
@@ -2305,6 +2346,7 @@ export function Diocese() {
                           <div className="md:col-span-1">
                             <input 
                               type="text" 
+                              title="Digite a sigla do estado (UF)"
                               value={clergyForm.address_state || ''} 
                               onChange={e => setClergyForm({...clergyForm, address_state: e.target.value.toUpperCase()})} 
                               placeholder="UF"
@@ -2320,6 +2362,7 @@ export function Diocese() {
                               <PhoneCall size={14} className="absolute left-3 top-2.5 text-slate-400" />
                               <input 
                                 type="text" 
+                                title="Digite o telefone celular do membro"
                                 value={clergyForm.phone_mobile || ''} 
                                 onChange={e => setClergyForm({...clergyForm, phone_mobile: maskPhone(e.target.value)})} 
                                 className="w-full pl-9 pr-10 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500" 
@@ -2345,6 +2388,7 @@ export function Diocese() {
                               <MessageCircle size={14} className="absolute left-3 top-2.5 text-emerald-500" />
                               <input 
                                 type="text" 
+                                title="Digite o número de WhatsApp do membro"
                                 value={clergyForm.phone_whatsapp || ''} 
                                 onChange={e => setClergyForm({...clergyForm, phone_whatsapp: maskPhone(e.target.value)})} 
                                 className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500" 
@@ -2358,6 +2402,7 @@ export function Diocese() {
                             <Mail size={14} className="absolute left-3 top-2.5 text-slate-400" />
                             <input 
                               type="email" 
+                              title="Digite o e-mail de contato do membro"
                               value={clergyForm.email || ''} 
                               onChange={e => setClergyForm({...clergyForm, email: e.target.value})} 
                               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500" 
@@ -2372,6 +2417,7 @@ export function Diocese() {
                   <div className="flex gap-4 pt-4 sticky bottom-0 bg-white pb-2">
                     <button
                       type="button"
+                      title="Cancelar edição e fechar formulário"
                       onClick={() => setIsEditing(false)}
                       className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all"
                     >
@@ -2380,6 +2426,7 @@ export function Diocese() {
                     <button
                       type="submit"
                       disabled={loading}
+                      title="Salvar registro cadastrado"
                       className="flex-[2] px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm flex items-center justify-center gap-2"
                     >
                       {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -2698,7 +2745,7 @@ export function Diocese() {
                     <h3 className="text-lg font-bold text-slate-800 tracking-tight">Ficha Detalhada</h3>
                   </div>
                 </div>
-                <button onClick={() => setIsViewing(false)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-all border border-slate-150 relative z-10">
+                <button onClick={() => setIsViewing(false)} title="Fechar visualização da ficha detalhada" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-all border border-slate-150 relative z-10">
                   <X size={20} />
                 </button>
               </div>
@@ -2797,6 +2844,7 @@ export function Diocese() {
               <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
                 <button 
                   onClick={() => setIsViewing(false)}
+                  title="Fechar ficha detalhada"
                   className="px-5 py-2.5 text-slate-600 font-bold text-xs uppercase tracking-wider hover:bg-slate-200/60 rounded-lg transition-all"
                 >
                   Fechar
@@ -2806,6 +2854,7 @@ export function Diocese() {
                     setIsViewing(false);
                     handleEdit(selectedItem);
                   }}
+                  title="Abrir este registro para edição"
                   className="px-5 py-2.5 bg-blue-600 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2"
                 >
                   <Edit2 size={14} />
@@ -2841,6 +2890,7 @@ export function Diocese() {
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <button
                   onClick={() => { setIsDeleting(false); setItemToDelete(null); }}
+                  title="Cancelar exclusão e manter cadastro"
                   className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-all uppercase tracking-wider"
                 >
                   Cancelar
@@ -2848,6 +2898,7 @@ export function Diocese() {
                 <button
                   onClick={handleDeleteConfirm}
                   disabled={loading}
+                  title="Confirmar exclusão permanente deste cadastro"
                   className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
                 >
                   {loading ? (

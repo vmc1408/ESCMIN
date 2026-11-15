@@ -408,7 +408,7 @@ export function BackupSection() {
             {notification.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 shrink-0" /> : <AlertCircle size={18} className="text-red-600 shrink-0" />}
             <span>{notification.message}</span>
           </div>
-          <button onClick={() => setNotification(null)} className="text-xs uppercase hover:underline opacity-80 cursor-pointer">
+          <button title="Fechar aviso" onClick={() => setNotification(null)} className="text-xs uppercase hover:underline opacity-80 cursor-pointer">
             Fechar
           </button>
         </div>
@@ -456,6 +456,7 @@ export function BackupSection() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
+                    title="Gerar cópia de segurança completa com todas as tabelas do sistema"
                     onClick={() => setBackupType('geral')}
                     className={cn(
                       "p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 h-full",
@@ -477,6 +478,7 @@ export function BackupSection() {
 
                   <button
                     type="button"
+                    title="Selecionar manualmente quais tabelas incluir no backup"
                     onClick={() => setBackupType('detalhado')}
                     className={cn(
                       "p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 h-full",
@@ -530,6 +532,7 @@ export function BackupSection() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
+                        title="Selecionar todas as tabelas para a cópia de segurança"
                         onClick={() => setSelectedTables(COLLECTIONS.map(c => c.id))}
                         className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 uppercase cursor-pointer"
                       >
@@ -538,6 +541,7 @@ export function BackupSection() {
                       <span className="text-slate-300">|</span>
                       <button
                         type="button"
+                        title="Desmarcar todas as tabelas selecionadas"
                         onClick={() => setSelectedTables([])}
                         className="text-[10px] font-bold text-slate-600 hover:text-slate-900 uppercase cursor-pointer"
                       >
@@ -551,6 +555,7 @@ export function BackupSection() {
                     <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
+                      title="Filtrar tabelas por nome ou categoria"
                       value={backupSearchTerm}
                       onChange={(e) => setBackupSearchTerm(e.target.value)}
                       placeholder="Filtrar tabela..."
@@ -566,6 +571,7 @@ export function BackupSection() {
                       return (
                         <div 
                           key={col.id}
+                          title={`Incluir ou remover ${col.label} do backup`}
                           onClick={() => toggleSelectTable(col.id)}
                           className={cn(
                             "p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none",
@@ -654,6 +660,7 @@ export function BackupSection() {
               {/* Botão de Disparo */}
               <button
                 type="button"
+                title="Extrair dados selecionados e baixar arquivo de backup .JSON"
                 onClick={handleRunBackup}
                 disabled={isBackupRunning}
                 className="w-full py-3.5 bg-indigo-700 hover:bg-indigo-800 active:bg-indigo-900 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
@@ -717,6 +724,7 @@ export function BackupSection() {
                   {/* Dropzone de Arquivo quando nenhum arquivo está carregado */}
                   {!parsedRestoreFile ? (
                     <div 
+                      title="Clique ou arraste um arquivo .json de backup para restaurar"
                       className={cn(
                         "border-2 border-dashed p-8 text-center transition-all cursor-pointer select-none space-y-3 bg-slate-50/50",
                         dragActive ? "border-emerald-600 bg-emerald-50/40" : "border-slate-300 hover:border-slate-400 hover:bg-slate-50"
@@ -730,6 +738,7 @@ export function BackupSection() {
                       <input 
                         type="file" 
                         id="restore-file-input"
+                        title="Selecionar arquivo JSON de backup para restaurar"
                         className="hidden" 
                         accept=".json"
                         onChange={handleFileChange}
@@ -798,6 +807,7 @@ export function BackupSection() {
                           <div className="flex gap-2">
                             <button
                               type="button"
+                              title="Marcar todas as tabelas do arquivo de backup para restauração"
                               onClick={() => setSelectedRestoreTables(Object.keys(parsedRestoreFile.data))}
                               className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 uppercase cursor-pointer"
                             >
@@ -806,6 +816,7 @@ export function BackupSection() {
                             <span className="text-slate-300">|</span>
                             <button
                               type="button"
+                              title="Desmarcar todas as tabelas da restauração"
                               onClick={() => setSelectedRestoreTables([])}
                               className="text-[10px] font-bold text-slate-600 hover:text-slate-900 uppercase cursor-pointer"
                             >
@@ -819,6 +830,7 @@ export function BackupSection() {
                           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                           <input
                             type="text"
+                            title="Filtrar tabelas contidas no arquivo de backup"
                             value={restoreSearchTerm}
                             onChange={(e) => setRestoreSearchTerm(e.target.value)}
                             placeholder="Filtrar tabela no backup..."
@@ -843,6 +855,7 @@ export function BackupSection() {
                               return (
                                 <div 
                                   key={tableId}
+                                  title={`Marcar ou desmarcar ${tableMeta?.label || tableId} para restauração`}
                                   onClick={() => {
                                     if (isChecked) {
                                       setSelectedRestoreTables(prev => prev.filter(id => id !== tableId));
@@ -939,6 +952,7 @@ export function BackupSection() {
                     <div className="flex gap-2">
                       <button
                         type="button"
+                        title="Iniciar restauração das tabelas selecionadas no banco de dados"
                         onClick={handleRunRestore}
                         disabled={isRestoreRunning || selectedRestoreTables.length === 0}
                         className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
@@ -957,6 +971,7 @@ export function BackupSection() {
                       </button>
                       <button
                         type="button"
+                        title="Cancelar restauração e remover arquivo carregado"
                         disabled={isRestoreRunning}
                         onClick={() => {
                           setParsedRestoreFile(null);

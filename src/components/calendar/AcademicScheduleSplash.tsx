@@ -125,6 +125,7 @@ export function AcademicScheduleSplash({
                     key={p.label}
                     type="button"
                     onClick={() => setActivePeriodIndex(idx)}
+                    title={`Exibir cronograma de ${p.label}`}
                     className={`h-[26px] px-2.5 rounded-md text-[10px] font-bold tracking-wide transition-all cursor-pointer whitespace-nowrap ${
                       isActive 
                         ? 'bg-teal-600 text-white shadow-2xs' 

@@ -2572,6 +2572,7 @@ export function Contributions() {
         <div className="flex items-center gap-1.5 flex-1 min-w-[320px]">
           <button
             type="button"
+            title="Acessar lançamento individual de contribuições do aluno"
             onClick={() => {
               setViewMode('individual');
               setReportTarget('student');
@@ -2592,6 +2593,7 @@ export function Contributions() {
 
           <button
             type="button"
+            title="Consultar inadimplência e mensalidades em atraso"
             onClick={() => {
               setViewMode('unpaid');
               fetchUnpaidData(selectedYear);
@@ -2609,6 +2611,7 @@ export function Contributions() {
 
           <button
             type="button"
+            title="Conferir contribuições lançadas por período ou turma"
             onClick={() => {
               setViewMode('period');
               fetchPeriodContributions();
@@ -2631,6 +2634,7 @@ export function Contributions() {
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Exercício:</span>
           <select
             value={selectedYear}
+            title="Selecionar ano de exercício financeiro"
             onChange={(e) => {
               const yr = parseInt(e.target.value);
               setSelectedYear(yr);
@@ -2665,6 +2669,7 @@ export function Contributions() {
           <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
             <button
               type="button"
+              title="Filtrar consulta por turma"
               onClick={() => {
                 setReportTarget('class');
                 if (viewMode !== 'unpaid') {
@@ -2684,6 +2689,7 @@ export function Contributions() {
             </button>
             <button
               type="button"
+              title="Filtrar consulta por aluno específico"
               onClick={() => {
                 setReportTarget('student');
                 if (viewMode !== 'unpaid') {
@@ -2710,6 +2716,7 @@ export function Contributions() {
             <div className="flex items-center gap-1.5 min-w-[200px] sm:min-w-[240px]">
               <select
                 value={selectedClassId}
+                title="Selecionar turma para filtrar contribuições"
                 onChange={(e) => {
                   const val = e.target.value;
                   setSelectedClassId(val);
@@ -2773,6 +2780,7 @@ export function Contributions() {
                     id="student-search-input-individual"
                     type="text"
                     placeholder="Digite o Nome ou RA do Aluno..."
+                    title="Pesquisar aluno por nome ou número de matrícula (RA)"
                     value={searchTerm || searchByName}
                     onChange={(e) => {
                       setSearchByName(e.target.value);
@@ -2786,6 +2794,7 @@ export function Contributions() {
                         <button
                           key={s.id}
                           type="button"
+                          title={`Selecionar ${s.name}`}
                           onClick={() => {
                             handleSelectStudent(s);
                             if (viewMode !== 'unpaid') {
@@ -2824,6 +2833,7 @@ export function Contributions() {
           <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
             <button
               type="button"
+              title="Filtrar contribuições por mês"
               onClick={() => {
                 setPeriodOption('mensal');
                 const dates = applyPeriodDates('mensal', selectedMonth, selectedSemester, selectedYear);
@@ -2842,6 +2852,7 @@ export function Contributions() {
             </button>
             <button
               type="button"
+              title="Filtrar contribuições por semestre"
               onClick={() => {
                 setPeriodOption('semestral');
                 const dates = applyPeriodDates('semestral', selectedMonth, selectedSemester, selectedYear);
@@ -2860,6 +2871,7 @@ export function Contributions() {
             </button>
             <button
               type="button"
+              title="Filtrar contribuições pelo ano completo"
               onClick={() => {
                 setPeriodOption('anual');
                 const dates = applyPeriodDates('anual', selectedMonth, selectedSemester, selectedYear);
@@ -2884,6 +2896,7 @@ export function Contributions() {
               <div className="w-full flex items-center justify-between">
                 <select
                   value={selectedMonth}
+                  title="Selecionar mês de referência"
                   onChange={(e) => {
                     const m = Number(e.target.value);
                     setSelectedMonth(m);
@@ -2901,6 +2914,7 @@ export function Contributions() {
                 <span className="text-slate-300 px-2 shrink-0">/</span>
                 <select
                   value={selectedYear}
+                  title="Selecionar ano de referência"
                   onChange={(e) => {
                     const yr = Number(e.target.value);
                     setSelectedYear(yr);
@@ -2923,6 +2937,7 @@ export function Contributions() {
               <div className="w-full flex items-center justify-between">
                 <select
                   value={selectedSemester}
+                  title="Selecionar semestre de referência"
                   onChange={(e) => {
                     const sem = Number(e.target.value) as 1 | 2;
                     setSelectedSemester(sem);
@@ -2939,6 +2954,7 @@ export function Contributions() {
                 <span className="text-slate-300 px-1.5 shrink-0">/</span>
                 <select
                   value={selectedYear}
+                  title="Selecionar ano de referência"
                   onChange={(e) => {
                     const yr = Number(e.target.value);
                     setSelectedYear(yr);
@@ -2962,6 +2978,7 @@ export function Contributions() {
                 <span className="text-[10px] font-bold text-slate-500 uppercase shrink-0">Exercício:</span>
                 <select
                   value={selectedYear}
+                  title="Selecionar exercício anual"
                   onChange={(e) => {
                     const yr = Number(e.target.value);
                     setSelectedYear(yr);
@@ -3047,6 +3064,7 @@ export function Contributions() {
                 {students.map((student) => (
                   <button
                     key={student.id}
+                    title={`Abrir lançamentos de ${student.name}`}
                     onClick={() => { setViewMode('individual'); handleSelectStudent(student); }}
                     className={cn(
                       "w-full flex items-center gap-3.5 p-3.5 rounded-xl transition-all text-left cursor-pointer",
@@ -3102,31 +3120,34 @@ export function Contributions() {
                 <div className="flex flex-wrap items-center gap-2.5">
                   {/* Opções do Relatório */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60" title="Ocultar nomes no relatório">
                       <input 
                         type="checkbox" 
                         checked={hideStudentName} 
                         onChange={(e) => setHideStudentName(e.target.checked)} 
+                        title="Ocultar nomes no relatório"
                         className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-3.5 h-3.5 cursor-pointer accent-[#131b2e]" 
                       />
                       <span className="whitespace-nowrap text-[11px]">Ocultar Nome</span>
                     </label>
 
-                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60" title="Exibir totalizador no relatório">
                       <input 
                         type="checkbox" 
                         checked={showPendingTotalizer} 
                         onChange={(e) => setShowPendingTotalizer(e.target.checked)} 
+                        title="Exibir totalizador no relatório"
                         className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-3.5 h-3.5 cursor-pointer accent-[#131b2e]" 
                       />
                       <span className="whitespace-nowrap text-[11px]">Totalizador</span>
                     </label>
 
-                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60" title="Incluir data e hora no relatório">
                       <input 
                         type="checkbox" 
                         checked={showDateTime} 
                         onChange={(e) => setShowDateTime(e.target.checked)} 
+                        title="Incluir data e hora no relatório"
                         className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-3.5 h-3.5 cursor-pointer accent-[#131b2e]" 
                       />
                       <span className="whitespace-nowrap text-[11px]">Data e Hora</span>
@@ -3360,6 +3381,7 @@ export function Contributions() {
                                       setViewMode('individual');
                                       fetchContributions(item.student.id, unpaidYear);
                                     }}
+                                    title={`Regularizar pendências de ${item.student.name}`}
                                     className="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
                                   >
                                     Regularizar
@@ -3433,6 +3455,7 @@ export function Contributions() {
                     </label>
                     <select
                       value={readingType}
+                      title="Selecionar modo de identificação do aluno (RA ou Nome)"
                       onChange={(e) => {
                         const val = e.target.value as 'ra' | 'name';
                         setReadingType(val);
@@ -3470,6 +3493,7 @@ export function Contributions() {
                               ref={raInputRef}
                               type="text"
                               value={formRAInput}
+                              title="Digite o número de matrícula (RA) e pressione Enter"
                               onChange={(e) => setFormRAInput(e.target.value)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
@@ -3538,6 +3562,7 @@ export function Contributions() {
                           tabIndex={-1}
                           value={selectedStudent?.name || ''}
                           placeholder="Preenchido automaticamente pelo RA..."
+                          title="Nome do aluno identificado pelo RA"
                           className="flex-1 max-w-lg h-8.5 px-3 bg-slate-100/90 border border-slate-300 rounded-md text-xs font-bold text-slate-700 select-none cursor-default"
                         />
                       </div>
@@ -3557,6 +3582,7 @@ export function Contributions() {
                               ref={nameInputRef}
                               type="text"
                               value={formNameInput}
+                              title="Digite o nome do aluno para pesquisar"
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setFormNameInput(val);
@@ -3709,6 +3735,7 @@ export function Contributions() {
                           tabIndex={-1}
                           value={selectedStudent?.registration_number || ''}
                           placeholder="Preenchido automaticamente pelo Nome..."
+                          title="Código de matrícula (RA) do aluno selecionado"
                           className="flex-1 max-w-sm h-8.5 px-3 bg-slate-100/90 border border-slate-300 rounded-md text-xs font-mono font-bold text-slate-700 select-none cursor-default"
                         />
                       </div>
@@ -3730,6 +3757,7 @@ export function Contributions() {
                           ? `${selectedStudentClass ? (selectedStudentClass.code ? `${selectedStudentClass.code} - ${selectedStudentClass.name}` : selectedStudentClass.name) : ((selectedStudent as any).course || 'Sem Turma Registrada')}`
                           : 'Aguardando seleção do aluno...'
                       }
+                      title="Turma ou polo vinculado ao aluno"
                       className="flex-1 max-w-lg h-8.5 px-3 bg-slate-100/90 border border-slate-300 rounded-md text-xs font-bold text-slate-600 select-none cursor-default"
                     />
                   </div>
@@ -3750,6 +3778,7 @@ export function Contributions() {
                           disabled={!selectedStudent}
                           value={formMonthText}
                           placeholder="01"
+                          title="Digite o número do mês de referência (01 a 12)"
                           onChange={(e) => {
                             const val = e.target.value.replace(/\D/g, '').slice(0, 2);
                             setFormMonthText(val);
@@ -3822,6 +3851,7 @@ export function Contributions() {
                           type="number"
                           disabled={!selectedStudent}
                           value={selectedFormYear}
+                          title="Informe o ano referente à contribuição"
                           onChange={(e) => setSelectedFormYear(parseInt(e.target.value) || selectedYear)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -3847,6 +3877,7 @@ export function Contributions() {
                       type="date"
                       disabled={!selectedStudent}
                       value={selectedPaymentDate}
+                      title="Selecione a data em que o pagamento foi realizado"
                       onChange={(e) => setSelectedPaymentDate(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -3907,7 +3938,7 @@ export function Contributions() {
                                 ? "text-amber-900/70 line-through cursor-not-allowed"
                                 : "text-slate-900 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                             )}
-                            title={formMethod === 'Abono' ? "Valor preservado, mas desconsiderado no lançamento devido à opção Abono selecionada." : undefined}
+                            title={formMethod === 'Abono' ? "Valor preservado, mas desconsiderado no lançamento devido à opção Abono selecionada." : "Informar o valor em reais (R$) da contribuição"}
                           />
                         </div>
                         {formMethod === 'Abono' && (
@@ -3946,6 +3977,7 @@ export function Contributions() {
                       ref={methodSelectRef}
                       disabled={!selectedStudent}
                       value={formMethod}
+                      title="Selecionar forma de recebimento da contribuição"
                       onChange={(e) => {
                         const val = e.target.value as any;
                         setFormMethod(val);
@@ -3977,6 +4009,7 @@ export function Contributions() {
                       type="text"
                       disabled={!selectedStudent}
                       value={formObservations}
+                      title="Digite observações opcionais sobre o pagamento"
                       onChange={(e) => setFormObservations(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -4151,6 +4184,7 @@ export function Contributions() {
                 <button
                   type="button"
                   ref={newButtonRef}
+                  title="Iniciar novo lançamento de contribuição"
                   onClick={handleNewEntry}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -4167,6 +4201,7 @@ export function Contributions() {
                 {/* 🔍 Procurar (Azul Escuro) */}
                 <button
                   type="button"
+                  title="Abrir janela de busca de alunos"
                   onClick={() => setIsSearchModalOpen(true)}
                   className="h-9 px-4 bg-[#1e293b] hover:bg-[#0f172a] text-white rounded-md text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
                 >
@@ -4214,6 +4249,7 @@ export function Contributions() {
                 <button
                   type="button"
                   ref={saveButtonRef}
+                  title={editingContributionId ? 'Salvar alteração no lançamento' : 'Salvar novo lançamento de contribuição'}
                   onClick={handleSaveForm}
                   disabled={!selectedStudent || isSavingManual}
                   onKeyDown={(e) => {
@@ -4291,6 +4327,7 @@ export function Contributions() {
                   {selectedForPrint.length > 0 && (
                     <div className="flex items-center gap-2 animate-in slide-in-from-right-2">
                       <button 
+                        title="Visualizar recibos selecionados"
                         onClick={() => {
                           triggerDirectPrint(selectedForPrint);
                         }}
@@ -4300,6 +4337,7 @@ export function Contributions() {
                         Ver ({selectedForPrint.length})
                       </button>
                       <button 
+                        title="Imprimir recibos selecionados"
                         onClick={() => {
                           generateSelectedReceipts(selectedForPrint, 'print');
                           setSelectedForPrint([]);
@@ -4478,6 +4516,7 @@ export function Contributions() {
                                   <div className="flex items-center gap-3">
                                      <input 
                                       type="checkbox"
+                                      title="Selecionar ou desmarcar todos os recibos deste aluno"
                                       className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                       checked={group.contributions.every((c: any) => selectedForPrint.some(s => s.id === c.id))}
                                       onChange={(e) => {
@@ -4614,6 +4653,7 @@ export function Contributions() {
                                      <input 
                                       type="checkbox"
                                       checked={selectedForPrint.some(s => s.id === c.id)}
+                                      title="Selecionar este lançamento para impressão"
                                       onChange={() => togglePrintSelection(c)}
                                       className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                     />
@@ -4727,6 +4767,7 @@ export function Contributions() {
 
               <div className="grid grid-cols-2 gap-3">
                 <button 
+                  title="Cancelar operação"
                   onClick={() => { 
                     setDeleteConfirmationFor(null); 
                     setUnlinkConfirmationFor(null); 
@@ -4738,6 +4779,7 @@ export function Contributions() {
                   Cancelar
                 </button>
                 <button 
+                  title={deleteConfirmationFor ? 'Confirmar exclusão definitiva do lançamento' : 'Confirmar desvinculação do Pix'}
                   onClick={deleteConfirmationFor ? handleDeleteContribution : handleUnlinkPix}
                   className={cn(
                     "py-4 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all active:scale-95",
@@ -4769,6 +4811,7 @@ export function Contributions() {
               </div>
               <button 
                 type="button"
+                title="Fechar notificação"
                 onClick={() => setNotification(null)} 
                 className="p-1 hover:bg-white/20 rounded-md text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
               >
@@ -4810,6 +4853,7 @@ export function Contributions() {
                   {manualMonths.length > 0 && (
                     <button 
                       onClick={() => setManualMonths([])}
+                      title="Limpar seleção de meses"
                       className="text-[10px] font-black text-red-500 uppercase hover:underline"
                     >
                       Limpar Tudo
@@ -4820,6 +4864,7 @@ export function Contributions() {
                 {/* Opção Taxa de Matrícula (Período 0) */}
                 <button
                   type="button"
+                  title="Selecionar ou desmarcar taxa de matrícula"
                   onClick={() => toggleManualMonth(0)}
                   className={cn(
                     "w-full py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border flex items-center justify-between shadow-sm",
@@ -4847,6 +4892,7 @@ export function Contributions() {
                       <button
                         key={m}
                         type="button"
+                        title={`Selecionar ou desmarcar mês de ${m}`}
                         onClick={() => toggleManualMonth(monthNum)}
                         className={cn(
                           "py-2 px-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border",
@@ -4887,6 +4933,7 @@ export function Contributions() {
                     <input 
                       type="text"
                       value={manualAmount}
+                      title="Digite o valor total da contribuição"
                       onChange={(e) => setManualAmount(e.target.value)}
                       onBlur={formatManualAmount}
                       onKeyDown={(e) => e.key === 'Enter' && formatManualAmount()}
@@ -4902,6 +4949,7 @@ export function Contributions() {
                   <input 
                     type="date"
                     value={manualDate}
+                    title="Selecione a data do pagamento"
                     onChange={(e) => setManualDate(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm font-bold text-[#00174b] focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all h-[46px]"
                   />
@@ -4916,6 +4964,7 @@ export function Contributions() {
                     <button
                       key={method}
                       type="button"
+                      title={`Selecionar ${method} como forma de recebimento`}
                       onClick={() => setManualMethod(method)}
                       className={cn(
                         "py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all border cursor-pointer text-center",
@@ -4944,6 +4993,7 @@ export function Contributions() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
                 <textarea 
                   value={manualObservations}
+                  title="Digite observações adicionais sobre o pagamento"
                   onChange={(e) => setManualObservations(e.target.value)}
                   placeholder="Informações adicionais sobre este pagamento..."
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-medium text-[#00174b] focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all resize-none h-16"
@@ -4952,6 +5002,7 @@ export function Contributions() {
               
               <div className="pt-2">
                 <button 
+                  title="Confirmar e registrar pagamentos selecionados"
                   onClick={saveManualContribution}
                   disabled={isSavingManual || manualMonths.length === 0}
                   className="w-full bg-[#00174b] text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2.5 hover:bg-blue-900 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 cursor-pointer"
@@ -5026,6 +5077,7 @@ export function Contributions() {
                 <input 
                   type="date"
                   value={abonoModal.date}
+                  title="Selecione a data da concessão do abono"
                   onChange={(e) => setAbonoModal(prev => prev ? { ...prev, date: e.target.value } : null)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-[#00174b] focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
                 />
@@ -5046,6 +5098,7 @@ export function Contributions() {
                 </div>
                 <textarea 
                   value={abonoModal.reason}
+                  title="Digite a justificativa administrativa do abono"
                   onChange={(e) => setAbonoModal(prev => prev ? { ...prev, reason: e.target.value.slice(0, 250) } : null)}
                   maxLength={250}
                   rows={3}
@@ -5062,6 +5115,7 @@ export function Contributions() {
             <div className="p-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
               <button
                 type="button"
+                title="Cancelar concessão de abono"
                 onClick={() => setAbonoModal(null)}
                 disabled={abonoModal.isSubmitting}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/70 rounded-xl transition-all cursor-pointer disabled:opacity-50"
@@ -5070,6 +5124,7 @@ export function Contributions() {
               </button>
               <button
                 type="button"
+                title="Confirmar e gravar abono"
                 onClick={confirmAbono}
                 disabled={abonoModal.isSubmitting || !abonoModal.reason.trim()}
                 className="px-5 py-2 bg-[#00174b] hover:bg-blue-900 active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md shadow-blue-950/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -5104,7 +5159,7 @@ export function Contributions() {
                 </div>
                 <h3 className="text-lg font-black text-[#131b2e]">Visualização do Recibo</h3>
               </div>
-              <button onClick={() => setReceiptPreviewData(null)} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl">
+              <button onClick={() => setReceiptPreviewData(null)} title="Fechar visualização do recibo" className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl">
                 <X size={24} />
               </button>
             </div>
@@ -5246,12 +5301,14 @@ export function Contributions() {
 
             <div className="p-6 bg-white border-t border-slate-100 grid grid-cols-2 gap-4">
               <button 
+                title="Baixar recibo em formato PDF"
                 onClick={() => generateSelectedReceipts(receiptPreviewData!, 'save')}
                 className="py-4 bg-[#00174b] text-white rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-800 shadow-xl transition-all text-[10px]"
               >
                 <FileDown size={18} /> Baixar PDF
               </button>
               <button 
+                title="Imprimir recibo de contribuição"
                 onClick={() => generateSelectedReceipts(receiptPreviewData!, 'print')}
                 className="py-4 bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-emerald-700 shadow-xl transition-all text-[10px]"
               >
@@ -5286,6 +5343,7 @@ export function Contributions() {
             
             <div className="flex items-center flex-wrap justify-center gap-3">
               <button 
+                title="Enviar recibo para a impressora"
                 onMouseDown={() => {
                   try {
                     window.print();
@@ -5303,6 +5361,7 @@ export function Contributions() {
               </button>
 
               <button 
+                title="Baixar cópia do recibo em PDF"
                 onClick={() => generateSelectedReceipts(receiptPreviewData!, 'save')}
                 className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
               >
@@ -5312,6 +5371,7 @@ export function Contributions() {
               <div className="w-px h-8 bg-white/10 hidden sm:block mx-1"></div>
 
               <button 
+                title="Fechar painel de impressão"
                 onClick={() => {
                   setIsPrinting(false);
                   setReceiptPreviewData(null);
@@ -5531,6 +5591,7 @@ export function Contributions() {
             
             <div className="flex items-center flex-wrap justify-center gap-3">
               <button 
+                title="Imprimir extrato anual de contribuições"
                 onMouseDown={() => {
                   try {
                     window.print();
@@ -5548,6 +5609,7 @@ export function Contributions() {
               </button>
  
               <button 
+                title="Baixar extrato anual em PDF"
                 onClick={generateStatement}
                 className="px-6 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-2 active:scale-95"
               >
@@ -5555,6 +5617,7 @@ export function Contributions() {
               </button>
  
               <button 
+                title="Fechar painel de impressão do extrato"
                 onClick={() => setIsPrintingStatement(false)}
                 className="px-6 py-2 bg-red-600/10 hover:bg-red-600 text-red-600 hover:text-white rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-2 active:scale-95"
               >
@@ -5736,6 +5799,7 @@ export function Contributions() {
               </div>
               <button
                 type="button"
+                title="Fechar busca de alunos"
                 onClick={() => setIsSearchModalOpen(false)}
                 className="p-1 hover:bg-white/20 rounded text-white cursor-pointer"
               >
@@ -5750,6 +5814,7 @@ export function Contributions() {
                   type="text"
                   autoFocus
                   placeholder="Pesquise por Nome, Matrícula (RA) ou CPF..."
+                  title="Pesquisar aluno por nome, matrícula ou CPF"
                   value={searchModalQuery}
                   onChange={(e) => setSearchModalQuery(e.target.value)}
                   className="w-full h-9 pl-9 pr-3 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600"
@@ -5769,6 +5834,7 @@ export function Contributions() {
                     <button
                       key={student.id}
                       type="button"
+                      title={`Selecionar ${student.name}`}
                       onClick={() => handleSelectStudentForForm(student)}
                       className="w-full text-left p-3 hover:bg-cyan-50/70 rounded-lg transition-colors flex items-center justify-between group cursor-pointer"
                     >
@@ -5795,6 +5861,7 @@ export function Contributions() {
               <span>{modalFilteredStudents.length} aluno(s) listado(s)</span>
               <button
                 type="button"
+                title="Fechar janela de busca"
                 onClick={() => setIsSearchModalOpen(false)}
                 className="px-3 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded text-xs font-bold text-slate-700 cursor-pointer"
               >

@@ -137,6 +137,7 @@ export function GlobalImportOverlay() {
                 }
                 resetImport();
               }}
+              title={`Abrir a página de ${currentTypeName} e fechar este aviso`}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm text-xs uppercase tracking-wider cursor-pointer"
             >
               <ExternalLink size={16} />

@@ -2212,7 +2212,7 @@ export function Reports() {
         )}>
           {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
           <p className="font-bold text-sm tracking-tight">{notification.message}</p>
-          <button onClick={() => setNotification(null)} className="ml-2 opacity-70 hover:opacity-100">
+          <button onClick={() => setNotification(null)} title="Fechar aviso" className="ml-2 opacity-70 hover:opacity-100">
             <X size={16} />
           </button>
         </div>
@@ -2229,6 +2229,7 @@ export function Reports() {
             {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
               <button
                 key={cat}
+                title={`Visualizar aba ${cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : 'Professores'}`}
                 onClick={() => {
                   setActiveCategory(cat);
                   setSearchParams({ tab: cat });
@@ -2253,6 +2254,7 @@ export function Reports() {
           </button>
           <button 
             onClick={() => generateReport(activeCategory)}
+            title="Exportar relatório desta aba em arquivo"
             className="h-10 px-5 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-2 hover:opacity-95 transition-all shadow-sm cursor-pointer"
           >
             <FileDown size={14} />
@@ -2572,6 +2574,7 @@ export function Reports() {
                     <select
                       value={academicYearFilter}
                       onChange={(e) => setAcademicYearFilter(e.target.value)}
+                      title="Filtrar turmas por ano acadêmico"
                       className="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 text-slate-500"
                     >
                       <option value="Todos">Todos os Anos</option>
@@ -2586,6 +2589,7 @@ export function Reports() {
                     {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                       <button
                         key={status}
+                        title={`Filtrar turmas com status ${status}`}
                         onClick={() => setClassStatusFilter(status)}
                         className={cn(
                           "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
@@ -2767,6 +2771,7 @@ export function Reports() {
                   {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                     <button
                       key={status}
+                      title={`Filtrar professores com status ${status}`}
                       onClick={() => setTeacherStatusFilter(status)}
                       className={cn(
                         "flex-1 md:flex-none px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
@@ -2785,6 +2790,7 @@ export function Reports() {
                   <select
                     value={teacherSubjectFilter}
                     onChange={(e) => setTeacherSubjectFilter(e.target.value)}
+                    title="Filtrar professores por disciplina ministrada"
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500/20 appearance-none"
                   >
                     <option value="all">Filtrar Disciplina</option>
@@ -2801,6 +2807,7 @@ export function Reports() {
                   <select
                     value={teacherSortBy}
                     onChange={(e) => setTeacherSortBy(e.target.value as any)}
+                    title="Selecionar ordenação dos professores"
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500/20 appearance-none"
                   >
                     <option value="name">Ordenar por Nome</option>
@@ -2874,6 +2881,7 @@ export function Reports() {
                             <select
                               value={subjectSemesterFilter}
                               onChange={(e) => setSubjectSemesterFilter(e.target.value)}
+                              title="Filtrar disciplinas por semestre"
                               className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 text-slate-500"
                             >
                               <option value="Todos">Todos Semestres</option>
@@ -2885,6 +2893,7 @@ export function Reports() {
                              {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                                <button
                               key={status}
+                              title={`Filtrar disciplinas com status ${status}`}
                               onClick={() => setSubjectStatusFilter(status)}
                               className={cn(
                                 "px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all",
@@ -2974,6 +2983,7 @@ export function Reports() {
                             </div>
                             <select
                               value={selectedDiarioClass}
+                              title="Selecionar turma para o diário integrado"
                               onChange={(e) => {
                                 setSelectedDiarioClass(e.target.value);
                                 setDiarioSearch('');
@@ -2998,6 +3008,7 @@ export function Reports() {
                                </div>
                                <input
                                  type="text"
+                                 title="Pesquisar aluno por nome ou matrícula no diário"
                                  value={diarioSearch}
                                  onChange={(e) => setDiarioSearch(e.target.value)}
                                  placeholder="BUSCAR POR NOME OU RA..."
@@ -3239,6 +3250,7 @@ export function Reports() {
                                                ) : (
                                                  <button
                                                    disabled={res.finalStatus !== 'Aprovado'}
+                                                   title="Emitir certificado ou diploma para este aluno"
                                                    onClick={() => {
                                                      setCertificateForm({
                                                        course: `${classObj?.name || 'Curso Conciliar'}`,
@@ -3290,6 +3302,7 @@ export function Reports() {
                  </div>
                  <button
                    onClick={() => setIssuingStudent(null)}
+                   title="Fechar janela de emissão de certificado"
                    className="text-slate-400 hover:text-slate-600 transition-colors"
                  >
                    <X size={15} />
@@ -3301,6 +3314,7 @@ export function Reports() {
                     <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Estudante Destinatário</label>
                     <select
                        required
+                       title="Selecione o aluno destinatário ou todos os aprovados"
                        className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none font-sans"
                        value={selectedStudentId}
                        onChange={(e) => setSelectedStudentId(e.target.value)}
@@ -3397,6 +3411,7 @@ export function Reports() {
                     <input
                       type="text"
                       required
+                      title="Informe o nome do curso ou turma para o certificado"
                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 transition-all outline-none"
                       value={certificateForm.course}
                       onChange={(e) => setCertificateForm({ ...certificateForm, course: e.target.value })}
@@ -3408,6 +3423,7 @@ export function Reports() {
                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Tipo do Documento</label>
                        <select
                          required
+                         title="Selecione o modelo de certificado ou diploma"
                          className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 outline-none"
                          value={certificateForm.type}
                          onChange={(e) => setCertificateForm({ ...certificateForm, type: e.target.value as 'conclusão' | 'participação' | 'honra' })}
@@ -3423,6 +3439,7 @@ export function Reports() {
                        <input
                          type="date"
                          required
+                         title="Selecione a data de emissão do documento"
                          className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none"
                          value={certificateForm.issuance_date}
                          onChange={(e) => setCertificateForm({ ...certificateForm, issuance_date: e.target.value })}
@@ -3433,6 +3450,7 @@ export function Reports() {
                  <div className="flex gap-3 pt-3">
                     <button
                       type="button"
+                      title="Fechar janela sem emitir"
                       onClick={() => setIssuingStudent(null)}
                       className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all"
                     >
@@ -3440,6 +3458,7 @@ export function Reports() {
                     </button>
                     <button
                       type="button"
+                      title="Visualizar e imprimir certificado"
                       onClick={handlePrintPreviewFromForm}
                       disabled={(() => {
                         if (selectedStudentId === 'all') return false;
@@ -3486,6 +3505,7 @@ export function Reports() {
                     </button>
                     <button
                       type="submit"
+                      title="Registrar emissão do documento no histórico"
                       disabled={isSubmittingCert || (() => {
                         if (selectedStudentId === 'all') return false;
                         const currentRes = diarioClassResults.find(r => r.student.id === selectedStudentId);
@@ -3552,6 +3572,7 @@ export function Reports() {
                  </div>
                  <button
                    onClick={() => setViewingCertificate(null)}
+                   title="Fechar opções de impressão"
                    className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                  >
                    <X size={15} />
@@ -3569,6 +3590,7 @@ export function Reports() {
                     <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Estudante Destinatário</label>
                     <select
                        required
+                       title="Selecione o aluno ou lote para impressão"
                        className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none font-sans"
                        value={printFormStudentId}
                        onChange={(e) => setPrintFormStudentId(e.target.value)}
@@ -3586,6 +3608,7 @@ export function Reports() {
                     <input
                       type="text"
                       required
+                      title="Editar nome do curso ou turma para impressão"
                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 transition-all outline-none font-sans"
                       value={printFormCourse}
                       onChange={(e) => setPrintFormCourse(e.target.value)}
@@ -3597,6 +3620,7 @@ export function Reports() {
                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Tipo do Documento</label>
                        <select
                          required
+                         title="Selecione o modelo ou tipo de documento para impressão"
                          className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-800 outline-none font-sans"
                          value={printFormType}
                          onChange={(e) => setPrintFormType(e.target.value as 'conclusão' | 'participação' | 'honra')}
@@ -3612,6 +3636,7 @@ export function Reports() {
                        <input
                          type="date"
                          required
+                         title="Definir a data que constará no documento impresso"
                          className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-lg text-xs font-semibold text-slate-805 outline-none font-sans"
                          value={printFormDate}
                          onChange={(e) => setPrintFormDate(e.target.value)}
@@ -3622,6 +3647,7 @@ export function Reports() {
                  <div className="flex gap-3 pt-3">
                     <button
                       type="button"
+                      title="Fechar janela de preparação de impressão"
                       onClick={() => setViewingCertificate(null)}
                       className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all cursor-pointer"
                     >
@@ -3629,6 +3655,7 @@ export function Reports() {
                     </button>
                     <button
                       type="submit"
+                      title="Gerar visualização e imprimir o documento selecionado"
                       className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm active:scale-95"
                     >
                        <Printer size={12} /> Imprimir

@@ -2575,6 +2575,7 @@ export function AcademicCalendar() {
 
               <button 
                 onClick={() => setShowPrintOptions(true)}
+                title="Abrir centro de impressão e exportar relatórios do calendário"
                 className="h-[36px] px-2.5 sm:px-3.5 flex items-center gap-1.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#0F2A30] hover:text-white transition-all active:scale-95 border border-slate-200 cursor-pointer whitespace-nowrap shrink-0"
               >
                 <Printer size={14} className="shrink-0" />
@@ -2622,6 +2623,7 @@ export function AcademicCalendar() {
                 <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200/70 shadow-inner h-[36px] w-fit shrink-0">
                   <button 
                     onClick={() => setViewMode('month')}
+                    title="Visualizar calendário no modo mensal"
                     className={cn(
                       "px-2.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap",
                       viewMode === 'month' ? "bg-white text-slate-900 shadow-xs border border-slate-200/70" : "text-slate-500 hover:text-slate-800"
@@ -2631,6 +2633,7 @@ export function AcademicCalendar() {
                   </button>
                   <button 
                     onClick={() => setViewMode('year')}
+                    title="Visualizar calendário panorâmico do ano inteiro"
                     className={cn(
                       "px-2.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap",
                       viewMode === 'year' ? "bg-white text-slate-900 shadow-xs border border-slate-200/70" : "text-slate-500 hover:text-slate-800"
@@ -2640,6 +2643,7 @@ export function AcademicCalendar() {
                   </button>
                   <button 
                     onClick={() => setViewMode('list')}
+                    title="Visualizar eventos e aulas em formato de lista cronológica"
                     className={cn(
                       "px-2.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap",
                       viewMode === 'list' ? "bg-white text-slate-900 shadow-xs border border-slate-200/70" : "text-slate-500 hover:text-slate-800"
@@ -2903,6 +2907,7 @@ export function AcademicCalendar() {
                               setParametersTab('weekly');
                               setShowSettings(true);
                             }}
+                            title="Abrir ajustes de regras semanais e semestres para esta turma"
                             className="h-[36px] px-4 bg-[#0F2A30] text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-[#163B42] transition-all flex items-center gap-2 cursor-pointer"
                           >
                             <Settings size={14} />
@@ -3215,6 +3220,7 @@ export function AcademicCalendar() {
                                       <div className="flex items-center justify-end gap-2">
                                         <button 
                                           onClick={() => setInspectingClassId(cls.id)}
+                                          title={`Visualizar cronograma detalhado da turma ${cls.name}`}
                                           className="px-4 py-2 bg-white text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-[#0F2A30] hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200 cursor-pointer whitespace-nowrap"
                                         >
                                           Ver Lista
@@ -3482,6 +3488,7 @@ export function AcademicCalendar() {
                                 });
                                 setIsEditing(true);
                               }}
+                              title={`Adicionar novo evento ou registro em ${dateStr}`}
                               className="hidden md:block opacity-0 group-hover/cell:opacity-100 p-1 text-teal-800 hover:bg-teal-100 rounded-lg transition-all cursor-pointer"
                             >
                               <Plus size={14} />
@@ -3863,6 +3870,7 @@ export function AcademicCalendar() {
                   <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
                     <button 
                       onClick={() => setSortBy('date')}
+                      title="Ordenar lista cronologicamente por data"
                       className={cn(
                         "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                         sortBy === 'date' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
@@ -3872,6 +3880,7 @@ export function AcademicCalendar() {
                     </button>
                     <button 
                       onClick={() => setSortBy('title')}
+                      title="Ordenar lista alfabeticamente por título"
                       className={cn(
                         "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                         sortBy === 'title' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
@@ -3996,6 +4005,7 @@ export function AcademicCalendar() {
                                       e.stopPropagation();
                                       handleEdit(event);
                                     }}
+                                    title={`Editar registro: ${event.title}`}
                                     className="p-2 text-slate-400 hover:text-slate-800 hover:bg-white rounded-lg transition-all border border-transparent hover:border-slate-200 shadow-sm hover:shadow-md"
                                   >
                                     <Edit2 size={14} />
@@ -4006,6 +4016,7 @@ export function AcademicCalendar() {
                                         e.stopPropagation();
                                         handleDelete(event.id, confirmDeleteId === event.id);
                                       }}
+                                      title={confirmDeleteId === event.id ? "Clique novamente para confirmar a exclusão" : `Excluir registro: ${event.title}`}
                                       className={cn(
                                         "p-2 rounded-lg transition-all border border-transparent",
                                         confirmDeleteId === event.id 
@@ -4118,6 +4129,7 @@ export function AcademicCalendar() {
                 <button 
                   type="button"
                   onClick={() => setIsEditing(false)}
+                  title="Fechar janela de edição de evento"
                   className="absolute top-4 sm:top-5 right-4 sm:right-6 p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-slate-600"
                 >
                   <X size={18} />
@@ -4204,6 +4216,7 @@ export function AcademicCalendar() {
                             key={type.id}
                             type="button"
                             disabled={!canManageCalendar}
+                            title={`Selecionar tipo: ${type.label} (${type.desc})`}
                             onClick={() => {
                               if (formData.type === type.id) {
                                 setFormData({ ...formData, type: 'class_day', title: 'Aula Normal' });
@@ -4264,6 +4277,7 @@ export function AcademicCalendar() {
                           required
                           readOnly={!canManageCalendar}
                           type="date"
+                          title="Selecionar data de início do evento"
                           value={formData.start_date}
                           onChange={e => {
                             const newDate = e.target.value;
@@ -4281,6 +4295,7 @@ export function AcademicCalendar() {
                         <input 
                           readOnly={!canManageCalendar}
                           type="date"
+                          title="Selecionar data de término do evento"
                           value={formData.end_date}
                           onChange={e => setFormData({...formData, end_date: e.target.value})}
                           className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-teal-500/10 focus:bg-white focus:border-teal-600 transition-all outline-none"
@@ -4299,6 +4314,7 @@ export function AcademicCalendar() {
                         readOnly={!canManageCalendar}
                         type="text"
                         placeholder="Título do evento..."
+                        title="Informar o título ou descrição breve do registro no calendário"
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
                         className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-teal-500/10 focus:bg-white focus:border-teal-600 transition-all outline-none"
@@ -4312,6 +4328,7 @@ export function AcademicCalendar() {
                           <button
                             type="button"
                             disabled={!canManageCalendar || formData.type === 'excused_class'}
+                            title="Aplicar este registro a todas as turmas do período selecionado"
                             onClick={() => {
                               setEditScope('all');
                               setFormData(prev => ({ ...prev, class_id: '' }));
@@ -4329,6 +4346,7 @@ export function AcademicCalendar() {
                           <button
                             type="button"
                             disabled={!canManageCalendar}
+                            title="Aplicar este registro especificamente a uma turma"
                             onClick={() => {
                               setEditScope('specific');
                             }}
@@ -4356,6 +4374,7 @@ export function AcademicCalendar() {
                           <select
                             required={editScope === 'specific'}
                             disabled={!canManageCalendar}
+                            title="Selecionar a turma vinculada a este evento"
                             value={formData.class_id}
                             onChange={e => setFormData({...formData, class_id: e.target.value})}
                             className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-teal-500/10 focus:bg-white focus:border-teal-600 transition-all outline-none"
@@ -4388,6 +4407,7 @@ export function AcademicCalendar() {
                   <button 
                     type="button"
                     onClick={() => setIsEditing(false)}
+                    title="Cancelar e fechar formulário"
                     className="flex-1 py-2 sm:py-3 px-3 bg-white border border-slate-200 text-slate-500 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
                   >
                     Fechar
@@ -4397,6 +4417,7 @@ export function AcademicCalendar() {
                     <button 
                       type="submit"
                       disabled={isSyncing || !isFormChanged}
+                      title={selectedEvent ? "Confirmar alterações no registro do calendário" : "Criar novo registro no calendário"}
                       className={cn(
                         "flex-[2] py-2 sm:py-3 px-3 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                         (isSyncing || !isFormChanged)
@@ -4436,6 +4457,7 @@ export function AcademicCalendar() {
               <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 relative bg-white shrink-0 print:hidden">
                 <button 
                   type="button"
+                  title="Fechar parâmetros do calendário escolar"
                   onClick={() => {
                     setShowSettings(false);
                     if (searchParams.get('view') === 'parameters' || searchParams.get('view') === 'annual') {
@@ -4472,6 +4494,7 @@ export function AcademicCalendar() {
                 <div className="flex items-center gap-1 mt-3 -mb-3 sm:-mb-4 border-b border-slate-200 overflow-x-auto">
                   <button
                     type="button"
+                    title="Configurar geração automática do calendário anual completo"
                     onClick={() => setParametersTab('annual')}
                     className={cn(
                       "px-3.5 py-2 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap",
@@ -4486,6 +4509,7 @@ export function AcademicCalendar() {
 
                   <button
                     type="button"
+                    title="Configurar dias semanais e semestres letivos por turma"
                     onClick={() => setParametersTab('weekly')}
                     className={cn(
                       "px-3.5 py-2 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap",
@@ -4533,6 +4557,7 @@ export function AcademicCalendar() {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button
                         type="button"
+                        title="Configurar cronograma padrão geral da Matriz"
                         onClick={() => switchSettingsUnit('matriz')}
                         className={cn(
                           "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg border transition-all cursor-pointer",
@@ -4550,6 +4575,7 @@ export function AcademicCalendar() {
                           <button
                             key={unit.id}
                             type="button"
+                            title={`Configurar cronograma para a unidade ${unit.name}`}
                             onClick={() => switchSettingsUnit(unit.id)}
                             className={cn(
                               "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg border transition-all cursor-pointer inline-flex items-center gap-1.5",
@@ -4613,6 +4639,7 @@ export function AcademicCalendar() {
                         {!isTargetCustom ? (
                           <button
                             type="button"
+                            title="Criar regras e datas próprias exclusivas para este polo"
                             onClick={handleEnableCustomForUnit}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0F2A30] hover:bg-[#163B42] text-white text-[10px] font-extrabold uppercase tracking-wider rounded-lg shadow-xs transition-all cursor-pointer"
                           >
@@ -4692,6 +4719,7 @@ export function AcademicCalendar() {
                             <button
                               key={day}
                               type="button"
+                              title={`Configurar dia da semana: ${day}`}
                               onClick={() => {
                                 const nextActiveDay = i;
 
@@ -4841,6 +4869,7 @@ export function AcademicCalendar() {
                                       <label className="text-[7px] font-bold text-slate-400 uppercase block">Início</label>
                                       <input 
                                         type="date" 
+                                        title={`Definir data de início do ${t.label}`}
                                         value={valStart}
                                         onChange={e => {
                                           const updatedTerms = { ...(settingsForm.weekday_terms || {}) };
@@ -4861,6 +4890,7 @@ export function AcademicCalendar() {
                                       <label className="text-[7px] font-bold text-slate-400 uppercase block">Término</label>
                                       <input 
                                         type="date" 
+                                        title={`Definir data de término do ${t.label}`}
                                         value={valEnd}
                                         onChange={e => {
                                           const updatedTerms = { ...(settingsForm.weekday_terms || {}) };
@@ -4952,6 +4982,7 @@ export function AcademicCalendar() {
                                 
                                 <button
                                   type="button"
+                                  title={isDayActiveInForm ? "Desativar este dia da semana para geração automática" : "Ativar este dia da semana para geração automática"}
                                   onClick={() => {
                                     const isAlreadyActive = (settingsForm.class_weekdays || []).includes(activeDay);
                                     
@@ -5051,6 +5082,7 @@ export function AcademicCalendar() {
                                    <input 
                                      type="text"
                                      maxLength={45}
+                                     title="Informar o título padrão gerado para as aulas deste dia da semana"
                                      placeholder={`Ex: Aula, Classe(s) Turma(s) de ${['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][activeDay]}...`}
                                      value={(settingsForm.weekday_titles || {})[activeDay] !== undefined 
                                        ? (settingsForm.weekday_titles || {})[activeDay] 
@@ -5075,6 +5107,7 @@ export function AcademicCalendar() {
                                      <div className="flex gap-2">
                                        <button 
                                          type="button"
+                                         title="Selecionar todas as turmas compatíveis com este dia"
                                          onClick={() => {
                                            const filteredClassIds = classes.filter(c => {
                                              const matchesDay = classMatchesWeekday(c, activeDay);
@@ -5100,6 +5133,7 @@ export function AcademicCalendar() {
                                        <span className="text-slate-200">|</span>
                                        <button 
                                          type="button"
+                                         title="Remover todas as turmas vinculadas deste dia"
                                          onClick={() => {
                                            setSettingsForm({ 
                                              ...settingsForm, 
@@ -5147,6 +5181,7 @@ export function AcademicCalendar() {
                                            <button
                                              key={c.id}
                                              type="button"
+                                             title={isSelected ? `Desvincular turma ${c.name} deste dia` : `Vincular turma ${c.name} a este dia`}
                                              onClick={() => {
                                                const nextClassIds = isSelected
                                                  ? settingsForm.target_class_ids.filter(id => id !== c.id)
@@ -5239,6 +5274,7 @@ export function AcademicCalendar() {
 
                           <button
                             type="button"
+                            title="Sincronizar feriados nacionais oficiais para o ano selecionado"
                             onClick={async () => {
                               setIsSyncing(true);
                               setSyncMessage('Sincronizando feriados nacionais...');
@@ -5270,6 +5306,7 @@ export function AcademicCalendar() {
               <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
                 <div>
                   <button 
+                    title="Fechar painel de parâmetros sem aplicar alterações"
                     onClick={() => {
                       setShowSettings(false);
                       if (searchParams.get('view') === 'parameters') {
@@ -5286,6 +5323,7 @@ export function AcademicCalendar() {
                 <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 justify-end">
                   {canManageCalendar && canDelete && (
                     <button 
+                      title="Excluir registros automáticos de dias de aula"
                       onClick={() => clearClassDays()}
                       disabled={isSyncing}
                       className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm cursor-pointer"
@@ -5296,6 +5334,7 @@ export function AcademicCalendar() {
                   )}
 
                   <button 
+                    title="Salvar parâmetros e recalcular aulas automáticas no calendário"
                     onClick={() => {
                       const activeWeekdaysList = (settingsForm.class_weekdays || [])
                         .map(Number)
@@ -5568,6 +5607,7 @@ export function AcademicCalendar() {
                         return (
                           <button
                             key={`${day}-${i}`}
+                            title={isSelected ? `Desmarcar ${day} para exclusão` : `Selecionar ${day} para excluir registros`}
                             onClick={() => {
                               if (isSelected) {
                                 setSelectedDaysToDelete(selectedDaysToDelete.filter(d => d !== i));
@@ -5595,6 +5635,7 @@ export function AcademicCalendar() {
                 )}>
                   {confirmModalConfig.id === 'no_weekday_selected' ? (
                     <button 
+                      title="Fechar aviso e voltar aos parâmetros"
                       onClick={() => setShowConfirmModal(false)}
                       className="w-full py-4 bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 text-center shadow-md shadow-slate-100"
                     >
@@ -5603,6 +5644,7 @@ export function AcademicCalendar() {
                   ) : (
                     <>
                       <button 
+                        title="Cancelar esta ação e fechar confirmação"
                         onClick={() => {
                           setShowConfirmModal(false);
                           setIsClassDeletionMode(false);
@@ -5612,6 +5654,7 @@ export function AcademicCalendar() {
                         Cancelar
                       </button>
                       <button 
+                        title="Confirmar e executar a ação selecionada"
                         onClick={() => {
                           if (confirmModalConfig.id === 'clear_classes') {
                             if (selectedDaysToDelete.length === 0) {
@@ -5660,6 +5703,7 @@ export function AcademicCalendar() {
                   </div>
                 </div>
                 <button 
+                  title="Fechar centro de impressão"
                   onClick={() => {
                     setShowPrintOptions(false);
                     setPrintType(null);
@@ -5684,6 +5728,7 @@ export function AcademicCalendar() {
                 ].map((option) => (
                   <button
                     key={option.id}
+                    title={`Selecionar relatório: ${option.title} — ${option.desc}`}
                     onClick={() => setPrintType(option.id as any)}
                     className={cn(
                       "p-4 sm:p-5 rounded-lg border-2 transition-all text-left flex flex-col gap-2.5 group cursor-pointer",
@@ -5720,6 +5765,7 @@ export function AcademicCalendar() {
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
                         <select 
+                          title="Filtrar relatório por turma específica ou todas"
                           value={printFilters.class_id}
                           onChange={(e) => setPrintFilters(prev => ({ ...prev, class_id: e.target.value }))}
                           className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/15"
@@ -5734,6 +5780,7 @@ export function AcademicCalendar() {
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Período de Exibição</label>
                       <select 
+                        title="Filtrar relatório por mês ou ano completo"
                         value={printFilters.month}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, month: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
                         className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/15"
@@ -5749,6 +5796,7 @@ export function AcademicCalendar() {
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Dia da Semana</label>
                       <select 
+                        title="Filtrar relatório por dia da semana"
                         value={printFilters.weekday}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, weekday: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
                         className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/15"
@@ -5768,6 +5816,7 @@ export function AcademicCalendar() {
 
               <div className="flex gap-3">
                 <button 
+                  title="Cancelar e fechar opções de impressão"
                   onClick={() => {
                     setShowPrintOptions(false);
                     setPrintType(null);
@@ -5781,6 +5830,7 @@ export function AcademicCalendar() {
                 </button>
                 <button 
                   disabled={!printType}
+                  title="Gerar impressão oficial A4 do relatório selecionado"
                   onClick={() => {
                     try {
                       window.print();

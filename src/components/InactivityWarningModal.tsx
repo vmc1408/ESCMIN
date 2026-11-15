@@ -81,6 +81,7 @@ export const InactivityWarningModal: React.FC = () => {
                 id="btn-inactivity-logout-now"
                 type="button"
                 onClick={() => logout('manual')}
+                title="Encerrar sessão e voltar para a tela de login"
                 className="w-full sm:w-1/3 py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
               >
                 <LogOut size={14} />
@@ -91,6 +92,7 @@ export const InactivityWarningModal: React.FC = () => {
                 id="btn-inactivity-continue"
                 type="button"
                 onClick={extendSession}
+                title="Renovar tempo de atividade e permanecer conectado"
                 className="w-full sm:w-2/3 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/25 transition-all flex items-center justify-center gap-2"
                 autoFocus
               >

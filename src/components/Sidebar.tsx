@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
-  LayoutDashboard as DashboardIcon, 
   Upload as ImportIcon, 
   Users as StudentsIcon,
   UserSquare2 as TeachersIcon,
@@ -48,100 +47,110 @@ import { useAuth } from '../contexts/AuthContext';
 import { SidebarUnitSwitcher } from './SidebarUnitSwitcher';
 
 const navItems = [
-  { icon: DashboardIcon, label: 'Dashboard', path: '/' },
   {
     label: 'Gestão Escolar',
-    icon: ClassesIcon,
-    isPrimary: true,
+    isSectionTitle: true,
     children: [
       {
         label: 'Cadastros',
         icon: GraduationCap,
+        tooltip: 'Cadastros acadêmicos de alunos, docentes, cursos, turmas, disciplinas e listagens',
         children: [
-          { icon: StudentsIcon, label: 'Alunos', path: '/students' },
-          { icon: TeachersIcon, label: 'Professores', path: '/teachers' },
-          { icon: GraduationCap, label: 'Cursos', path: '/courses' },
-          { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
-          { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
-          { icon: FileText, label: 'Relatórios', path: '/cadastros-relatorios' },
+          { icon: StudentsIcon, label: 'Alunos', path: '/students', tooltip: 'Cadastrar, editar e consultar fichas e matrículas de alunos' },
+          { icon: TeachersIcon, label: 'Professores', path: '/teachers', tooltip: 'Gerenciar cadastro de professores e atribuições docentes' },
+          { icon: GraduationCap, label: 'Cursos', path: '/courses', tooltip: 'Configurar cursos, grades curriculares e cargas horárias' },
+          { icon: ClassesIcon, label: 'Turmas', path: '/classes', tooltip: 'Organizar turmas, polos, períodos letivos e vagas' },
+          { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects', tooltip: 'Gerenciar matérias, ementas e vínculos por curso' },
+          { icon: FileText, label: 'Relatórios', path: '/cadastros-relatorios', tooltip: 'Gerar listagens e relatórios cadastrais padronizados em A4' },
         ]
       },
       { 
         label: 'Avaliações',
         icon: GradesIcon,
+        tooltip: 'Gestão de avaliações, lançamento de notas, boletins e certificações',
         children: [
-          { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
-          { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
-          { icon: FileText, label: 'Boletim de Notas', path: '/bulletin' },
-          { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents' },
+          { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments', tooltip: 'Criar e programar provas, trabalhos e atividades avaliativas' },
+          { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades', tooltip: 'Lançar e atualizar notas dos alunos por turma e disciplina' },
+          { icon: FileText, label: 'Boletim de Notas', path: '/bulletin', tooltip: 'Consultar e imprimir boletins individuais de desempenho' },
+          { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents', tooltip: 'Emitir certificados de conclusão, diplomas e declarações' },
         ]
       },
       {
         label: 'Frequência',
         icon: CalendarCheck,
+        tooltip: 'Registro diário de presença, listas mensais e histórico do aluno',
         children: [
-          { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
-          { icon: CalendarCheck, label: 'Lista de Chamada', path: '/monthly-attendance' },
-          { icon: UserIcon, label: 'Controle e Histórico', path: '/student-ficha' },
+          { icon: AttendanceIcon, label: 'Chamada', path: '/attendance', tooltip: 'Registrar presença e faltas dos alunos por aula ou data' },
+          { icon: CalendarCheck, label: 'Lista de Chamada', path: '/monthly-attendance', tooltip: 'Visualizar e imprimir pautas mensais de frequência por turma' },
+          { icon: UserIcon, label: 'Controle e Histórico', path: '/student-ficha', tooltip: 'Consultar ficha acadêmica completa, frequência e ocorrências do aluno' },
         ]
       },
       {
         label: 'Cronograma',
         icon: CalendarIcon,
+        tooltip: 'Planejamento letivo, calendário de aulas, feriados e habilitações',
         children: [
-          { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month' },
-          { icon: FileText, label: 'Grade Acadêmica', path: '/calendar?view=management' },
-          { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters' },
-          { icon: CalendarDays, label: 'Calendário Anual', path: '/calendar?view=annual' },
-          { icon: Sparkles, label: 'Habilitação', path: '/calendar?view=habilitation' },
+          { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month', tooltip: 'Visualizar e gerenciar eventos e aulas no calendário mensal' },
+          { icon: FileText, label: 'Grade Acadêmica', path: '/calendar?view=management', tooltip: 'Acompanhar o cronograma de aulas e progresso por turma' },
+          { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters', tooltip: 'Definir dias letivos, feriados e regras gerais do calendário' },
+          { icon: CalendarDays, label: 'Calendário Anual', path: '/calendar?view=annual', tooltip: 'Visão anual completa de aulas, recessos e datas diocesanas' },
+          { icon: Sparkles, label: 'Habilitação', path: '/calendar?view=habilitation', tooltip: 'Habilitar turmas e ciclos para novos períodos letivos' },
         ]
       },
       {
         label: 'Financeiro',
         icon: Wallet,
         path: '/financial',
+        tooltip: 'Abrir o painel financeiro e acessar lançamentos, Pix e recibos',
         children: [
-          { icon: PixIcon, label: 'Contribuições', path: '/contributions' },
-          { icon: ReportsIcon, label: 'Relatório Financeiro', path: '/financial-report' },
-          { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference' },
-          { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
-          { icon: FileText, label: 'Recibos', path: '/receipts' },
+          { icon: PixIcon, label: 'Contribuições', path: '/contributions', tooltip: 'Lançar e controlar mensalidades, taxas de matrícula e pagamentos' },
+          { icon: ReportsIcon, label: 'Relatório Financeiro', path: '/financial-report', tooltip: 'Analisar previsto versus realizado, inadimplência e extratos' },
+          { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference', tooltip: 'Conciliar extratos bancários e comprovantes Pix com alunos' },
+          { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao', tooltip: 'Emitir certidão negativa de débitos e quitação financeira' },
+          { icon: FileText, label: 'Recibos', path: '/receipts', tooltip: 'Consultar, reimprimir e gerenciar recibos financeiros emitidos' },
+        ]
+      },
+      {
+        label: 'Impressos',
+        icon: Printer,
+        tooltip: 'Central de documentos oficiais, declarações, carteirinhas e etiquetas',
+        children: [
+          { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta', tooltip: 'Emitir carta oficial de apresentação do aluno ou ministro' },
+          { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha', tooltip: 'Imprimir ficha cadastral de inscrição para matrícula' },
+          { icon: FileText, label: 'Declaração de Matrícula', path: '/impressos?type=declaracao', tooltip: 'Gerar declaração oficial de vínculo e matrícula ativa' },
+          { icon: PixIcon, label: 'Etiqueta para Carteirinha', path: '/impressos?type=carteirinhas', tooltip: 'Imprimir carteirinhas estudantis no padrão Pimaco 6183' },
+          { icon: Tag, label: 'Etiquetas de Endereço', path: '/impressos?type=etiquetas', tooltip: 'Gerar etiquetas postais e de identificação no padrão Pimaco 6180' },
         ]
       },
     ]
   },
   {
-    label: 'Impressos',
-    icon: Printer,
-    isPrimary: true,
+    label: 'Administração & Diocese',
+    isSectionTitle: true,
     children: [
-      { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta' },
-      { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
-      { icon: FileText, label: 'Declaração de Matrícula', path: '/impressos?type=declaracao' },
-      { icon: PixIcon, label: 'Etiqueta para Carteirinha', path: '/impressos?type=carteirinhas' },
-      { icon: Tag, label: 'Etiquetas de Endereço', path: '/impressos?type=etiquetas' },
-    ]
-  },
-  {
-    label: 'Guia Diocese',
-    icon: Church,
-    isPrimary: true,
-    children: [
-      { icon: Scroll, label: 'Gestão da Diocese', path: '/parishes?view=management' },
-      { icon: Printer, label: 'Relatórios e Impressão', path: '/parishes?view=reports' },
-    ]
-  },
-  { icon: UserManagementIcon, label: 'Usuários', path: '/users' },
-  { 
-    label: 'Configurações', 
-    icon: SettingsIcon,
-    children: [
-      { icon: Database, label: 'Backup', path: '/backup' },
-      { icon: SettingsIcon, label: 'Geral', path: '/settings' },
-      { icon: DollarSign, label: 'Financeiro', path: '/settings?tab=financial' },
-      { icon: Database, label: 'Base de Dados & SQL', path: '/settings?tab=database' },
-      { icon: ImportIcon, label: 'Importação', path: '/import' },
-      { icon: ArchiveIcon, label: 'Arquivo Morto', path: '/archive' },
+      {
+        label: 'Guia Diocese',
+        icon: Church,
+        tooltip: 'Cadastro e relatórios de paróquias, regiões pastorais e clero',
+        children: [
+          { icon: Scroll, label: 'Gestão da Diocese', path: '/parishes?view=management', tooltip: 'Gerenciar paróquias, comunidades, padres e regiões diocesanas' },
+          { icon: Printer, label: 'Relatórios e Impressão', path: '/parishes?view=reports', tooltip: 'Gerar e imprimir catálogos e listagens da diocese' },
+        ]
+      },
+      { icon: UserManagementIcon, label: 'Usuários', path: '/users', tooltip: 'Gerenciar contas de acesso, perfis e permissões por módulo' },
+      { 
+        label: 'Configurações', 
+        icon: SettingsIcon,
+        tooltip: 'Parâmetros institucionais, backup, importação e arquivo morto',
+        children: [
+          { icon: Database, label: 'Backup', path: '/backup', tooltip: 'Gerar cópias de segurança e restaurar dados do sistema' },
+          { icon: SettingsIcon, label: 'Geral', path: '/settings', tooltip: 'Dados da instituição, logotipo, normas e parâmetros gerais' },
+          { icon: DollarSign, label: 'Financeiro', path: '/settings?tab=financial', tooltip: 'Valores de mensalidades, matrícula, vencimentos e chave Pix' },
+          { icon: Database, label: 'Base de Dados & SQL', path: '/settings?tab=database', tooltip: 'Conexão com o banco de dados, diagnósticos e manutenção' },
+          { icon: ImportIcon, label: 'Importação', path: '/import', tooltip: 'Importar alunos e registros em lote via planilhas' },
+          { icon: ArchiveIcon, label: 'Arquivo Morto', path: '/archive', tooltip: 'Consultar registros arquivados e históricos inativos' },
+        ]
+      },
     ]
   },
 ];
@@ -233,7 +242,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     }
   };
 
-  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma', 'Impressos', 'Guia Diocese']);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
   const openGroupsRef = useRef<string[]>(openGroups);
   openGroupsRef.current = openGroups;
   const navRef = useRef<HTMLElement>(null);
@@ -377,7 +386,10 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           return true;
         }
         if (item.children) {
-          if (findAncestors(item.children, [...currentPathAncestors, item.label])) {
+          const nextAncestors = item.isSectionTitle
+            ? currentPathAncestors
+            : [...currentPathAncestors, item.label];
+          if (findAncestors(item.children, nextAncestors)) {
             return true;
           }
         }
@@ -515,85 +527,25 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   const renderNavItems = (items: any[], depth = 0, parentLabel?: string) => {
-    return items.map((item) => {
+    return items.map((item, index) => {
       const hasChildren = item.children && item.children.length > 0;
       const isOpen = openGroups.includes(item.label);
       const isActive = item.path ? isPathActive(item.path) : isGroupActive(item);
 
-      // Destacar Módulos Principais no topo da Sidebar (Gestão Escolar e Impressos) - Destaque Natural sem Caixas
-      if (depth === 0 && (item.label === 'Gestão Escolar' || item.label === 'Impressos')) {
-        const isGestao = item.label === 'Gesto Escolar' || item.label === 'Gestão Escolar';
-        const theme = getItemTheme(item);
-        
+      // Título de Grupo não-clicável (ex: Gestão Escolar, Serviços & Administração)
+      if (item.isSectionTitle) {
         return (
-          <div key={item.label} ref={setGroupRef(item.label)} className="space-y-1 my-3">
-            {/* Linha Divisória Sutil entre os blocos (apenas se não for o primeiro) */}
-            {!isGestao && <div className="border-t border-[#1F4A54] my-4 mx-3" />}
-
-            {/* Pasta Toggle Principal */}
-            <button
-              onClick={() => toggleGroup(item.label)}
-              className={cn(
-                "w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-md transition-all duration-200 cursor-pointer",
-                isGestao ? "border-l-4 border-teal-400 bg-teal-900/35" : "border-l-4 border-cyan-400 bg-cyan-900/30",
-                isActive 
-                  ? "text-white" 
-                  : "text-slate-100 hover:text-white hover:bg-teal-800/45"
-              )}
-            >
-              <div className="flex items-center gap-2.5">
-                {item.icon && (
-                  <item.icon 
-                    size={16} 
-                    className={cn(
-                      "transition-colors duration-200 shrink-0",
-                      isActive ? "text-white" : theme.iconColor
-                    )} 
-                  />
-                )}
-                <span className="text-[12.5px] font-extrabold uppercase tracking-wide text-slate-50">
-                  {item.label}
-                </span>
-              </div>
-              {isOpen ? (
-                <ChevronDown size={14} className={isGestao ? "text-teal-300" : "text-cyan-300"} />
-              ) : (
-                <ChevronRight size={14} className={isGestao ? "text-teal-300" : "text-cyan-300"} />
-              )}
-            </button>
-
-            {/* Conteúdos da Pasta Principal */}
-            <AnimatePresence mode="wait">
-              {isOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2, ease: "easeInOut" }}
-                  onAnimationComplete={(definition) => {
-                    const isEnter = typeof definition === 'object' && definition !== null && 'height' in definition
-                      ? (definition as { height?: unknown }).height === 'auto'
-                      : true;
-                    if (isEnter && pendingScrollGroupRef.current === item.label) {
-                      pendingScrollGroupRef.current = null;
-                      if (scrollFallbackTimerRef.current !== null) {
-                        window.clearTimeout(scrollFallbackTimerRef.current);
-                        scrollFallbackTimerRef.current = null;
-                      }
-                      scrollGroupIntoView(item.label);
-                    }
-                  }}
-                  className="overflow-hidden"
-                >
-                  <div className={cn(
-                    "space-y-1 mt-1 pl-3.5 ml-4 border-l-2",
-                    isGestao ? "border-teal-500/35" : "border-cyan-500/35"
-                  )}>
-                    {renderNavItems(item.children, depth + 1, item.label)}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div key={item.label} className={cn("space-y-1", index === 0 ? "pt-0.5" : "pt-2")}>
+            {index > 0 && <div className="border-t border-[#1F4A54] mb-3 mx-2" />}
+            <div className="px-3 pt-1 pb-1.5 flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-teal-300/80 whitespace-nowrap">
+                {item.label}
+              </span>
+              <div className="h-px flex-1 bg-[#1F4A54]" />
+            </div>
+            <div className="space-y-1">
+              {renderNavItems(item.children || [], depth, item.label)}
+            </div>
           </div>
         );
       }
@@ -612,27 +564,37 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   ? "bg-teal-600 text-white shadow-sm ring-1 ring-teal-400/50 font-semibold"
                   : isActive && !isOpen
                     ? "bg-teal-800/50 text-white"
-                    : "text-slate-200 hover:text-white hover:bg-teal-800/45"
+                    : isActive && isOpen
+                      ? "bg-teal-900/45 text-white"
+                      : "text-slate-200 hover:text-white hover:bg-teal-800/45"
               )}
             >
               <button
                 type="button"
+                data-tooltip={item.tooltip || item.label}
                 onClick={() => {
                   if (item.path) {
-                    navigate(item.path);
-                    if (!isOpen) {
+                    if (isOwnPathActive) {
                       toggleGroup(item.label);
+                    } else {
+                      navigate(item.path);
+                      if (!isOpen) {
+                        toggleGroup(item.label);
+                      }
+                      onClose?.();
                     }
-                    onClose?.();
                   } else {
                     toggleGroup(item.label);
                   }
                 }}
-                className="flex-1 flex items-center gap-3 px-3.5 py-1.5 min-w-0 text-left cursor-pointer"
+                className={cn(
+                  "flex-1 flex items-center gap-2.5 px-3 min-w-0 text-left cursor-pointer",
+                  depth === 0 ? "py-2" : "py-1.5"
+                )}
               >
                 {item.icon && (
                   <item.icon 
-                    size={15} 
+                    size={depth === 0 ? 16 : 15} 
                     className={cn(
                       "transition-colors duration-200 shrink-0",
                       isOwnPathActive || isActive ? "text-white" : theme.iconColor
@@ -640,8 +602,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   />
                 )}
                 <span className={cn(
-                  "text-[10.5px] font-bold uppercase tracking-wider truncate",
-                  isOwnPathActive || isActive ? "text-white" : "text-slate-200"
+                  "leading-snug",
+                  depth === 0 ? "text-[13px] font-semibold" : "text-[11px] font-bold uppercase tracking-wider",
+                  isOwnPathActive || isActive ? "text-white" : "text-slate-100"
                 )}>
                   {item.label}
                 </span>
@@ -707,7 +670,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                 >
                   <div className={cn(
                     "space-y-0.5 mt-0.5",
-                    depth === 0 ? "ml-4 border-l border-teal-500/30 pl-2" : "ml-3 border-l border-teal-500/30 pl-2"
+                    depth === 0 ? "ml-3 border-l border-teal-500/30 pl-1.5" : "ml-2.5 border-l border-teal-500/30 pl-1.5"
                   )}>
                     {renderNavItems(item.children, depth + 1, item.label)}
                   </div>
@@ -724,13 +687,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       return (
         <div
           key={item.path}
-          className="flex items-center group relative rounded-md overflow-hidden"
+          className="flex items-center group relative rounded-md"
         >
           <Link
             to={item.path}
             onClick={() => onClose?.()}
+            data-tooltip={item.tooltip || item.label}
             className={cn(
-              "flex-1 flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200 min-w-0",
+              "flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 min-w-0",
               isActive 
                 ? "bg-teal-600 text-white shadow-sm ring-1 ring-teal-400/50 font-semibold" 
                 : "text-slate-200 hover:text-white hover:bg-teal-800/45"
@@ -738,14 +702,17 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           >
             {item.icon && (
               <item.icon 
-                size={15} 
+                size={depth === 0 ? 16 : 14} 
                 className={cn(
                   "transition-colors duration-200 shrink-0",
                   isActive ? "text-white" : theme.iconColor
                 )} 
               />
             )}
-            <span className="text-[13px] font-medium truncate flex-1">{item.label}</span>
+            <span className={cn(
+              "leading-snug flex-1",
+              depth === 0 ? "text-[13px] font-semibold text-slate-100" : "text-[12px] font-medium"
+            )}>{item.label}</span>
           </Link>
 
           {item.path && (
@@ -757,14 +724,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                 handleToggleFavorite(item.path);
               }}
               className={cn(
-                "p-1.5 transition-all shrink-0 cursor-pointer rounded hover:bg-teal-700/50 mr-1.5",
+                "p-1 transition-all shrink-0 cursor-pointer rounded hover:bg-teal-700/50 mr-0.5",
                 isFav 
                   ? "text-amber-300 opacity-100 hover:scale-125" 
                   : "text-slate-300 opacity-0 group-hover:opacity-80 hover:!opacity-100 hover:text-amber-300 hover:scale-125"
               )}
               title={isFav ? "Remover da barra de acesso rápido do Dashboard" : "Fixar na barra de acesso rápido do Dashboard (máx. 10)"}
             >
-              <Star size={13} className={cn(isFav ? "fill-amber-300" : "")} />
+              <Star size={12} className={cn(isFav ? "fill-amber-300" : "")} />
             </button>
           )}
         </div>
@@ -773,7 +740,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <aside className="h-full max-h-screen w-60 bg-[#0F2A30] text-white flex flex-col border-r border-[#1F4A54] print:hidden overflow-hidden shrink-0 select-none">
+    <aside className="h-full max-h-screen w-[280px] bg-[#0F2A30] text-white flex flex-col border-r border-[#1F4A54] print:hidden overflow-hidden shrink-0 select-none">
       <div className="h-16 px-3 bg-[#0B2025] border-b border-[#1F4A54] flex items-center justify-between shrink-0 overflow-hidden">
         <Link
           to="/"
@@ -805,6 +772,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         {onClose && (
           <button 
             onClick={onClose}
+            title="Fechar menu lateral"
             className="lg:hidden p-1 text-white/60 hover:text-white transition-colors shrink-0 ml-1"
           >
             <XCircle size={18} />
@@ -828,7 +796,10 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       <div className="p-4 bg-[#091C21] border-t border-[#1F4A54] flex flex-col items-center shrink-0 mt-auto select-none">
         {/* Database Connection Indicator */}
-        <div className="w-full px-3 py-2 bg-[#102E35] border border-[#1F4A54] rounded-md flex items-center justify-between">
+        <div
+          className="w-full px-3 py-2 bg-[#102E35] border border-[#1F4A54] rounded-md flex items-center justify-between"
+          title={dbStatus === 'online' ? 'Banco de dados conectado e operacional' : dbStatus === 'offline' ? 'Sem conexão com o banco de dados' : 'Verificando conexão com o servidor'}
+        >
           <div className="flex items-center gap-2">
             {dbStatus === 'online' ? (
               <div className="w-2 h-2 bg-emerald-400 rounded-full shrink-0"></div>

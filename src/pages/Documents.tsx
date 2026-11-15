@@ -996,6 +996,7 @@ export function Documents() {
             onClick={() => {
               setActiveTab('issue');
             }}
+            title="Abrir emissão de certificados por turma"
             className={cn(
               "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'issue'
@@ -1009,6 +1010,7 @@ export function Documents() {
             onClick={() => {
               setActiveTab('student_file');
             }}
+            title="Acessar módulo de ficha cadastral e histórico do aluno"
             className={cn(
               "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'student_file'
@@ -1020,6 +1022,7 @@ export function Documents() {
           </button>
           <button
             onClick={() => setActiveTab('list')}
+            title="Visualizar documentos e certificados já emitidos"
             className={cn(
               "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'list'
@@ -1069,6 +1072,7 @@ export function Documents() {
                     <select
                       value={selectedClassId}
                       onChange={e => setSelectedClassId(e.target.value)}
+                      title="Selecionar turma para verificar elegibilidade e emitir certificados"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                     >
                       <option value="">Selecione a turma...</option>
@@ -1178,6 +1182,7 @@ export function Documents() {
                                       setIssuingStudentData(cs);
                                       setIsIssuing(true);
                                     }}
+                                    title={`Emitir novo documento para ${cs.student.name}`}
                                     className="px-2 py-1 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white text-[8.5px] font-bold uppercase tracking-widest shadow-sm"
                                   >
                                     Emitir Outro
@@ -1195,6 +1200,7 @@ export function Documents() {
                                     setIssuingStudentData(cs);
                                     setIsIssuing(true);
                                   }}
+                                  title={`Emitir certificado ou diploma para ${cs.student.name}`}
                                   className="px-3.5 py-1.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-lg text-[8.5px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
                                 >
                                   Emitir Doc
@@ -1226,6 +1232,7 @@ export function Documents() {
                       // Better to clear or not? Let's keep the query clear on return, so starting next search is fresh.
                       setSearchQuery('');
                     }}
+                    title="Voltar para a lista de emissão de alunos por turma"
                     className="px-4 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all select-none shadow-sm"
                   >
                     <ArrowLeft size={14} />
@@ -1239,6 +1246,7 @@ export function Documents() {
                     <span className="truncate">Filtrado por: <strong className="font-extrabold uppercase">{searchQuery}</strong></span>
                     <button
                       onClick={() => setSearchQuery('')}
+                      title="Limpar filtro de pesquisa de documentos"
                       className="ml-2 px-2 py-0.5 bg-white border border-indigo-250 hover:bg-indigo-50 text-[8.5px] font-black uppercase text-indigo-700 tracking-wider shadow-sm transition-all"
                     >
                       Limpar Filtro
@@ -1260,6 +1268,7 @@ export function Documents() {
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
+                    title="Pesquisar documentos emitidos por código, nome do aluno ou curso"
                     placeholder="Pesquisar por Código, Nome ou Curso..."
                     className="w-full pl-10 pr-4 py-2 border border-slate-250 text-xs font-medium focus:outline-none focus:border-slate-800 bg-slate-50/50"
                   />
@@ -1362,6 +1371,7 @@ export function Documents() {
                 <div className="pt-2">
                   <Link 
                     to="/student-ficha"
+                    title="Abrir tela dedicada de Controle e Histórico do Aluno"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95"
                   >
                     Ir para Ficha do Aluno <ChevronRight size={14} />
@@ -1384,6 +1394,7 @@ export function Documents() {
                   <select
                     value={selectedFichaStudentId}
                     onChange={e => setSelectedFichaStudentId(e.target.value)}
+                    title="Selecionar aluno para consultar ficha acadêmica, notas e frequência"
                     className="w-full mt-2 px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                   >
                     <option value="">Selecione um aluno...</option>
@@ -1573,6 +1584,7 @@ export function Documents() {
                             setIssuingStudentData(dummyCS);
                             setIsIssuing(true);
                           }}
+                          title="Emitir novo certificado ou diploma para este aluno"
                           className="px-3 py-1 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white text-[8.5px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all flex items-center gap-1"
                         >
                           <Plus size={10} /> Novo Certificado
@@ -1750,6 +1762,7 @@ export function Documents() {
                         required
                         value={formData.student_id}
                         onChange={e => setFormData({...formData, student_id: e.target.value})}
+                        title="Selecionar estudante para emissão do certificado ou diploma"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                       >
                         <option value="">Selecione o aluno...</option>
@@ -1770,6 +1783,7 @@ export function Documents() {
                           key={item.type}
                           type="button"
                           onClick={() => setFormData({...formData, type: item.type as any})}
+                          title={`Selecionar modelo ${item.label} (${item.style})`}
                           className={cn(
                             "p-2.5 rounded-lg border text-center transition-all flex flex-col justify-center items-center gap-1",
                             formData.type === item.type 
@@ -1791,6 +1805,7 @@ export function Documents() {
                       type="text"
                       value={formData.course}
                       onChange={e => setFormData({...formData, course: e.target.value})}
+                      title="Informar nome do curso ou programa acadêmico que constará no documento"
                       placeholder="Curso Conciliar de Teologia"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                     />
@@ -1803,6 +1818,7 @@ export function Documents() {
                       type="date"
                       value={formData.issuance_date}
                       onChange={e => setFormData({...formData, issuance_date: e.target.value})}
+                      title="Definir data oficial de emissão impressa no certificado"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                     />
                   </div>
@@ -1815,12 +1831,14 @@ export function Documents() {
                       setIsIssuing(false);
                       setIssuingStudentData(null);
                     }}
+                    title="Cancelar emissão e fechar janela"
                     className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-650 border border-slate-250 text-[10px] font-bold uppercase tracking-widest rounded-lg text-center"
                   >
                     Cancelar
                   </button>
                   <button 
                     type="submit"
+                    title="Registrar emissão oficial e salvar documento no acervo"
                     disabled={(() => {
                       const currentStudId = formData.student_id || (issuingStudentData?.student.id);
                       if (!currentStudId) return true;
@@ -1896,12 +1914,14 @@ export function Documents() {
                 <div className="flex gap-2 font-sans">
                    <button
                      onClick={printCertificate}
+                     title="Enviar documento formatado em paisagem A4 para impressão ou PDF"
                      className="px-5 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-2 cursor-pointer"
                    >
                      <Printer size={13} className="text-amber-400" /> Imprimir Documento (Lote/Aba)
                    </button>
                    <button
                      onClick={() => setViewingCertificate(null)}
+                     title="Fechar visualização do certificado"
                      className="px-5 py-2.5 bg-white border border-slate-350 hover:bg-slate-50 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm cursor-pointer"
                    >
                      Fechar Painel

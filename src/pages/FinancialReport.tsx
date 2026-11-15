@@ -1430,6 +1430,7 @@ return (
                 setStudentSearchQuery('');
                 setIsStudentDropdownOpen(false);
               }}
+              title="Consultar e gerar prestação de contas por turma"
               className={cn(
                 "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
                 filterTarget === 'class'
@@ -1447,6 +1448,7 @@ return (
                 setSelectedClassId('');
                 setIsStudentDropdownOpen(false);
               }}
+              title="Consultar e gerar extrato financeiro individual por aluno"
               className={cn(
                 "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
                 filterTarget === 'student'
@@ -1468,6 +1470,7 @@ return (
             <button
               type="button"
               onClick={handleSetCurrentMonth}
+              title="Definir automaticamente o período para o mês atual"
               className="px-2 py-0.5 rounded-md hover:bg-slate-200/70 text-slate-700 font-semibold hover:text-blue-900 transition-colors cursor-pointer text-xs"
             >
               Mês Atual
@@ -1476,6 +1479,7 @@ return (
             <button
               type="button"
               onClick={handleSetFullYear}
+              title="Definir automaticamente o período para o ano completo (Jan a Dez)"
               className="px-2 py-0.5 rounded-md hover:bg-slate-200/70 text-slate-700 font-semibold hover:text-blue-900 transition-colors cursor-pointer text-xs"
             >
               Ano Completo
@@ -1532,6 +1536,7 @@ return (
                       }
                     }
                   }}
+                  title="Selecionar a turma para emissão do relatório financeiro"
                   className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
                 >
                   <option value="">Selecione uma turma para carregar os alunos...</option>
@@ -1590,6 +1595,7 @@ return (
                     <input
                       type="text"
                       placeholder="Buscar por nome, matrícula ou CPF..."
+                      title="Digite o nome, matrícula ou CPF para localizar o aluno"
                       value={studentSearchQuery}
                       onFocus={() => {
                         if (studentSearchQuery.trim().length > 0) {
@@ -1635,6 +1641,7 @@ return (
                               key={st.id}
                               type="button"
                               onClick={() => handleSelectStudent(st)}
+                              title={`Selecionar ${st.name} para visualizar extrato`}
                               className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50/70 transition-colors flex items-center justify-between cursor-pointer group"
                             >
                               <div className="min-w-0 pr-2">
@@ -1684,6 +1691,7 @@ return (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
+              title="Selecionar o ano letivo de referência"
               className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
             >
               <option value="">Selecione o ano...</option>
@@ -1704,6 +1712,7 @@ return (
             <select
               value={periodType}
               onChange={(e) => handlePeriodTypeChange(e.target.value as PeriodType)}
+              title="Selecionar a periodicidade da análise financeira"
               className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
             >
               <option value="">Selecione...</option>
@@ -1753,6 +1762,7 @@ return (
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
+                  title="Selecionar o mês de referência"
                   className="w-full h-10 px-2.5 bg-slate-50/50 hover:bg-white focus:bg-white border-y border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
                 >
                   <option value="">Escolha o mês...</option>
@@ -1780,6 +1790,7 @@ return (
                   <select
                     value={startMonth}
                     onChange={(e) => setStartMonth(e.target.value)}
+                    title="Selecionar mês inicial do intervalo"
                     className="w-full h-8 px-2 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
                   >
                     {MONTH_NAMES.map((name, idx) => (
@@ -1794,6 +1805,7 @@ return (
                   <select
                     value={endMonth}
                     onChange={(e) => setEndMonth(e.target.value)}
+                    title="Selecionar mês final do intervalo"
                     className="w-full h-8 px-2 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
                   >
                     {MONTH_NAMES.map((name, idx) => (
@@ -1810,6 +1822,7 @@ return (
               <select
                 value={selectedQuarter}
                 onChange={(e) => setSelectedQuarter(e.target.value)}
+                title="Selecionar o trimestre de referência"
                 className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
               >
                 <option value="">Selecione o trimestre...</option>
@@ -1824,6 +1837,7 @@ return (
               <select
                 value={selectedSemester}
                 onChange={(e) => setSelectedSemester(e.target.value)}
+                title="Selecionar o semestre de referência"
                 className="w-full h-10 px-3 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs cursor-pointer transition-all"
               >
                 <option value="">Selecione o semestre...</option>
@@ -1857,6 +1871,7 @@ return (
                   onClick={() => {
                     setStudentSelectionMode('all');
                   }}
+                  title="Incluir todos os alunos da turma no relatório"
                   className={cn(
                     "px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
                     studentSelectionMode === 'all'
@@ -1882,6 +1897,7 @@ return (
                       setSelectedStudentIdsInClass(studentsInSelectedClass.map(s => s.id));
                     }
                   }}
+                  title="Selecionar alunos específicos da turma para o relatório"
                   className={cn(
                     "px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
                     studentSelectionMode === 'select'
@@ -1917,6 +1933,7 @@ return (
                   key={st.id}
                   type="button"
                   onClick={() => setStatusFilter(st.id)}
+                  title={`Filtrar alunos por situação: ${st.label}`}
                   className={cn(
                     "px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
                     statusFilter === st.id
@@ -1943,6 +1960,7 @@ return (
               <input
                 type="text"
                 placeholder="Filtrar aluno na tabela..."
+                title="Filtrar alunos exibidos na tabela pelo nome ou matrícula"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full h-8 pl-8 pr-7 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
@@ -1951,6 +1969,7 @@ return (
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
+                  title="Limpar filtro de aluno"
                   className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
                 >
                   <X size={12} />
@@ -1977,6 +1996,7 @@ return (
               <button
                 type="button"
                 onClick={() => setSelectedStudentIdsInClass(studentsInSelectedClass.map(s => s.id))}
+                title="Marcar todos os alunos da turma para o relatório"
                 className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-white px-2.5 py-1 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors cursor-pointer shadow-2xs"
               >
                 Marcar Todos
@@ -1984,6 +2004,7 @@ return (
               <button
                 type="button"
                 onClick={() => setSelectedStudentIdsInClass([])}
+                title="Desmarcar todos os alunos selecionados"
                 className="text-xs font-bold text-slate-600 hover:text-red-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-red-50 transition-colors cursor-pointer shadow-2xs"
               >
                 Desmarcar Todos
@@ -2012,6 +2033,7 @@ return (
                     <input
                       type="checkbox"
                       checked={isChecked}
+                      title={`Incluir ou remover ${st.name} do relatório`}
                       onChange={() => {
                         if (isChecked) {
                           setSelectedStudentIdsInClass(prev => prev.filter(id => id !== st.id));
@@ -2067,6 +2089,7 @@ return (
                 setPeriodType('anual');
               }
             }}
+            title="Iniciar consulta selecionando uma turma cadastrada"
             className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
@@ -2095,6 +2118,7 @@ return (
               if (!selectedYear) setSelectedYear(String(new Date().getFullYear()));
               if (!periodType) setPeriodType('anual');
             }}
+            title="Iniciar consulta buscando um aluno específico"
             className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>
@@ -2118,6 +2142,7 @@ return (
             onClick={() => {
               handleSetCurrentMonth();
             }}
+            title="Aplicar rapidamente o filtro para o mês corrente"
             className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between"
           >
             <div>

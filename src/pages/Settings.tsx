@@ -1027,6 +1027,7 @@ export function Settings() {
           <button
             onClick={handleTopSave}
             disabled={saving}
+            title="Salvar alterações das configurações atuais"
             className="px-6 py-2 bg-[#00174b] text-white rounded-lg font-bold flex items-center gap-2 hover:bg-blue-900 transition-all shadow-xs active:scale-95 disabled:opacity-50 text-[10px] uppercase tracking-wider"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
@@ -1042,7 +1043,7 @@ export function Settings() {
         )}>
           {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
           <p className="font-bold text-sm tracking-tight">{notification.message}</p>
-          <button onClick={() => setNotification(null)} className="ml-2 opacity-70 hover:opacity-100">
+          <button title="Fechar notificação" onClick={() => setNotification(null)} className="ml-2 opacity-70 hover:opacity-100">
             <X size={16} />
           </button>
         </div>
@@ -1055,6 +1056,7 @@ export function Settings() {
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1.5">Módulos</p>
           <button 
             onClick={() => setActiveTab('institution')}
+            title="Configurar dados gerais, endereço e textos da instituição"
             className={cn(
               "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
               activeTab === 'institution' 
@@ -1068,6 +1070,7 @@ export function Settings() {
 
           <button 
             onClick={() => setActiveTab('units')}
+            title="Gerenciar Sede/Matriz e polos ou filiais da escola"
             className={cn(
               "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
               activeTab === 'units' 
@@ -1081,6 +1084,7 @@ export function Settings() {
 
           <button 
             onClick={() => setActiveTab('academic')}
+            title="Definir médias de aprovação, recuperação e limite de faltas"
             className={cn(
               "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
               activeTab === 'academic' 
@@ -1094,6 +1098,7 @@ export function Settings() {
 
           <button 
             onClick={() => setActiveTab('financial')}
+            title="Configurar mensalidades padrão, vencimento e valores específicos"
             className={cn(
               "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
               activeTab === 'financial' 
@@ -1109,6 +1114,7 @@ export function Settings() {
             <>
               <button 
                 onClick={() => setActiveTab('database')}
+                title="Auditar tabelas do Supabase e gerar scripts SQL"
                 className={cn(
                   "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
                   activeTab === 'database' 
@@ -1122,6 +1128,7 @@ export function Settings() {
 
               <button 
                 onClick={() => setActiveTab('security')}
+                title="Configurar PIN de acesso, bloqueio por inatividade e sessão"
                 className={cn(
                   "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
                   activeTab === 'security' 
@@ -1135,6 +1142,7 @@ export function Settings() {
 
               <button 
                 onClick={() => setActiveTab('maintenance')}
+                title="Ferramentas de manutenção em lote, limpeza e sincronização"
                 className={cn(
                   "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
                   activeTab === 'maintenance' 
@@ -1169,6 +1177,7 @@ export function Settings() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome da Instituição</label>
                     <input 
                       type="text"
+                      title="Informe o nome oficial da instituição de ensino"
                       value={institution.name || ''}
                       onChange={(e) => setInstitution({...institution, name: e.target.value})}
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
@@ -1180,6 +1189,7 @@ export function Settings() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Subtítulo / Patrono / Complemento</label>
                     <input 
                       type="text"
+                      title="Informe o subtítulo, patrono ou complemento exibido nos documentos"
                       value={institution.subtitle || ''}
                       onChange={(e) => setInstitution({...institution, subtitle: e.target.value})}
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
@@ -1208,6 +1218,7 @@ export function Settings() {
                       </div>
                       <input 
                         type="text"
+                        title="Informe o CEP para preenchimento automático do endereço"
                         value={institution.cep || ''}
                         onChange={(e) => handleCepChange(e.target.value)}
                         className="w-full px-3.5 py-2.5 bg-blue-50/70 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white outline-none transition-all font-mono font-bold text-blue-950 text-[13px] shadow-xs shadow-blue-500/10"
@@ -1219,6 +1230,7 @@ export function Settings() {
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
                       <input 
                         type="text"
+                        title="Informe o logradouro, número e bairro da instituição"
                         value={institution.address || ''}
                         onChange={(e) => setInstitution({...institution, address: e.target.value})}
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
@@ -1232,6 +1244,7 @@ export function Settings() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cidade / UF</label>
                     <input 
                       type="text"
+                      title="Informe a cidade e unidade federativa da instituição"
                       value={institution.city_uf || ''}
                       onChange={(e) => setInstitution({...institution, city_uf: e.target.value})}
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
@@ -1245,6 +1258,7 @@ export function Settings() {
                     <div className="relative">
                       <input 
                         type="text"
+                        title="Informe o telefone principal da instituição"
                         value={institution.phone || ''}
                         onChange={(e) => setInstitution({...institution, phone: formatPhone(e.target.value)})}
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px] pr-12"
@@ -1272,6 +1286,7 @@ export function Settings() {
                     <div className="relative">
                       <input 
                         type="text"
+                        title="Informe o número de WhatsApp institucional para atendimento"
                         value={institution.whatsapp || ''}
                         onChange={(e) => setInstitution({...institution, whatsapp: formatPhone(e.target.value)})}
                         className="w-full px-5 py-3 bg-slate-50 border border-transparent border-green-100 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:bg-white focus:border-green-200 transition-all font-bold text-[#00174b] text-sm pr-12"
@@ -1288,6 +1303,7 @@ export function Settings() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
                     <input 
                       type="email"
+                      title="Informe o e-mail de contato da instituição"
                       value={institution.email || ''}
                       onChange={(e) => setInstitution({...institution, email: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
@@ -1300,6 +1316,7 @@ export function Settings() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CNPJ</label>
                     <input 
                       type="text"
+                      title="Informe o CNPJ da instituição"
                       value={institution.cnpj || ''}
                       onChange={(e) => setInstitution({...institution, cnpj: formatCNPJ(e.target.value)})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
@@ -1310,6 +1327,7 @@ export function Settings() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Website</label>
                     <input 
                       type="text"
+                      title="Informe o endereço do site oficial da instituição"
                       value={institution.website || ''}
                       onChange={(e) => setInstitution({...institution, website: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
@@ -1330,6 +1348,7 @@ export function Settings() {
                     </div>
                     <textarea 
                       rows={4}
+                      title="Informe os horários e canais de atendimento exibidos no rodapé dos documentos"
                       value={institution.secretary || ''}
                       onChange={(e) => {
                         const rawLines = e.target.value.split('\n');
@@ -1364,6 +1383,7 @@ export function Settings() {
                     </div>
                     <textarea 
                       rows={3}
+                      title="Digite a mensagem padrão exibida nos recibos de contribuição"
                       value={institution.receipt_message || ''}
                       onChange={(e) => setInstitution({...institution, receipt_message: e.target.value.substring(0, 300)})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm resize-none"
@@ -1407,6 +1427,7 @@ export function Settings() {
                     </div>
                     <textarea 
                       rows={3}
+                      title="Digite o texto institucional exibido no recibo de matrícula"
                       disabled={institution.show_enrollment_receipt_message === false}
                       value={institution.enrollment_receipt_message !== undefined ? institution.enrollment_receipt_message : ''}
                       onChange={(e) => setInstitution({...institution, enrollment_receipt_message: e.target.value.substring(0, 300)})}
@@ -1436,6 +1457,7 @@ export function Settings() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Normas Básicas para Admissão (Ficha de Inscrição)</label>
                     <textarea 
                       rows={6}
+                      title="Liste as normas básicas de admissão para impressão na Ficha de Inscrição"
                       value={institution.admission_norms || ''}
                       onChange={(e) => setInstitution({...institution, admission_norms: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-semibold text-slate-700 text-sm"
@@ -1452,6 +1474,7 @@ export function Settings() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instruções / Requisitos (Carta de Apresentação)</label>
                     <textarea 
                       rows={6}
+                      title="Liste as instruções e documentos exigidos na Carta de Apresentação"
                       value={institution.presentation_info || ''}
                       onChange={(e) => setInstitution({...institution, presentation_info: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-semibold text-slate-700 text-sm"
@@ -1477,6 +1500,7 @@ export function Settings() {
                       <div className="flex gap-2">
                         <input 
                           type="text"
+                          title="Cole a URL direta da logomarca oficial da instituição"
                           value={institution.logo_url || ''}
                           onChange={(e) => setInstitution({...institution, logo_url: e.target.value})}
                           className="flex-1 px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
@@ -1484,7 +1508,7 @@ export function Settings() {
                         />
                         <label className="cursor-pointer px-4 py-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all flex items-center justify-center" title="Upload Logo">
                           {uploadingLogo ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                          <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                          <input type="file" title="Selecionar imagem da logomarca para envio" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} />
                         </label>
                         {institution.logo_url && (
                           <button 
@@ -1579,6 +1603,7 @@ export function Settings() {
                 <button 
                   type="submit"
                   disabled={saving}
+                  title="Salvar todas as informações institucionais"
                   className="px-10 py-4 bg-[#00174b] text-white rounded-xl font-black flex items-center gap-3 hover:bg-blue-900 transition-all shadow-xl active:scale-95 disabled:opacity-50"
                 >
                   {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
@@ -1619,6 +1644,7 @@ export function Settings() {
                     step="0.1"
                     min="0"
                     max="10"
+                    title="Nota mínima necessária para aprovação direta na disciplina"
                     value={academicParams.approval_grade}
                     onChange={(e) => setAcademicParams({...academicParams, approval_grade: parseFloat(e.target.value)})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-300 outline-none transition-all font-black text-slate-800 text-lg"
@@ -1631,6 +1657,7 @@ export function Settings() {
                     step="0.1"
                     min="0"
                     max="10"
+                    title="Nota mínima exigida para encaminhamento à recuperação"
                     value={academicParams.recovery_grade}
                     onChange={(e) => setAcademicParams({...academicParams, recovery_grade: parseFloat(e.target.value)})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-amber-500/20 focus:border-amber-300 outline-none transition-all font-black text-slate-800 text-lg"
@@ -1643,6 +1670,7 @@ export function Settings() {
                     step="0.1"
                     min="0"
                     max="10"
+                    title="Nota igual ou inferior considerada como reprovação"
                     value={academicParams.failure_grade}
                     onChange={(e) => setAcademicParams({...academicParams, failure_grade: parseFloat(e.target.value)})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-red-500/20 focus:border-red-300 outline-none transition-all font-black text-slate-800 text-lg"
@@ -1654,6 +1682,7 @@ export function Settings() {
                     type="number"
                     min="0"
                     max="100"
+                    title="Percentual máximo de ausências permitido antes da reprovação por falta"
                     value={academicParams.absence_limit_percentage}
                     onChange={(e) => setAcademicParams({...academicParams, absence_limit_percentage: parseInt(e.target.value)})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-black text-slate-800 text-lg"
@@ -1665,6 +1694,7 @@ export function Settings() {
                 <button 
                   type="submit"
                   disabled={saving}
+                  title="Salvar parâmetros de avaliação e frequência"
                   className="px-10 py-4 bg-[#00174b] text-white rounded-xl font-black flex items-center gap-3 hover:bg-blue-900 transition-all shadow-xl active:scale-95 disabled:opacity-50"
                 >
                   {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
@@ -1726,6 +1756,7 @@ export function Settings() {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       maxLength={4}
+                      title="Digite o novo código PIN de 4 dígitos"
                       value={newPin}
                       onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-amber-500/20 focus:border-amber-300 outline-none transition-all font-bold text-slate-800 text-center text-xl tracking-[0.5em]"
@@ -1740,6 +1771,7 @@ export function Settings() {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       maxLength={4}
+                      title="Repita o novo código PIN de 4 dígitos para confirmar"
                       value={confirmPin}
                       onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-amber-500/20 focus:border-amber-300 outline-none transition-all font-bold text-slate-800 text-center text-xl tracking-[0.5em]"
@@ -1765,6 +1797,7 @@ export function Settings() {
                   <button 
                     type="submit"
                     disabled={savingPin || newPin.length < 4}
+                    title="Gravar o código PIN de 4 dígitos para este usuário"
                     className="px-6 py-2.5 bg-amber-600 text-white rounded-md text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-amber-700 transition-all shadow-md shadow-amber-600/20 disabled:opacity-50"
                   >
                     {savingPin ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -1803,6 +1836,7 @@ export function Settings() {
               {profile?.pin && (
                 <div className="p-4 bg-red-50/50 border border-red-100 rounded-md">
                    <button 
+                    title="Desativar e remover a proteção por código PIN desta conta"
                     onClick={async () => {
                       if (window.confirm('Tem certeza que deseja remover a proteção por PIN da sua conta?')) {
                         try {
@@ -1837,11 +1871,12 @@ export function Settings() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bloqueio Automático:</span>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer" title="Ativar ou desativar o bloqueio automático de tela por inatividade">
                   <input 
                     type="checkbox" 
                     checked={!!localLockEnabled} 
                     onChange={(e) => setLocalLockEnabled(e.target.checked)}
+                    title="Ativar ou desativar o bloqueio automático de tela por inatividade"
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
@@ -1858,6 +1893,7 @@ export function Settings() {
                       key={mins}
                       type="button"
                       disabled={!localLockEnabled}
+                      title={`Definir bloqueio automático após ${mins} ${mins === 1 ? 'minuto' : 'minutos'} sem atividade`}
                       onClick={() => setLockTimeoutMinutes(mins)}
                       className={cn(
                         "px-4 py-2 border rounded-md text-xs font-semibold tracking-tight transition-all",
@@ -1881,6 +1917,7 @@ export function Settings() {
                         min={1}
                         max={1440}
                         disabled={!localLockEnabled}
+                        title="Digite um tempo personalizado em minutos para bloqueio por inatividade"
                         value={lockTimeoutMinutes}
                         onChange={(e) => {
                           const val = parseInt(e.target.value, 10);
@@ -1928,6 +1965,7 @@ export function Settings() {
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
+                    title="Salvar ajustes de bloqueio automático por inatividade"
                     onClick={async () => {
                       const mins = typeof lockTimeoutMinutes === 'number' ? lockTimeoutMinutes : 5;
                       await updateLockSettings(localLockEnabled, mins);
@@ -1964,6 +2002,7 @@ export function Settings() {
                 </label>
                 <div className="space-y-2.5">
                   <div
+                    title="Selecionar sessão temporária que encerra o login ao fechar o navegador"
                     onClick={() => setSelectedPersistMode('session')}
                     className={cn(
                       "p-3.5 rounded-lg border cursor-pointer transition-all flex items-start gap-3",
@@ -1989,6 +2028,7 @@ export function Settings() {
                   </div>
 
                   <div
+                    title="Manter usuário conectado neste dispositivo mesmo após fechar o navegador"
                     onClick={() => setSelectedPersistMode('local')}
                     className={cn(
                       "p-3.5 rounded-lg border cursor-pointer transition-all flex items-start gap-3",
@@ -2025,6 +2065,7 @@ export function Settings() {
                     <button
                       key={mins}
                       type="button"
+                      title={`Encerrar sessão automaticamente após ${mins} minutos de inatividade`}
                       onClick={() => setInactivityMinutes(mins)}
                       className={cn(
                         "px-3.5 py-2 border rounded-md text-xs font-semibold tracking-tight transition-all",
@@ -2053,6 +2094,7 @@ export function Settings() {
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button
                 type="button"
+                title="Salvar política de persistência de sessão e desconexão automática"
                 onClick={async () => {
                   const mins = typeof inactivityMinutes === 'number' ? inactivityMinutes : 15;
                   setPersistMode(selectedPersistMode);
@@ -2142,6 +2184,7 @@ export function Settings() {
               <div className="space-y-2 pt-2">
                 <button 
                   onClick={() => handleOpenDatabaseTab('fix')}
+                  title="Abrir a aba de auditoria de schema e scripts SQL"
                   className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between group hover:border-indigo-300 hover:bg-indigo-50/50 transition-all text-left active:scale-[0.98] outline-none cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
@@ -2157,6 +2200,7 @@ export function Settings() {
                 <button 
                   onClick={handleSyncSupabase}
                   disabled={isSyncing}
+                  title="Sincronizar todas as coleções locais com o banco Supabase"
                   className="w-full h-12 px-4 bg-indigo-600 text-white rounded-md flex items-center justify-between group hover:bg-indigo-700 transition-all text-left active:scale-[0.98] outline-none shadow-sm shadow-indigo-600/20 cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
@@ -2193,6 +2237,7 @@ export function Settings() {
                     key={idx}
                     onClick={tool.action}
                     disabled={loading}
+                    title={`Executar ferramenta em lote: ${tool.label}`}
                     className="w-full h-11 px-4 bg-white border border-slate-200 rounded-md flex items-center justify-between hover:bg-slate-50 transition-all text-left group outline-none"
                   >
                     <div className="flex items-center gap-3">
@@ -2220,6 +2265,7 @@ export function Settings() {
                       <button
                         key={mod.id}
                         onClick={() => handleClearModule(mod.id, mod.label)}
+                        title={`Excluir definitivamente todos os registros de ${mod.label}`}
                         className="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
                       >
                         {mod.label}
@@ -2260,6 +2306,7 @@ export function Settings() {
                 <button 
                   onClick={showConfirmModal.onConfirm}
                   disabled={loading}
+                  title="Confirmar e executar a operação em massa"
                   className={cn(
                     "w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3",
                     showConfirmModal.type === 'danger' ? "bg-red-600 text-white hover:bg-red-700" : "bg-blue-600 text-white hover:bg-blue-700"
@@ -2271,6 +2318,7 @@ export function Settings() {
                 <button 
                   onClick={() => setShowConfirmModal(prev => ({ ...prev, show: false }))}
                   disabled={loading}
+                  title="Cancelar operação e fechar janela"
                   className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-slate-100 transition-all"
                 >
                   Cancelar

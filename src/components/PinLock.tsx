@@ -130,6 +130,7 @@ export const PinLock: React.FC = () => {
                   whileTap={{ scale: 0.95, color: '#fbbf24' }}
                   transition={{ duration: 0.1 }}
                   onClick={() => { setPin(''); triggerAnimation('Limpar'); }}
+                  title="Limpar todos os dígitos do PIN"
                   className="w-full aspect-square rounded-lg flex items-center justify-center text-[8px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors"
                 >
                   Limpar
@@ -151,6 +152,7 @@ export const PinLock: React.FC = () => {
                   whileTap={{ scale: 0.9, backgroundColor: 'rgba(251, 191, 36, 0.4)', borderColor: 'rgba(251, 191, 36, 0.6)' }}
                   transition={{ duration: 0.1 }}
                   onClick={() => { handleDelete(); triggerAnimation('delete'); }}
+                  title="Apagar último dígito do PIN"
                   className="w-full aspect-square rounded-lg flex items-center justify-center text-slate-500 hover:text-white border border-transparent transition-all"
                 >
                   <Delete size={18} />
@@ -178,6 +180,7 @@ export const PinLock: React.FC = () => {
                 }}
                 transition={{ duration: 0.1 }}
                 onClick={() => { handleKeyPress(item.toString()); triggerAnimation(item.toString()); }}
+                title={`Digitar número ${item}`}
                 className="w-full aspect-square rounded-lg bg-white/5 text-white text-xl font-light border border-white/5 transition-all flex items-center justify-center shadow-lg hover:border-white/10"
               >
                 {item}
@@ -194,6 +197,7 @@ export const PinLock: React.FC = () => {
 
         <button 
           onClick={logout}
+          title="Sair desta conta e retornar para o login"
           className="mt-12 text-slate-500 hover:text-slate-300 text-sm font-medium flex items-center gap-2 transition-colors"
         >
           Sair da conta

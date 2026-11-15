@@ -504,6 +504,7 @@ export const Assessments: React.FC = () => {
 
               <button 
                 onClick={() => setNotification(null)}
+                title="Fechar aviso"
                 className={`w-full py-2 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer ${
                   notification.type === 'success' 
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
@@ -529,6 +530,7 @@ export const Assessments: React.FC = () => {
               setActiveTab('consult');
               setEditingId(null);
             }}
+            title="Consultar histórico e lista de avaliações cadastradas"
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'consult'
                 ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
@@ -552,6 +554,7 @@ export const Assessments: React.FC = () => {
                 description: ''
               });
             }}
+            title="Abrir formulário para cadastrar ou editar uma avaliação"
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'register'
                 ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
@@ -591,6 +594,7 @@ export const Assessments: React.FC = () => {
                   value={filterSearch}
                   onChange={(e) => setFilterSearch(e.target.value)}
                   placeholder="Pesquisar por título..."
+                  title="Filtrar avaliações por título ou conteúdo"
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none"
                 />
               </div>
@@ -607,6 +611,7 @@ export const Assessments: React.FC = () => {
                     setFilterClass(e.target.value);
                     setFilterSubject('');
                   }}
+                  title="Filtrar avaliações por turma"
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Turmas</option>
@@ -623,6 +628,7 @@ export const Assessments: React.FC = () => {
                 <select 
                   value={filterSubject}
                   onChange={(e) => setFilterSubject(e.target.value)}
+                  title="Filtrar avaliações por disciplina"
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Disciplinas</option>
@@ -646,6 +652,7 @@ export const Assessments: React.FC = () => {
                 <select 
                   value={filterPeriod}
                   onChange={(e) => setFilterPeriod(e.target.value)}
+                  title="Filtrar avaliações por período ou etapa avaliativa"
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Avaliações</option>
@@ -684,6 +691,7 @@ export const Assessments: React.FC = () => {
                   setFilterPeriod('');
                   setFilterSearch('');
                 }}
+                title="Remover todos os filtros aplicados"
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <X size={14} />
@@ -718,6 +726,7 @@ export const Assessments: React.FC = () => {
                   <button
                     key={`ass-cls-quick-${c.id || idx}-${idx}`}
                     onClick={() => setFilterClass(c.id)}
+                    title={`Filtrar avaliações da turma ${c.name}`}
                     className="text-[11px] font-bold bg-white text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-lg shadow-2xs transition-all cursor-pointer"
                   >
                     {c.name}
@@ -848,6 +857,7 @@ export const Assessments: React.FC = () => {
                     {/* Direct Shortcut Link */}
                     <button 
                       onClick={() => handleGoToGrades(a)}
+                      title={isDiaryComplete ? "Abrir diário de notas para revisar lançamentos desta avaliação" : "Abrir diário de notas para lançar notas desta avaliação"}
                       className={`w-full flex items-center justify-center gap-1.5 mt-2.5 py-2 px-3 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                         isDiaryComplete
                           ? 'bg-white text-emerald-700 hover:bg-emerald-50 border-emerald-200'
@@ -877,6 +887,7 @@ export const Assessments: React.FC = () => {
           </div>
           <button 
             onClick={handleOpenNewForm}
+            title="Cadastrar uma nova atividade avaliativa"
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 mt-2"
           >
             <Plus size={14} />
@@ -928,6 +939,7 @@ export const Assessments: React.FC = () => {
                       value={formData.title}
                       onChange={e => setFormData({...formData, title: e.target.value})}
                       placeholder="Ex: Prova Escrita, Seminário, Redação de Exercícios"
+                      title="Título identificador da atividade avaliativa"
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-semibold focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
@@ -939,6 +951,7 @@ export const Assessments: React.FC = () => {
                       required
                       value={formData.class_id}
                       onChange={e => setFormData({...formData, class_id: e.target.value, subject_id: ''})}
+                      title="Selecionar a turma para esta avaliação"
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     >
                       <option value="">Selecione a turma...</option>
@@ -965,6 +978,7 @@ export const Assessments: React.FC = () => {
                           period: periods.some(p => p.name === formData.period) ? formData.period : firstPeriod
                         });
                       }}
+                      title="Selecionar a disciplina vinculada à avaliação"
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">Selecione...</option>
@@ -986,6 +1000,7 @@ export const Assessments: React.FC = () => {
                       required
                       value={formData.period}
                       onChange={e => setFormData({...formData, period: e.target.value})}
+                      title="Selecionar a etapa ou bimestre correspondente à avaliação"
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     >
                       {(() => {
@@ -1017,6 +1032,7 @@ export const Assessments: React.FC = () => {
                       required
                       value={formData.date}
                       onChange={e => setFormData({...formData, date: e.target.value})}
+                      title="Data prevista ou realizada da avaliação"
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
@@ -1031,6 +1047,7 @@ export const Assessments: React.FC = () => {
                       required
                       value={formData.weight}
                       onChange={e => setFormData({...formData, weight: parseFloat(e.target.value)})}
+                      title="Nota máxima ou peso atribuído à avaliação"
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-bold focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     />
                   </div>
@@ -1042,6 +1059,7 @@ export const Assessments: React.FC = () => {
                       value={formData.description}
                       onChange={e => setFormData({...formData, description: e.target.value})}
                       placeholder="Ex: Trabalho individual sobre Doutrina Social da Igreja Capítulos 1 e 2"
+                      title="Descrição detalhada ou conteúdo programático cobrado na avaliação"
                       rows={3}
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none resize-none"
                     />
@@ -1056,6 +1074,7 @@ export const Assessments: React.FC = () => {
                       setEditingId(null);
                       setActiveTab('consult');
                     }}
+                    title="Cancelar e retornar à consulta de avaliações"
                     className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-bold transition-all cursor-pointer"
                   >
                     Cancelar
@@ -1063,6 +1082,7 @@ export const Assessments: React.FC = () => {
                   <button 
                     type="submit"
                     disabled={saving}
+                    title={editingId ? "Salvar alterações nesta avaliação" : "Cadastrar nova avaliação e gerar pauta"}
                     className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-md hover:shadow-indigo-100 transition-all cursor-pointer flex items-center justify-center gap-1"
                   >
                     {saving && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin shrink-0" />}
@@ -1180,12 +1200,14 @@ export const Assessments: React.FC = () => {
               <div className="flex gap-3 pt-2">
                 <button 
                   onClick={() => setDeleteConfirmId(null)}
+                  title="Cancelar e manter avaliação cadastrada"
                   className="flex-1 py-2 px-4 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
                 >
                   Cancelar, Manter Avaliação
                 </button>
                 <button 
                   onClick={handleDelete}
+                  title="Confirmar exclusão definitiva da avaliação e suas notas"
                   className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-red-100 transition-all cursor-pointer"
                 >
                   Sim, Excluir Tudo

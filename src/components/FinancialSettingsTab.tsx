@@ -505,6 +505,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
 
         <button
           type="button"
+          title="Salvar todas as definições e valores financeiros"
           onClick={() => handleSave()}
           disabled={saving}
           className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-xs active:scale-95 text-xs uppercase tracking-wider shrink-0 cursor-pointer self-start sm:self-center"
@@ -550,6 +551,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                 type="number"
                 min="0"
                 step="5"
+                title="Valor padrão global da mensalidade quando não houver regra específica"
                 value={settings.default_monthly_fee}
                 onChange={(e) => setSettings(prev => ({ ...prev, default_monthly_fee: Number(e.target.value) || 0 }))}
                 className="w-full h-10 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -568,6 +570,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                 type="number"
                 min="1"
                 max="31"
+                title="Dia do mês de vencimento padrão das contribuições"
                 value={settings.due_day || 10}
                 onChange={(e) => setSettings(prev => ({ ...prev, due_day: Number(e.target.value) || 10 }))}
                 className="w-full h-10 pl-11 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -586,6 +589,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                 type="number"
                 min="0"
                 step="0.5"
+                title="Percentual de multa ou juros exibido para atrasos"
                 value={settings.late_fee_percentage || 0}
                 onChange={(e) => setSettings(prev => ({ ...prev, late_fee_percentage: Number(e.target.value) || 0 }))}
                 className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -639,6 +643,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                     type="number"
                     min="2000"
                     max="2099"
+                    title="Digite o ano letivo de referência para configurar a mensalidade"
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value) || currentSystemYear)}
                     className="w-28 h-10 text-center font-black text-xl text-slate-900 bg-white border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-xs"
@@ -691,6 +696,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                     type="number"
                     min="0"
                     step="5"
+                    title={`Definir valor padrão da mensalidade para o ano ${selectedYear}`}
                     value={currentYearEffectiveAmount}
                     onChange={(e) => handleUpdateCurrentYearAmount(Number(e.target.value) || 0)}
                     className="w-full h-10 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-black text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-2xs"
@@ -729,6 +735,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                     <button
                       key={yf.year}
                       type="button"
+                      title={`Selecionar o ano ${yf.year} para edição`}
                       onClick={() => setSelectedYear(yf.year)}
                       className={cn(
                         "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs",
@@ -762,6 +769,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
 
           <button
             type="button"
+            title="Adicionar valor de mensalidade diferenciado para turma, disciplina ou curso"
             onClick={handleOpenAddFeeModal}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
           >
@@ -823,6 +831,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                       type="number"
                       min="0"
                       step="5"
+                      title={`Ajustar valor da mensalidade para a turma ${cf.class_name}`}
                       value={cf.amount}
                       onChange={(e) => handleUpdateClassFee(index, Number(e.target.value) || 0)}
                       className="w-full pl-8 pr-2 py-1 text-right font-black text-emerald-800 bg-white border border-emerald-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all shadow-2xs"
@@ -868,6 +877,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                       type="number"
                       min="0"
                       step="5"
+                      title={`Ajustar valor da mensalidade para a disciplina ${sf.subject_name}`}
                       value={sf.amount}
                       onChange={(e) => handleUpdateSubjectFee(index, Number(e.target.value) || 0)}
                       className="w-full pl-8 pr-2 py-1 text-right font-black text-purple-800 bg-white border border-purple-300 rounded-lg text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all shadow-2xs"
@@ -913,6 +923,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                       type="number"
                       min="0"
                       step="5"
+                      title={`Ajustar valor da mensalidade para o curso ${cf.course_name}`}
                       value={cf.amount}
                       onChange={(e) => handleUpdateCourseFee(index, Number(e.target.value) || 0)}
                       className="w-full pl-8 pr-2 py-1 text-right font-black text-blue-700 bg-white border border-slate-200 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-2xs"
@@ -949,6 +960,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
               </div>
               <button
                 type="button"
+                title="Fechar janela de nova mensalidade"
                 onClick={() => setShowAddFeeModal(false)}
                 className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 cursor-pointer"
               >
@@ -964,6 +976,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
             <div className="flex items-center p-1 bg-slate-100 rounded-xl gap-1">
               <button
                 type="button"
+                title="Definir valor específico para uma turma"
                 onClick={() => setFeeTargetType('class')}
                 className={cn(
                   "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
@@ -978,6 +991,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
 
               <button
                 type="button"
+                title="Definir valor específico para uma disciplina"
                 onClick={() => setFeeTargetType('subject')}
                 className={cn(
                   "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
@@ -992,6 +1006,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
 
               <button
                 type="button"
+                title="Definir valor específico para um curso"
                 onClick={() => setFeeTargetType('course')}
                 className={cn(
                   "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
@@ -1017,6 +1032,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                     </p>
                   ) : (
                     <select
+                      title="Selecione a turma para atribuir mensalidade diferenciada"
                       value={selectedClassId}
                       onChange={(e) => setSelectedClassId(e.target.value)}
                       className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -1041,6 +1057,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                     </p>
                   ) : (
                     <select
+                      title="Selecione a disciplina para atribuir mensalidade diferenciada"
                       value={selectedSubjectId}
                       onChange={(e) => setSelectedSubjectId(e.target.value)}
                       className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
@@ -1065,6 +1082,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                     </p>
                   ) : (
                     <select
+                      title="Selecione o curso para atribuir mensalidade diferenciada"
                       value={selectedCourseId}
                       onChange={(e) => setSelectedCourseId(e.target.value)}
                       className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -1090,6 +1108,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
                     type="number"
                     min="0"
                     step="5"
+                    title="Informe o valor da mensalidade específica em reais"
                     value={newFeeAmount}
                     onChange={(e) => setNewFeeAmount(Number(e.target.value) || 0)}
                     placeholder="100.00"
@@ -1102,6 +1121,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
+                title="Cancelar e fechar janela"
                 onClick={() => setShowAddFeeModal(false)}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
@@ -1109,6 +1129,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
               </button>
               <button
                 type="button"
+                title="Confirmar atribuição do valor específico selecionado"
                 onClick={handleAddFee}
                 disabled={feeTargetType === 'class' ? !selectedClassId : feeTargetType === 'subject' ? !selectedSubjectId : !selectedCourseId}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
@@ -1139,6 +1160,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
         {onOpenDatabaseTab && (
           <button
             type="button"
+            title="Abrir o script SQL financeiro na aba Base de Dados"
             onClick={() => onOpenDatabaseTab('financial')}
             className="px-4 py-2 bg-white hover:bg-slate-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all shadow-2xs shrink-0 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
           >
@@ -1152,6 +1174,7 @@ export function FinancialSettingsTab({ onNotify, onOpenDatabaseTab }: FinancialS
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           type="button"
+          title="Salvar e propagar configurações financeiras para todo o sistema"
           onClick={() => handleSave()}
           disabled={saving}
           className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-md active:scale-95 text-xs uppercase tracking-wider cursor-pointer"

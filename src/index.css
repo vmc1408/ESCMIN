@@ -312,32 +312,6 @@
 
 @media screen {
   :root, :host {
-    /* Paleta Principal Moderna & Viva (Teal / Verde-Petróleo) substituindo o Roxo/Indigo escuro */
-    --color-indigo-50: #f0fdfa;
-    --color-indigo-100: #ccfbf1;
-    --color-indigo-200: #99f6e4;
-    --color-indigo-300: #5eead4;
-    --color-indigo-400: #2dd4bf;
-    --color-indigo-500: #14b8a6;
-    --color-indigo-600: #0d9488;
-    --color-indigo-700: #0f766e;
-    --color-indigo-800: #115e59;
-    --color-indigo-900: #134e4a;
-    --color-indigo-950: #042f2e;
-
-    /* Paleta Secundária Viva (Ciano-Petróleo) substituindo o Azul marinho/escuro cansativo */
-    --color-blue-50: #ecfeff;
-    --color-blue-100: #cffafe;
-    --color-blue-200: #a5f3fc;
-    --color-blue-300: #67e8f9;
-    --color-blue-400: #22d3ee;
-    --color-blue-500: #06b6d4;
-    --color-blue-600: #0891b2;
-    --color-blue-700: #0e7490;
-    --color-blue-800: #0f766e;
-    --color-blue-900: #115e59;
-    --color-blue-950: #083344;
-
     /* Superfícies Neutras com Alto Contraste Estrutural entre Fundo, Cards, Módulos e Bordas */
     --color-slate-50: #edf2f7;
     --color-slate-100: #dfe7f0;
@@ -384,11 +358,15 @@
     color: #1e293b;
   }
 
-  /* Botões Primários Unificados: substitui o azul/roxo/grafite escuro por Teal moderno, vivo e descansado */
+  /* Botões Primários Unificados: substitui o roxo/grafite escuro por Teal moderno, vivo e descansado */
   main button.bg-slate-800:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]),
   main button.bg-slate-900:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]),
+  main button.bg-indigo-600:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]),
+  main button.bg-indigo-700:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]),
   main a.bg-slate-800,
   main a.bg-slate-900,
+  main a.bg-indigo-600,
+  main a.bg-indigo-700,
   main label.bg-slate-800,
   main label.bg-slate-900 {
     background-color: #0d9488 !important;
@@ -399,8 +377,12 @@
 
   main button.bg-slate-800:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]):hover:not(:disabled),
   main button.bg-slate-900:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]):hover:not(:disabled),
+  main button.bg-indigo-600:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]):hover:not(:disabled),
+  main button.bg-indigo-700:not([class*="hover:bg-red"]):not([class*="hover:bg-rose"]):hover:not(:disabled),
   main a.bg-slate-800:hover,
   main a.bg-slate-900:hover,
+  main a.bg-indigo-600:hover,
+  main a.bg-indigo-700:hover,
   main label.bg-slate-800:hover,
   main label.bg-slate-900:hover {
     background-color: #0f766e !important;

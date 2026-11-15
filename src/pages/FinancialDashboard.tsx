@@ -1503,6 +1503,7 @@ export function FinancialDashboard() {
           <button
             type="button"
             onClick={() => navigate('/contributions', { state: { viewMode: 'individual', tab: 'individual' } })}
+            title="Abrir tela de lançamento individual de contribuição"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-2xs cursor-pointer"
           >
             <PlusCircle size={14} />
@@ -1512,6 +1513,7 @@ export function FinancialDashboard() {
           <button
             type="button"
             onClick={() => navigate('/financial-report')}
+            title="Abrir relatório financeiro detalhado"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all shadow-2xs cursor-pointer"
           >
             <FileText size={13} className="text-slate-500" />
@@ -1521,6 +1523,7 @@ export function FinancialDashboard() {
           <button
             type="button"
             onClick={() => navigate('/pix-conference')}
+            title="Abrir conferência de recebimentos via PIX"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all shadow-2xs cursor-pointer"
           >
             <CreditCard size={13} className="text-slate-500" />
@@ -1530,6 +1533,7 @@ export function FinancialDashboard() {
           <button
             type="button"
             onClick={() => navigate('/receipts')}
+            title="Abrir módulo de emissão e gerenciamento de recibos"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all shadow-2xs cursor-pointer"
           >
             <Printer size={13} className="text-slate-500" />
@@ -1636,6 +1640,7 @@ export function FinancialDashboard() {
             <button
               type="button"
               onClick={() => handleOpenWhatsAppCentral()}
+              title="Abrir central de notificações WhatsApp para cobrança de pendências"
               className="font-bold text-white hover:underline cursor-pointer flex items-center gap-1 hover:text-emerald-200"
             >
               <MessageCircle size={11} className="text-emerald-200" />
@@ -1790,6 +1795,7 @@ export function FinancialDashboard() {
                 <select
                   value={delinquencyClassFilter}
                   onChange={(e) => setDelinquencyClassFilter(e.target.value)}
+                  title="Filtrar indicadores e gráficos por turma"
                   className="bg-transparent text-[11px] font-bold text-slate-800 cursor-pointer focus:outline-hidden max-w-[150px] truncate"
                   aria-label="Filtrar por turma"
                 >
@@ -1808,6 +1814,7 @@ export function FinancialDashboard() {
                 <select
                   value={delinquencyYear}
                   onChange={(e) => setDelinquencyYear(Number(e.target.value))}
+                  title="Selecionar ano de referência dos indicadores financeiros"
                   className="bg-transparent text-[11px] font-bold text-slate-800 cursor-pointer focus:outline-hidden"
                   aria-label="Selecionar ano de referência"
                 >
@@ -1865,6 +1872,7 @@ export function FinancialDashboard() {
                       <button
                         key={label}
                         type="button"
+                        title={`Focar análise no mês de ${MONTH_NAMES_LIST[idx]}`}
                         onClick={() => setSelectedComparisonMonth(mNum)}
                         className={cn(
                           "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 cursor-pointer",
@@ -2042,6 +2050,7 @@ export function FinancialDashboard() {
                     <button
                       type="button"
                       onClick={() => setSelectedComparisonMonth(selectedComparisonMonth - 1)}
+                      title={`Analisar o mês anterior (${delinquencyMonthlyData.comparison.prevMonth.monthName})`}
                       className="mt-2.5 pt-2 border-t border-slate-200 text-left text-[11px] font-bold text-blue-700 hover:text-blue-900 cursor-pointer flex items-center gap-1"
                     >
                       <ChevronLeft size={13} />
@@ -2138,6 +2147,7 @@ export function FinancialDashboard() {
                     <button
                       type="button"
                       onClick={() => setSelectedComparisonMonth(selectedComparisonMonth + 1)}
+                      title={`Analisar o próximo mês (${delinquencyMonthlyData.comparison.nextMonth.monthName})`}
                       className="mt-2.5 pt-2 border-t border-slate-200 text-right text-[11px] font-bold text-blue-700 hover:text-blue-900 cursor-pointer flex items-center justify-end gap-1 ml-auto"
                     >
                       <span>Analisar {delinquencyMonthlyData.comparison.nextMonth.monthName}</span>
@@ -2164,6 +2174,7 @@ export function FinancialDashboard() {
                     <button
                       type="button"
                       onClick={() => setSelectedSemester(1)}
+                      title="Exibir resumo financeiro do 1º Semestre (Janeiro a Junho)"
                       className={cn(
                         "px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer",
                         selectedSemester === 1
@@ -2176,6 +2187,7 @@ export function FinancialDashboard() {
                     <button
                       type="button"
                       onClick={() => setSelectedSemester(2)}
+                      title="Exibir resumo financeiro do 2º Semestre (Julho a Dezembro)"
                       className={cn(
                         "px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer",
                         selectedSemester === 2
@@ -2488,6 +2500,7 @@ export function FinancialDashboard() {
                     <button
                       type="button"
                       onClick={() => setMonthlyChartScope('trio')}
+                      title="Exibir no gráfico apenas os 3 meses em foco (Anterior, Selecionado e Próximo)"
                       className={cn(
                         "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                         monthlyChartScope === 'trio'
@@ -2500,6 +2513,7 @@ export function FinancialDashboard() {
                     <button
                       type="button"
                       onClick={() => setMonthlyChartScope('all')}
+                      title="Exibir todos os 12 meses do exercício no gráfico"
                       className={cn(
                         "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                         monthlyChartScope === 'all'
@@ -2520,6 +2534,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={() => setMonthlyDisplayType('regular')}
+                        title="Exibir valores individuais mês a mês"
                         className={cn(
                           "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                           monthlyDisplayType === 'regular'
@@ -2532,6 +2547,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={() => setMonthlyDisplayType('accumulated')}
+                        title="Exibir evolução com soma acumulada ao longo do ano"
                         className={cn(
                           "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                           monthlyDisplayType === 'accumulated'
@@ -2548,6 +2564,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={() => setSemesterDisplayType('regular')}
+                        title="Exibir valores pontuais de cada mês do semestre"
                         className={cn(
                           "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                           semesterDisplayType === 'regular'
@@ -2560,6 +2577,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={() => setSemesterDisplayType('accumulated')}
+                        title="Exibir evolução acumulada dentro do semestre"
                         className={cn(
                           "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                           semesterDisplayType === 'accumulated'
@@ -2576,6 +2594,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={() => setAnnualDisplayType('regular')}
+                        title="Exibir valores pontuais dos 12 meses"
                         className={cn(
                           "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                           annualDisplayType === 'regular'
@@ -2588,6 +2607,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={() => setAnnualDisplayType('accumulated')}
+                        title="Exibir evolução acumulada ao longo dos 12 meses"
                         className={cn(
                           "px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer",
                           annualDisplayType === 'accumulated'
@@ -2797,6 +2817,7 @@ export function FinancialDashboard() {
                         <td className="py-2 px-3 text-center">
                           <button
                             type="button"
+                            title={`Visualizar detalhamento de ${p.monthName} no modo mensal`}
                             onClick={() => {
                               setSelectedComparisonMonth(p.monthNum);
                               setFinancialChartMode('monthly');
@@ -2873,6 +2894,7 @@ export function FinancialDashboard() {
                         <td className="py-2 px-3 text-center">
                           <button
                             type="button"
+                            title={`Visualizar detalhamento de ${p.monthName} no modo mensal`}
                             onClick={() => {
                               setSelectedComparisonMonth(p.monthNum);
                               setFinancialChartMode('monthly');
@@ -2919,6 +2941,7 @@ export function FinancialDashboard() {
             <button
               type="button"
               onClick={() => navigate('/contributions', { state: { viewMode: 'individual', tab: 'individual' } })}
+              title="Acessar tela de lançamentos de contribuições"
               className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 hover:underline cursor-pointer"
             >
               <span>Lançamentos</span>
@@ -2927,6 +2950,7 @@ export function FinancialDashboard() {
             <button
               type="button"
               onClick={() => navigate('/financial-report')}
+              title="Acessar relatório financeiro completo"
               className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 hover:underline cursor-pointer"
             >
               <span>Relatório Detalhado</span>
@@ -2986,6 +3010,7 @@ export function FinancialDashboard() {
                     id="whatsapp-central-class-select"
                     value={selectedValidationClassId}
                     onChange={e => loadValidationContactsForClass(e.target.value)}
+                    title="Selecionar a turma para carregar e validar os contatos de WhatsApp"
                     className="w-full text-xs font-bold pl-2.5 pr-8 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
                     <option value="">
@@ -3074,6 +3099,7 @@ export function FinancialDashboard() {
                   <button
                     type="button"
                     onClick={() => setIsQueueActive(false)}
+                    title="Encerrar a fila de envios sequenciais pelo WhatsApp"
                     className="text-[11px] text-emerald-300 hover:text-white flex items-center gap-1 cursor-pointer font-bold"
                   >
                     <X size={13} />
@@ -3108,6 +3134,7 @@ export function FinancialDashboard() {
                     <button
                       type="button"
                       onClick={handleSkipCurrentInQueue}
+                      title="Pular este aluno e avançar para o próximo da fila"
                       className="px-2.5 py-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-emerald-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                     >
                       <SkipForward size={12} />
@@ -3131,6 +3158,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={handleAdvanceCurrentQueue}
+                        title="Aluno sem WhatsApp cadastrado — pular para o próximo"
                         className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold"
                       >
                         Sem WhatsApp - Pular
@@ -3311,12 +3339,14 @@ export function FinancialDashboard() {
                         value={validationSearch}
                         onChange={e => setValidationSearch(e.target.value)}
                         placeholder="Buscar por nome, RA ou telefone..."
+                        title="Filtrar contatos na lista pelo nome, RA ou número de telefone"
                         className="w-full text-xs pl-7 pr-7 py-1 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-white"
                       />
                       {validationSearch && (
                         <button
                           type="button"
                           onClick={() => setValidationSearch('')}
+                          title="Limpar campo de busca"
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                         >
                           <X size={12} />
@@ -3604,6 +3634,7 @@ export function FinancialDashboard() {
                       <button
                         type="button"
                         onClick={() => setShowValidationModal(false)}
+                        title="Cancelar e fechar central de notificações"
                         className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                       >
                         Cancelar

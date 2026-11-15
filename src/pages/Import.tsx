@@ -665,7 +665,7 @@ export function Import() {
             {notification.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600" /> : <AlertCircle size={18} />}
             <p className="text-xs font-bold uppercase tracking-wide">{notification.message}</p>
           </div>
-          <button onClick={() => setNotification(null)} className="p-1 hover:bg-black/5 text-slate-500">
+          <button onClick={() => setNotification(null)} title="Fechar aviso" className="p-1 hover:bg-black/5 text-slate-500">
             <X size={16} />
           </button>
         </div>
@@ -680,6 +680,7 @@ export function Import() {
         <div className="flex items-center border border-slate-200 bg-slate-100 p-1">
           <button
             onClick={() => setActiveTab('import')}
+            title="Iniciar nova importação de planilha"
             className={cn(
               "px-4 py-2 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2",
               activeTab === 'import' ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
@@ -693,6 +694,7 @@ export function Import() {
               setActiveTab('history');
               loadBatchHistory();
             }}
+            title="Consultar histórico de lotes importados e reverter dados"
             className={cn(
               "px-4 py-2 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2",
               activeTab === 'history' ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
@@ -759,6 +761,7 @@ export function Import() {
                     <button
                       key={key}
                       onClick={() => handleTypeSelect(key)}
+                      title={`Selecionar importação de ${config.label}`}
                       className="bg-white p-6 border border-slate-200 hover:border-slate-800 hover:shadow-md transition-all text-left flex flex-col justify-between group space-y-4 cursor-pointer"
                     >
                       <div className="flex items-center justify-between">
@@ -795,6 +798,7 @@ export function Import() {
                 </div>
                 <button
                   onClick={() => setStep('type')}
+                  title="Voltar e escolher outro tipo de cadastro"
                   className="text-xs font-bold text-slate-600 hover:text-slate-900 uppercase tracking-wider cursor-pointer"
                 >
                   Alterar Tipo
@@ -822,9 +826,9 @@ export function Import() {
                   </p>
                 </div>
 
-                <label className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider cursor-pointer shadow-xs transition-colors">
+                <label title="Selecionar arquivo Excel ou CSV no computador" className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider cursor-pointer shadow-xs transition-colors">
                   <span>Procurar no Computador</span>
-                  <input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+                  <input type="file" title="Selecionar planilha Excel ou CSV" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
                 </label>
               </div>
             </div>
@@ -863,6 +867,7 @@ export function Import() {
                         {isMapped && <Check size={14} className="text-emerald-600 stroke-[3]" />}
                       </div>
                       <select 
+                        title={`Mapear coluna da planilha para ${field.label}`}
                         value={mappings[field.key] || ''}
                         onChange={(e) => setMappings({ ...mappings, [field.key]: e.target.value })}
                         className="bg-white border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:border-slate-900 uppercase"
@@ -880,12 +885,14 @@ export function Import() {
               <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                 <button 
                   onClick={() => setStep('upload')} 
+                  title="Voltar para seleção de arquivo"
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider cursor-pointer"
                 >
                   Voltar
                 </button>
                 <button 
                   onClick={startImport} 
+                  title="Iniciar gravação dos registros mapeados"
                   className="px-6 py-2.5 bg-blue-900 hover:bg-blue-950 text-white text-xs font-extrabold uppercase tracking-wider shadow-xs cursor-pointer flex items-center gap-2"
                 >
                   <span>Iniciar Importação em Tempo Real</span>
@@ -1010,6 +1017,7 @@ export function Import() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-slate-200 max-w-2xl mx-auto">
                 <button
                   onClick={() => navigate(ENTITY_CONFIG[importType].path)}
+                  title={`Abrir módulo de ${ENTITY_CONFIG[importType].label}`}
                   className="w-full sm:w-auto px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Ver {ENTITY_CONFIG[importType].label} no Sistema</span>
@@ -1017,6 +1025,7 @@ export function Import() {
                 </button>
 
                 <button
+                  title="Desfazer e excluir todos os registros deste lote"
                   onClick={() => {
                     const currentBatch = batches.find(b => b.id === importStats.batchId) || {
                       id: importStats.batchId,
@@ -1041,6 +1050,7 @@ export function Import() {
                 </button>
 
                 <button
+                  title="Reiniciar assistente para importar outro arquivo"
                   onClick={() => {
                     setStep('type');
                     setFile(null);
@@ -1072,6 +1082,7 @@ export function Import() {
             <button
               onClick={loadBatchHistory}
               disabled={loadingBatches}
+              title="Recarregar histórico de lotes importados"
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 self-start cursor-pointer"
             >
               <RotateCcw size={12} className={cn(loadingBatches && "animate-spin")} />
@@ -1209,6 +1220,7 @@ export function Import() {
               <button
                 type="button"
                 disabled={!!revertingBatchId}
+                title="Cancelar reversão do lote"
                 onClick={() => {
                   setShowRevertModal(false);
                   setBatchToRevert(null);
@@ -1220,6 +1232,7 @@ export function Import() {
               <button
                 type="button"
                 disabled={!!revertingBatchId}
+                title="Confirmar reversão e exclusão dos dados deste lote"
                 onClick={() => executeRevertBatch(batchToRevert)}
                 className="px-5 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2 cursor-pointer"
               >
@@ -1251,7 +1264,7 @@ export function Import() {
                   Detalhes do Lote de Importação
                 </h3>
               </div>
-              <button onClick={() => setShowBatchDetailsModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowBatchDetailsModal(false)} title="Fechar janela de detalhes" className="text-slate-400 hover:text-white">
                 <X size={18} />
               </button>
             </div>
@@ -1298,6 +1311,7 @@ export function Import() {
             <div className="p-3 bg-slate-100 border-t border-slate-200 flex justify-end">
               <button
                 onClick={() => setShowBatchDetailsModal(false)}
+                title="Fechar detalhes do lote"
                 className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider"
               >
                 Fechar

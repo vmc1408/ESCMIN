@@ -1500,6 +1500,7 @@ export function Bulletin() {
           <>
             <button
               onClick={() => setViewMode('student')}
+              title="Visualizar boletim completo individual de cada aluno"
               className={cn(
                 "px-4 py-2 border rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
                 viewMode === 'student' 
@@ -1511,6 +1512,7 @@ export function Bulletin() {
             </button>
             <button
               onClick={() => setViewMode('class')}
+              title="Visualizar quadro resumido com notas e frequência de toda a turma"
               className={cn(
                 "px-4 py-2 border rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
                 viewMode === 'class' 
@@ -1561,6 +1563,7 @@ export function Bulletin() {
                       setSelectedClassId(e.target.value);
                       setSelectedStudentId('');
                     }}
+                    title="Selecionar a turma para exibir os boletins"
                     className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                   >
                     <option value="">SELECIONAR TURMA...</option>
@@ -1583,6 +1586,7 @@ export function Bulletin() {
                     <select
                       value={selectedStudentId}
                       onChange={(e) => setSelectedStudentId(e.target.value)}
+                      title="Selecionar o aluno para visualização do boletim individual"
                       className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                     >
                       {classStudents.length === 0 ? (
@@ -1612,6 +1616,7 @@ export function Bulletin() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="FILTRAR POR NOME OU MATRÍCULA..."
+                      title="Filtrar alunos no quadro resumido por nome ou matrícula"
                       className="w-full pl-12 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 placeholder:text-slate-400 focus:border-slate-400 outline-none transition-colors"
                     />
                   </div>
@@ -1623,6 +1628,7 @@ export function Bulletin() {
                 <div className="md:col-span-3">
                   <button
                     onClick={handlePrint}
+                    title={viewMode === 'student' ? 'Imprimir boletim individual do aluno selecionado' : 'Imprimir quadro resumido de rendimento da turma'}
                     className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 border border-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
                   >
                     <Printer size={13} />
@@ -2100,27 +2106,27 @@ export function Bulletin() {
                         </tr>
 
                         <tr className="bg-slate-50/60 text-[9px] font-bold text-slate-500 border-b border-slate-200 uppercase tracking-widest table-columns-header">
-                          <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleClassSort('student')}>
+                          <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none" title="Ordenar tabela por nome do aluno" onClick={() => handleClassSort('student')}>
                             <div className="flex items-center gap-1">
                               <span>Aluno</span>
                               {renderSortIcon('student')}
                             </div>
                           </th>
                           {classSubjects.map((sub, sIdx) => (
-                            <th key={`blt-cls-sub-th-${sub.id || sIdx}-${sIdx}`} className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title={sub.name} onClick={() => handleClassSort('subject', sub.id)}>
+                            <th key={`blt-cls-sub-th-${sub.id || sIdx}-${sIdx}`} className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title={`${sub.name} — Clique para ordenar pela nota nesta disciplina`} onClick={() => handleClassSort('subject', sub.id)}>
                               <div className="flex items-center justify-center gap-1">
                                 <span>{sub.code || sub.name.substring(0, 8).toUpperCase()}</span>
                                 {renderSortIcon('subject', sub.id)}
                               </div>
                             </th>
                           ))}
-                          <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleClassSort('presence')}>
+                          <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title="Ordenar tabela por percentual de presença" onClick={() => handleClassSort('presence')}>
                             <div className="flex items-center justify-center gap-1">
                               <span>Presença %</span>
                               {renderSortIcon('presence')}
                             </div>
                           </th>
-                          <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleClassSort('status')}>
+                          <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title="Ordenar tabela por situação final" onClick={() => handleClassSort('status')}>
                             <div className="flex items-center justify-center gap-1">
                               <span>Situação Final</span>
                               {renderSortIcon('status')}

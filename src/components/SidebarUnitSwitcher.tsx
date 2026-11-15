@@ -170,6 +170,7 @@ export function SidebarUnitSwitcher() {
                     <button
                       key={u.id}
                       type="button"
+                      title={`Alternar contexto operacional para ${u.name}${isMain ? ' (Matriz)' : ' (Filial)'}`}
                       onClick={() => {
                         setSelectedUnitId(u.id);
                         setIsOpen(false);
@@ -222,6 +223,7 @@ export function SidebarUnitSwitcher() {
                 <Link
                   to="/settings?tab=units"
                   onClick={() => setIsOpen(false)}
+                  title="Cadastrar, editar ou gerenciar polos e unidades da instituição"
                   className="w-full flex items-center justify-center gap-1 py-1 text-[10px] font-bold text-slate-200 hover:text-teal-300 hover:bg-[#163D46] rounded-md transition-colors"
                 >
                   <Building2 size={11} />

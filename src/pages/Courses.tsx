@@ -956,6 +956,7 @@ export function Courses() {
                 </span>
                 <button
                   onClick={() => setViewingStudentsCourse(course)}
+                  title="Visualizar lista de alunos deste curso"
                   className="text-xs text-slate-700 font-bold hover:underline"
                 >
                   Ver Alunos
@@ -981,6 +982,7 @@ export function Courses() {
                   <button
                     id={`edit-course-btn-${course.id}`}
                     onClick={() => handleOpenEdit(course)}
+                    title={`Editar dados do curso ${course.name}`}
                     className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors shadow-2xs"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
@@ -1221,6 +1223,7 @@ export function Courses() {
             <button
               id="create-course-btn"
               onClick={handleOpenCreate}
+              title="Cadastrar um novo curso acadêmico no catálogo"
               className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
@@ -1305,11 +1308,13 @@ export function Courses() {
             placeholder="Buscar por nome, sigla ou descrição..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            title="Buscar cursos por nome, sigla ou descrição"
             className="w-full pl-9 pr-4 py-2 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-800 transition-colors"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
+              title="Limpar pesquisa de cursos"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               <X className="w-3.5 h-3.5" />
@@ -1326,6 +1331,7 @@ export function Courses() {
                 id="course-unit-filter-select"
                 value={selectedUnitFilter}
                 onChange={(e) => setSelectedUnitFilter(e.target.value)}
+                title="Filtrar cursos por unidade ou polo"
                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-slate-800"
               >
                 <option value="Todos">Todas as Unidades</option>
@@ -1344,6 +1350,7 @@ export function Courses() {
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
+                title={`Filtrar cursos por situação: ${st}`}
                 className={cn(
                   "px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors",
                   statusFilter === st 
@@ -1401,6 +1408,7 @@ export function Courses() {
           {canEdit && !searchTerm && (
             <button
               onClick={handleOpenCreate}
+              title="Iniciar cadastro do primeiro curso no catálogo"
               className="mt-4 px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-slate-800 shadow-sm"
             >
               Cadastrar Primeiro Curso
@@ -1505,6 +1513,7 @@ export function Courses() {
                     placeholder="Ex: Teologia, Doutrina Social..."
                     value={formData.name || ''}
                     onChange={handleNameChange}
+                    title="Nome oficial do curso"
                     className="w-full px-3 py-2 border border-slate-300 text-xs font-medium text-slate-900 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                   />
                 </div>
@@ -1521,6 +1530,7 @@ export function Courses() {
                     placeholder="Ex: TEO"
                     value={formData.code || ''}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                    title="Sigla ou código abreviado do curso (até 6 caracteres)"
                     className="w-full px-3 py-2 border border-slate-300 text-xs font-bold text-slate-900 uppercase focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                   />
                 </div>
@@ -1537,6 +1547,7 @@ export function Courses() {
                   placeholder="—"
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  title="Descrição complementar ou ementa resumida do curso"
                   className="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                 />
               </div>
@@ -1567,6 +1578,7 @@ export function Courses() {
                         placeholder="—"
                         value={formData.duration_total || ''}
                         onChange={(e) => setFormData({ ...formData, duration_total: e.target.value })}
+                        title="Tempo total de duração do curso em anos (1 a 4)"
                         className={cn(
                           "w-full px-3 py-2 pr-7 border text-xs font-medium focus:outline-none focus:ring-1",
                           !isDurationValid(formData.duration_total, formData.status === 'Ativo')
@@ -1604,6 +1616,7 @@ export function Courses() {
                       id="course-meetings-count-select"
                       value={formData.meetings_per_week !== undefined ? formData.meetings_per_week : 0}
                       onChange={(e) => handleMeetingsCountChange(parseInt(e.target.value, 10))}
+                      title="Quantidade de encontros presenciais por semana"
                       className="w-full px-3 py-2 border border-slate-300 text-xs font-medium text-slate-900 bg-white focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                     >
                       <option value={0}>—</option>
@@ -1635,6 +1648,7 @@ export function Courses() {
                           } : {})
                         }));
                       }}
+                      title="Alternar situação do curso entre Ativo e Inativo"
                       className={cn(
                         "w-full h-[38px] px-3 border flex items-center justify-between transition-colors cursor-pointer text-xs font-semibold",
                         formData.status === 'Ativo'
@@ -1677,6 +1691,7 @@ export function Courses() {
                           <select
                             value={selectedDay}
                             onChange={(e) => handleSlotDayChange(slotIndex, e.target.value)}
+                            title={`Selecionar dia da semana do ${slotIndex + 1}º encontro`}
                             className="w-full px-3 py-2 border border-slate-300 text-xs font-medium text-slate-900 bg-white focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                           >
                             <option value="">—</option>
@@ -1713,6 +1728,7 @@ export function Courses() {
                     id="course-unit-select"
                     value={formData.unit_id || 'all'}
                     onChange={(e) => setFormData(prev => ({ ...prev, unit_id: e.target.value }))}
+                    title="Definir a unidade ou polo responsável pelo curso"
                     className="w-full px-3 py-2 border border-slate-300 text-xs font-medium text-slate-900 bg-white focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
                   >
                     <option value="all">🌐 Todas as Unidades (Geral / Institucional)</option>
@@ -1736,6 +1752,7 @@ export function Courses() {
                   type="button"
                   onClick={() => setShowModal(false)}
                   disabled={isSaving}
+                  title="Cancelar e fechar janela"
                   className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Cancelar
@@ -1743,6 +1760,7 @@ export function Courses() {
                 <button
                   type="submit"
                   disabled={isSaving}
+                  title="Salvar cadastro do curso"
                   className="flex items-center gap-1.5 px-5 py-2 bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
@@ -1830,11 +1848,13 @@ export function Courses() {
                   placeholder="Buscar por nome, matrícula ou turma..."
                   value={studentSearchTerm}
                   onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  title="Buscar alunos matriculados por nome, matrícula ou turma"
                   className="w-full pl-9 pr-8 py-1.5 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-900"
                 />
                 {studentSearchTerm && (
                   <button
                     onClick={() => setStudentSearchTerm('')}
+                    title="Limpar busca de alunos"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1849,6 +1869,7 @@ export function Courses() {
                   <select
                     value={studentClassFilter}
                     onChange={(e) => setStudentClassFilter(e.target.value)}
+                    title="Filtrar alunos por turma específica"
                     className="py-1.5 px-2.5 border border-slate-200 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-slate-900 cursor-pointer"
                   >
                     <option value="all">Todas as Turmas</option>
@@ -1946,6 +1967,7 @@ export function Courses() {
                             setStudentSearchTerm('');
                             setStudentClassFilter('all');
                           }}
+                          title="Limpar filtros de busca e exibir todos os alunos do curso"
                           className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
                         >
                           Limpar Filtros
@@ -2203,6 +2225,7 @@ export function Courses() {
                   setStudentSearchTerm('');
                   setStudentClassFilter('all');
                 }}
+                title="Fechar lista de alunos do curso"
                 className="px-5 py-2 bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
               >
                 Fechar Lista
@@ -2348,6 +2371,7 @@ export function Courses() {
                     type="button"
                     onClick={() => handleInactivateFromModal(courseSecurityModal.course)}
                     disabled={isProcessingSecurityAction}
+                    title="Inativar este curso mantendo o histórico de turmas e alunos intacto"
                     className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <Power className="w-3.5 h-3.5" />
@@ -2359,6 +2383,7 @@ export function Courses() {
                       setCourseSecurityModal(null);
                       navigate('/classes');
                     }}
+                    title="Abrir tela de Turmas para gerenciar as turmas vinculadas"
                     className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer"
                   >
                     Ver Turmas
@@ -2366,6 +2391,7 @@ export function Courses() {
                   <button
                     type="button"
                     onClick={() => setCourseSecurityModal(null)}
+                    title="Fechar aviso de segurança"
                     className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
                   >
                     Fechar
@@ -2413,6 +2439,7 @@ export function Courses() {
                     type="button"
                     onClick={() => setCourseSecurityModal(null)}
                     disabled={isProcessingSecurityAction}
+                    title="Cancelar e manter o curso no catálogo"
                     className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
                   >
                     Cancelar
@@ -2421,6 +2448,7 @@ export function Courses() {
                     type="button"
                     onClick={() => handleDelete(courseSecurityModal.course.id)}
                     disabled={isProcessingSecurityAction}
+                    title="Confirmar exclusão definitiva do curso"
                     className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                   >
                     {isProcessingSecurityAction ? 'Excluindo...' : 'Confirmar Exclusão'}

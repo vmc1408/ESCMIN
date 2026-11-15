@@ -131,7 +131,9 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
             </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            title="Fechar janela de quitação da matrícula"
             className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} />
@@ -166,6 +168,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                   onChange={(e) => handleAmountChange(e.target.value)}
                   onBlur={handleAmountBlur}
                   onKeyDown={(e) => e.key === 'Enter' && handleAmountBlur()}
+                  title="Informe o valor da taxa de matrícula a liquidar"
                   className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-amber-500/20"
                   placeholder="0,00"
                 />
@@ -179,6 +182,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                 required
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
+                title="Selecione a data efetiva da quitação"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 h-[38px]"
               />
             </div>
@@ -191,6 +195,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                     key={method}
                     type="button"
                     onClick={() => setPaymentMethod(method)}
+                    title={`Selecionar pagamento via ${method}`}
                     className={cn(
                       "py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
                       paymentMethod === method
@@ -210,6 +215,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
                 type="text"
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
+                title="Observações que constarão no registro e no recibo"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-amber-500/20"
                 placeholder="Ex: Recebido na secretaria"
               />
@@ -234,6 +240,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
             <button
               type="button"
               onClick={onClose}
+              title="Cancelar quitação e fechar janela"
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
             >
               Cancelar
@@ -241,6 +248,7 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
             <button
               type="submit"
               disabled={loading}
+              title="Gravar quitação da taxa de matrícula e gerar recibo"
               className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
               {loading ? (

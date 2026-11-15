@@ -153,7 +153,9 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
             </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            title="Fechar janela de matrícula adicional"
             className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} />
@@ -188,6 +190,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
               <button
                 type="button"
                 onClick={() => setFeeStatus('exempt')}
+                title="Matricular sem cobrança de nova taxa de matrícula"
                 className={`p-2.5 text-center border text-xs font-bold transition-all cursor-pointer ${
                   feeStatus === 'exempt'
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/20'
@@ -201,6 +204,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
               <button
                 type="button"
                 onClick={() => setFeeStatus('paid')}
+                title="Registrar recebimento imediato da taxa de matrícula"
                 className={`p-2.5 text-center border text-xs font-bold transition-all cursor-pointer ${
                   feeStatus === 'paid'
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20'
@@ -214,6 +218,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
               <button
                 type="button"
                 onClick={() => setFeeStatus('pending')}
+                title="Lançar taxa de matrícula como pendente para recebimento posterior"
                 className={`p-2.5 text-center border text-xs font-bold transition-all cursor-pointer ${
                   feeStatus === 'pending'
                     ? 'border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20'
@@ -240,6 +245,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
                       onChange={(e) => handleAmountChange(e.target.value)}
                       onBlur={handleAmountBlur}
                       onKeyDown={(e) => e.key === 'Enter' && handleAmountBlur()}
+                      title="Informe o valor recebido pela taxa de matrícula"
                       className="w-full pl-7 pr-2.5 py-1.5 bg-white border border-slate-300 text-xs font-black text-slate-900"
                       placeholder="0,00"
                     />
@@ -253,6 +259,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
                     required
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
+                    title="Selecione a data efetiva do pagamento da taxa"
                     className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-bold text-slate-900 h-[32px]"
                   />
                 </div>
@@ -266,6 +273,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
                       key={method}
                       type="button"
                       onClick={() => setPaymentMethod(method)}
+                      title={`Selecionar ${method} como forma de pagamento`}
                       className={cn(
                         "py-1.5 px-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all border cursor-pointer flex items-center justify-center",
                         paymentMethod === method
@@ -286,6 +294,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
                   placeholder="Ex: Pago na secretaria / Recibo entregue"
                   value={observations}
                   onChange={(e) => setObservations(e.target.value)}
+                  title="Observações opcionais que serão gravadas no recibo"
                   className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs text-slate-800"
                 />
               </div>
@@ -299,6 +308,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
                 type="text"
                 value={exemptionReason}
                 onChange={(e) => setExemptionReason(e.target.value)}
+                title="Descreva o motivo pelo qual o aluno está isento desta taxa"
                 className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-medium"
               />
               <p className="text-[10px] text-slate-500 italic">
@@ -319,6 +329,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
             <button
               type="button"
               onClick={onClose}
+              title="Cancelar operação e fechar janela"
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
             >
               Cancelar
@@ -326,6 +337,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
             <button
               type="submit"
               disabled={loading}
+              title="Confirmar matrícula do aluno na turma selecionada"
               className="px-5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
               <Plus size={14} />

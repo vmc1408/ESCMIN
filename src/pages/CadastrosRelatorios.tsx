@@ -894,6 +894,7 @@ export function CadastrosRelatorios() {
           <div className="flex items-center gap-2.5">
             <button
               onClick={handlePrintHTML}
+              title="Imprimir a listagem atual em papel A4"
               className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-98"
             >
               <Printer size={15} />
@@ -901,6 +902,7 @@ export function CadastrosRelatorios() {
             </button>
             <button
               onClick={handleExportPDF}
+              title="Gerar e baixar o relatório atual em formato PDF"
               className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-98"
             >
               <Download size={15} />
@@ -914,6 +916,7 @@ export function CadastrosRelatorios() {
       <div className="print:hidden flex items-center gap-1.5 p-1.5 bg-slate-200/70 rounded-xl overflow-x-auto">
         <button
           onClick={() => handleTabChange('alunos')}
+          title="Gerar relatório e listagem cadastral de Alunos"
           className={cn(
             "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer",
             activeTab === 'alunos'
@@ -930,6 +933,7 @@ export function CadastrosRelatorios() {
 
         <button
           onClick={() => handleTabChange('professores')}
+          title="Gerar relatório e listagem do corpo docente"
           className={cn(
             "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer",
             activeTab === 'professores'
@@ -946,6 +950,7 @@ export function CadastrosRelatorios() {
 
         <button
           onClick={() => handleTabChange('cursos')}
+          title="Gerar relatório e listagem dos cursos cadastrados"
           className={cn(
             "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer",
             activeTab === 'cursos'
@@ -962,6 +967,7 @@ export function CadastrosRelatorios() {
 
         <button
           onClick={() => handleTabChange('turmas')}
+          title="Gerar relatório e listagem das turmas acadêmicas"
           className={cn(
             "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer",
             activeTab === 'turmas'
@@ -978,6 +984,7 @@ export function CadastrosRelatorios() {
 
         <button
           onClick={() => handleTabChange('disciplinas')}
+          title="Gerar relatório e listagem das disciplinas e cargas"
           className={cn(
             "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer",
             activeTab === 'disciplinas'
@@ -1019,6 +1026,7 @@ export function CadastrosRelatorios() {
               <button
                 key={st}
                 onClick={() => handleStatusFilterChange(st)}
+                title={`Filtrar listagem por situação: ${st}`}
                 className={cn(
                   "px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer",
                   statusFilter === st
@@ -1040,6 +1048,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedClassId}
                   onChange={e => handleClassFilterChange(e.target.value)}
+                  title="Filtrar alunos por turma específica"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todas as Turmas</option>
@@ -1055,6 +1064,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedYear}
                   onChange={e => handleYearFilterChange(e.target.value)}
+                  title="Filtrar alunos pelo ano letivo da turma"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>
@@ -1133,6 +1143,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedSubjectId}
                   onChange={e => handleSubjectFilterChange(e.target.value)}
+                  title="Filtrar professores habilitados por disciplina"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todas as Disciplinas</option>
@@ -1147,6 +1158,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedSemester}
                   onChange={e => handleSemesterFilterChange(e.target.value)}
+                  title="Filtrar professores pelo semestre das disciplinas"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Semestres</option>
@@ -1164,6 +1176,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedYear}
                   onChange={e => handleYearFilterChange(e.target.value)}
+                  title="Filtrar turmas pelo ano letivo"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>
@@ -1178,6 +1191,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedCourseId}
                   onChange={e => handleCourseFilterChange(e.target.value)}
+                  title="Filtrar turmas pelo curso vinculado"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Cursos</option>
@@ -1196,6 +1210,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedSemester}
                   onChange={e => handleSemesterFilterChange(e.target.value)}
+                  title="Filtrar disciplinas pelo semestre letivo"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Semestres</option>
@@ -1209,6 +1224,7 @@ export function CadastrosRelatorios() {
                 <select
                   value={selectedYear}
                   onChange={e => handleYearFilterChange(e.target.value)}
+                  title="Filtrar disciplinas pelo ano curricular"
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-slate-400"
                 >
                   <option value="all">Todos os Anos</option>

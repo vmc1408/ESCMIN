@@ -646,6 +646,7 @@ export function Users() {
         {(isAdmin || isDirector) && (
           <button
             onClick={handleAddNew}
+            title="Cadastrar novo gestor ou usuário no sistema"
             className="px-5 py-2.5 bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-sm active:scale-95 group"
           >
             <Plus size={14} className="group-hover:rotate-90 transition-transform" />
@@ -723,7 +724,7 @@ export function Users() {
                   <p className="text-sm font-bold opacity-80 leading-tight">{notification.message}</p>
                 </div>
               </div>
-              <button onClick={() => setNotification(null)} className="hover:rotate-90 transition-transform p-2 ml-2">
+              <button onClick={() => setNotification(null)} title="Fechar notificação" className="hover:rotate-90 transition-transform p-2 ml-2">
                 <X size={20} />
               </button>
             </div>
@@ -735,6 +736,7 @@ export function Users() {
       <div className="w-full flex border-b border-slate-200">
         <button
           onClick={() => setActiveTab('directory')}
+          title="Visualizar lista de gestores e usuários cadastrados"
           className={cn(
             "pb-3 px-6 text-[10px] font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2",
             activeTab === 'directory'
@@ -747,6 +749,7 @@ export function Users() {
         </button>
         <button
           onClick={() => setActiveTab('permissions')}
+          title="Consultar matriz de permissões por nível de acesso"
           className={cn(
             "pb-3 px-6 text-[10px] font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2",
             activeTab === 'permissions'
@@ -770,6 +773,7 @@ export function Users() {
             <input 
               type="text"
               placeholder="Pesquisar gestor..."
+              title="Pesquisar usuários por nome, e-mail ou cargo"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-[#131b2e] focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none"
@@ -780,6 +784,7 @@ export function Users() {
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 ml-1">Ordem:</span>
               <button 
                 onClick={() => setSortBy('name')}
+                title="Ordenar lista por nome"
                 className={cn(
                   "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
                   sortBy === 'name' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
@@ -789,6 +794,7 @@ export function Users() {
               </button>
               <button 
                 onClick={() => setSortBy('created_at')}
+                title="Ordenar lista por data de criação"
                 className={cn(
                   "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
                   sortBy === 'created_at' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
@@ -802,6 +808,7 @@ export function Users() {
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 ml-1">Agrupar:</span>
               <button 
                 onClick={() => setGroupBy('none')}
+                title="Exibir lista sem agrupamento"
                 className={cn(
                   "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
                   groupBy === 'none' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
@@ -811,6 +818,7 @@ export function Users() {
               </button>
               <button 
                 onClick={() => setGroupBy('role')}
+                title="Agrupar usuários por cargo"
                 className={cn(
                   "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
                   groupBy === 'role' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
@@ -820,6 +828,7 @@ export function Users() {
               </button>
               <button 
                 onClick={() => setGroupBy('status')}
+                title="Agrupar usuários por status"
                 className={cn(
                   "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
                   groupBy === 'status' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
@@ -990,6 +999,7 @@ export function Users() {
                              )}
                             <button 
                               onClick={() => handleEdit(user)}
+                              title="Editar cadastro e permissões deste usuário"
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                             >
                               <Edit2 size={16} />
@@ -1075,18 +1085,20 @@ export function Users() {
                 {isAdmin && user.id !== currentProfile?.id && (
                    <button 
                      onClick={() => switchUser(user)} 
+                     title="Acessar sistema como este usuário"
                      className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black flex items-center gap-2"
                    >
                      <LogIn size={12} />
                      ACESSAR
                    </button>
                 )}
-                <button onClick={() => handleEdit(user)} className="px-4 py-2 bg-slate-50 text-blue-600 rounded-lg text-[9px] font-black flex items-center gap-2">
+                <button onClick={() => handleEdit(user)} title="Editar dados e permissões do usuário" className="px-4 py-2 bg-slate-50 text-blue-600 rounded-lg text-[9px] font-black flex items-center gap-2">
                   <Edit2 size={12} />
                   EDITAR
                 </button>
                 {(isAdmin || (isDirector && (user.role === 'secretario' || user.role === 'assistente' || user.role === 'professor' || user.role === 'docente'))) && user.id !== userAuth?.uid && (
                   <button 
+                    title="Remover este usuário do sistema"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1376,6 +1388,7 @@ export function Users() {
               <div className="flex gap-4">
                 <button 
                   onClick={() => setIsDeleting(null)}
+                  title="Cancelar exclusão do usuário"
                   className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
                 >
                   Cancelar
@@ -1383,6 +1396,7 @@ export function Users() {
                 <button 
                   onClick={() => handleDelete(isDeleting)}
                   disabled={loading}
+                  title="Confirmar remoção definitiva do usuário"
                   className="flex-1 py-4 px-6 bg-red-600 text-white rounded-2xl font-bold shadow-xl shadow-red-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : 'Excluir'}
@@ -1449,7 +1463,7 @@ export function Users() {
                       <div className="absolute -bottom-1 -right-1 flex flex-col gap-1.5">
                         <label className="w-8 h-8 bg-[#00174b] text-white rounded-lg flex items-center justify-center shadow-md cursor-pointer hover:bg-blue-700 transition-all border-2 border-white" title="Fazer Upload de Foto">
                           <Upload size={14} />
-                          <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                          <input type="file" title="Selecionar arquivo de foto para o perfil" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                         </label>
                         <button 
                           type="button"
@@ -1470,6 +1484,7 @@ export function Users() {
                         type="button"
                         onClick={handleCapture}
                         disabled={uploadingAvatar}
+                        title="Capturar foto atual da webcam"
                         className="px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-600 transition-colors flex items-center gap-1"
                       >
                         <Camera size={12} />
@@ -1534,6 +1549,7 @@ export function Users() {
                   </div>
                   <button 
                     onClick={() => setIsEditing(false)}
+                    title="Fechar formulário de usuário"
                     className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition-all"
                   >
                     <X size={20} />
@@ -1554,6 +1570,7 @@ export function Users() {
                             <input 
                               required
                               type="text"
+                              title="Digite o nome completo do usuário"
                               value={formData.name}
                               onChange={e => setFormData({...formData, name: e.target.value})}
                               placeholder="Digite o nome..."
@@ -1565,6 +1582,7 @@ export function Users() {
                             <input 
                               required
                               type="email"
+                              title="Digite o e-mail corporativo de acesso"
                               value={formData.email}
                               onChange={e => setFormData({...formData, email: e.target.value})}
                               placeholder="corporativo@escola.com.br"
@@ -1586,6 +1604,7 @@ export function Users() {
                               <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Cargo</label>
                               <div className="relative">
                                 <select
+                                  title="Selecione o cargo e nível de permissão"
                                   value={formData.role}
                                   onChange={e => setFormData({...formData, role: e.target.value as UserRole})}
                                   className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none cursor-pointer"
@@ -1603,6 +1622,7 @@ export function Users() {
                               <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado</label>
                               <div className="relative">
                                 <select
+                                  title="Selecione o status de autorização do usuário"
                                   value={formData.status}
                                   onChange={e => setFormData({...formData, status: e.target.value as any})}
                                   className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none cursor-pointer"
@@ -1626,6 +1646,7 @@ export function Users() {
                               </div>
                               <div className="relative">
                                 <select
+                                  title="Selecione a unidade ou polo de acesso permitido"
                                   value={formData.unit_id || 'all'}
                                   onChange={e => setFormData({...formData, unit_id: e.target.value})}
                                   className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none cursor-pointer"
@@ -1671,7 +1692,8 @@ export function Users() {
                                </label>
                                <div className="relative">
                                  <select
-                                   value={formData.teacher_id}
+                                   title="Vincular usuário a um professor cadastrado na escala docente"
+                                    value={formData.teacher_id}
                                    onChange={e => {
                                      const tId = e.target.value;
                                      const foundTeacher = teachers.find(t => t.id === tId);
@@ -1732,7 +1754,8 @@ export function Users() {
                                  maxLength={4}
                                  inputMode="numeric"
                                  pattern="[0-9]*"
-                                 placeholder="Digite 4 números (ex: 1234)"
+                                 title="Definir PIN numérico de 4 dígitos para desbloqueio rápido de tela"
+                                  placeholder="Digite 4 números (ex: 1234)"
                                  value={formData.pin}
                                  onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 4)})}
                                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black tracking-[0.4em] text-center text-[#131b2e] focus:border-amber-400 focus:ring-4 focus:ring-amber-50 transition-all outline-none"
@@ -1766,6 +1789,7 @@ export function Users() {
                               <div className="relative">
                                 <input 
                                   type="password"
+                                  title="Digite a nova senha de acesso"
                                   value={passwordData.newPassword}
                                   onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
                                   placeholder="••••••••"
@@ -1779,6 +1803,7 @@ export function Users() {
                               <div className="relative">
                                 <input 
                                   type="password"
+                                  title="Confirme a nova senha digitada"
                                   value={passwordData.confirmPassword}
                                   onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
                                   placeholder="••••••••"
@@ -1806,6 +1831,7 @@ export function Users() {
                              type="button"
                              onClick={() => handleResetPassword(selectedUser.email)}
                              disabled={sendingReset}
+                             title="Enviar e-mail de redefinição de senha para o usuário"
                              className="w-full py-3 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                            >
                              {sendingReset ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
@@ -1821,6 +1847,7 @@ export function Users() {
                 <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
                   <button 
                     onClick={() => setIsEditing(false)}
+                    title="Descartar alterações e fechar"
                     className="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest text-[8px] transition-all"
                   >
                     Descartar
@@ -1829,6 +1856,7 @@ export function Users() {
                     form="user-form"
                     type="submit"
                     disabled={loading}
+                    title={selectedUser ? 'Salvar alterações do usuário' : 'Confirmar cadastro do novo usuário'}
                     className="px-6 py-2.5 bg-[#00174b] text-white rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-blue-800 shadow-lg flex items-center gap-2 disabled:opacity-50 transition-all"
                   >
                     {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}

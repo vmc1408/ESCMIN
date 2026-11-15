@@ -315,7 +315,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
             {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
             <span className="text-xs font-bold">{feedback.message}</span>
           </div>
-          <button onClick={() => setFeedback(null)} className="opacity-70 hover:opacity-100 cursor-pointer">
+          <button title="Fechar aviso" onClick={() => setFeedback(null)} className="opacity-70 hover:opacity-100 cursor-pointer">
             <X size={16} />
           </button>
         </div>
@@ -351,6 +351,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
 
           <button
             type="button"
+            title="Cadastrar uma nova filial ou polo educacional"
             onClick={handleOpenCreate}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-xs active:scale-95 shrink-0 cursor-pointer"
           >
@@ -394,6 +395,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
 
         <button
           type="button"
+          title="Abrir ou visualizar o script SQL da tabela de unidades no Supabase"
           onClick={() => {
             if (onOpenDatabaseTab) {
               onOpenDatabaseTab('units');
@@ -579,6 +581,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    title="Editar informações desta unidade ou polo"
                     onClick={() => handleOpenEdit(unit)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer border border-slate-200/80 bg-white"
                   >
@@ -638,6 +641,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
             <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
               <button
                 type="button"
+                title="Fechar diálogo de confirmação"
                 onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
@@ -647,6 +651,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
               {confirmModal.type === 'delete' ? (
                 <button
                   type="button"
+                  title="Confirmar exclusão definitiva da unidade"
                   onClick={handleConfirmDelete}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
                 >
@@ -656,6 +661,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                 confirmModal.unit && (
                   <button
                     type="button"
+                    title="Desativar a unidade preservando todos os registros vinculados"
                     onClick={() => {
                       const u = confirmModal.unit;
                       setConfirmModal(prev => ({ ...prev, isOpen: false }));
@@ -691,6 +697,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                 </div>
               </div>
               <button
+                title="Fechar janela do script SQL"
                 onClick={() => setIsSqlModalOpen(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
@@ -723,6 +730,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  title="Fechar janela do script SQL"
                   onClick={() => setIsSqlModalOpen(false)}
                   className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 cursor-pointer"
                 >
@@ -730,6 +738,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                 </button>
                 <button
                   type="button"
+                  title="Copiar o script SQL completo para a área de transferência"
                   onClick={handleCopySql}
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
                 >
@@ -765,6 +774,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                 </div>
               </div>
               <button
+                title="Fechar formulário de unidade"
                 onClick={() => { setIsModalOpen(false); setEditingUnit(null); }}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
@@ -792,6 +802,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   <input
                     type="text"
                     required
+                    title="Código identificador único da unidade (ex: FIL-01)"
                     disabled={Boolean(editingUnit.is_main || editingUnit.id === 'matriz')}
                     value={editingUnit.code || ''}
                     onChange={(e) => {
@@ -811,6 +822,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   <input
                     type="text"
                     required
+                    title="Nome de exibição da unidade ou polo educacional"
                     value={editingUnit.name || ''}
                     onChange={(e) => setEditingUnit({ ...editingUnit, name: e.target.value })}
                     placeholder="Ex: Polo Pimentas, Filial Bonsucesso..."
@@ -826,6 +838,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                 </label>
                 <input
                   type="text"
+                  title="CNPJ da unidade ou filial"
                   value={editingUnit.cnpj || ''}
                   onChange={(e) => setEditingUnit({ ...editingUnit, cnpj: maskCNPJ(e.target.value) })}
                   placeholder="00.000.000/0000-00"
@@ -855,6 +868,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   </div>
                   <input
                     type="text"
+                    title="Informe o CEP do polo para preencher endereço, cidade e UF automaticamente"
                     value={editingUnit.cep || ''}
                     onChange={(e) => handleCepChange(e.target.value)}
                     placeholder="00000-000"
@@ -869,6 +883,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   </label>
                   <input
                     type="text"
+                    title="Logradouro, número e bairro da unidade"
                     value={editingUnit.address || ''}
                     onChange={(e) => setEditingUnit({ ...editingUnit, address: e.target.value })}
                     placeholder="Rua, número, bairro..."
@@ -884,6 +899,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   </label>
                   <input
                     type="text"
+                    title="Cidade onde a unidade está localizada"
                     value={editingUnit.city || ''}
                     onChange={(e) => setEditingUnit({ ...editingUnit, city: e.target.value })}
                     placeholder="Guarulhos"
@@ -897,6 +913,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   </label>
                   <input
                     type="text"
+                    title="Sigla do estado da unidade (UF)"
                     value={editingUnit.state || ''}
                     onChange={(e) => {
                       const uf = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').substring(0, 2);
@@ -916,6 +933,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   </label>
                   <input
                     type="text"
+                    title="Telefone ou WhatsApp de contato do polo"
                     value={editingUnit.phone || ''}
                     onChange={(e) => setEditingUnit({ ...editingUnit, phone: maskPhone(e.target.value) })}
                     placeholder="(11) 98888-7777"
@@ -930,6 +948,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                   </label>
                   <input
                     type="email"
+                    title="Endereço de e-mail institucional do polo"
                     value={editingUnit.email || ''}
                     onChange={(e) => setEditingUnit({ ...editingUnit, email: e.target.value.toLowerCase().trim() })}
                     placeholder="polo@exemplo.com"
@@ -955,6 +974,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                         <button
                           key={colorKey}
                           type="button"
+                          title={`Selecionar paleta de cor ${theme.label.split('(')[0].trim()} para esta unidade`}
                           onClick={() => setEditingUnit({ ...editingUnit, color: colorKey })}
                           className={cn(
                             "flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition-all cursor-pointer",
@@ -985,11 +1005,12 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                     <span>A Sede / Matriz está sempre ativa e operante no sistema.</span>
                   </div>
                 ) : (
-                  <label className="flex items-start gap-2.5 cursor-pointer select-none p-2.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100/70 transition-colors">
+                  <label title="Ativar ou suspender novas matrículas e turmas neste polo" className="flex items-start gap-2.5 cursor-pointer select-none p-2.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100/70 transition-colors">
                     <input
                       type="checkbox"
                       checked={editingUnit.active !== false}
                       onChange={(e) => setEditingUnit({ ...editingUnit, active: e.target.checked })}
+                      title="Ativar ou suspender novas matrículas e turmas neste polo"
                       className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5 cursor-pointer"
                     />
                     <div>
@@ -1007,6 +1028,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button
                   type="button"
+                  title="Cancelar edição e fechar janela"
                   onClick={() => { setIsModalOpen(false); setEditingUnit(null); }}
                   className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 cursor-pointer"
                 >
@@ -1015,6 +1037,7 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
                 <button
                   type="submit"
                   disabled={saving}
+                  title="Salvar dados da unidade ou polo"
                   className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}

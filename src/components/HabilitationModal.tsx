@@ -221,6 +221,7 @@ export function HabilitationModal({
           <button
             type="button"
             onClick={onClose}
+            title="Fechar janela de habilitação de turmas"
             className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-md transition-all cursor-pointer"
           >
             <X size={18} />
@@ -245,6 +246,7 @@ export function HabilitationModal({
               <select
                 value={targetYear}
                 onChange={(e) => setTargetYear(e.target.value)}
+                title="Selecionar ano letivo de destino para habilitar turmas"
                 className="text-xs font-bold text-slate-800 bg-slate-100 border border-slate-200 rounded px-2.5 py-1 outline-none cursor-pointer hover:bg-slate-200/70 transition-all"
               >
                 <option value="2027">2027 (Próximo Ciclo)</option>
@@ -261,6 +263,7 @@ export function HabilitationModal({
                   const allIds = eligibleCohorts.map(c => c.id);
                   setAllCohortsHabilitation(targetYear, allIds, true);
                 }}
+                title={`Habilitar todas as turmas listadas para ${targetYear}`}
                 className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-xs font-bold transition-all cursor-pointer"
               >
                 <CheckSquare size={13} />
@@ -272,6 +275,7 @@ export function HabilitationModal({
                   const allIds = eligibleCohorts.map(c => c.id);
                   setAllCohortsHabilitation(targetYear, allIds, false);
                 }}
+                title={`Desabilitar todas as turmas listadas em ${targetYear}`}
                 className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded text-xs font-bold transition-all cursor-pointer"
               >
                 <Square size={13} />
@@ -330,6 +334,7 @@ export function HabilitationModal({
                     <button
                       type="button"
                       onClick={() => toggleClassHabilitation(targetYear, c.id)}
+                      title={c.isHabilitated ? `Desabilitar turma ${c.name} para ${targetYear}` : `Habilitar turma ${c.name} para o ciclo ${targetYear}`}
                       className={cn(
                         "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs",
                         c.isHabilitated
@@ -373,6 +378,7 @@ export function HabilitationModal({
                 onUpdated();
               }
             }}
+            title="Aplicar habilitações selecionadas e atualizar painel"
             className="px-5 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs"
           >
             Concluir & Atualizar

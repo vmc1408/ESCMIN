@@ -346,6 +346,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-start lg:justify-end">
             <button
               type="button"
+              title="Executar auditoria em tempo real do schema no Supabase"
               onClick={() => handleRunCheckup(true)}
               disabled={checkingSchema}
               className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/15 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
@@ -356,6 +357,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
 
             <button
               type="button"
+              title="Validar e sincronizar coleções locais com o PostgreSQL do Supabase"
               onClick={handleSyncSupabase}
               disabled={isSyncing}
               className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-emerald-900/30 active:scale-95 cursor-pointer disabled:opacity-50"
@@ -454,6 +456,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
           <button
             type="button"
+            title="Visualizar script SQL incremental apenas com tabelas e colunas faltantes"
             onClick={() => setSelectedScript('fix')}
             className={cn(
               "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2",
@@ -481,6 +484,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
 
           <button
             type="button"
+            title="Visualizar script DDL mestre completo com todas as tabelas e políticas RLS"
             onClick={() => setSelectedScript('master')}
             className={cn(
               "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2",
@@ -508,6 +512,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
 
           <button
             type="button"
+            title="Visualizar script SQL do módulo financeiro e tabela financial_settings"
             onClick={() => setSelectedScript('financial')}
             className={cn(
               "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2",
@@ -535,6 +540,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
 
           <button
             type="button"
+            title="Visualizar script SQL do módulo multi-unidades e coluna unit_id"
             onClick={() => setSelectedScript('units')}
             className={cn(
               "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2",
@@ -562,6 +568,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
 
           <button
             type="button"
+            title="Visualizar script SQL de índices B-Tree para otimização de desempenho"
             onClick={() => setSelectedScript('indexes')}
             className={cn(
               "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2",
@@ -624,6 +631,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
 
               <button
                 type="button"
+                title="Copiar o script SQL selecionado para a área de transferência"
                 onClick={handleCopySql}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-2 transition-all shadow-md shadow-emerald-950/40 active:scale-95 cursor-pointer"
               >
@@ -656,6 +664,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
 
             <button
               type="button"
+              title="Abrir o painel do Supabase em uma nova aba"
               onClick={handleOpenSupabase}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs active:scale-95 shrink-0 cursor-pointer"
             >
@@ -687,6 +696,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
+                title="Filtrar diagnóstico pelo nome da tabela"
                 value={filterTable}
                 onChange={(e) => setFilterTable(e.target.value)}
                 placeholder="Buscar tabela..."
@@ -697,6 +707,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
               <button
                 type="button"
+                title="Exibir todas as tabelas auditadas"
                 onClick={() => setFilterStatus('all')}
                 className={cn(
                   "px-2.5 py-1 rounded-lg transition-all",
@@ -707,6 +718,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
               </button>
               <button
                 type="button"
+                title="Exibir apenas tabelas sincronizadas sem pendências"
                 onClick={() => setFilterStatus('synced')}
                 className={cn(
                   "px-2.5 py-1 rounded-lg transition-all",
@@ -717,6 +729,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
               </button>
               <button
                 type="button"
+                title="Exibir apenas tabelas com colunas ausentes"
                 onClick={() => setFilterStatus('pending')}
                 className={cn(
                   "px-2.5 py-1 rounded-lg transition-all",
@@ -727,6 +740,7 @@ export function DatabaseSettingsTab({ initialScriptKey = 'fix', onNotify }: Data
               </button>
               <button
                 type="button"
+                title="Exibir apenas tabelas ausentes no banco de dados"
                 onClick={() => setFilterStatus('missing')}
                 className={cn(
                   "px-2.5 py-1 rounded-lg transition-all",

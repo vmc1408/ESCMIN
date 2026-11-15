@@ -81,6 +81,7 @@ const StudentItem = React.memo(({
   return (
     <button
       onClick={() => onSelect(student)}
+      title={`Selecionar ficha do aluno ${student.name}`}
       className={cn(
         "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left",
         isSelected 
@@ -2359,6 +2360,7 @@ export function Students() {
           <button 
             type="button" 
             onClick={() => setNotification(null)}
+            title="Fechar notificação"
             className="p-1 hover:bg-white/20 transition-colors cursor-pointer text-white/80 hover:text-white shrink-0 ml-1"
           >
             <X size={14} />
@@ -2443,6 +2445,7 @@ export function Students() {
               </button>
               <button 
                 onClick={handleNew}
+                title="Cadastrar novo aluno"
                 className="px-3 h-8 bg-slate-800 text-white rounded-lg text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
               >
                 <Plus size={14} />
@@ -2456,6 +2459,7 @@ export function Students() {
               <input 
                 type="text"
                 placeholder="Buscar por nome, RA ou CPF..."
+                title="Buscar alunos por nome, matrícula (RA) ou CPF"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] focus:ring-1 focus:ring-slate-500/10 focus:bg-white transition-all outline-none"
@@ -2466,6 +2470,7 @@ export function Students() {
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
+                  title={`Filtrar alunos por status: ${status}`}
                   className={cn(
                     "flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all border uppercase tracking-wider",
                     statusFilter === status 
@@ -2481,6 +2486,7 @@ export function Students() {
             {/* Quick Unallocated Filter Button */}
             <button
               type="button"
+              title="Filtrar apenas alunos ativos sem turma vinculada"
               onClick={() => {
                 if (selectedClassId === 'unallocated') {
                   setSelectedClassId('');
@@ -2512,6 +2518,7 @@ export function Students() {
               <select 
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
+                title="Filtrar alunos por turma"
                 className={cn(
                   "w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-medium outline-none transition-all",
                   selectedClassId === 'unallocated'
@@ -2531,6 +2538,7 @@ export function Students() {
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
+                  title="Filtrar alunos por ano de matrícula"
                   className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-slate-500/10 outline-none"
                 >
                   <option value="">Escolha um ano</option>
@@ -2540,7 +2548,7 @@ export function Students() {
                 <button
                   onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
                   className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 transition-colors"
-                  title={sortBy === 'name' ? "Ordering by RA" : "Ordering by Name"}
+                  title={sortBy === 'name' ? "Ordenando por Nome (clique para ordenar por Matrícula/RA)" : "Ordenando por Matrícula/RA (clique para ordenar por Nome)"}
                 >
                   <ArrowUpDown size={14} />
                 </button>
@@ -2611,6 +2619,7 @@ export function Students() {
               <button
                 type="button"
                 onClick={handleCloseFicha}
+                title={returnOrigin ? `Voltar para ${returnOrigin.sourceTitle || 'origem'}` : 'Fechar ficha e ver lista completa de alunos'}
                 className="lg:hidden mb-3 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 <ArrowLeft size={14} />
@@ -2643,7 +2652,7 @@ export function Students() {
                       </button>
                       <label className="p-1.5 bg-white text-slate-800 rounded hover:scale-105 transition-transform cursor-pointer" title="Upload Foto">
                         <Upload size={14} />
-                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                        <input type="file" title="Selecionar foto do aluno para envio" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                       </label>
                     </div>
                   )}
@@ -2765,6 +2774,7 @@ export function Students() {
                           }
                         }
                       }}
+                      title="Cancelar edição e descartar alterações não salvas"
                       className="h-10 px-4 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 text-rose-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                       <X size={15} />
@@ -2774,6 +2784,7 @@ export function Students() {
                     <button 
                       onClick={handleSave}
                       disabled={loading || uploadingPhoto}
+                      title="Salvar dados cadastrais da ficha do aluno"
                       className="h-10 px-5 bg-[#00174b] hover:bg-indigo-950 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-95 disabled:opacity-50"
                     >
                       {loading ? (
@@ -2817,12 +2828,14 @@ export function Students() {
                   <div className="flex justify-center gap-4">
                     <button 
                       onClick={() => setShowWebcam(false)}
+                      title="Fechar câmera sem capturar foto"
                       className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={capturePhoto}
+                      title="Capturar foto pela webcam"
                       className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm flex items-center gap-2"
                     >
                       <Camera size={18} />
@@ -2850,6 +2863,7 @@ export function Students() {
                         <select
                           value={quickAssignClassId}
                           onChange={(e) => setQuickAssignClassId(e.target.value)}
+                          title="Selecionar turma ativa para vincular este aluno"
                           className="flex-1 md:w-64 px-2.5 py-1.5 bg-white border border-amber-300 text-xs font-semibold text-slate-800 outline-none"
                         >
                           <option value="">Selecione uma turma ativa...</option>
@@ -2863,6 +2877,7 @@ export function Students() {
                           type="button"
                           onClick={handleQuickAssignClass}
                           disabled={!quickAssignClassId || isAssigningClass}
+                          title="Vincular aluno à turma selecionada"
                           className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-xs"
                         >
                           {isAssigningClass ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
@@ -2884,6 +2899,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Número de matrícula (RA) do aluno"
                           value={formData.registration_number || ''}
                           onChange={(e) => setFormData({...formData, registration_number: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -2896,6 +2912,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Nome completo do aluno"
                           value={formData.name || ''}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -2907,6 +2924,7 @@ export function Students() {
                         <label className="text-xs font-bold text-slate-700">Situação</label>
                         <select 
                           disabled={!isEditing}
+                          title="Situação cadastral do aluno"
                           value={formData.status || 'Ativo'}
                           onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                           onKeyDown={handleKeyDown}
@@ -2943,6 +2961,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="CPF do aluno (somente números ou formatado)"
                           value={formData.cpf || ''}
                           onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                           onKeyDown={handleKeyDown}
@@ -2984,6 +3003,7 @@ export function Students() {
                           <input 
                             type="text"
                             disabled={!isEditing}
+                            title="RG ou documento de identidade do aluno"
                             value={formData.rg || ''}
                             onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                             onKeyDown={handleKeyDown}
@@ -3022,6 +3042,7 @@ export function Students() {
                         <input 
                           type="date"
                           disabled={!isEditing}
+                          title="Data de nascimento do aluno"
                           value={formData.birth_date || ''}
                           onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3078,6 +3099,7 @@ export function Students() {
                         <label className="text-xs font-bold text-slate-700">Turma Principal (Vínculo Direto)</label>
                         <select 
                           disabled={!isEditing}
+                          title="Turma principal à qual o aluno está vinculado"
                           value={formData.class_id || ''}
                           onChange={(e) => {
                             const newClassId = e.target.value;
@@ -3181,6 +3203,7 @@ export function Students() {
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <select
                               disabled={!isEditing}
+                              title="Selecionar polo ou unidade educacional do aluno"
                               value={formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
                               onChange={(e) => {
                                 const newUnitId = e.target.value;
@@ -3260,6 +3283,7 @@ export function Students() {
                           <div className="flex flex-col sm:flex-row gap-2">
                             <select 
                               disabled={!isEditing}
+                              title="Selecionar outra turma ativa para matrícula paralela"
                               value={enrollClassId}
                               onChange={(e) => setEnrollClassId(e.target.value)}
                               className={cn(
@@ -3283,6 +3307,7 @@ export function Students() {
                                 handleOpenEnrollModal(enrollClassId);
                               }}
                               disabled={!enrollClassId || !isEditing}
+                              title="Matricular aluno na turma adicional selecionada"
                               className={cn(
                                 "w-full sm:w-auto px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap cursor-pointer",
                                 hasParallelCourses 
@@ -3391,6 +3416,7 @@ export function Students() {
                           <input 
                             type="text"
                             disabled={!isEditing}
+                            title="CEP do endereço residencial (preenchimento automático via Busca CEP)"
                             value={formData.address_zip || ''}
                             onChange={(e) => handleCepChange(e.target.value)}
                             onKeyDown={handleKeyDown}
@@ -3407,6 +3433,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Logradouro (rua, avenida, alameda, etc.)"
                           value={formData.address_street || ''}
                           onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3421,6 +3448,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Número do imóvel"
                           value={formData.address_number || ''}
                           onChange={(e) => setFormData({...formData, address_number: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3437,6 +3465,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Complemento do endereço (apartamento, bloco, casa, etc.)"
                           value={formData.address_complement || ''}
                           onChange={(e) => setFormData({...formData, address_complement: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3451,6 +3480,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Bairro do endereço residencial"
                           value={formData.address_neighborhood || ''}
                           onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3465,6 +3495,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Cidade de residência do aluno"
                           value={formData.address_city || ''}
                           onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3479,6 +3510,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Sigla do estado (UF)"
                           value={formData.address_state || ''}
                           onChange={(e) => setFormData({...formData, address_state: e.target.value.toUpperCase()})}
                           onKeyDown={handleKeyDown}
@@ -3494,6 +3526,7 @@ export function Students() {
                         <input 
                           type="email"
                           disabled={!isEditing}
+                          title="Endereço de e-mail para comunicações"
                           value={formData.email || ''}
                           onChange={(e) => setFormData({...formData, email: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3508,6 +3541,7 @@ export function Students() {
                           <input 
                             type="text"
                             disabled={!isEditing}
+                            title="Número de celular/telefone de contato"
                             value={formData.phone_mobile || ''}
                             onChange={(e) => setFormData({...formData, phone_mobile: maskPhone(e.target.value)})}
                             onKeyDown={handleKeyDown}
@@ -3545,6 +3579,7 @@ export function Students() {
                         <label className="text-xs font-bold text-slate-700">Paróquia Origem</label>
                         <select 
                           disabled={!isEditing}
+                          title="Paróquia de origem ou vínculo pastoral do aluno"
                           value={formData.parish || ''}
                           onChange={(e) => {
                             const pName = e.target.value;
@@ -3572,6 +3607,7 @@ export function Students() {
                         <label className="text-xs font-bold text-slate-700">Forania</label>
                         <select 
                           disabled={!isEditing}
+                          title="Forania correspondente à paróquia do aluno"
                           value={formData.forania || ''}
                           onChange={(e) => setFormData({...formData, forania: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3589,6 +3625,7 @@ export function Students() {
                         <input 
                           type="text"
                           disabled={!isEditing}
+                          title="Pastoral, movimento ou serviço em que o aluno participa"
                           value={formData.pastoral_participates || ''}
                           onChange={(e) => setFormData({...formData, pastoral_participates: e.target.value})}
                           onKeyDown={handleKeyDown}
@@ -3622,6 +3659,7 @@ export function Students() {
                             <button
                               type="button"
                               onClick={() => setEnrollmentFeeStatus('paid')}
+                              title="Registrar pagamento da taxa de matrícula neste momento"
                               className={cn(
                                 "px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer",
                                 enrollmentFeeStatus === 'paid'
@@ -3634,6 +3672,7 @@ export function Students() {
                             <button
                               type="button"
                               onClick={() => setEnrollmentFeeStatus('pending')}
+                              title="Deixar a taxa de matrícula como pendente para quitação posterior"
                               className={cn(
                                 "px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer",
                                 enrollmentFeeStatus === 'pending'
@@ -3646,6 +3685,7 @@ export function Students() {
                             <button
                               type="button"
                               onClick={() => setEnrollmentFeeStatus('exempt')}
+                              title="Conceder isenção da taxa de matrícula para este aluno"
                               className={cn(
                                 "px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer",
                                 enrollmentFeeStatus === 'exempt'
@@ -3675,6 +3715,7 @@ export function Students() {
                                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">R$</span>
                                   <input
                                     type="text"
+                                    title="Valor pago da taxa de matrícula"
                                     value={enrollmentFeeAmountStr}
                                     onChange={(e) => handleFeeAmountChange(e.target.value)}
                                     onBlur={handleFeeAmountBlur}
@@ -3698,6 +3739,7 @@ export function Students() {
                                 </div>
                                 <input
                                   type="date"
+                                  title="Data em que a taxa de matrícula foi paga"
                                   value={enrollmentFeePaymentDate}
                                   onChange={(e) => setEnrollmentFeePaymentDate(e.target.value)}
                                   className={cn(
@@ -3711,6 +3753,7 @@ export function Students() {
                               <div className="col-span-12 sm:col-span-3 space-y-1">
                                 <label className="text-xs font-bold text-slate-700">Forma de Pagamento</label>
                                 <select
+                                  title="Forma de pagamento da taxa de matrícula"
                                   value={enrollmentFeePaymentMethod}
                                   onChange={(e) => setEnrollmentFeePaymentMethod(e.target.value as any)}
                                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
@@ -3727,6 +3770,7 @@ export function Students() {
                                 <input
                                   type="text"
                                   placeholder="Ex: Quitado na secretaria"
+                                  title="Observações adicionais sobre o pagamento da matrícula"
                                   value={enrollmentFeeObservations}
                                   onChange={(e) => setEnrollmentFeeObservations(e.target.value)}
                                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-slate-500/10 placeholder:text-slate-300"
@@ -3748,6 +3792,7 @@ export function Students() {
                                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">R$</span>
                                   <input
                                     type="text"
+                                    title="Valor da taxa de matrícula pendente"
                                     value={enrollmentFeeAmountStr}
                                     onChange={(e) => handleFeeAmountChange(e.target.value)}
                                     onBlur={handleFeeAmountBlur}
@@ -3772,6 +3817,7 @@ export function Students() {
                               <div className="col-span-12 sm:col-span-5 space-y-1">
                                 <label className="text-xs font-bold text-slate-700">Motivo da Isenção</label>
                                 <select
+                                  title="Selecionar o motivo da isenção da taxa de matrícula"
                                   value={enrollmentFeeExemptionReason}
                                   onChange={(e) => setEnrollmentFeeExemptionReason(e.target.value)}
                                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-slate-500/10"
@@ -3814,6 +3860,7 @@ export function Students() {
               <button
                 type="button"
                 onClick={handleCloseFicha}
+                title={`Retornar para ${returnOrigin.sourceTitle || 'origem'}`}
                 className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm"
               >
                 <ArrowLeft size={14} />
@@ -3840,6 +3887,7 @@ export function Students() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
+                  title="Cancelar e manter o cadastro do aluno"
                   className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
                 >
                   Cancelar
@@ -3847,6 +3895,7 @@ export function Students() {
                 <button
                   onClick={handleDelete}
                   disabled={loading}
+                  title="Confirmar exclusão definitiva do aluno"
                   className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
                 >
                   {loading ? 'Excluindo...' : 'Sim, Excluir'}

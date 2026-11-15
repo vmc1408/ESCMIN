@@ -1007,6 +1007,7 @@ export function StudentFicha() {
         {activeStudent && (
           <button
             onClick={triggerDossierPrint}
+            title="Imprimir ficha completa de controle e histórico do aluno"
             className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 cursor-pointer rounded-lg"
           >
             <Printer size={14} /> Imprimir Documento
@@ -1066,6 +1067,7 @@ export function StudentFicha() {
                   placeholder="Nome, Matrícula, CPF ou Turma..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
+                  title="Pesquisar aluno por nome, matrícula, CPF ou turma"
                   className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-slate-800 focus:bg-white focus:ring-1 focus:ring-slate-800/10 placeholder-slate-400 uppercase"
                 />
                 {searchTerm && (
@@ -1107,6 +1109,7 @@ export function StudentFicha() {
                       <button
                         key={`ficha-stu-${stu.id || sIdx}-${sIdx}`}
                         onClick={() => setSelectedStudentId(stu.id)}
+                        title={`Visualizar ficha, frequência e histórico de ${stu.name}`}
                         className={cn(
                           "w-full p-2.5 flex flex-col gap-1 transition-all text-left group border-l-2",
                           isSelected 
@@ -1178,6 +1181,7 @@ export function StudentFicha() {
                 {/* Back button for mobile/tablet */}
                 <button
                   onClick={() => setSelectedStudentId('')}
+                  title="Voltar para a tela de pesquisa de alunos"
                   className="lg:hidden w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 transition-colors rounded-lg"
                 >
                   ← Voltar para a Consulta de Alunos
@@ -1237,6 +1241,7 @@ export function StudentFicha() {
                       </span>
                       <button
                         onClick={triggerDossierPrint}
+                        title="Imprimir ficha e histórico acadêmico do aluno"
                         className="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
                       >
                         <Printer size={12} /> Imprimir Ficha
@@ -1462,6 +1467,7 @@ export function StudentFicha() {
                     
                     <button
                       onClick={handleCreateNewCertClick}
+                      title="Emitir novo certificado ou diploma para este aluno"
                       className="px-2.5 py-1 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 active:scale-95 transition-transform"
                     >
                       <Plus size={10} /> Novo Certificado
@@ -1496,6 +1502,7 @@ export function StudentFicha() {
                           <div className="flex items-center gap-2">
                             <button 
                               onClick={() => setViewingCertificate(doc)}
+                              title="Visualizar e imprimir certificado emitido"
                               className="px-2.5 py-1 text-slate-700 hover:text-slate-950 border border-slate-200 font-bold text-[8.5px] uppercase tracking-widest bg-white shadow-sm flex items-center gap-1 transition-colors"
                             >
                               <Printer size={10} /> Visualizar
@@ -1531,7 +1538,7 @@ export function StudentFicha() {
           >
             <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
               <h3 className="text-xs font-black text-slate-850 uppercase tracking-widest">Emitir Novo Certificado</h3>
-              <button onClick={() => setIsIssuing(false)} className="text-slate-400 hover:text-slate-600 text-xs uppercase font-extrabold tracking-widest">Fechar</button>
+              <button onClick={() => setIsIssuing(false)} title="Fechar janela de emissão de certificado" className="text-slate-400 hover:text-slate-600 text-xs uppercase font-extrabold tracking-widest">Fechar</button>
             </div>
 
             <form onSubmit={handleIssueCertificate} className="space-y-4 text-xs font-semibold">
@@ -1618,6 +1625,7 @@ export function StudentFicha() {
                 <select 
                   value={certFormData.type}
                   onChange={e => setCertFormData({...certFormData, type: e.target.value as any})}
+                  title="Selecionar categoria do certificado ou diploma a emitir"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-xs font-bold focus:outline-none uppercase"
                 >
                   <option value="conclusão">Certificado de Conclusão de Curso</option>
@@ -1631,6 +1639,7 @@ export function StudentFicha() {
                 <input 
                   type="text"
                   required
+                  title="Informar nome por extenso do curso impresso no certificado"
                   placeholder="Nome por extenso do Curso"
                   value={certFormData.course}
                   onChange={e => setCertFormData({...certFormData, course: e.target.value})}
@@ -1643,6 +1652,7 @@ export function StudentFicha() {
                 <input 
                   type="date"
                   required
+                  title="Selecionar data oficial de emissão do documento"
                   value={certFormData.issuance_date}
                   onChange={e => setCertFormData({...certFormData, issuance_date: e.target.value})}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-xs font-bold focus:bg-white focus:outline-none"
@@ -1653,12 +1663,14 @@ export function StudentFicha() {
                 <button 
                   type="button" 
                   onClick={() => setIsIssuing(false)} 
+                  title="Cancelar emissão do documento"
                   className="px-4 py-2 border border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[9px]"
                 >
                   Cancelar
                 </button>
                 <button 
-                  type="submit" 
+                  type="submit"
+                  title="Confirmar e registrar emissão oficial do certificado" 
                   disabled={isSavingCert || (() => {
                     if (activeStudentMetrics.finalStatus !== 'Aprovado') return true;
 
@@ -1716,12 +1728,14 @@ export function StudentFicha() {
               <div className="flex gap-2">
                 <button 
                   onClick={() => window.print()}
+                  title="Imprimir ou gerar PDF do documento"
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] uppercase tracking-widest transition-colors flex items-center gap-1"
                 >
                   <Printer size={12} /> Executar Impressão
                 </button>
                 <button 
                   onClick={() => setViewingCertificate(null)}
+                  title="Fechar visualização do documento"
                   className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[9px] uppercase tracking-widest transition-colors"
                 >
                   Fechar

@@ -46,6 +46,7 @@ export function PinInput({ value, onChange, length = 4, error, onEnter }: PinInp
               onEnter?.();
             }
           }}
+          title="Digite os 4 dígitos do PIN de segurança"
           className="absolute inset-0 w-full h-full opacity-0 cursor-text z-10"
           autoFocus
         />
@@ -89,6 +90,7 @@ export function PinInput({ value, onChange, length = 4, error, onEnter }: PinInp
             e.stopPropagation();
             setShowPin(!showPin);
           }}
+          title={showPin ? 'Ocultar dígitos do PIN' : 'Mostrar dígitos do PIN'}
           className="absolute right-4 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-all z-20 cursor-pointer"
         >
           {showPin ? <EyeOff size={16} /> : <Eye size={16} />}

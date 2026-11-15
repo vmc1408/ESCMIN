@@ -82,6 +82,7 @@ const SubjectItem = React.memo(({
   return (
     <button
       onClick={() => onSelect(subject)}
+      title={`Visualizar ou editar a disciplina ${subject.name}`}
       className={cn(
         "w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left",
         isSelected 
@@ -687,6 +688,7 @@ export function Subjects() {
               placeholder="Buscar disciplina..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              title="Pesquisar disciplina por nome ou código"
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10"
             />
           </div>
@@ -700,6 +702,7 @@ export function Subjects() {
                   setStatusFilter('');
                   setSearchTerm('');
                 }}
+                title="Filtrar disciplinas por semestre ou período"
                 className="w-full px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
               >
                 <option value="Todos">Todos Semestres</option>
@@ -716,6 +719,7 @@ export function Subjects() {
                   <button
                     key={status}
                     onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
+                    title={`Filtrar disciplinas com situação: ${status}`}
                     className={cn(
                       "flex-1 py-1.5 text-[9px] font-bold uppercase rounded-lg transition-all",
                       statusFilter === status 
@@ -734,6 +738,7 @@ export function Subjects() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
+                title="Escolher critério de ordenação da lista de disciplinas"
                 className="w-full px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
               >
                 <option value="year">Ordenar por Ano</option>
@@ -798,6 +803,7 @@ export function Subjects() {
                   setSelectedSubject(null);
                   setIsEditing(false);
                 }}
+                title="Fechar ficha e retornar para a lista de disciplinas"
                 className="lg:hidden mb-3 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 <ArrowLeft size={14} />
@@ -894,6 +900,7 @@ export function Subjects() {
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
+                      title="Cancelar alterações nesta disciplina"
                       className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
                       <X size={15} />
@@ -901,6 +908,7 @@ export function Subjects() {
                     </button>
                     <button 
                       onClick={handleSave}
+                      title="Salvar alterações cadastrais da disciplina"
                       className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
                       <Save size={16} />
@@ -979,6 +987,7 @@ export function Subjects() {
                         value={formData.code || ''}
                         onChange={(e) => setFormData({...formData, code: e.target.value})}
                         onKeyDown={handleKeyDown}
+                        title="Código identificador da disciplina (ex: TEO101)"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={1}
                       />
@@ -991,6 +1000,7 @@ export function Subjects() {
                         value={formData.name || ''}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         onKeyDown={handleKeyDown}
+                        title="Nome oficial da disciplina no currículo"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={2}
                       />
@@ -1005,6 +1015,7 @@ export function Subjects() {
                           disabled={!isEditing || (!canSwitchUnit && isRestricted)}
                           value={formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
                           onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+                          title="Selecionar unidade ou polo ao qual a disciplina pertence"
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
                         >
                           {canSwitchUnit && <option value="all">🌐 Institucional (Todas as Unidades)</option>}
@@ -1026,6 +1037,7 @@ export function Subjects() {
                               type="button"
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, year})}
+                              title={`Vincular disciplina ao ${year}`}
                               className={cn(
                                 "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-lg transition-all",
                                 formData.year === year 
@@ -1047,6 +1059,7 @@ export function Subjects() {
                               type="button"
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, semester: sem})}
+                              title={`Definir oferta da disciplina como ${sem}`}
                               className={cn(
                                 "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
                                 formData.semester === sem 
@@ -1067,6 +1080,7 @@ export function Subjects() {
                         value={formData.teacher_id || ''}
                         onChange={(e) => setFormData({...formData, teacher_id: e.target.value})}
                         onKeyDown={handleKeyDown}
+                        title="Selecionar professor titular responsável pela disciplina"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={4}
                       >
@@ -1110,6 +1124,7 @@ export function Subjects() {
                         value={formData.status || 'Ativo'}
                         onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                         onKeyDown={handleKeyDown}
+                        title="Definir se a disciplina está ativa ou inativa"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={11}
                       >
@@ -1133,6 +1148,7 @@ export function Subjects() {
                           placeholder="Deixe em branco para aplicar o valor padrão definido"
                           value={formData.monthly_fee !== undefined && formData.monthly_fee !== null ? formData.monthly_fee : ''}
                           onChange={(e) => setFormData({ ...formData, monthly_fee: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          title="Valor mensal específico opcional para esta disciplina"
                           className="w-full pl-8 pr-3 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
                         />
                       </div>
@@ -1230,6 +1246,7 @@ export function Subjects() {
                     onKeyDown={handleKeyDown}
                     rows={12}
                     placeholder="Descreva aqui o conteúdo programático da disciplina..."
+                    title="Ementa e conteúdo programático da disciplina"
                     className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
                     tabIndex={3}
                   />
@@ -1264,6 +1281,7 @@ export function Subjects() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
+                title="Cancelar exclusão da disciplina"
                 className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
               >
                 Cancelar
@@ -1271,6 +1289,7 @@ export function Subjects() {
               <button
                 onClick={handleDelete}
                 disabled={loading}
+                title="Confirmar exclusão definitiva da disciplina"
                 className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
               >
                 {loading ? 'Excluindo...' : 'Sim, Excluir'}

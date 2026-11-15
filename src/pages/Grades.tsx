@@ -1062,6 +1062,7 @@ export function Grades() {
             {selectedPeriod === 'Resultado Final' && (
               <button 
                 onClick={calculateFinalResults}
+                title="Calcular e consolidar as médias finais desta turma e disciplina"
                 className="flex items-center gap-1.5 px-4 h-10 bg-amber-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-amber-700 transition-all cursor-pointer shadow-sm"
               >
                 <RefreshCw size={14} />
@@ -1071,6 +1072,7 @@ export function Grades() {
             {selectedPeriod === 'Resultado Final' ? (
               <button 
                 onClick={handleFinalPrint}
+                title="Imprimir pauta consolidada com o resultado final dos alunos"
                 className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
               >
                 <Printer size={14} />
@@ -1080,6 +1082,7 @@ export function Grades() {
               <>
                 <button 
                   onClick={handleClearAll}
+                  title="Limpar todas as notas digitadas na tela atual"
                   className="flex items-center gap-1.5 px-4 h-10 bg-white text-red-600 border border-slate-200 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-50 transition-all cursor-pointer shadow-sm"
                 >
                   <Eraser size={14} />
@@ -1087,6 +1090,7 @@ export function Grades() {
                 </button>
                 <button 
                   onClick={handlePrint}
+                  title="Imprimir pauta de notas da avaliação selecionada"
                   className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
                 >
                   <Printer size={14} />
@@ -1095,6 +1099,7 @@ export function Grades() {
                 <button 
                   disabled={saving}
                   onClick={saveGrades}
+                  title="Gravar todas as notas lançadas no sistema"
                   className="flex items-center gap-1.5 px-5 h-10 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -1118,6 +1123,7 @@ export function Grades() {
               <select
                 value={selectedClass}
                 onChange={e => setSelectedClass(e.target.value)}
+                title="Selecionar a turma para apontamento ou consulta de notas"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">
@@ -1144,6 +1150,7 @@ export function Grades() {
               <select
                 value={selectedSubject}
                 onChange={e => setSelectedSubject(e.target.value)}
+                title="Selecionar a disciplina da turma"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">Selecione uma disciplina...</option>
@@ -1166,6 +1173,7 @@ export function Grades() {
               <select
                 value={selectedPeriod}
                 onChange={e => setSelectedPeriod(e.target.value)}
+                title="Selecionar a avaliação para lançamento ou o Resultado Final consolidado"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 {availablePeriods.map((p, pIdx) => (
@@ -1208,6 +1216,7 @@ export function Grades() {
 
                 <button 
                   onClick={() => setNotification(null)}
+                  title="Fechar mensagem"
                   className={cn(
                     "w-full py-2 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer",
                     notification.type === 'success' 
@@ -1255,6 +1264,7 @@ export function Grades() {
                             sessionStorage.setItem('assessments_redirect', JSON.stringify({ classId: selectedClass, subjectId: selectedSubject }));
                             navigate('/assessments');
                           }}
+                          title="Ir para o módulo de Avaliações para cadastrar uma nova atividade"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
                         >
                           Ir para Cadastrar Avaliações
@@ -1327,6 +1337,7 @@ export function Grades() {
                             id={`grade-input-${idx}`}
                             type="text"
                             placeholder="0,00"
+                            title={selectedPeriod === 'Resultado Final' ? 'Média calculada automaticamente (somente leitura)' : `Digitar nota de ${student.name}`}
                             value={grades[student.id]?.value ?? ''}
                             readOnly={selectedPeriod === 'Resultado Final'}
                             onClick={() => {
@@ -1386,6 +1397,7 @@ export function Grades() {
                           {grades[student.id]?.value && selectedPeriod !== 'Resultado Final' && (
                             <button 
                               onClick={() => clearStudentGrade(student.id)}
+                              title={`Apagar nota lançada de ${student.name}`}
                               className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 transition-colors"
                             >
                               <Trash2 size={12} />

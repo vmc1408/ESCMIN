@@ -343,6 +343,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
             <button
               onClick={onClose}
               disabled={isSaving}
+              title="Fechar configuração de cronograma da unidade"
               className="w-8 h-8 rounded-lg hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
             >
               <X size={18} />
@@ -376,6 +377,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setScheduleMode('matriz')}
+                  title="Herdar automaticamente as datas e dias letivos definidos na Matriz"
                   className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                     scheduleMode === 'matriz'
                       ? 'bg-blue-50/70 border-blue-500 shadow-xs'
@@ -398,6 +400,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setScheduleMode('custom')}
+                  title="Configurar datas semestrais e dias de aula independentes para este polo"
                   className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                     scheduleMode === 'custom'
                       ? 'bg-indigo-50/70 border-indigo-500 shadow-xs'
@@ -439,6 +442,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                   <button
                     type="button"
                     onClick={copyFromMatriz}
+                    title="Importar datas semestrais e dias de aula da Matriz como modelo inicial"
                     className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                   >
                     <Copy size={13} />
@@ -468,6 +472,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                           key={day.num}
                           type="button"
                           onClick={() => toggleWeekday(day.num)}
+                          title={`${isSelected ? 'Desmarcar' : 'Selecionar'} ${day.full} como dia de aula do polo`}
                           className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex flex-col items-center gap-1 cursor-pointer ${
                             isSelected
                               ? 'bg-[#0F2A30] text-white border-[#0F2A30] shadow-sm'
@@ -505,6 +510,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                             type="date"
                             value={term1Start}
                             onChange={(e) => setTerm1Start(e.target.value)}
+                            title="Definir data de início do 1º semestre letivo"
                             className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
                           />
                         </div>
@@ -516,6 +522,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                             type="date"
                             value={term1End}
                             onChange={(e) => setTerm1End(e.target.value)}
+                            title="Definir data de término do 1º semestre letivo"
                             className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600"
                           />
                         </div>
@@ -538,6 +545,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                             type="date"
                             value={term2Start}
                             onChange={(e) => setTerm2Start(e.target.value)}
+                            title="Definir data de início do 2º semestre letivo"
                             className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-600"
                           />
                         </div>
@@ -549,6 +557,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                             type="date"
                             value={term2End}
                             onChange={(e) => setTerm2End(e.target.value)}
+                            title="Definir data de término do ano letivo da unidade"
                             className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-600"
                           />
                         </div>
@@ -570,11 +579,15 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
                       </p>
                     </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3 shrink-0">
+                  <label
+                    className="relative inline-flex items-center cursor-pointer ml-3 shrink-0"
+                    title={autoGenerateClasses ? 'Desativar geração automática de datas no calendário' : 'Ativar geração automática das datas de aula no calendário'}
+                  >
                     <input
                       type="checkbox"
                       checked={autoGenerateClasses}
                       onChange={(e) => setAutoGenerateClasses(e.target.checked)}
+                      title={autoGenerateClasses ? 'Desativar geração automática de datas no calendário' : 'Ativar geração automática das datas de aula no calendário'}
                       className="sr-only peer"
                     />
                     <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -590,6 +603,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSaving}
+              title="Cancelar alterações no cronograma da unidade"
               className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl transition-all cursor-pointer"
             >
               Cancelar
@@ -599,6 +613,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={isSaving}
+              title="Salvar configurações de cronograma para esta unidade"
               className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isSaving ? (

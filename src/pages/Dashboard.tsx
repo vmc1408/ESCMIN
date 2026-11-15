@@ -7,7 +7,6 @@ import {
   BookOpen, 
   Book,
   UserCheck, 
-  ArrowUpRight, 
   RefreshCw, 
   Activity, 
   Eye, 
@@ -1511,6 +1510,7 @@ export function Dashboard() {
                     }
                   }}
                   disabled={isRefreshing}
+                  title="Tentar restabelecer a conexão com o banco de dados agora"
                   className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 text-white font-black text-xs rounded-xl transition-all shadow-lg uppercase tracking-widest cursor-pointer"
                 >
                   Tentar Reconectar Agora
@@ -1541,6 +1541,7 @@ export function Dashboard() {
               >
                 <button
                   onClick={() => navigate(card.path)}
+                  title={`Acessar ${card.title}: ${card.description}`}
                   className={cn(
                     "w-full text-left p-7 sm:p-8 rounded-2xl border transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between min-h-[220px]",
                     card.bg,
@@ -1657,6 +1658,7 @@ export function Dashboard() {
                   }
                 }}
                 disabled={isRefreshing}
+                title="Testar conexão com o servidor e atualizar indicadores"
                 className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 active:scale-[0.98] text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-600/40 uppercase tracking-widest border border-red-500 cursor-pointer flex items-center justify-center gap-2"
               >
                 {isRefreshing ? (
@@ -1678,6 +1680,7 @@ export function Dashboard() {
                     console.error('Erro ao sair do sistema:', err);
                   }
                 }}
+                title="Encerrar sessão e retornar à tela de login"
                 className="w-full py-2.5 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-[10px] rounded-xl transition-all uppercase tracking-widest border border-slate-700 cursor-pointer"
               >
                 Sair / Fechar Sistema
@@ -1726,6 +1729,7 @@ export function Dashboard() {
               </span>
               <button 
                 onClick={() => resetToDefaultFavorites()}
+                title="Restaurar os atalhos rápidos padrão do sistema"
                 className="px-3 py-1 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors shrink-0 cursor-pointer"
               >
                 Restaurar Atalhos Padrão
@@ -1735,23 +1739,19 @@ export function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Indicadores Principais Diocesanos - Estilo Eclesial (Theos) */}
+      {/* Indicadores Principais Diocesanos - Paleta Harmonizada sem repetição nem arco-íris */}
       <motion.div
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3"
       >
-        {/* Card 1: Alunos / Matrículas (Oceanic Royal Blue) */}
-        <div 
-          onClick={() => navigate('/students')}
-          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 text-white shadow-xs border border-blue-600/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
-        >
+        {/* Card 1: Alunos / Matrículas (Azul Cobalto Institucional) */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 text-white shadow-xs border border-blue-600/40 relative overflow-hidden">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-blue-200 flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-300 shrink-0"></span>
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-blue-100 truncate">
               Alunos Inscritos
             </span>
-            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-blue-200 group-hover:scale-110 transition-transform shrink-0">
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-blue-100 shrink-0">
               <Users size={14} />
             </div>
           </div>
@@ -1759,29 +1759,22 @@ export function Dashboard() {
             <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
               {displayStats.students.active}
             </span>
-            <span className="text-[10.5px] font-bold text-blue-200/90 truncate ml-1">
+            <span className="text-[10.5px] font-bold text-blue-100/90 truncate ml-1 tabular-nums">
               {displayStats.students.total} total
             </span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-blue-200/80">
+          <div className="mt-1.5 pt-1.5 border-t border-white/15 flex items-center justify-between text-[9.5px] text-blue-100/85">
             <span className="truncate">Matrículas Ativas</span>
-            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
-              Ver alunos <ArrowUpRight size={11} />
-            </span>
           </div>
         </div>
 
-        {/* Card 2: Turmas Acadêmicas (Vibrant Emerald) */}
-        <div 
-          onClick={() => navigate('/classes')}
-          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-xs border border-emerald-500/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
-        >
+        {/* Card 2: Turmas Acadêmicas (Teal da Marca Escmin) */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-teal-600 via-teal-700 to-teal-800 text-white shadow-xs border border-teal-500/40 relative overflow-hidden">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-emerald-100 flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shrink-0"></span>
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-teal-100 truncate">
               Turmas / Polos
             </span>
-            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-emerald-100 group-hover:scale-110 transition-transform shrink-0">
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-teal-100 shrink-0">
               <GraduationCap size={14} />
             </div>
           </div>
@@ -1789,29 +1782,22 @@ export function Dashboard() {
             <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
               {displayStats.classes.active}
             </span>
-            <span className="text-[10.5px] font-bold text-emerald-100/90 truncate ml-1">
+            <span className="text-[10.5px] font-bold text-teal-100/90 truncate ml-1 tabular-nums">
               {displayStats.classes.total} ativas
             </span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-emerald-100/90">
+          <div className="mt-1.5 pt-1.5 border-t border-white/15 flex items-center justify-between text-[9.5px] text-teal-100/85">
             <span className="truncate">Ciclo Letivo 2026</span>
-            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
-              Ver turmas <ArrowUpRight size={11} />
-            </span>
           </div>
         </div>
 
-        {/* Card 3: Corpo Docente (Deep Indigo / Violet) */}
-        <div 
-          onClick={() => navigate('/teachers')}
-          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-indigo-700 via-indigo-800 to-indigo-900 text-white shadow-xs border border-indigo-600/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
-        >
+        {/* Card 3: Corpo Docente (Ardósia / Grafite Institucional) */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 text-white shadow-xs border border-slate-600/40 relative overflow-hidden">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-indigo-200 flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-300 shrink-0"></span>
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-slate-200 truncate">
               Corpo Docente
             </span>
-            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-indigo-200 group-hover:scale-110 transition-transform shrink-0">
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-slate-200 shrink-0">
               <UserCheck size={14} />
             </div>
           </div>
@@ -1819,29 +1805,22 @@ export function Dashboard() {
             <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
               {displayStats.teachers.active}
             </span>
-            <span className="text-[10.5px] font-bold text-indigo-200/90 truncate ml-1">
+            <span className="text-[10.5px] font-bold text-slate-200/90 truncate ml-1">
               Professores
             </span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-indigo-200/90">
+          <div className="mt-1.5 pt-1.5 border-t border-white/15 flex items-center justify-between text-[9.5px] text-slate-200/85">
             <span className="truncate">Regência Pedagógica</span>
-            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
-              Ver docentes <ArrowUpRight size={11} />
-            </span>
           </div>
         </div>
 
-        {/* Card 4: Gestão Financeira (Warm Amber / Gold como no Eclesial) */}
-        <div 
-          onClick={() => navigate('/financial')}
-          className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 text-white shadow-xs border border-amber-500/40 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden group"
-        >
+        {/* Card 4: Gestão Financeira (Âmbar / Dourado Institucional) */}
+        <div className="rounded-xl p-3 sm:p-3.5 bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 text-white shadow-xs border border-amber-500/40 relative overflow-hidden">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-amber-100 flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-300 shrink-0"></span>
+            <span className="text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider text-amber-100 truncate">
               Gestão Financeira
             </span>
-            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-amber-100 group-hover:scale-110 transition-transform shrink-0">
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 flex items-center justify-center text-amber-100 shrink-0">
               <Wallet size={14} />
             </div>
           </div>
@@ -1849,15 +1828,12 @@ export function Dashboard() {
             <span className="text-xl sm:text-2xl font-black tracking-tight text-white tabular-nums">
               {formatCurrency(currentFinancialStats.totalRevenue)}
             </span>
-            <span className="text-[10.5px] font-bold text-amber-100/90 truncate ml-1">
+            <span className="text-[10.5px] font-bold text-amber-100/90 truncate ml-1 tabular-nums">
               {currentFinancialStats.payingCount} em dia ({currentFinancialStats.adimplenciaRate}%)
             </span>
           </div>
-          <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9.5px] text-amber-100/90">
+          <div className="mt-1.5 pt-1.5 border-t border-white/15 flex items-center justify-between text-[9.5px] text-amber-100/85">
             <span className="truncate">{currentFinancialStats.currentMonthName}: {currentFinancialStats.totalReceipts} {currentFinancialStats.totalReceipts === 1 ? 'recebimento' : 'recebimentos'}</span>
-            <span className="font-semibold text-white flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1">
-              Painel Financeiro <ArrowUpRight size={11} />
-            </span>
           </div>
         </div>
       </motion.div>
@@ -2102,6 +2078,7 @@ export function Dashboard() {
                           setSelectedAcademicYear('ATUAL');
                           setIsYearDropdownOpen(false);
                         }}
+                        title="Exibir turmas do ciclo letivo atual (2026)"
                         className={cn(
                           "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
                           selectedAcademicYear === 'ATUAL' || selectedAcademicYear === '2026'
@@ -2134,6 +2111,7 @@ export function Dashboard() {
                                 setSelectedAcademicYear(yr);
                                 setIsYearDropdownOpen(false);
                               }}
+                              title={`Filtrar turmas e ocupação pelo ano letivo ${yr}`}
                               className={cn(
                                 "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
                                 isSelected
@@ -2163,6 +2141,7 @@ export function Dashboard() {
                           setSelectedAcademicYear('Todos');
                           setIsYearDropdownOpen(false);
                         }}
+                        title="Exibir todas as turmas de todos os anos letivos"
                         className={cn(
                           "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
                           selectedAcademicYear === 'Todos'
@@ -2222,6 +2201,7 @@ export function Dashboard() {
                         setTargetHabilitationYear(selectedAcademicYear);
                         setShowHabilitationModal(true);
                       }}
+                      title={`Abrir modal para habilitar turmas em ${selectedAcademicYear}`}
                       className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider shrink-0 transition-all cursor-pointer shadow-2xs hover:shadow-xs flex items-center justify-center gap-1.5"
                     >
                       <Sparkles size={13} />
@@ -2424,6 +2404,7 @@ export function Dashboard() {
                       <select
                         value={selectedContributionMonth}
                         onChange={(e) => setSelectedContributionMonth(Number(e.target.value))}
+                        title="Selecionar mês de referência para o gráfico de contribuições"
                         className="bg-transparent text-[10.5px] font-bold text-slate-800 cursor-pointer focus:outline-hidden py-0.5"
                         aria-label="Selecionar mês de referência"
                       >
@@ -2435,6 +2416,7 @@ export function Dashboard() {
                       <select
                         value={selectedContributionYear}
                         onChange={(e) => setSelectedContributionYear(Number(e.target.value))}
+                        title="Selecionar ano de referência para o gráfico de contribuições"
                         className="bg-transparent text-[10.5px] font-bold text-slate-800 cursor-pointer focus:outline-hidden py-0.5"
                         aria-label="Selecionar ano de referência"
                       >
@@ -2473,6 +2455,7 @@ export function Dashboard() {
                       <button
                         type="button"
                         onClick={handleCurrentContributionMonth}
+                        title="Voltar o gráfico para o mês e ano atuais"
                         className="text-[8.5px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                       >
                         Mês Atual
@@ -2556,6 +2539,7 @@ export function Dashboard() {
                 <button
                   type="button"
                   onClick={() => navigate('/financial-report')}
+                  title="Abrir relatório financeiro detalhado de previsto versus realizado"
                   className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 hover:underline cursor-pointer"
                 >
                   <span>Relatório Financeiro</span>
@@ -2732,6 +2716,7 @@ export function Dashboard() {
                         setTargetHabilitationYear(selectedAcademicYear);
                         setShowHabilitationModal(true);
                       }}
+                      title={`Abrir habilitação de turmas para o ano letivo de ${selectedAcademicYear}`}
                       className="flex items-center gap-2 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer shadow-xs"
                     >
                       <Sparkles size={14} />
@@ -2743,6 +2728,7 @@ export function Dashboard() {
                     <button
                       type="button"
                       onClick={() => setSelectedAcademicYear('ATUAL')}
+                      title="Voltar visualização para o ciclo letivo atual (2026)"
                       className="px-3 py-1.5 bg-blue-900 text-white text-[10px] font-extrabold uppercase tracking-widest hover:bg-blue-950 transition-colors cursor-pointer rounded"
                     >
                       Retornar ao Ciclo Atual (2026)
@@ -2787,6 +2773,7 @@ export function Dashboard() {
               </div>
               <button 
                 onClick={() => setShowStudentsModal(false)}
+                title="Fechar lista de alunos da turma"
                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-all"
               >
                 <X size={16} />
@@ -2820,6 +2807,7 @@ export function Dashboard() {
                             }
                           });
                         }}
+                        title={`Abrir ficha cadastral completa de ${student.name}`}
                         className="text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider"
                       >
                         Ver Ficha
@@ -2839,6 +2827,7 @@ export function Dashboard() {
                 <button 
                   onClick={handleDeactivateAllUnallocated}
                   disabled={isDeactivating || selectedClassStudents.length === 0}
+                  title="Desativar todos os alunos não alocados listados acima"
                   className="px-4 py-2 bg-slate-200 text-slate-700 rounded-md font-bold text-[10px] hover:bg-slate-300 uppercase tracking-widest transition-all"
                 >
                   {isDeactivating ? '...' : 'Desativar Todos'}
@@ -2849,6 +2838,7 @@ export function Dashboard() {
                   setShowStudentsModal(false);
                   navigate('/students', isUnallocatedContext ? { state: { filterUnallocated: true } } : undefined);
                 }}
+                title={isUnallocatedContext ? 'Ir para Alunos filtrar e alocar estudantes pendentes' : 'Ir para o módulo de cadastro de alunos'}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md font-bold text-[10px] hover:bg-indigo-700 uppercase tracking-widest shadow-sm ml-auto cursor-pointer"
               >
                 {isUnallocatedContext ? 'Alocar Alunos em Turma' : 'Gerenciar Alunos'}

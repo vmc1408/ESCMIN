@@ -679,7 +679,7 @@ export function Receipts() {
             <p className="text-xs font-bold uppercase tracking-wider mb-0.5">{notification.type === 'success' ? 'Sucesso' : 'Atenção'}</p>
             <p className="text-xs font-medium leading-relaxed">{notification.message}</p>
           </div>
-          <button onClick={() => setNotification(null)} className="ml-auto text-slate-400 hover:text-slate-600">
+          <button onClick={() => setNotification(null)} title="Fechar notificação" className="ml-auto text-slate-400 hover:text-slate-600">
             <X size={16} />
           </button>
         </div>
@@ -692,6 +692,7 @@ export function Receipts() {
           <input 
             type="text"
             placeholder="Pesquisar por favorecido, número ou descrição..."
+            title="Pesquisar recibos por nome do favorecido, número ou descrição"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-800 text-white border border-slate-700 rounded-xl text-xs font-semibold uppercase tracking-wider placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
@@ -700,6 +701,7 @@ export function Receipts() {
         
         <button 
           onClick={handleStartNewReceipt}
+          title="Emitir um novo recibo de pagamento"
           className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 active:scale-95 shadow-lg"
         >
           <Plus size={16} /> Novo Recibo
@@ -868,12 +870,14 @@ export function Receipts() {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => handlePrintOrDownload(selectedReceipt, 'download')}
+                    title="Baixar arquivo PDF do recibo selecionado"
                     className="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <Download size={14} /> PDF
                   </button>
                   <button 
                     onClick={() => handlePrintOrDownload(selectedReceipt, 'print')}
+                    title="Imprimir recibo selecionado"
                     className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <Printer size={14} /> Imprimir
@@ -980,7 +984,7 @@ export function Receipts() {
                     <p className="text-[10px] text-slate-400 uppercase tracking-widest leading-none mt-0.5">{editingReceipt ? 'Altere o formulário para atualizar o recibo' : 'Preencha o formulário para emitir'}</p>
                   </div>
                 </div>
-                <button onClick={handleCloseForm} className="p-2 hover:bg-white/10 rounded-xl text-slate-300 transition-colors">
+                <button onClick={handleCloseForm} title="Fechar formulário de recibo" className="p-2 hover:bg-white/10 rounded-xl text-slate-300 transition-colors">
                   <X size={20} />
                 </button>
               </div>
@@ -996,6 +1000,7 @@ export function Receipts() {
                         type="text" 
                         id="receipt-number-input"
                         required
+                        title="Número sequencial de identificação do recibo"
                         value={receiptNumber} 
                         onChange={(e) => setReceiptNumber(e.target.value)} 
                         onKeyDown={(e) => {
@@ -1017,6 +1022,7 @@ export function Receipts() {
                           id="amount-input"
                           required
                           placeholder="0,00"
+                          title="Informar o valor em reais do recibo"
                           value={amount} 
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9,.]/g, '');
@@ -1046,6 +1052,7 @@ export function Receipts() {
                       id="payee-name-input"
                       required
                       placeholder="Ex: Prof. José da Silva ou João dos Santos"
+                      title="Informar o nome completo da pessoa ou entidade favorecida"
                       value={payeeName} 
                       onChange={(e) => setPayeeName(e.target.value)} 
                       onKeyDown={(e) => {
@@ -1068,6 +1075,7 @@ export function Receipts() {
                       id="signature-label-input"
                       maxLength={30}
                       placeholder="Ex: CPF: 000.000.000-00 ou RG: 00.000.000-0"
+                      title="Informar CPF, RG ou identificação exibida abaixo da assinatura (opcional)"
                       value={signatureLabel} 
                       onChange={handleSignatureLabelChange} 
                       onKeyDown={(e) => {
@@ -1091,6 +1099,7 @@ export function Receipts() {
                       rows={3}
                       maxLength={150}
                       placeholder="Ex: Aulas ministradas no módulo de Teologia Fundamental no semestre corrente ou Ajuda de custo pastoral."
+                      title="Descrever o motivo ou serviço referente ao pagamento do recibo"
                       value={description} 
                       onChange={(e) => {
                         const val = e.target.value;
@@ -1119,6 +1128,7 @@ export function Receipts() {
                         type="date" 
                         id="payment-date-input"
                         required
+                        title="Selecionar a data em que o pagamento foi efetuado"
                         value={paymentDate} 
                         onChange={(e) => setPaymentDate(e.target.value)} 
                         onKeyDown={(e) => {
@@ -1137,6 +1147,7 @@ export function Receipts() {
                         type="date" 
                         id="issue-date-input"
                         required
+                        title="Selecionar a data de emissão impressa no recibo"
                         value={issueDate} 
                         onChange={(e) => setIssueDate(e.target.value)} 
                         onKeyDown={(e) => {
@@ -1155,6 +1166,7 @@ export function Receipts() {
                     <button 
                       type="button"
                       tabIndex={-1}
+                      title="Cancelar preenchimento e fechar formulário"
                       onClick={handleCloseForm}
                       className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
                     >
@@ -1167,6 +1179,7 @@ export function Receipts() {
                         type="button"
                         id="save-receipt-button"
                         disabled={isSaving}
+                        title="Salvar recibo sem imprimir agora"
                         onClick={() => handleSaveReceipt(null, 'save')}
                         className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shrink-0"
                       >
@@ -1178,6 +1191,7 @@ export function Receipts() {
                         type="button"
                         tabIndex={-1}
                         disabled={isSaving}
+                        title="Salvar recibo e abrir impressão imediatamente"
                         onClick={() => handleSaveReceipt(null, 'print')}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/10 shrink-0"
                       >
@@ -1298,6 +1312,7 @@ export function Receipts() {
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button 
+                  title="Cancelar exclusão e manter recibo"
                   onClick={() => {
                     setDeleteConfirmationFor(null);
                     setEnteredPin('');
@@ -1308,6 +1323,7 @@ export function Receipts() {
                   Cancelar
                 </button>
                 <button 
+                  title="Confirmar exclusão permanente deste recibo"
                   onClick={() => handleDeleteReceipt(deleteConfirmationFor.id)}
                   className="py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-600/10 cursor-pointer"
                 >
@@ -1346,6 +1362,7 @@ export function Receipts() {
               <div className="grid grid-cols-1 gap-3">
                 {/* 1 Copy Button */}
                 <button 
+                  title="Gerar recibo em 1 via ocupando metade da folha A4"
                   onClick={() => {
                     if (copiesModal.receipt) {
                       generatePDF(copiesModal.receipt, copiesModal.action, 1);
@@ -1369,6 +1386,7 @@ export function Receipts() {
 
                 {/* 2 Copies Button */}
                 <button 
+                  title="Gerar recibo em 2 vias (Beneficiário e Arquivo) na mesma folha A4"
                   onClick={() => {
                     if (copiesModal.receipt) {
                       generatePDF(copiesModal.receipt, copiesModal.action, 2);
@@ -1393,6 +1411,7 @@ export function Receipts() {
 
               <div className="flex gap-3 pt-2">
                 <button 
+                  title="Cancelar seleção de vias"
                   onClick={() => setCopiesModal({ isOpen: false, receipt: null, action: 'download' })}
                   className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
                 >

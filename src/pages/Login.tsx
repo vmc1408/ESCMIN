@@ -753,6 +753,7 @@ export function Login() {
               <button
                 onClick={handleManualReconnect}
                 disabled={isRetrying}
+                title="Testar e restabelecer a conexão com o banco de dados"
                 className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 active:scale-[0.98] text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-600/40 uppercase tracking-widest border border-red-500 cursor-pointer flex items-center justify-center gap-2"
               >
                 {isRetrying ? (
@@ -868,6 +869,7 @@ export function Login() {
                         required
                         value={newPassword}
                         onChange={e => setNewPassword(e.target.value)}
+                        title="Digite sua nova senha com pelo menos 6 caracteres"
                         className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
                         placeholder="Mínimo de 6 caracteres"
                       />
@@ -893,6 +895,7 @@ export function Login() {
                         required
                         value={confirmNewPassword}
                         onChange={e => setConfirmNewPassword(e.target.value)}
+                        title="Repita a nova senha exatamente como digitada acima"
                         className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
                         placeholder="Repita sua nova senha"
                       />
@@ -911,6 +914,7 @@ export function Login() {
                     <button
                       type="submit"
                       disabled={loading}
+                      title="Salvar nova senha e acessar o sistema"
                       className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.18em] shadow-lg shadow-teal-900/20 hover:bg-teal-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 cursor-pointer"
                     >
                       {loading ? (
@@ -933,6 +937,7 @@ export function Login() {
                         setIsResettingPassword(false);
                         setError(null);
                       }}
+                      title="Cancelar redefinição de senha e retornar ao login"
                       className="w-full mt-4 text-center text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest cursor-pointer"
                     >
                       Cancelar e Voltar ao Login
@@ -957,6 +962,7 @@ export function Login() {
                     <button
                       type="button"
                       onClick={() => { setIsRegistering(false); setError(null); }}
+                      title="Acessar o sistema com e-mail e senha cadastrados"
                       className={cn(
                         "flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
                         !isRegistering ? "bg-white text-teal-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
@@ -967,6 +973,7 @@ export function Login() {
                     <button
                       type="button"
                       onClick={() => { setIsRegistering(true); setError(null); }}
+                      title="Ativar seu primeiro acesso criando uma senha"
                       className={cn(
                         "flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
                         isRegistering ? "bg-white text-teal-800 shadow-sm" : "text-slate-600 hover:text-slate-900"
@@ -1045,12 +1052,14 @@ export function Login() {
                             required
                             value={pastedUrl}
                             onChange={e => setPastedUrl(e.target.value)}
+                            title="Cole aqui o endereço completo recebido no e-mail de recuperação"
                             className="w-full px-3.5 py-2.5 rounded-lg text-xs font-semibold outline-none"
                             placeholder="Cole o link completo do e-mail (ex: https://...)"
                           />
                           <button
                             type="submit"
                             disabled={loading}
+                            title="Validar link colado e prosseguir para redefinição de senha"
                             className="w-full py-3 bg-teal-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md shadow-teal-900/15 hover:bg-teal-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
                           >
                             {loading ? (
@@ -1072,6 +1081,7 @@ export function Login() {
                     <button
                       type="button"
                       onClick={() => { setIsForgotPassword(false); setResetSent(false); setError(null); }}
+                      title="Retornar para a tela de login"
                       className="w-full text-center text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest cursor-pointer"
                     >
                       Voltar para o Login
@@ -1090,6 +1100,7 @@ export function Login() {
                           required
                           value={email}
                           onChange={e => setEmail(e.target.value)}
+                          title="Informe seu e-mail institucional cadastrado"
                           className="w-full pl-11 pr-4 py-3.5 rounded-xl font-medium text-sm outline-none"
                           placeholder="aluno@diocese.com"
                         />
@@ -1108,6 +1119,7 @@ export function Login() {
                             required={!isForgotPassword}
                             value={password}
                             onChange={e => setPassword(e.target.value)}
+                            title="Digite sua senha de acesso ao sistema"
                             className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
                             placeholder="••••••••"
                           />
@@ -1139,6 +1151,7 @@ export function Login() {
                             required
                             value={confirmPassword}
                             onChange={e => setConfirmPassword(e.target.value)}
+                            title="Confirme a senha digitada para ativar sua conta"
                             className="w-full pl-11 pr-11 py-3.5 rounded-xl font-medium text-sm outline-none"
                             placeholder="••••••••"
                           />
@@ -1169,6 +1182,7 @@ export function Login() {
                             <input
                               type="checkbox"
                               className="hidden"
+                              title="Se desmarcado, a sessão expira ao fechar o navegador."
                               checked={rememberMe}
                               onChange={e => setRememberMe(e.target.checked)}
                             />
@@ -1182,6 +1196,7 @@ export function Login() {
                         <button
                           type="button"
                           onClick={() => setIsForgotPassword(true)}
+                          title="Solicitar link de redefinição de senha por e-mail"
                           className="text-[10px] font-bold text-teal-700 hover:text-teal-900 transition-colors uppercase tracking-wider whitespace-nowrap shrink-0 cursor-pointer"
                         >
                           Esqueceu a senha?
@@ -1193,6 +1208,7 @@ export function Login() {
                       <button
                         type="submit"
                         disabled={loading}
+                        title={isForgotPassword ? 'Enviar e-mail com link de redefinição' : isRegistering ? 'Concluir cadastro de primeiro acesso' : 'Entrar no portal acadêmico e administrativo'}
                         className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.18em] shadow-lg shadow-teal-900/25 hover:bg-teal-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 cursor-pointer"
                       >
                         {loading ? (
@@ -1212,6 +1228,7 @@ export function Login() {
                         <button
                           type="button"
                           onClick={() => { setIsForgotPassword(false); setIsRegistering(false); setError(null); }}
+                          title="Voltar para a tela padrão de login"
                           className="w-full text-center text-[10px] font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest cursor-pointer"
                         >
                           Voltar para o Login
@@ -1235,6 +1252,7 @@ export function Login() {
                   <button
                     onClick={() => refreshProfile(user?.uid)}
                     disabled={loading}
+                    title="Tentar carregar seu perfil novamente"
                     className="flex-1 px-4 py-3 bg-teal-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-teal-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {loading ? (
@@ -1251,6 +1269,7 @@ export function Login() {
                   </button>
                   <button
                     onClick={() => logout()}
+                    title="Encerrar sessão atual"
                     className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-200 cursor-pointer"
                   >
                     Sair

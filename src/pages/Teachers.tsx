@@ -133,6 +133,7 @@ const TeacherItem = React.memo(({
   return (
     <button
       onClick={() => onSelect(teacher)}
+      title={`Selecionar professor ${teacher.name}`}
       className={cn(
         "w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left",
         isSelected 
@@ -1368,6 +1369,7 @@ export function Teachers() {
                 placeholder="Buscar professor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                title="Buscar professor por nome, código ou e-mail"
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10"
               />
             </div>
@@ -1376,6 +1378,7 @@ export function Teachers() {
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
+                  title={`Filtrar professores por status: ${status}`}
                   className={cn(
                     "flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all",
                     statusFilter === status 
@@ -1392,6 +1395,7 @@ export function Teachers() {
               <select
                 value={semesterFilter}
                 onChange={(e) => setSemesterFilter(e.target.value)}
+                title="Filtrar professores por semestre letivo"
                 className="px-2 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
                 <option value="all">Semestres (Todos)</option>
@@ -1401,6 +1405,7 @@ export function Teachers() {
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
+                title="Filtrar professores por disciplina lecionada"
                 className="px-2 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
                 <option value="all">Disciplinas (Todas)</option>
@@ -1411,6 +1416,7 @@ export function Teachers() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
+                title="Ordenar lista de professores"
                 className="px-2 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
                 <option value="name">Por Nome</option>
@@ -1452,6 +1458,7 @@ export function Teachers() {
                   setSelectedTeacher(null);
                   setIsEditing(false);
                 }}
+                title="Voltar para a listagem completa de professores"
                 className="lg:hidden mb-3 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 <ArrowLeft size={14} />
@@ -1485,7 +1492,7 @@ export function Teachers() {
                        </button>
                        <label className="p-1.5 bg-white text-slate-800 rounded hover:scale-105 transition-transform cursor-pointer" title="Upload Foto">
                          <Upload size={14} />
-                         <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                         <input type="file" title="Selecionar foto do professor para envio" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                        </label>
                     </div>
                   )}
@@ -1546,6 +1553,7 @@ export function Teachers() {
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
+                      title="Cancelar edição e descartar alterações"
                       className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
                       <X size={15} />
@@ -1553,6 +1561,7 @@ export function Teachers() {
                     </button>
                     <button 
                       onClick={handleSave}
+                      title="Salvar alterações do cadastro do professor"
                       className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
                       <Save size={16} />
@@ -1621,6 +1630,7 @@ export function Teachers() {
                     <button 
                       type="button"
                       onClick={() => setShowWebcam(false)}
+                      title="Cancelar captura de foto pela câmera"
                       className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm"
                     >
                       Cancelar
@@ -1628,6 +1638,7 @@ export function Teachers() {
                     <button 
                       type="button"
                       onClick={capturePhoto}
+                      title="Capturar imagem da câmera para a ficha do professor"
                       className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm flex items-center gap-2"
                     >
                       <Camera size={18} />
@@ -1652,6 +1663,7 @@ export function Teachers() {
                         value={formData.name || ''}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         onKeyDown={handleKeyDown}
+                        title="Nome completo do professor"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={1}
                       />
@@ -1664,6 +1676,7 @@ export function Teachers() {
                         value={formData.email || ''}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
                         onKeyDown={handleKeyDown}
+                        title="E-mail de contato e acesso do professor"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={2}
                       />
@@ -1676,6 +1689,7 @@ export function Teachers() {
                         value={formData.cpf || ''}
                         onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                         onKeyDown={handleKeyDown}
+                        title="CPF do professor (somente números)"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="000.000.000-00"
                         tabIndex={3}
@@ -1697,6 +1711,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                         onKeyDown={handleKeyDown}
                         maxLength={RG_MAX_FORMATTED_LENGTH}
+                        title="Número do RG ou documento de identidade do professor"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="00.000.000-0"
                         tabIndex={4}
@@ -1709,6 +1724,7 @@ export function Teachers() {
                         value={formData.status || 'Ativo'}
                         onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                         onKeyDown={handleKeyDown}
+                        title="Situação cadastral do professor (Ativo ou Inativo)"
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={5}
                       >
@@ -1727,6 +1743,7 @@ export function Teachers() {
                           value={formData.unit_id || 'matriz'}
                           onChange={(e) => setFormData({...formData, unit_id: e.target.value})}
                           onKeyDown={handleKeyDown}
+                          title="Polo ou unidade principal de atuação do professor"
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
                           tabIndex={6}
                         >
@@ -1774,6 +1791,7 @@ export function Teachers() {
                           onChange={(e) => handleCepChange(e.target.value)}
                           onKeyDown={handleKeyDown}
                           maxLength={9}
+                          title="Digite o CEP para preenchimento automático do endereço"
                           className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-lg text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 transition-all"
                           placeholder="00000-000"
                           tabIndex={7}
@@ -1790,6 +1808,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Rua, Av, etc..."
+                        title="Logradouro residencial do professor"
                         className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={8}
                       />
@@ -1805,6 +1824,7 @@ export function Teachers() {
                         onKeyDown={handleKeyDown}
                         maxLength={6}
                         placeholder="Nº"
+                        title="Número do imóvel"
                         className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono font-bold focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 text-slate-800 text-center"
                         tabIndex={9}
                       />
@@ -1820,6 +1840,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_complement: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Apto, Bloco..."
+                        title="Complemento do endereço (apto, bloco, casa)"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={10}
                       />
@@ -1834,6 +1855,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Bairro"
+                        title="Bairro do endereço"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={11}
                       />
@@ -1848,6 +1870,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                         onKeyDown={handleKeyDown}
                         placeholder="Cidade"
+                        title="Cidade de residência"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={12}
                       />
@@ -1863,6 +1886,7 @@ export function Teachers() {
                         onKeyDown={handleKeyDown}
                         maxLength={2}
                         placeholder="SP"
+                        title="Sigla do Estado (UF)"
                         className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 uppercase text-center font-bold"
                         tabIndex={13}
                       />
@@ -1876,6 +1900,7 @@ export function Teachers() {
                           value={formData.phone_mobile || ''}
                           onChange={(e) => setFormData({...formData, phone_mobile: maskPhone(e.target.value)})}
                           onKeyDown={handleKeyDown}
+                          title="Telefone celular com DDD"
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
                           placeholder="(00) 00000-0000"
                           tabIndex={14}
@@ -1916,6 +1941,7 @@ export function Teachers() {
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={4}
+                    title="Observações e anotações sobre o professor"
                     className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
                     tabIndex={15}
                   />
@@ -1950,6 +1976,7 @@ export function Teachers() {
                                   return (
                                     <label 
                                       key={`tsub-${subject.id || subject.code || sIdx}-${sIdx}`}
+                                      title={isEditing ? `${isSelected ? 'Desvincular' : 'Vincular'} disciplina ${subject.name}` : subject.name}
                                       className={cn(
                                         "flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border",
                                         isSelected 
@@ -1962,6 +1989,7 @@ export function Teachers() {
                                         type="checkbox"
                                         disabled={!isEditing}
                                         checked={isSelected}
+                                        title={isEditing ? `${isSelected ? 'Desvincular' : 'Vincular'} disciplina ${subject.name}` : subject.name}
                                         onChange={(e) => {
                                           if (!isEditing) return;
                                           const current = formData.subject_ids || [];
@@ -2038,6 +2066,7 @@ export function Teachers() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
+                  title="Cancelar e manter o professor cadastrado"
                   className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
                 >
                   Cancelar
@@ -2045,6 +2074,7 @@ export function Teachers() {
                 <button
                   onClick={handleDelete}
                   disabled={loading}
+                  title="Confirmar exclusão definitiva do professor"
                   className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
                 >
                   {loading ? 'Excluindo...' : 'Sim, Excluir'}

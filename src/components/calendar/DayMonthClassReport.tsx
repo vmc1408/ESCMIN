@@ -224,6 +224,7 @@ export function DayMonthClassReport({
           <button
             type="button"
             onClick={() => setActiveTab('consolidated')}
+            title="Visualizar quadro consolidado de totais por mês e dia da semana"
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
               effectiveVariant === 'consolidated'
@@ -237,6 +238,7 @@ export function DayMonthClassReport({
           <button
             type="button"
             onClick={() => setActiveTab('detailed')}
+            title="Visualizar relação detalhada de cada dia letivo por mês"
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
               effectiveVariant === 'detailed'

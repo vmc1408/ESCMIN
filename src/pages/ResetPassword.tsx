@@ -219,6 +219,7 @@ export function ResetPassword() {
                   required
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
+                  title="Digite sua nova senha com no mínimo 6 caracteres"
                   className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
                   placeholder="Mínimo de 6 caracteres"
                 />
@@ -234,6 +235,7 @@ export function ResetPassword() {
                   required
                   value={confirmNewPassword}
                   onChange={e => setConfirmNewPassword(e.target.value)}
+                  title="Repita a nova senha para confirmação"
                   className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
                   placeholder="Repita sua nova senha"
                 />
@@ -243,6 +245,7 @@ export function ResetPassword() {
             <button 
               type="submit"
               disabled={loading}
+              title="Salvar nova senha de acesso"
               className="w-full py-4 bg-[#00174b] text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-900/10 hover:bg-slate-900 transition-all flex items-center justify-center gap-3 disabled:opacity-75"
             >
               {loading ? (
@@ -266,6 +269,7 @@ export function ResetPassword() {
               setShowPastedInput(!showPastedInput);
               setError(null);
             }}
+            title="Alternar campo para colar manualmente o link de recuperação"
             className="text-center text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors"
           >
             {showPastedInput ? "Ocultar opção de link" : "Problemas com o link? Clique para colar manualmente"}
@@ -281,12 +285,14 @@ export function ResetPassword() {
                 required
                 value={pastedUrl}
                 onChange={e => setPastedUrl(e.target.value)}
+                title="Cole o endereço do link de recuperação recebido por e-mail"
                 placeholder="Cole o link do e-mail aqui..."
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium outline-none focus:bg-white focus:border-indigo-600/30 transition-all"
               />
               <button 
                 type="submit"
                 disabled={loading}
+                title="Validar link colado manualmente"
                 className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -310,6 +316,7 @@ export function ResetPassword() {
               localStorage.removeItem('supabase_recovery_tokens');
               navigate('/login', { replace: true });
             }}
+            title="Voltar para a tela de login"
             className="text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest flex items-center justify-center gap-2 mt-2"
           >
             <ArrowLeft size={12} />

@@ -351,6 +351,7 @@ export function GlobalQuickSearch() {
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
           placeholder="Buscar alunos, professores, turmas..."
+          title="Digite nome, matrícula ou código para busca rápida (atalho Ctrl+K)"
           className="w-full bg-transparent border-0 outline-none ring-0 focus:outline-none focus:ring-0 shadow-none text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 font-medium py-0 px-0"
         />
 
@@ -385,6 +386,7 @@ export function GlobalQuickSearch() {
               <button
                 type="button"
                 onClick={() => setSelectedCategory('all')}
+                title="Exibir resultados de todas as categorias"
                 className={cn(
                   "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 border",
                   selectedCategory === 'all'
@@ -404,6 +406,7 @@ export function GlobalQuickSearch() {
               <button
                 type="button"
                 onClick={() => setSelectedCategory('students')}
+                title="Filtrar resultados apenas para alunos"
                 className={cn(
                   "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border",
                   selectedCategory === 'students'
@@ -424,6 +427,7 @@ export function GlobalQuickSearch() {
               <button
                 type="button"
                 onClick={() => setSelectedCategory('teachers')}
+                title="Filtrar resultados apenas para professores"
                 className={cn(
                   "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border",
                   selectedCategory === 'teachers'
@@ -444,6 +448,7 @@ export function GlobalQuickSearch() {
               <button
                 type="button"
                 onClick={() => setSelectedCategory('classes')}
+                title="Filtrar resultados apenas para turmas"
                 className={cn(
                   "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border",
                   selectedCategory === 'classes'
@@ -498,6 +503,7 @@ export function GlobalQuickSearch() {
                     type="button"
                     onClick={() => handleSelectItem(item)}
                     onMouseEnter={() => setSelectedIndex(index)}
+                    title={`Abrir ficha de ${item.title}`}
                     className={cn(
                       "w-full px-3 py-2.5 rounded-xl text-left transition-all flex items-center justify-between gap-3 cursor-pointer group border",
                       isSelected 

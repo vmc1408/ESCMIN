@@ -723,6 +723,7 @@ export function AnnualCalendarManager({
             <select
               value={targetUnitId}
               onChange={(e) => setTargetUnitId(e.target.value)}
+              title="Selecionar unidade escolar para configurar o calendário anual"
               className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer"
             >
               <option value="matriz">Matriz (Padrão Geral)</option>
@@ -750,6 +751,7 @@ export function AnnualCalendarManager({
                 max="2100"
                 value={targetYear}
                 onChange={(e) => handleYearChange(parseInt(e.target.value, 10) || targetYear)}
+                title="Informar o ano letivo para configuração do calendário"
                 className="w-16 text-center font-black text-sm text-slate-900 bg-white border border-slate-200 rounded-lg py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -782,6 +784,7 @@ export function AnnualCalendarManager({
           <button
             type="button"
             onClick={() => setShowVersionsHistory(!showVersionsHistory)}
+            title="Visualizar histórico de versões e auditoria deste ano letivo"
             className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer"
           >
             <History size={14} className="text-slate-500" />
@@ -800,6 +803,7 @@ export function AnnualCalendarManager({
           <button
             type="button"
             onClick={() => setErrorMsg(null)}
+            title="Fechar mensagem de erro"
             className="text-rose-700 hover:text-rose-900 text-xs font-bold cursor-pointer"
           >
             <X size={14} />
@@ -823,6 +827,7 @@ export function AnnualCalendarManager({
           <button
             type="button"
             onClick={() => setHolidayWarning(null)}
+            title="Dispensar aviso sobre feriados"
             className="text-amber-700 hover:text-amber-900 text-xs font-bold"
           >
             Dispensar
@@ -841,6 +846,7 @@ export function AnnualCalendarManager({
             <button
               type="button"
               onClick={() => setShowVersionsHistory(false)}
+              title="Fechar painel de histórico de versões"
               className="text-slate-400 hover:text-slate-600"
             >
               <X size={16} />
@@ -888,6 +894,7 @@ export function AnnualCalendarManager({
                   <button
                     type="button"
                     onClick={() => handleSelectVersion(v)}
+                    title="Carregar esta versão do calendário para visualização ou edição"
                     className="mt-3 w-full py-1 text-xs font-bold text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors"
                   >
                     Carregar Esta Versão
@@ -906,6 +913,7 @@ export function AnnualCalendarManager({
           <button
             type="button"
             onClick={() => setActiveConfigTab('general')}
+            title="Configurar localidade, datas gerais e dias letivos da semana"
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
               activeConfigTab === 'general' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
@@ -918,6 +926,7 @@ export function AnnualCalendarManager({
           <button
             type="button"
             onClick={() => setActiveConfigTab('periods')}
+            title="Gerenciar períodos letivos do ano (semestres, bimestres ou trimestres)"
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
               activeConfigTab === 'periods' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
@@ -930,6 +939,7 @@ export function AnnualCalendarManager({
           <button
             type="button"
             onClick={() => setActiveConfigTab('recesses')}
+            title="Definir períodos de recesso, férias e suspensões de aula"
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
               activeConfigTab === 'recesses' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
@@ -942,6 +952,7 @@ export function AnnualCalendarManager({
           <button
             type="button"
             onClick={() => setActiveConfigTab('holidays')}
+            title="Consultar e gerenciar feriados nacionais, estaduais e municipais"
             className={cn(
               "px-4 py-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap",
               activeConfigTab === 'holidays' ? "border-teal-600 text-teal-800 bg-white" : "border-transparent text-slate-600 hover:text-slate-900"
@@ -965,6 +976,7 @@ export function AnnualCalendarManager({
                 <select
                   value={stateUf}
                   onChange={(e) => setStateUf(e.target.value)}
+                  title="Selecionar o estado (UF) para busca de feriados regionais"
                   className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   {BRAZILIAN_STATES.map(s => (
@@ -983,6 +995,7 @@ export function AnnualCalendarManager({
                   value={cityName}
                   onChange={(e) => setCityName(e.target.value)}
                   placeholder="Nome do município..."
+                  title="Informar o município para identificação de feriados locais"
                   className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -996,6 +1009,7 @@ export function AnnualCalendarManager({
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  title="Definir a data de início do ano letivo"
                   className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -1009,6 +1023,7 @@ export function AnnualCalendarManager({
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  title="Definir a data de término do ano letivo"
                   className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -1036,6 +1051,7 @@ export function AnnualCalendarManager({
                         key={w.day}
                         type="button"
                         onClick={() => toggleWeekday(w.day)}
+                        title={isSelected ? `Remover ${w.label} dos dias letivos` : `Marcar ${w.label} como dia letivo`}
                         className={cn(
                           "px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5",
                           isSelected
@@ -1089,6 +1105,7 @@ export function AnnualCalendarManager({
                                     key={`${day}_${cls.id}`}
                                     type="button"
                                     onClick={() => toggleClassForWeekday(day, cls.id)}
+                                    title={isChecked ? `Desvincular turma ${cls.name} deste dia da semana` : `Vincular turma ${cls.name} a este dia da semana`}
                                     className={cn(
                                       "px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer inline-flex items-center gap-1.5",
                                       isChecked
@@ -1132,6 +1149,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={() => applyPresetPeriods('semesters')}
+                  title="Preencher automaticamente os períodos letivos em 2 semestres"
                   className="px-2 py-1 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
                 >
                   2 Semestres
@@ -1139,6 +1157,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={() => applyPresetPeriods('bimesters')}
+                  title="Preencher automaticamente os períodos letivos em 4 bimestres"
                   className="px-2 py-1 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
                 >
                   4 Bimestres
@@ -1146,6 +1165,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={() => applyPresetPeriods('trimesters')}
+                  title="Preencher automaticamente os períodos letivos em 3 trimestres"
                   className="px-2 py-1 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
                 >
                   3 Trimestres
@@ -1168,6 +1188,7 @@ export function AnnualCalendarManager({
                       type="text"
                       value={p.name}
                       onChange={(e) => handleUpdatePeriod(p.id, { name: e.target.value })}
+                      title="Editar nome identificador do período letivo"
                       className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900"
                     />
                   </div>
@@ -1180,6 +1201,7 @@ export function AnnualCalendarManager({
                       type="date"
                       value={p.start_date}
                       onChange={(e) => handleUpdatePeriod(p.id, { start_date: e.target.value })}
+                      title="Definir data inicial deste período letivo"
                       className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900"
                     />
                   </div>
@@ -1192,6 +1214,7 @@ export function AnnualCalendarManager({
                       type="date"
                       value={p.end_date}
                       onChange={(e) => handleUpdatePeriod(p.id, { end_date: e.target.value })}
+                      title="Definir data final deste período letivo"
                       className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900"
                     />
                   </div>
@@ -1200,6 +1223,7 @@ export function AnnualCalendarManager({
                     <button
                       type="button"
                       onClick={() => handleUpdatePeriod(p.id, { is_active: !p.is_active })}
+                      title={p.is_active ? "Desativar este período letivo" : "Ativar este período letivo"}
                       className={cn(
                         "px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-colors cursor-pointer",
                         p.is_active ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-slate-200 text-slate-600 border-slate-300"
@@ -1224,6 +1248,7 @@ export function AnnualCalendarManager({
                       placeholder="Observação opcional do período (ex: Avaliações bimestrais, conselho de classe)..."
                       value={p.notes || ''}
                       onChange={(e) => handleUpdatePeriod(p.id, { notes: e.target.value })}
+                      title="Inserir observação ou notas sobre este período letivo"
                       className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 placeholder:text-slate-400"
                     />
                   </div>
@@ -1234,6 +1259,7 @@ export function AnnualCalendarManager({
             <button
               type="button"
               onClick={handleAddPeriod}
+              title="Adicionar novo período letivo ao calendário"
               className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
               <Plus size={14} />
@@ -1256,6 +1282,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={handleAddRecess}
+                title="Adicionar novo intervalo de recesso, férias ou suspensão de aulas"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
               >
                 <Plus size={13} />
@@ -1277,6 +1304,7 @@ export function AnnualCalendarManager({
                       type="text"
                       value={r.name}
                       onChange={(e) => handleUpdateRecess(r.id, { name: e.target.value })}
+                      title="Informar nome ou descrição do recesso ou período de férias"
                       className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900"
                     />
                   </div>
@@ -1289,6 +1317,7 @@ export function AnnualCalendarManager({
                       type="date"
                       value={r.start_date}
                       onChange={(e) => handleUpdateRecess(r.id, { start_date: e.target.value })}
+                      title="Definir data inicial do recesso ou suspensão"
                       className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900"
                     />
                   </div>
@@ -1301,6 +1330,7 @@ export function AnnualCalendarManager({
                       type="date"
                       value={r.end_date}
                       onChange={(e) => handleUpdateRecess(r.id, { end_date: e.target.value })}
+                      title="Definir data final do recesso ou suspensão"
                       className="w-full h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-900"
                     />
                   </div>
@@ -1309,6 +1339,7 @@ export function AnnualCalendarManager({
                     <select
                       value={r.type}
                       onChange={(e) => handleUpdateRecess(r.id, { type: e.target.value as any })}
+                      title="Selecionar o tipo de intervalo (Recesso, Férias ou Suspensão)"
                       className="h-9 px-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 cursor-pointer"
                     >
                       <option value="recesso">Recesso</option>
@@ -1332,6 +1363,7 @@ export function AnnualCalendarManager({
                       placeholder="Observação opcional do recesso ou férias..."
                       value={r.notes || ''}
                       onChange={(e) => handleUpdateRecess(r.id, { notes: e.target.value })}
+                      title="Inserir observação opcional sobre este intervalo"
                       className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-700 placeholder:text-slate-400"
                     />
                   </div>
@@ -1360,6 +1392,7 @@ export function AnnualCalendarManager({
                   type="button"
                   onClick={() => loadHolidays(targetYear, stateUf, cityName)}
                   disabled={isFetchingHolidays}
+                  title="Consultar e atualizar automaticamente feriados oficiais via API"
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
                 >
                   <RefreshCw size={12} className={cn(isFetchingHolidays && "animate-spin text-blue-600")} />
@@ -1369,6 +1402,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={handleStartAddHoliday}
+                  title="Cadastrar manualmente um feriado ou data sem aula"
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
                 >
                   <Plus size={13} />
@@ -1469,6 +1503,7 @@ export function AnnualCalendarManager({
               type="checkbox"
               checked={preserveOverrides}
               onChange={(e) => setPreserveOverrides(e.target.checked)}
+              title="Manter os ajustes manuais já cadastrados ao regenerar o calendário"
               className="rounded text-teal-500 focus:ring-0 cursor-pointer"
             />
             <span>Preservar ajustes manuais anteriores durante a regeneração</span>
@@ -1491,6 +1526,7 @@ export function AnnualCalendarManager({
             type="button"
             onClick={handleGenerate}
             disabled={!validation.isValid}
+            title="Processar regras e gerar a prévia completa do calendário anual"
             className="px-6 py-3 bg-teal-500 hover:bg-teal-400 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
           >
             <Sparkles size={15} />
@@ -1521,6 +1557,7 @@ export function AnnualCalendarManager({
                   type="button"
                   onClick={handleSaveDraft}
                   disabled={isSaving}
+                  title="Salvar a prévia atual do calendário como rascunho"
                   className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Save size={14} className="text-blue-600" />
@@ -1541,6 +1578,7 @@ export function AnnualCalendarManager({
                   type="button"
                   onClick={() => handleSaveVersion('approved')}
                   disabled={isSaving}
+                  title="Registrar aprovação administrativa para esta versão do calendário"
                   className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
                 >
                   Aprovar Calendário
@@ -1550,6 +1588,7 @@ export function AnnualCalendarManager({
                   type="button"
                   onClick={() => setShowConfirmPublish(true)}
                   disabled={isSaving}
+                  title="Publicar oficialmente este calendário para todo o sistema"
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Check size={14} />
@@ -1649,6 +1688,7 @@ export function AnnualCalendarManager({
                   <button
                     type="button"
                     onClick={() => setPreviewMode('months')}
+                    title="Visualizar os 12 meses do ano letivo em grade compacta"
                     className={cn(
                       "px-3 py-1 rounded-lg transition-all cursor-pointer",
                       previewMode === 'months' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
@@ -1659,6 +1699,7 @@ export function AnnualCalendarManager({
                   <button
                     type="button"
                     onClick={() => setPreviewMode('single_month')}
+                    title="Visualizar mês a mês em grade detalhada com turmas"
                     className={cn(
                       "px-3 py-1 rounded-lg transition-all cursor-pointer",
                       previewMode === 'single_month' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
@@ -1669,6 +1710,7 @@ export function AnnualCalendarManager({
                   <button
                     type="button"
                     onClick={() => setPreviewMode('table')}
+                    title="Visualizar todas as datas em formato de tabela detalhada"
                     className={cn(
                       "px-3 py-1 rounded-lg transition-all cursor-pointer",
                       previewMode === 'table' ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
@@ -1802,6 +1844,7 @@ export function AnnualCalendarManager({
                       <select
                         value={singleMonthIdx}
                         onChange={(e) => setSingleMonthIdx(parseInt(e.target.value, 10))}
+                        title="Selecionar o mês para visualização detalhada"
                         className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
                       >
                         {MONTH_NAMES_BR.map((m, idx) => (
@@ -1930,6 +1973,7 @@ export function AnnualCalendarManager({
                               <button
                                 type="button"
                                 onClick={() => handleOpenOverrideModal(dateKey)}
+                                title={`Ajustar manualmente a data ${dateKey.split('-').reverse().join('/')}`}
                                 className="text-[9.5px] font-bold text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
                               >
                                 Ajustar
@@ -1952,6 +1996,7 @@ export function AnnualCalendarManager({
                   <select
                     value={selectedMonthFilter}
                     onChange={(e) => setSelectedMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
+                    title="Filtrar tabela detalhada por mês específico"
                     className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
                   >
                     <option value="all">Todos os Meses</option>
@@ -2015,6 +2060,7 @@ export function AnnualCalendarManager({
                               <button
                                 type="button"
                                 onClick={() => handleOpenOverrideModal(d.date)}
+                                title={`Editar classificação da data ${d.date.split('-').reverse().join('/')}`}
                                 className="text-blue-700 hover:text-blue-900 font-bold hover:underline"
                               >
                                 Editar
@@ -2047,6 +2093,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={() => setOverrideModalDate(null)}
+                title="Fechar janela de ajuste manual"
                 className="text-slate-400 hover:text-slate-600"
               >
                 <X size={18} />
@@ -2072,6 +2119,7 @@ export function AnnualCalendarManager({
                       setOverrideIsClassDay(true);
                       setOverrideClassification('custom_class');
                     }}
+                    title="Definir esta data como dia letivo com aula"
                     className={cn(
                       "py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5",
                       overrideIsClassDay
@@ -2089,6 +2137,7 @@ export function AnnualCalendarManager({
                       setOverrideIsClassDay(false);
                       setOverrideClassification('custom_off');
                     }}
+                    title="Definir esta data como dia sem aula"
                     className={cn(
                       "py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5",
                       !overrideIsClassDay
@@ -2109,6 +2158,7 @@ export function AnnualCalendarManager({
                 <select
                   value={overrideClassification}
                   onChange={(e) => setOverrideClassification(e.target.value as DayClassification)}
+                  title="Selecionar a classificação detalhada para este ajuste"
                   className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
                 >
                   <option value="custom_class">Aula Excepcional / Sábado Letivo</option>
@@ -2129,6 +2179,7 @@ export function AnnualCalendarManager({
                   onChange={(e) => setOverrideReason(e.target.value)}
                   placeholder="Ex: Sábado letivo para reposição de carga horária do feriado X..."
                   rows={3}
+                  title="Descrever o motivo ou justificativa do ajuste manual desta data"
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -2139,6 +2190,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={() => handleRevertOverride(overrideModalDate)}
+                  title="Desfazer o ajuste manual e restaurar a regra automática original"
                   className="text-xs font-bold text-red-600 hover:text-red-800 flex items-center gap-1"
                 >
                   <RotateCcw size={13} />
@@ -2150,6 +2202,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={() => setOverrideModalDate(null)}
+                  title="Cancelar e fechar ajuste manual"
                   className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
                   Cancelar
@@ -2157,6 +2210,7 @@ export function AnnualCalendarManager({
                 <button
                   type="button"
                   onClick={handleSaveOverride}
+                  title="Salvar ajuste manual para esta data"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
                 >
                   Confirmar Ajuste
@@ -2193,6 +2247,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={() => setShowConfirmPublish(false)}
+                title="Cancelar publicação oficial"
                 className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
               >
                 Cancelar
@@ -2201,6 +2256,7 @@ export function AnnualCalendarManager({
                 type="button"
                 onClick={() => handleSaveVersion('published')}
                 disabled={isSaving}
+                title="Confirmar e publicar este calendário oficialmente"
                 className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <Check size={14} />
@@ -2227,6 +2283,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={() => setEditingHoliday(null)}
+                title="Fechar janela de cadastro de feriado"
                 className="text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X size={18} />
@@ -2250,6 +2307,7 @@ export function AnnualCalendarManager({
                   value={editingHoliday.name}
                   onChange={(e) => setEditingHoliday({ ...editingHoliday, name: e.target.value })}
                   placeholder="Ex: Aniversário da Cidade, Dia do Padroeiro, Consciência Negra..."
+                  title="Informar o nome do feriado ou data comemorativa"
                   className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
                 />
               </div>
@@ -2263,6 +2321,7 @@ export function AnnualCalendarManager({
                     type="date"
                     value={editingHoliday.date}
                     onChange={(e) => setEditingHoliday({ ...editingHoliday, date: e.target.value })}
+                    title="Selecionar a data do feriado ou evento"
                     className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
                   />
                 </div>
@@ -2274,6 +2333,7 @@ export function AnnualCalendarManager({
                   <select
                     value={editingHoliday.type}
                     onChange={(e) => setEditingHoliday({ ...editingHoliday, type: e.target.value as any })}
+                    title="Selecionar abrangência do feriado (Nacional, Estadual, Municipal ou Institucional)"
                     className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 cursor-pointer"
                   >
                     <option value="nacional">Nacional</option>
@@ -2293,6 +2353,7 @@ export function AnnualCalendarManager({
                     <select
                       value={editingHoliday.state || stateUf}
                       onChange={(e) => setEditingHoliday({ ...editingHoliday, state: e.target.value })}
+                      title="Selecionar estado (UF) correspondente ao feriado"
                       className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 cursor-pointer"
                     >
                       {BRAZILIAN_STATES.map(s => (
@@ -2311,6 +2372,7 @@ export function AnnualCalendarManager({
                         value={editingHoliday.city || ''}
                         onChange={(e) => setEditingHoliday({ ...editingHoliday, city: e.target.value })}
                         placeholder="Nome da cidade..."
+                        title="Informar o município deste feriado local"
                         className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
                       />
                     </div>
@@ -2328,6 +2390,7 @@ export function AnnualCalendarManager({
                     value={editingHoliday.origin || ''}
                     onChange={(e) => setEditingHoliday({ ...editingHoliday, origin: e.target.value })}
                     placeholder="Ex: Cadastro Manual, Decreto Municipal..."
+                    title="Informar a fonte ou decreto que fundamenta o feriado"
                     className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
                   />
                 </div>
@@ -2339,6 +2402,7 @@ export function AnnualCalendarManager({
                   <button
                     type="button"
                     onClick={() => setEditingHoliday({ ...editingHoliday, has_class: !editingHoliday.has_class })}
+                    title="Alternar se haverá aula normal neste feriado"
                     className={cn(
                       "w-full h-10 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 cursor-pointer",
                       editingHoliday.has_class
@@ -2367,6 +2431,7 @@ export function AnnualCalendarManager({
                   id="holiday_is_movable"
                   checked={editingHoliday.is_movable || false}
                   onChange={(e) => setEditingHoliday({ ...editingHoliday, is_movable: e.target.checked })}
+                  title="Marcar se este feriado possui data móvel no calendário"
                   className="rounded text-blue-600 focus:ring-0 cursor-pointer"
                 />
                 <label htmlFor="holiday_is_movable" className="text-xs text-slate-700 font-semibold cursor-pointer">
@@ -2383,6 +2448,7 @@ export function AnnualCalendarManager({
                   onChange={(e) => setEditingHoliday({ ...editingHoliday, notes: e.target.value })}
                   placeholder="Informações adicionais, legislação ou decreto municipal..."
                   rows={2}
+                  title="Inserir observações adicionais ou referência legal do feriado"
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
                 />
               </div>
@@ -2392,6 +2458,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={() => setEditingHoliday(null)}
+                title="Cancelar edição do feriado"
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
               >
                 Cancelar
@@ -2399,6 +2466,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={handleSaveHoliday}
+                title="Salvar informações do feriado no calendário"
                 className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <Save size={14} />
@@ -2433,6 +2501,7 @@ export function AnnualCalendarManager({
                   type="checkbox"
                   checked={selectiveRegenPreserve}
                   onChange={(e) => setSelectiveRegenPreserve(e.target.checked)}
+                  title="Manter os ajustes manuais dentro deste mês ou período"
                   className="rounded text-blue-600 focus:ring-0 mt-0.5 cursor-pointer"
                 />
                 <span>
@@ -2448,6 +2517,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={() => setSelectiveRegenModal(null)}
+                title="Cancelar regeneração seletiva"
                 className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
               >
                 Cancelar
@@ -2455,6 +2525,7 @@ export function AnnualCalendarManager({
               <button
                 type="button"
                 onClick={handleExecuteSelectiveRegen}
+                title="Executar regeneração das datas deste intervalo"
                 className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <Sparkles size={14} />

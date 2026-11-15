@@ -1865,6 +1865,7 @@ export function PixConference() {
 
             <div className="grid grid-cols-2 gap-3">
               <button 
+                title="Cancelar confirmação por PIN"
                 onClick={() => { 
                   setPinModalConfig(null); 
                   setEnteredPin(''); 
@@ -1875,6 +1876,7 @@ export function PixConference() {
                 Cancelar
               </button>
               <button 
+                title="Confirmar operação com PIN"
                 onClick={handleConfirmPin}
                 className="py-4 text-white bg-red-600 hover:bg-red-700 shadow-red-200 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all active:scale-95 cursor-pointer"
               >
@@ -1926,7 +1928,7 @@ export function PixConference() {
         )}>
           {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
           <p className="font-semibold text-sm">{notification.message}</p>
-          <button onClick={() => setNotification(null)} className="ml-2 opacity-70 hover:opacity-100">
+          <button onClick={() => setNotification(null)} title="Fechar notificação" className="ml-2 opacity-70 hover:opacity-100">
             <X size={16} />
           </button>
         </div>
@@ -1940,6 +1942,7 @@ export function PixConference() {
         >
           <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button 
+              title="Importar novo arquivo de extrato Pix"
               onClick={() => {
                 setActiveTab('new');
                 setTransactions([]);
@@ -1955,6 +1958,7 @@ export function PixConference() {
               Novo Arquivo
             </button>
             <button 
+              title="Consultar histórico de arquivos Pix importados"
               onClick={() => setActiveTab('history')}
               className={cn(
                 "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
@@ -1965,6 +1969,7 @@ export function PixConference() {
               Histórico
             </button>
             <button 
+              title="Visualizar extrato completo de conciliações"
               onClick={() => setActiveTab('extrato')}
               className={cn(
                 "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
@@ -1978,6 +1983,7 @@ export function PixConference() {
           
           <div className="flex items-center gap-3">
             <button 
+              title="Ativar ou desativar modo de simulação sem salvar alterações"
               onClick={() => setIsSimulationMode(!isSimulationMode)}
               className={cn(
                 "px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 border",
@@ -1992,6 +1998,7 @@ export function PixConference() {
 
             {activeTab === 'new' && transactions.length > 0 && (
               <button 
+                title="Salvar conciliação Pix no banco de dados"
                 onClick={handleSave} 
                 disabled={isSaving || isSimulationMode} 
                 className={cn(
@@ -2028,6 +2035,7 @@ export function PixConference() {
         {activeTab === 'new' && (
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-6">
             <button 
+              title="Expandir ou recolher configurações de mapeamento de colunas"
               onClick={() => setShowMappingConfig(!showMappingConfig)}
               className={cn(
                 "w-full px-8 py-6 flex items-center justify-between transition-colors",
@@ -2049,6 +2057,7 @@ export function PixConference() {
                   {(Object.keys(BANK_PRESETS) as Array<keyof typeof BANK_PRESETS>).map(bank => (
                     <button 
                       key={bank}
+                      title={`Aplicar mapeamento padrão do banco ${bank}`}
                       onClick={() => handleApplyPreset(bank)}
                       className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm"
                     >
@@ -2056,6 +2065,7 @@ export function PixConference() {
                     </button>
                   ))}
                   <button 
+                    title="Limpar configuração de mapeamento das colunas"
                     onClick={() => setCustomMapping({ date: '', payer: '', amount: '', id: '', bank: '' })}
                     className="px-5 py-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all"
                   >
@@ -2071,6 +2081,7 @@ export function PixConference() {
                       value={customMapping.date} 
                       onChange={(e) => setCustomMapping({...customMapping, date: e.target.value})}
                       placeholder="Ex: Data Operação"
+                      title="Nome exato da coluna de data na planilha"
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
@@ -2081,6 +2092,7 @@ export function PixConference() {
                       value={customMapping.payer} 
                       onChange={(e) => setCustomMapping({...customMapping, payer: e.target.value})}
                       placeholder="Ex: Nome Cliente"
+                      title="Nome exato da coluna do pagador na planilha"
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
@@ -2091,6 +2103,7 @@ export function PixConference() {
                       value={customMapping.amount} 
                       onChange={(e) => setCustomMapping({...customMapping, amount: e.target.value})}
                       placeholder="Ex: Valor (R$)"
+                      title="Nome exato da coluna de valor na planilha"
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
@@ -2101,6 +2114,7 @@ export function PixConference() {
                       value={customMapping.id} 
                       onChange={(e) => setCustomMapping({...customMapping, id: e.target.value})}
                       placeholder="Ex: E2E ID"
+                      title="Nome exato da coluna de ID da transação na planilha"
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
@@ -2111,6 +2125,7 @@ export function PixConference() {
                       value={customMapping.bank} 
                       onChange={(e) => setCustomMapping({...customMapping, bank: e.target.value})}
                       placeholder="Ex: Instituição"
+                      title="Nome exato da coluna do banco na planilha"
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
@@ -2206,12 +2221,12 @@ export function PixConference() {
                   <p className="text-slate-500 text-sm font-medium mb-10 leading-relaxed max-w-sm">Arraste seu arquivo Excel para processamento automático ou selecione manualmente em seu computador.</p>
                   
                   <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-                    <label className="flex-1 max-w-[240px] px-8 py-4 bg-slate-900 text-white rounded-xl font-bold cursor-pointer hover:bg-slate-800 transition-all shadow-xl active:scale-95 text-sm flex items-center justify-center gap-2">
+                    <label title="Selecionar arquivo Excel (.xlsx ou .xls) para importação" className="flex-1 max-w-[240px] px-8 py-4 bg-slate-900 text-white rounded-xl font-bold cursor-pointer hover:bg-slate-800 transition-all shadow-xl active:scale-95 text-sm flex items-center justify-center gap-2">
                       <Plus size={20} />
                       Escolher Arquivo
-                      <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
+                      <input type="file" title="Selecionar planilha Excel de extrato Pix" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
                     </label>
-                    <button onClick={fetchStudents} className="flex-1 max-w-[240px] px-8 py-4 bg-white text-slate-700 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm shadow-sm group">
+                    <button onClick={fetchStudents} title="Sincronizar base de alunos antes da conferência" className="flex-1 max-w-[240px] px-8 py-4 bg-white text-slate-700 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm shadow-sm group">
                       <RefreshCw size={18} className={cn("text-slate-400 group-hover:text-slate-600 transition-colors", loading ? "animate-spin" : "")} />
                       Sincronizar Dados
                     </button>
@@ -2270,6 +2285,7 @@ export function PixConference() {
                       <input 
                         type="text" 
                         placeholder="Filtrar nesta lista..."
+                        title="Filtrar transações carregadas por pagador, aluno ou banco"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 w-full md:w-64 transition-all outline-none"
@@ -2279,6 +2295,7 @@ export function PixConference() {
                       {(['all', 'matched', 'multiple', 'unmatched'] as const).map((f) => (
                         <button
                           key={f}
+                          title={`Filtrar por: ${f === 'all' ? 'Todos' : f === 'matched' ? 'Concluídos' : f === 'multiple' ? 'Conflitos' : 'Sem Match'}`}
                           onClick={() => setFilter(f)}
                           className={cn(
                             "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
@@ -2308,6 +2325,7 @@ export function PixConference() {
                             type="checkbox"
                             checked={selectedIds.size === transactions.length && transactions.length > 0}
                             onChange={toggleSelectAll}
+                            title="Selecionar ou desmarcar todas as transações"
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
                         </th>
@@ -2333,6 +2351,7 @@ export function PixConference() {
                               type="checkbox"
                               checked={selectedIds.has(String(t.transaction_id))}
                               onChange={() => toggleSelect(String(t.transaction_id))}
+                              title="Selecionar esta transação"
                               className="w-4 h-4 rounded-md border-slate-300 text-indigo-600 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer transition-all"
                             />
                           </td>
@@ -2417,6 +2436,7 @@ export function PixConference() {
                               {t.status === 'matched' ? (
                                 <>
                                   <button 
+                                    title={registeredPixIds.has(String(t.transaction_id)) ? "Gerenciar lançamento no extrato" : "Lançar contribuição no extrato"}
                                     onClick={() => setRegisteringContribution(t)}
                                     className={cn(
                                       "p-2.5 rounded-xl transition-all shadow-sm border relative group focus:ring-4 focus:ring-indigo-500/10 outline-none",
@@ -2449,6 +2469,7 @@ export function PixConference() {
                                 </>
                               ) : (
                                 <button 
+                                  title="Vincular manualmente um aluno a este pagamento Pix"
                                   onClick={() => {
                                     const originalIndex = transactions.findIndex(item => item.transaction_id === t.transaction_id);
                                     if (originalIndex !== -1) setMatchingTransactionIndex(originalIndex);
@@ -2503,6 +2524,7 @@ export function PixConference() {
                     {selectedHistoryIds.size > 0 && (
                       <div className="flex items-center gap-2 pr-3 border-r border-slate-200 animate-in slide-in-from-left-4">
                         <button 
+                          title="Excluir lançamentos selecionados do histórico"
                           onClick={handleBulkDeleteHistory}
                           disabled={isDeleting}
                           className="h-10 px-4 bg-red-650 hover:bg-red-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
@@ -2514,6 +2536,7 @@ export function PixConference() {
                     )}
 
                     <button 
+                      title="Apagar todo o histórico de conciliações Pix"
                       onClick={handleResetDatabase}
                       disabled={isDeleting}
                       className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
@@ -2523,6 +2546,7 @@ export function PixConference() {
                     </button>
                     
                     <button 
+                      title="Selecionar ou desmarcar todos os registros do histórico"
                       onClick={toggleHistorySelectAll}
                       className={cn(
                         "h-10 px-4 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border shadow-sm active:scale-95 cursor-pointer",
@@ -2542,6 +2566,7 @@ export function PixConference() {
                       <input 
                         type="text" 
                         placeholder="Buscar lote ou ID..."
+                        title="Pesquisar no histórico por nome do lote ou ID da transação"
                         value={historySearchQuery}
                         onChange={(e) => setHistorySearchQuery(e.target.value)}
                         className="h-10 pl-10 pr-4 bg-white border border-slate-200 rounded-lg text-xs focus:ring-4 focus:ring-slate-500/10 focus:border-slate-400 w-64 transition-all outline-none font-medium text-slate-700"
@@ -2554,6 +2579,7 @@ export function PixConference() {
                   {(['all', 'matched', 'multiple', 'unmatched'] as const).map((f) => (
                     <button
                       key={f}
+                      title={`Filtrar histórico por: ${f === 'all' ? 'Todos' : f === 'matched' ? 'Conciliados' : f === 'multiple' ? 'Conflitos' : 'Pendentes'}`}
                       onClick={() => setHistoryFilter(f)}
                       className={cn(
                         "px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer",
@@ -2593,6 +2619,7 @@ export function PixConference() {
                                 <input 
                                   type="checkbox" 
                                   checked={batch.transactions.every((t: any) => selectedHistoryIds.has(String(t.id)))}
+                                  title="Selecionar ou desmarcar todas as transações deste lote"
                                   onChange={() => {}} // Controlled by parent div click
                                   className="w-5 h-5 rounded-lg border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
                                 />
@@ -2653,12 +2680,14 @@ export function PixConference() {
                                       ) : (
                                         <>
                                           <button 
+                                            title="Confirmar exclusão deste lote"
                                             onClick={(e) => { e.stopPropagation(); handleDeleteHistory(batch.batch_id); }}
                                             className="px-3 h-8 bg-red-650 text-white text-[9px] font-bold uppercase rounded-lg hover:bg-red-700 transition-all shadow-sm cursor-pointer"
                                           >
                                             Sim
                                           </button>
                                           <button 
+                                            title="Cancelar exclusão deste lote"
                                             onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
                                             className="px-3 h-8 bg-white text-slate-500 border border-slate-200 text-[9px] font-bold uppercase rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
                                           >
@@ -2701,6 +2730,7 @@ export function PixConference() {
                                           <input 
                                             type="checkbox" 
                                             checked={batch.transactions.every((t: any) => selectedHistoryIds.has(String(t.id)))}
+                                            title="Selecionar todas as transações do lote"
                                             onChange={() => {}}
                                             className="w-4 h-4 rounded-lg border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
                                           />
@@ -2727,6 +2757,7 @@ export function PixConference() {
                                           <input 
                                             type="checkbox" 
                                             checked={selectedHistoryIds.has(String(t.id))}
+                                            title="Selecionar esta transação do histórico"
                                             onChange={() => toggleHistorySelect(String(t.id))}
                                             className="w-4 h-4 rounded-lg border-slate-300 text-slate-900 focus:ring-4 focus:ring-slate-500/10 cursor-pointer transition-all"
                                           />
@@ -2792,6 +2823,7 @@ export function PixConference() {
                                           <div className="flex items-center justify-center gap-1.5">
                                             {t.status === 'matched' && (
                                               <button 
+                                                title={registeredPixIds.has(String(t.transaction_id)) ? "Ver lançamento no extrato" : "Lançar contribuição no extrato"}
                                                 onClick={() => setRegisteringContribution(t)}
                                                 className={cn(
                                                   "p-2 rounded-lg transition-all shadow-sm border relative group focus:ring-4 focus:ring-slate-500/10 outline-none cursor-pointer",
@@ -2807,6 +2839,7 @@ export function PixConference() {
                                               </button>
                                             )}
                                             <button 
+                                              title="Excluir transação do histórico"
                                               onClick={() => {
                                                 if (true) {
                                                   handleDeleteHistoryItem(t.id);
@@ -2907,12 +2940,14 @@ export function PixConference() {
                   <input 
                     type="text" 
                     placeholder="Buscar aluno, pagador, banco..."
+                    title="Pesquisar no extrato por aluno, pagador ou banco"
                     value={extratoSearchQuery}
                     onChange={(e) => setExtratoSearchQuery(e.target.value)}
                     className="pl-12 pr-10 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 w-64 transition-all"
                   />
                   {extratoSearchQuery && (
                     <button 
+                      title="Limpar pesquisa do extrato"
                       onClick={() => setExtratoSearchQuery('')}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
@@ -2926,6 +2961,7 @@ export function PixConference() {
                   {(['all', 'auto', 'manual'] as const).map((mode) => (
                     <button
                       key={mode}
+                      title={`Filtrar extrato por: ${mode === 'all' ? 'Todos' : mode === 'auto' ? 'Automáticos' : 'Manuais'}`}
                       onClick={() => setExtratoFilter(mode)}
                       className={cn(
                         "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
@@ -2967,6 +3003,7 @@ export function PixConference() {
                 </div>
                 {(extratoBatchFilter !== 'all' || extratoStartDate || extratoEndDate || extratoMonth !== 'all' || extratoYear !== 'all') && (
                   <button
+                    title="Limpar todos os filtros do extrato"
                     onClick={() => {
                       setExtratoBatchFilter('all');
                       setExtratoStartDate('');
@@ -2991,6 +3028,7 @@ export function PixConference() {
                   </label>
                   <select
                     value={extratoBatchFilter}
+                    title="Filtrar extrato por arquivo importado"
                     onChange={(e) => setExtratoBatchFilter(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
                   >
@@ -3009,6 +3047,7 @@ export function PixConference() {
                   <div className="grid grid-cols-2 gap-2">
                     <select
                       value={extratoMonth}
+                      title="Filtrar extrato por mês"
                       onChange={(e) => setExtratoMonth(e.target.value)}
                       className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
                     >
@@ -3029,6 +3068,7 @@ export function PixConference() {
 
                     <select
                       value={extratoYear}
+                      title="Filtrar extrato por ano"
                       onChange={(e) => setExtratoYear(e.target.value)}
                       className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
                     >
@@ -3049,6 +3089,7 @@ export function PixConference() {
                     <input
                       type="date"
                       value={extratoStartDate}
+                      title="Data inicial do filtro de extrato"
                       onChange={(e) => setExtratoStartDate(e.target.value)}
                       className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
                     />
@@ -3056,6 +3097,7 @@ export function PixConference() {
                     <input
                       type="date"
                       value={extratoEndDate}
+                      title="Data final do filtro de extrato"
                       onChange={(e) => setExtratoEndDate(e.target.value)}
                       className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
                     />
@@ -3211,6 +3253,7 @@ export function PixConference() {
                     </div>
                   </div>
                   <button 
+                    title="Fechar janela de lançamento"
                     onClick={() => setRegisteringContribution(null)}
                     className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all outline-none"
                   >
@@ -3252,6 +3295,7 @@ export function PixConference() {
                     {MONTHS.map((m, i) => (
                       <button
                         key={i}
+                        title={`Selecionar ou desmarcar mês de ${m}`}
                         onClick={() => toggleMonth(i + 1)}
                         className={cn(
                           "py-3 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 outline-none",
@@ -3273,6 +3317,7 @@ export function PixConference() {
                       <div key={idx} className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl text-[10px] font-bold border border-indigo-100 flex items-center gap-2 animate-in fade-in slide-in-from-left-2 shadow-sm">
                         {MONTHS[p.month - 1].substring(0, 3)} / {p.year}
                         <button 
+                          title="Remover este período selecionado"
                           onClick={() => {
                             if (selectedPeriods.length > 1) {
                               setSelectedPeriods(prev => prev.filter((_, i) => i !== idx));
@@ -3298,6 +3343,7 @@ export function PixConference() {
                     <input 
                       type="number"
                       value={contribYear}
+                      title="Informe o ano base do lançamento"
                       onChange={(e) => setContribYear(e.target.value)}
                       className="w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
                     />
@@ -3326,6 +3372,7 @@ export function PixConference() {
                 </div>
 
                 <button 
+                  title="Confirmar lançamento desta contribuição no extrato"
                   onClick={handleFinalContributionRegistration}
                   className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-bold text-lg hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 shadow-indigo-100 hover:shadow-slate-200"
                 >
@@ -3354,6 +3401,7 @@ export function PixConference() {
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <button 
+                    title="Exportar relatório de conciliação em PDF"
                     onClick={generatePDF}
                     className="flex-1 sm:flex-none px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-indigo-700 hover:scale-[1.02] transition-all shadow-xl shadow-indigo-200 active:scale-95"
                   >
@@ -3361,6 +3409,7 @@ export function PixConference() {
                     Exportar PDF
                   </button>
                   <button 
+                    title="Fechar pré-visualização do relatório"
                     onClick={() => setShowReportPreview(false)}
                     className="p-4 bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all border border-slate-200 shadow-sm"
                   >
@@ -3523,6 +3572,7 @@ export function PixConference() {
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                   <button 
+                    title="Imprimir extrato ou escolher impressora"
                     onClick={() => {
                       try {
                         const iframe = document.getElementById('extrato-preview-iframe') as HTMLIFrameElement;
@@ -3546,6 +3596,7 @@ export function PixConference() {
                     Imprimir / Escolher Impressora
                   </button>
                   <button 
+                    title="Baixar extrato configurado em PDF"
                     onClick={() => {
                       const link = document.createElement('a');
                       link.href = extratoPdfBlobUrl;
@@ -3558,6 +3609,7 @@ export function PixConference() {
                     Baixar PDF
                   </button>
                   <button 
+                    title="Fechar visualização do extrato"
                     onClick={() => setShowExtratoPreview(false)}
                     className="p-3.5 bg-white text-slate-400 hover:text-red-500 rounded-2xl transition-all border border-slate-100 hover:bg-slate-50"
                   >
@@ -3596,6 +3648,7 @@ export function PixConference() {
                     </div>
                   </div>
                   <button 
+                    title="Fechar vinculação manual"
                     onClick={() => setMatchingTransactionIndex(null)} 
                     className="p-2.5 bg-slate-100 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-xl transition-all outline-none"
                   >
@@ -3622,6 +3675,7 @@ export function PixConference() {
                   <input 
                     type="text" 
                     placeholder="Comece a digitar o nome do aluno..."
+                    title="Pesquisar aluno por nome ou matrícula para vincular ao Pix"
                     value={manualSearch}
                     onChange={(e) => setManualSearch(e.target.value)}
                     className="w-full pl-14 pr-6 py-4.5 bg-slate-50 border-2 border-transparent rounded-2xl text-base font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none placeholder:text-slate-400 placeholder:font-medium"
@@ -3629,6 +3683,7 @@ export function PixConference() {
                   />
                   {manualSearch && (
                     <button 
+                      title="Limpar pesquisa de aluno"
                       onClick={() => setManualSearch('')}
                       className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-slate-500 transition-colors"
                     >
@@ -3654,6 +3709,7 @@ export function PixConference() {
                   .map((student, sIdx) => (
                     <button 
                       key={`manual-st-${student.id || sIdx}-${sIdx}`}
+                      title={`Vincular transação ao aluno ${student.name}`}
                       onClick={() => handleManualMatch(student.id)}
                       className="w-full p-4 hover:bg-white rounded-2xl flex items-center justify-between group transition-all border border-transparent hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5 active:scale-[0.98]"
                     >

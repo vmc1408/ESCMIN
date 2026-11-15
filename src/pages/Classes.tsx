@@ -150,6 +150,7 @@ const ClassItem = React.memo(({
   return (
     <button
       onClick={() => onSelect(cls)}
+      title={`Selecionar ficha da turma ${cls.name}`}
       className={cn(
         "w-full flex items-center gap-4 p-4 rounded-lg transition-all text-left relative overflow-hidden group",
         isSelected 
@@ -2456,6 +2457,7 @@ export function Classes() {
                     setUnallocatedSearchTerm('');
                     setShowUnallocatedModal(true);
                   }}
+                  title="Abrir assistente para vincular alunos sem turma a uma turma ativa"
                   className="w-full p-2.5 bg-amber-50 hover:bg-amber-100/90 border border-amber-300 text-amber-950 flex items-center justify-between text-left transition-all cursor-pointer shadow-2xs group"
                 >
                   <div className="flex items-center gap-2 min-w-0">
@@ -2481,6 +2483,7 @@ export function Classes() {
                 <input 
                   type="text"
                   placeholder="Buscar por nome ou código..."
+                  title="Filtrar turmas por nome ou código"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-7 py-2 bg-slate-50 border border-slate-200 text-[11px] font-bold focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all placeholder:text-slate-400"
@@ -2509,6 +2512,7 @@ export function Classes() {
                   <select
                     value={selectedAcademicYearFilter}
                     onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
+                    title="Filtrar turmas por ano letivo de referência"
                     className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer uppercase"
                   >
                     <option value="ATUAL">Ano Atual ({currentAcademicYear})</option>
@@ -2524,6 +2528,7 @@ export function Classes() {
                   <select
                     value={selectedYearFilter}
                     onChange={(e) => setSelectedYearFilter(e.target.value)}
+                    title="Filtrar turmas por módulo ou série acadêmica"
                     className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
                   >
                     <option value="Todos">Todos os Módulos</option>
@@ -2541,6 +2546,7 @@ export function Classes() {
                   <select
                     value={selectedSemesterFilter}
                     onChange={(e) => setSelectedSemesterFilter(e.target.value)}
+                    title="Filtrar turmas por semestre letivo"
                     className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
                   >
                     <option value="Todos">Todos os Semestres</option>
@@ -2554,6 +2560,7 @@ export function Classes() {
                   <select
                     value={selectedPeriodFilter}
                     onChange={(e) => setSelectedPeriodFilter(e.target.value)}
+                    title="Filtrar turmas por turno de funcionamento"
                     className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none cursor-pointer"
                   >
                     <option value="Todos">Todos os Turnos</option>
@@ -2573,6 +2580,7 @@ export function Classes() {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as any)}
+                    title="Filtrar turmas por status operacional"
                     className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
                   >
                     <option value="Todos">Todos os Status</option>
@@ -2587,6 +2595,7 @@ export function Classes() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
+                    title="Escolher critério de ordenação da lista de turmas"
                     className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none cursor-pointer"
                   >
                     <option value="name_year">Nome e Ano (Recente)</option>
@@ -2608,6 +2617,7 @@ export function Classes() {
                   <select
                     value={selectedUnitFilter}
                     onChange={(e) => setSelectedUnitFilter(e.target.value)}
+                    title="Filtrar turmas por unidade ou polo educacional"
                     className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
                   >
                     <option value="Todos">Todas as Unidades (Geral)</option>
@@ -2626,7 +2636,7 @@ export function Classes() {
                   {selectedUnitFilter !== 'Todos' && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-900 text-white text-[9px] font-extrabold uppercase">
                       Polo: {getUnitName(selectedUnitFilter)}
-                      <button type="button" onClick={() => setSelectedUnitFilter('Todos')} className="hover:text-amber-300 cursor-pointer">
+                      <button type="button" onClick={() => setSelectedUnitFilter('Todos')} title="Remover filtro de polo" className="hover:text-amber-300 cursor-pointer">
                         <X size={10} />
                       </button>
                     </span>
@@ -2634,7 +2644,7 @@ export function Classes() {
                   {selectedAcademicYearFilter !== 'ATUAL' && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-900 text-white text-[9px] font-extrabold uppercase">
                       Ano: {selectedAcademicYearFilter === 'Todos' ? 'Todos os Anos' : selectedAcademicYearFilter}
-                      <button type="button" onClick={() => setSelectedAcademicYearFilter('ATUAL')} className="hover:text-amber-300 cursor-pointer">
+                      <button type="button" onClick={() => setSelectedAcademicYearFilter('ATUAL')} title="Restaurar filtro para ano letivo atual" className="hover:text-amber-300 cursor-pointer">
                         <X size={10} />
                       </button>
                     </span>
@@ -2642,7 +2652,7 @@ export function Classes() {
                   {searchTerm && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 text-blue-900 border border-blue-200 text-[9px] font-extrabold uppercase">
                       Busca: "{searchTerm}"
-                      <button type="button" onClick={() => setSearchTerm('')} className="hover:text-rose-600 cursor-pointer">
+                      <button type="button" onClick={() => setSearchTerm('')} title="Limpar termo de busca" className="hover:text-rose-600 cursor-pointer">
                         <X size={10} />
                       </button>
                     </span>
@@ -2650,7 +2660,7 @@ export function Classes() {
                   {selectedYearFilter !== 'Todos' && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-800 text-white text-[9px] font-extrabold uppercase">
                       {selectedYearFilter}
-                      <button type="button" onClick={() => setSelectedYearFilter('Todos')} className="hover:text-amber-300 cursor-pointer">
+                      <button type="button" onClick={() => setSelectedYearFilter('Todos')} title="Remover filtro de módulo/série" className="hover:text-amber-300 cursor-pointer">
                         <X size={10} />
                       </button>
                     </span>
@@ -2658,7 +2668,7 @@ export function Classes() {
                   {selectedSemesterFilter !== 'Todos' && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-800 text-white text-[9px] font-extrabold uppercase">
                       {selectedSemesterFilter}
-                      <button type="button" onClick={() => setSelectedSemesterFilter('Todos')} className="hover:text-amber-300 cursor-pointer">
+                      <button type="button" onClick={() => setSelectedSemesterFilter('Todos')} title="Remover filtro de semestre" className="hover:text-amber-300 cursor-pointer">
                         <X size={10} />
                       </button>
                     </span>
@@ -2666,7 +2676,7 @@ export function Classes() {
                   {selectedPeriodFilter !== 'Todos' && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-900 border border-purple-200 text-[9px] font-extrabold uppercase">
                       Turno: {selectedPeriodFilter}
-                      <button type="button" onClick={() => setSelectedPeriodFilter('Todos')} className="hover:text-rose-600 cursor-pointer">
+                      <button type="button" onClick={() => setSelectedPeriodFilter('Todos')} title="Remover filtro de turno" className="hover:text-rose-600 cursor-pointer">
                         <X size={10} />
                       </button>
                     </span>
@@ -2674,7 +2684,7 @@ export function Classes() {
                   {statusFilter !== 'Todos' && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-200 text-[9px] font-extrabold uppercase">
                       Status: {statusFilter}
-                      <button type="button" onClick={() => setStatusFilter('Todos')} className="hover:text-rose-600 cursor-pointer">
+                      <button type="button" onClick={() => setStatusFilter('Todos')} title="Remover filtro de status" className="hover:text-rose-600 cursor-pointer">
                         <X size={10} />
                       </button>
                     </span>
@@ -2682,6 +2692,7 @@ export function Classes() {
                   <button
                     type="button"
                     onClick={handleClearFilters}
+                    title="Limpar todos os filtros aplicados"
                     className="text-[9px] font-bold uppercase tracking-wider text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer ml-auto"
                   >
                     <RotateCcw size={10} />
@@ -2706,6 +2717,7 @@ export function Classes() {
                   <button
                     type="button"
                     onClick={handleClearFilters}
+                    title="Remover todos os filtros e exibir todas as turmas"
                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
                   >
                     Exibir Todas as Turmas (Limpar Filtros)
@@ -2755,6 +2767,7 @@ export function Classes() {
                   setSelectedClass(null);
                   setIsEditing(false);
                 }}
+                title="Fechar ficha atual e voltar à lista completa de turmas"
                 className="mb-4 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 <ArrowLeft size={14} />
@@ -2874,6 +2887,7 @@ export function Classes() {
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
+                      title="Cancelar edição e descartar alterações"
                       className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
                       <X size={15} />
@@ -2881,6 +2895,7 @@ export function Classes() {
                     </button>
                     <button 
                       onClick={handleSave}
+                      title="Salvar alterações no cadastro da turma"
                       className="h-10 px-6 bg-teal-600 text-white hover:bg-teal-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
                       <Save size={16} />
@@ -2996,6 +3011,7 @@ export function Classes() {
                               value={formData.code || ''}
                               onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                               placeholder="EX: TEO-23"
+                              title="Código identificador único da turma"
                               className={cn(
                                 "w-full px-3 py-2.5 border text-xs font-mono font-black text-center outline-none uppercase transition-all h-[42px]",
                                 isEditing 
@@ -3020,6 +3036,7 @@ export function Classes() {
                               disabled={!isEditing}
                               value={formData.course || ''}
                               onChange={(e) => handleSelectCourseStartYearAndAcademicYear(e.target.value, formData.start_year || '', formData.year || '')}
+                              title="Selecionar o curso ao qual a turma pertence"
                               className="w-full px-3.5 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase"
                             >
                               <option value="">-- SELECIONE O CURSO --</option>
@@ -3044,6 +3061,7 @@ export function Classes() {
                               disabled={!isEditing}
                               maxLength={4}
                               placeholder="EX: 2023"
+                              title="Ano de início / referência do ciclo da turma (4 dígitos)"
                               value={formData.start_year || ''}
                               onChange={(e) => {
                                 const val = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -3090,6 +3108,7 @@ export function Classes() {
                               disabled={!isEditing}
                               value={formData.period || ''}
                               onChange={(e) => setFormData({ ...formData, period: e.target.value as any })}
+                              title="Selecionar o turno/período das aulas"
                               className="w-full px-3.5 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase"
                             >
                               <option value="">-- TURNO --</option>
@@ -3113,6 +3132,7 @@ export function Classes() {
                               disabled={!isEditing}
                               value={formData.status || 'Ativo'}
                               onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                              title="Definir o status atual da turma"
                               className={cn(
                                 "w-full px-3 py-2.5 bg-white border text-xs font-extrabold uppercase outline-none transition-all h-[42px]",
                                 formData.status === 'Inativo' 
@@ -3144,6 +3164,7 @@ export function Classes() {
                                 disabled={!isEditing || (!canSwitchUnit && isRestricted)}
                                 value={formData.unit_id || 'matriz'}
                                 onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+                                title="Selecionar a unidade ou polo educacional desta turma"
                                 className="w-full px-3 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase h-[42px] disabled:opacity-60"
                               >
                                 {activeUnits.map(u => (
@@ -3178,6 +3199,7 @@ export function Classes() {
                                   type="button"
                                   disabled={!isEditing}
                                   onClick={() => toggleDay(day.value)}
+                                  title={`Alternar dia de aula: ${day.label}`}
                                   className={cn(
                                     "px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all border flex items-center gap-1.5 cursor-pointer group",
                                     isSelected
@@ -3217,6 +3239,7 @@ export function Classes() {
                                   type="button"
                                   disabled={!isEditing}
                                   onClick={() => handleSelectCourseStartYearAndAcademicYear(formData.course || '', formData.start_year || '', year)}
+                                  title={`Selecionar ano/módulo acadêmico: ${year}`}
                                   className={cn(
                                     "group relative flex items-center justify-center gap-2 py-3 px-3.5 text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 cursor-pointer outline-none select-none active:scale-[0.98]",
                                     isSelected 
@@ -3270,6 +3293,7 @@ export function Classes() {
                               type="text"
                               disabled={!isEditing}
                               placeholder="EX: TEOLOGIA 2027, LATIM 2026..."
+                              title="Nome oficial ou identificador da turma"
                               value={formData.name || ''}
                               onChange={(e) => setFormData({...formData, name: e.target.value.toUpperCase()})}
                               onKeyDown={handleKeyDown}
@@ -3302,6 +3326,7 @@ export function Classes() {
                               list="class-rooms-list"
                               disabled={!isEditing}
                               placeholder="EX: SALA 01 / AUDITÓRIO"
+                              title="Informar a sala ou local físico das aulas"
                               value={formData.room || ''}
                               onChange={(e) => setFormData({...formData, room: e.target.value})}
                               onKeyDown={handleKeyDown}
@@ -3363,6 +3388,7 @@ export function Classes() {
                                 type="text"
                                 disabled={!isEditing}
                                 placeholder="DD/MM/AAAA"
+                                title="Informar a data do primeiro dia letivo da turma"
                                 maxLength={10}
                                 value={formData.start_date || ''}
                                 onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
@@ -3419,6 +3445,7 @@ export function Classes() {
                                 step="5"
                                 disabled={!isEditing}
                                 placeholder="Padrão"
+                                title="Valor específico da mensalidade desta turma (deixe vazio para usar o padrão)"
                                 value={formData.monthly_fee !== undefined && formData.monthly_fee !== null ? formData.monthly_fee : ''}
                                 onChange={(e) => setFormData({...formData, monthly_fee: e.target.value === '' ? undefined : Number(e.target.value)})}
                                 onKeyDown={handleKeyDown}
@@ -3545,6 +3572,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem1H1SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(1, 1, e.target.value)}
+                                title="Selecionar disciplina do 1º horário do 1º semestre"
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 1º Horário (1º Semestre)...</option>
@@ -3573,6 +3601,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem1H2SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(1, 2, e.target.value)}
+                                title="Selecionar disciplina do 2º horário do 1º semestre"
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 2º Horário (1º Semestre)...</option>
@@ -3613,6 +3642,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem2H1SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(2, 1, e.target.value)}
+                                title="Selecionar disciplina do 1º horário do 2º semestre"
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 1º Horário (2º Semestre)...</option>
@@ -3641,6 +3671,7 @@ export function Classes() {
                                 disabled={!isEditing}
                                 value={sem2H2SubjectId}
                                 onChange={(e) => handleSetSemesterSubject(2, 2, e.target.value)}
+                                title="Selecionar disciplina do 2º horário do 2º semestre"
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 2º Horário (2º Semestre)...</option>
@@ -3681,6 +3712,7 @@ export function Classes() {
                           type="button"
                           disabled={!isEditing}
                           onClick={() => setFormData({ ...formData, status: 'Ativo' })}
+                          title="Definir turma como Ativa (em funcionamento no período letivo)"
                           className={cn(
                             "p-3.5 border text-left flex items-start gap-3 transition-all outline-none select-none",
                             isEditing ? "cursor-pointer" : "cursor-default",
@@ -3713,6 +3745,7 @@ export function Classes() {
                           type="button"
                           disabled={!isEditing}
                           onClick={() => setFormData({ ...formData, status: 'Inativo' })}
+                          title="Definir turma como Inativa ou em planejamento"
                           className={cn(
                             "p-3.5 border text-left flex items-start gap-3 transition-all outline-none select-none",
                             isEditing ? "cursor-pointer" : "cursor-default",
@@ -3744,6 +3777,7 @@ export function Classes() {
                           type="button"
                           disabled={!isEditing}
                           onClick={() => setFormData({ ...formData, status: 'Encerrada' })}
+                          title="Definir turma como Encerrada (ciclo finalizado)"
                           className={cn(
                             "p-3.5 border text-left flex items-start gap-3 transition-all outline-none select-none",
                             isEditing ? "cursor-pointer" : "cursor-default",
@@ -3777,6 +3811,7 @@ export function Classes() {
                         type="button"
                         disabled={!isEditing}
                         onClick={() => setFormData({ ...formData, is_special: !formData.is_special })}
+                        title="Alternar regime de turma especial / curta duração"
                         className={cn(
                           "w-full p-4 border rounded-lg text-left flex items-start gap-4 transition-all shadow-sm outline-none",
                           formData.is_special
@@ -3819,6 +3854,7 @@ export function Classes() {
                   <textarea 
                     disabled={!isEditing}
                     placeholder="Informações adicionais sobre a turma..."
+                    title="Anotações e observações complementares sobre a turma"
                     value={(formData.observations || '')
                       .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
                       .replace(/\s*\}\]\s*$/g, '')
@@ -3900,6 +3936,7 @@ export function Classes() {
                     type="button"
                     onClick={() => handleInactivateClassFromModal(classSecurityModal.classItem)}
                     disabled={isProcessingClassSecurityAction}
+                    title="Inativar turma preservando todo o histórico de alunos e notas"
                     className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     <Clock className="w-3.5 h-3.5" />
@@ -3913,6 +3950,7 @@ export function Classes() {
                       setupImportModalDefaults(cls);
                       setShowImportModal(true);
                     }}
+                    title="Transferir os alunos ativos desta turma para outra turma"
                     className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                   >
                     Transferir Alunos
@@ -3920,6 +3958,7 @@ export function Classes() {
                   <button
                     type="button"
                     onClick={() => setClassSecurityModal(null)}
+                    title="Fechar aviso de segurança"
                     className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
                   >
                     Fechar
@@ -3975,6 +4014,7 @@ export function Classes() {
                     type="button"
                     onClick={() => setClassSecurityModal(null)}
                     disabled={isProcessingClassSecurityAction || loading}
+                    title="Cancelar e manter a turma cadastrada"
                     className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
                   >
                     Cancelar
@@ -3983,6 +4023,7 @@ export function Classes() {
                     type="button"
                     onClick={handleDelete}
                     disabled={isProcessingClassSecurityAction || loading}
+                    title="Confirmar exclusão definitiva desta turma"
                     className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                   >
                     {isProcessingClassSecurityAction || loading ? 'Excluindo...' : 'Confirmar Exclusão'}
@@ -4014,6 +4055,7 @@ export function Classes() {
               </div>
               <button
                 onClick={() => setShowImportModal(false)}
+                title="Fechar modal de importação e promoção de turma"
                 className="p-2 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
               >
                 <X size={20} />
@@ -4037,6 +4079,7 @@ export function Classes() {
                       const srcCls = classes.find(c => c.id === srcId);
                       if (srcCls) setupImportModalDefaults(srcCls);
                     }}
+                    title="Selecionar a turma de origem cujos alunos serão promovidos"
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-800 uppercase focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
                   >
                     <option value="">-- SELECIONE A TURMA DE ORIGEM --</option>
@@ -4070,6 +4113,7 @@ export function Classes() {
                             <button
                               type="button"
                               onClick={() => handleConclude4thYearClass(srcCls)}
+                              title="Marcar turma de 4º ano como encerrada (Curso Concluído)"
                               className="px-3.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white font-bold uppercase text-[10px] tracking-wider flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                             >
                               <CheckCircle2 size={13} />
@@ -4125,6 +4169,7 @@ export function Classes() {
                             setImportNewCode(computePromotedClassCode(srcCls.code || '', newYr, srcCls.course || srcCls.name, getClassStartYear(srcCls)));
                           }
                         }}
+                        title="Selecionar o ano calendário da nova turma promovida"
                         className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-800 uppercase text-xs cursor-pointer"
                       >
                         {Array.from(new Set([
@@ -4145,6 +4190,7 @@ export function Classes() {
                         onChange={(e) => {
                           setImportTargetYear(e.target.value);
                         }}
+                        title="Selecionar o módulo ou série da nova turma"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-800 uppercase text-xs cursor-pointer"
                       >
                         <option value="1º Ano">1º Ano</option>
@@ -4169,6 +4215,7 @@ export function Classes() {
                                 setImportNewCode(computePromotedClassCode(srcCls.code || '', importTargetAcademicYear, srcCls.course || srcCls.name, getClassStartYear(srcCls)));
                               }
                             }}
+                            title="Restaurar sugestão automática de nome e código"
                             className="text-[9px] font-bold text-blue-700 hover:text-blue-900 underline uppercase"
                           >
                             Restaurar Padrão
@@ -4180,6 +4227,7 @@ export function Classes() {
                         value={importNewName}
                         onChange={(e) => setImportNewName(e.target.value)}
                         placeholder="Ex: TEOLOGIA 2023/2027"
+                        title="Nome da nova turma de destino"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-800 uppercase text-xs"
                       />
                     </div>
@@ -4192,7 +4240,7 @@ export function Classes() {
                     3. Opções de Importação e Promoção de Alunos
                   </h4>
 
-                  <label className="flex items-start gap-2.5 cursor-pointer bg-slate-50 p-3 border border-slate-200 hover:bg-slate-100/80 transition-colors">
+                  <label className="flex items-start gap-2.5 cursor-pointer bg-slate-50 p-3 border border-slate-200 hover:bg-slate-100/80 transition-colors" title="Alternar entre promover todos os alunos ou selecionar manualmente">
                     <input
                       type="checkbox"
                       checked={importMigrateStudents}
@@ -4205,6 +4253,7 @@ export function Classes() {
                           setSelectedStudentIds([]);
                         }
                       }}
+                      title="Promover automaticamente todos os alunos ativos da turma de origem"
                       className="w-4 h-4 text-blue-800 rounded-lg focus:ring-0 cursor-pointer mt-0.5"
                     />
                     <div>
@@ -4266,6 +4315,7 @@ export function Classes() {
                         value={studentSearchTerm}
                         onChange={(e) => setStudentSearchTerm(e.target.value)}
                         placeholder="Buscar por nome ou matrícula..."
+                        title="Filtrar alunos da turma de origem por nome ou matrícula"
                         className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 text-xs text-slate-800 focus:outline-none focus:border-blue-500 font-medium"
                       />
                       <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
@@ -4275,6 +4325,7 @@ export function Classes() {
                       <button
                         type="button"
                         onClick={() => setSelectedStudentIds(sourceStudentsList.map(s => s.id))}
+                        title="Selecionar todos os alunos da turma de origem"
                         className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 text-[10px] font-bold hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         Todos
@@ -4282,6 +4333,7 @@ export function Classes() {
                       <button
                         type="button"
                         onClick={() => setSelectedStudentIds([])}
+                        title="Desmarcar todos os alunos selecionados"
                         className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 text-[10px] font-bold hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         Nenhum
@@ -4306,6 +4358,7 @@ export function Classes() {
                           return (
                             <label
                               key={`imp-st-${student.id || sIdx}-${sIdx}`}
+                              title={`Marcar ou desmarcar ${student.name} para promoção`}
                               className={cn(
                                 "flex items-center justify-between px-3 py-2 cursor-pointer transition-colors text-xs select-none",
                                 isSelected ? "bg-blue-50/70 hover:bg-blue-100/60" : "hover:bg-slate-50 text-slate-600"
@@ -4315,6 +4368,7 @@ export function Classes() {
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
+                                  title={`Selecionar ${student.name}`}
                                   onChange={(e) => {
                                     if (e.target.checked) {
                                       const newIds = Array.from(new Set([...selectedStudentIds, student.id]));
@@ -4371,6 +4425,7 @@ export function Classes() {
                 type="button"
                 disabled={isImporting}
                 onClick={() => setShowImportModal(false)}
+                title="Cancelar importação e fechar janela"
                 className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold uppercase text-xs tracking-wider border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer rounded-lg disabled:opacity-50"
               >
                 Cancelar
@@ -4380,7 +4435,7 @@ export function Classes() {
                 onClick={handleExecuteImport}
                 disabled={isImporting || !importSourceClassId || !importNewName || classes.find(c => c.id === importSourceClassId)?.year === '4º Ano'}
                 className="px-6 py-2.5 bg-blue-800 text-white font-bold uppercase text-xs tracking-wider border border-blue-900 hover:bg-blue-900 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer rounded-lg"
-                title={classes.find(c => c.id === importSourceClassId)?.year === '4º Ano' ? 'Turmas no 4º ano já completaram o ciclo acadêmico e não progridem mais.' : ''}
+                title={classes.find(c => c.id === importSourceClassId)?.year === '4º Ano' ? 'Turmas no 4º ano já completaram o ciclo acadêmico e não progridem mais.' : 'Criar nova turma e promover os alunos selecionados'}
               >
                 {isImporting ? (
                   <>
@@ -4424,6 +4479,7 @@ export function Classes() {
               <button
                 type="button"
                 onClick={() => setShowStudentsModal(false)}
+                title="Fechar lista de alunos matriculados"
                 className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X size={20} />
@@ -4437,17 +4493,19 @@ export function Classes() {
                 <input
                   type="text"
                   placeholder="BUSCAR POR NOME, MATRÍCULA OU CPF..."
+                  title="Filtrar alunos matriculados por nome, matrícula ou CPF"
                   value={modalSearchTerm}
                   onChange={(e) => setModalSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 text-xs font-bold text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all uppercase"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto shrink-0">
-                <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700 bg-white border border-slate-300 px-3 py-2 cursor-pointer hover:bg-slate-100/80 transition-colors select-none shadow-2xs">
+                <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700 bg-white border border-slate-300 px-3 py-2 cursor-pointer hover:bg-slate-100/80 transition-colors select-none shadow-2xs" title="Incluir data e hora de impressão na lista">
                   <input
                     type="checkbox"
                     checked={includeEmissionDate}
                     onChange={(e) => setIncludeEmissionDate(e.target.checked)}
+                    title="Incluir data e hora de emissão na lista impressa"
                     className="w-3.5 h-3.5 text-blue-900 focus:ring-blue-500 rounded-lg border-slate-300 cursor-pointer"
                   />
                   <span>Data/Hora de Emissão</span>
@@ -4600,6 +4658,7 @@ export function Classes() {
                     navigate('/students');
                   }
                 }}
+                title="Abrir o módulo completo de gestão de alunos"
                 className="text-xs font-bold text-blue-300 hover:text-white uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <span>Ir para Gestão Geral de Alunos</span>
@@ -4609,6 +4668,7 @@ export function Classes() {
               <button
                 type="button"
                 onClick={() => setShowStudentsModal(false)}
+                title="Fechar lista de alunos matriculados"
                 className="w-full sm:w-auto px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer"
               >
                 Fechar
@@ -4643,6 +4703,7 @@ export function Classes() {
               <button
                 type="button"
                 onClick={() => setShowUnallocatedModal(false)}
+                title="Fechar janela de alocação de alunos sem turma"
                 className="p-1.5 text-amber-100 hover:text-white hover:bg-amber-700 transition-colors cursor-pointer"
               >
                 <X size={20} />
@@ -4659,6 +4720,7 @@ export function Classes() {
                 <select
                   value={targetClassForUnallocated}
                   onChange={(e) => setTargetClassForUnallocated(e.target.value)}
+                  title="Selecionar a turma ativa onde os alunos marcados serão matriculados"
                   className="w-full px-3 py-2 bg-white border-2 border-amber-300 text-xs font-bold text-slate-800 outline-none focus:border-amber-500 shadow-2xs"
                 >
                   <option value="">-- Escolha uma turma ativa para receber os alunos --</option>
@@ -4678,6 +4740,7 @@ export function Classes() {
                 <input
                   type="text"
                   placeholder="BUSCAR POR NOME, MATRÍCULA OU CPF..."
+                  title="Filtrar alunos sem turma por nome, matrícula ou CPF"
                   value={unallocatedSearchTerm}
                   onChange={(e) => setUnallocatedSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 text-xs font-bold text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all uppercase"
@@ -4695,6 +4758,7 @@ export function Classes() {
                     }
                   }}
                   disabled={filteredUnallocatedStudents.length === 0}
+                  title="Selecionar ou desmarcar todos os alunos sem turma filtrados"
                   className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
                 >
                   {selectedUnallocatedStudentIds.length > 0 && selectedUnallocatedStudentIds.length === filteredUnallocatedStudents.length ? (
@@ -4753,6 +4817,7 @@ export function Classes() {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => {}} // Handled by parent container click
+                            title={`Selecionar aluno ${s.name || ''}`}
                             className="w-4 h-4 text-amber-600 rounded-lg focus:ring-0 cursor-pointer shrink-0"
                           />
                           <div className="w-9 h-9 bg-slate-800 text-white font-black text-xs flex items-center justify-center shrink-0 uppercase border border-slate-700">
@@ -4818,6 +4883,7 @@ export function Classes() {
                   setShowUnallocatedModal(false);
                   navigate('/students');
                 }}
+                title="Abrir o cadastro geral de alunos"
                 className="text-xs font-bold text-amber-300 hover:text-white uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <span>Ir para a Página de Alunos</span>
@@ -4829,6 +4895,7 @@ export function Classes() {
                   type="button"
                   onClick={() => setShowUnallocatedModal(false)}
                   disabled={isAllocatingStudents}
+                  title="Cancelar alocação e fechar janela"
                   className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancelar
@@ -4837,6 +4904,7 @@ export function Classes() {
                   type="button"
                   onClick={handleBatchAllocateStudents}
                   disabled={!targetClassForUnallocated || selectedUnallocatedStudentIds.length === 0 || isAllocatingStudents}
+                  title="Matricular todos os alunos selecionados na turma de destino escolhida"
                   className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                 >
                   {isAllocatingStudents ? (

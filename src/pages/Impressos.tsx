@@ -574,6 +574,7 @@ export function Impressos() {
         <button
           onClick={handlePrint}
           disabled={selectedType === 'declaracao' && !selectedStudentId}
+          title="Abrir janela de impressão para o documento configurado"
           className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs"
         >
           <Printer size={13} />
@@ -597,6 +598,7 @@ export function Impressos() {
                   value={documentDate}
                   onChange={(e) => setDocumentDate(e.target.value)}
                   disabled={(selectedType === 'declaracao' || selectedType === 'quitacao') && !selectedStudentId}
+                  title="Data que será exibida na assinatura e emissão do documento"
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -649,12 +651,14 @@ export function Impressos() {
                           setIsDropdownOpen(true);
                         }}
                         onFocus={() => setIsDropdownOpen(true)}
+                        title="Pesquisar aluno por nome ou número de matrícula"
                         className="w-full pl-8 pr-8 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 bg-white transition-all shadow-sm placeholder:text-slate-400"
                       />
                       {studentSearch && (
                         <button 
                           type="button"
                           onClick={() => setStudentSearch('')}
+                          title="Limpar pesquisa de aluno"
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
                         >
                           <X size={12} />
@@ -681,6 +685,7 @@ export function Impressos() {
                                   setStudentSearch('');
                                   setIsDropdownOpen(false);
                                 }}
+                                title={`Selecionar ${s.name} para emitir documento`}
                                 className="w-full px-4 py-2.5 text-left hover:bg-blue-50/50 transition-all flex flex-col gap-0.5 group"
                               >
                                 <span className="text-[11px] font-black text-slate-700 uppercase group-hover:text-blue-700 transition-colors">{s.name}</span>
@@ -719,6 +724,7 @@ export function Impressos() {
                   <select
                     value={selectedClassId}
                     onChange={(e) => setSelectedClassId(e.target.value)}
+                    title="Selecionar a turma cujos alunos serão listados para impressão"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase bg-slate-50"
                   >
                     <option value="">Selecione uma turma...</option>
@@ -736,6 +742,7 @@ export function Impressos() {
                       <button
                         type="button"
                         onClick={() => setStudentSortOrder('name')}
+                        title="Ordenar estudantes alfabeticamente por nome"
                         className={cn(
                           "py-1 px-1.5 rounded text-[8.5px] font-black uppercase tracking-wider transition-all",
                           studentSortOrder === 'name'
@@ -748,6 +755,7 @@ export function Impressos() {
                       <button
                         type="button"
                         onClick={() => setStudentSortOrder('registration')}
+                        title="Ordenar estudantes por número de matrícula (RA)"
                         className={cn(
                           "py-1 px-1.5 rounded text-[8.5px] font-black uppercase tracking-wider transition-all",
                           studentSortOrder === 'registration'
@@ -781,6 +789,7 @@ export function Impressos() {
                             setSelectedLabelStudentIds(classStudents.map(s => s.id));
                           }
                         }}
+                        title="Marcar todos os alunos desta turma para impressão"
                         className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200"
                       >
                         Todos
@@ -794,6 +803,7 @@ export function Impressos() {
                             setSelectedLabelStudentIds([]);
                           }
                         }}
+                        title="Desmarcar todos os alunos selecionados"
                         className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200"
                       >
                         Limpar
@@ -813,6 +823,7 @@ export function Impressos() {
                           return (
                             <label
                               key={`imp-cls-stu-${student.id || idx}-${idx}`}
+                              title={`Incluir ou remover ${student.name} da impressão`}
                               className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
                             >
                               <input
@@ -826,6 +837,7 @@ export function Impressos() {
                                     setList(prev => prev.filter(id => id !== student.id));
                                   }
                                 }}
+                                title={`Selecionar ${student.name}`}
                                 className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                               />
                               <div className="flex-1 min-w-0">
@@ -862,6 +874,7 @@ export function Impressos() {
                     value={customText}
                     onChange={(e) => setCustomText(e.target.value)}
                     disabled={!selectedStudentId}
+                    title="Texto adicional opcional para exibir na declaração"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] font-medium focus:outline-none focus:border-blue-500 disabled:bg-slate-50"
                   />
                 </div>
@@ -872,6 +885,7 @@ export function Impressos() {
                     value={signerRole}
                     onChange={(e) => setSignerRole(e.target.value as any)}
                     disabled={!selectedStudentId}
+                    title="Definir quantas e quais assinaturas constarão no rodapé do documento"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none disabled:bg-slate-50"
                   >
                     <option value="secretario">Apenas Secretário Acadêmico</option>
@@ -889,6 +903,7 @@ export function Impressos() {
                       value={signerName}
                       onChange={(e) => setSignerName(e.target.value)}
                       maxLength={35}
+                      title="Nome completo do responsável principal pela assinatura"
                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                     />
                   </div>
@@ -899,6 +914,7 @@ export function Impressos() {
                       value={signerTitle}
                       onChange={(e) => setSignerTitle(e.target.value)}
                       maxLength={30}
+                      title="Cargo exibido abaixo da assinatura 1"
                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                     />
                   </div>
@@ -913,6 +929,7 @@ export function Impressos() {
                           value={coSignerName}
                           onChange={(e) => setCoSignerName(e.target.value)}
                           maxLength={35}
+                          title="Nome completo do segundo assinante do documento"
                           className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                         />
                       </div>
@@ -923,6 +940,7 @@ export function Impressos() {
                           value={coSignerTitle}
                           onChange={(e) => setCoSignerTitle(e.target.value)}
                           maxLength={30}
+                          title="Cargo exibido abaixo da assinatura 2"
                           className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                         />
                       </div>
@@ -944,6 +962,7 @@ export function Impressos() {
                       type="checkbox"
                       checked={showPhotoBorder}
                       onChange={(e) => setShowPhotoBorder(e.target.checked)}
+                      title="Exibir ou ocultar moldura da foto 3x4 na etiqueta da carteirinha"
                       className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                     />
                   </div>
@@ -953,6 +972,7 @@ export function Impressos() {
                       type="checkbox"
                       checked={!isFormFilled}
                       onChange={(e) => setIsFormFilled(!e.target.checked)}
+                      title="Gerar etiquetas em branco para preenchimento manual"
                       className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                     />
                   </div>
@@ -962,6 +982,7 @@ export function Impressos() {
                       type="checkbox"
                       checked={showCardCutBorders}
                       onChange={(e) => setShowCardCutBorders(e.target.checked)}
+                      title="Exibir linhas tracejadas de guia entre as etiquetas Pimaco 6183"
                       className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                     />
                   </div>
@@ -973,6 +994,7 @@ export function Impressos() {
                     <button
                       type="button"
                       onClick={() => setCardFillMode('individual')}
+                      title="Imprimir uma etiqueta sequencial para cada aluno selecionado"
                       className={cn(
                         "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
                         cardFillMode === 'individual'
@@ -985,6 +1007,7 @@ export function Impressos() {
                     <button
                       type="button"
                       onClick={() => setCardFillMode('repeat')}
+                      title="Repetir os dados do primeiro aluno selecionado em toda a folha"
                       className={cn(
                         "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
                         cardFillMode === 'repeat'
@@ -1055,38 +1078,42 @@ export function Impressos() {
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Opções de Conteúdo (Se somam na etiqueta)</label>
                     <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none" title="Exibir endereço completo do aluno na etiqueta">
                         <input
                           type="checkbox"
                           checked={labelShowAddress}
                           onChange={(e) => setLabelShowAddress(e.target.checked)}
+                          title="Incluir endereço completo na etiqueta"
                           className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                         />
                         <span>Endereço Completo</span>
                       </label>
-                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none" title="Exibir data de nascimento do aluno na etiqueta">
                         <input
                           type="checkbox"
                           checked={labelShowBirthday}
                           onChange={(e) => setLabelShowBirthday(e.target.checked)}
+                          title="Incluir data de nascimento na etiqueta"
                           className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                         />
                         <span>Data de Nascimento</span>
                       </label>
-                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none" title="Exibir número de matrícula (RA) na etiqueta">
                         <input
                           type="checkbox"
                           checked={labelShowMatricula}
                           onChange={(e) => setLabelShowMatricula(e.target.checked)}
+                          title="Incluir número de matrícula na etiqueta"
                           className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                         />
                         <span>Nº de Matrícula (RA)</span>
                       </label>
-                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none" title="Exibir nome da turma ou curso na etiqueta">
                         <input
                           type="checkbox"
                           checked={labelShowCourse}
                           onChange={(e) => setLabelShowCourse(e.target.checked)}
+                          title="Incluir nome da turma/curso na etiqueta"
                           className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                         />
                         <span>Nome da Turma / Curso</span>
@@ -1103,6 +1130,7 @@ export function Impressos() {
                       type="checkbox"
                       checked={showLabelCutBorders}
                       onChange={(e) => setShowLabelCutBorders(e.target.checked)}
+                      title="Exibir linhas guia de recorte entre as 30 etiquetas Pimaco 6180"
                       className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                     />
                   </div>
@@ -1114,6 +1142,7 @@ export function Impressos() {
                     <button
                       type="button"
                       onClick={() => setLabelFillMode('individual')}
+                      title="Imprimir uma etiqueta por aluno selecionado em sequência"
                       className={cn(
                         "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
                         labelFillMode === 'individual'
@@ -1126,6 +1155,7 @@ export function Impressos() {
                     <button
                       type="button"
                       onClick={() => setLabelFillMode('repeat')}
+                      title="Repetir a etiqueta do primeiro aluno selecionado em toda a folha"
                       className={cn(
                         "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
                         labelFillMode === 'repeat'
@@ -1198,6 +1228,7 @@ export function Impressos() {
                     value={signerName}
                     onChange={(e) => setSignerName(e.target.value)}
                     maxLength={35}
+                    title="Nome do responsável que assinará a certidão de quitação"
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                   />
                 </div>
@@ -1208,6 +1239,7 @@ export function Impressos() {
                     value={signerTitle}
                     onChange={(e) => setSignerTitle(e.target.value)}
                     maxLength={30}
+                    title="Cargo exibido abaixo da assinatura na certidão"
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                   />
                 </div>

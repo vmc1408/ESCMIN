@@ -876,6 +876,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
               <button 
                 type="button"
                 onClick={() => setCopies(1)}
+                title="Gerar recibo em 1 via única ocupando meia folha A4"
                 className={cn(
                   "flex items-start gap-3.5 p-3.5 rounded-xl border text-left transition-all cursor-pointer",
                   copies === 1
@@ -903,6 +904,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
               <button 
                 type="button"
                 onClick={() => setCopies(2)}
+                title="Gerar recibo em 2 vias (Secretaria e Aluno) na mesma folha A4"
                 className={cn(
                   "flex items-start gap-3.5 p-3.5 rounded-xl border text-left transition-all cursor-pointer",
                   copies === 2
@@ -929,11 +931,12 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
 
             {/* CHAVE DE CONTROLE RÁPIDO PARA INCLUIR OU NÃO A MENSAGEM NO RECIBO */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700" title="Ativar ou ocultar a mensagem institucional no recibo de matrícula">
                 <input
                   type="checkbox"
                   checked={includeMessage}
                   onChange={(e) => setIncludeMessage(e.target.checked)}
+                  title="Incluir mensagem ou aviso de matrícula no recibo"
                   className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                 />
                 <span>Incluir mensagem / aviso de matrícula no recibo</span>
@@ -968,6 +971,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
             <button 
               type="button"
               onClick={onClose}
+              title="Cancelar emissão e fechar recibo"
               className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer"
             >
               Cancelar
@@ -977,6 +981,7 @@ export const EnrollmentReceiptModal: React.FC<EnrollmentReceiptModalProps> = ({
               type="button"
               onClick={handleConfirmPrint}
               disabled={isPrintingDirect}
+              title={`Enviar recibo em ${copies} ${copies === 1 ? 'via' : 'vias'} para impressão`}
               className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2.5 cursor-pointer shadow-lg transition-all disabled:opacity-50"
             >
               <Printer size={18} />
