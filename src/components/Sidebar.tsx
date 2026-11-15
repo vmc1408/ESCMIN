@@ -322,21 +322,37 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
+  const findGroupChain = useCallback((items: any[], targetLabel: string, ancestors: string[] = []): string[] | null => {
+    for (const item of items) {
+      if (item.isSectionTitle) {
+        const found = findGroupChain(item.children || [], targetLabel, ancestors);
+        if (found) return found;
+      } else if (item.children && item.children.length > 0) {
+        const nextChain = [...ancestors, item.label];
+        if (item.label === targetLabel) return nextChain;
+        const found = findGroupChain(item.children, targetLabel, nextChain);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, []);
+
   const toggleGroup = (label: string) => {
     const isCurrentlyOpen = openGroups.includes(label);
     if (!isCurrentlyOpen) {
       triggerScrollForGroup(label);
-    } else if (pendingScrollGroupRef.current === label) {
-      pendingScrollGroupRef.current = null;
-      if (scrollFallbackTimerRef.current !== null) {
-        window.clearTimeout(scrollFallbackTimerRef.current);
-        scrollFallbackTimerRef.current = null;
+      const nextChain = findGroupChain(filteredNavItems, label) || [label];
+      setOpenGroups(nextChain);
+    } else {
+      if (pendingScrollGroupRef.current === label) {
+        pendingScrollGroupRef.current = null;
+        if (scrollFallbackTimerRef.current !== null) {
+          window.clearTimeout(scrollFallbackTimerRef.current);
+          scrollFallbackTimerRef.current = null;
+        }
       }
+      setOpenGroups(prev => prev.filter(g => g !== label));
     }
-
-    setOpenGroups(prev => 
-      prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]
-    );
   };
 
   const isPathActive = (path: string) => {
@@ -755,13 +771,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="h-full max-h-screen w-[280px] bg-[#0F2A30] text-white flex flex-col border-r border-[#1F4A54] print:hidden overflow-hidden shrink-0 select-none">
       <div className="h-16 px-3 bg-[#0B2025] border-b border-[#1F4A54] flex items-center justify-between shrink-0 overflow-hidden">
-        <Link
-          to="/"
-          onClick={() => onClose?.()}
-          title="ESCMIN by VMC — Diocese de Guarulhos"
-          className="flex-1 h-full flex items-center justify-center gap-2.5 cursor-pointer group min-w-0"
-        >
-          <div className="w-12 h-12 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+        <div className="flex-1 h-full flex items-center justify-start pl-2 gap-[18px] min-w-0 select-none">
+          <div className="w-12 h-12 flex items-center justify-center shrink-0">
             <img
               src="/assets/aistudio/vmc_logo_transparent_dark.png"
               alt="Logo Oficial VMC"
@@ -769,7 +780,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               className="w-full h-full object-contain select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
             />
           </div>
-          <div className="flex flex-col items-end leading-none select-none shrink-0 pr-2">
+          <div className="flex flex-col items-end leading-none select-none shrink-0 pr-1">
             <span className="font-brand text-[26px] font-bold tracking-[-0.015em] text-[#2DD4BF] leading-none flex items-baseline">
               <span>escm</span>
               <span className="inline-block leading-none bg-[linear-gradient(to_bottom,#F8D15B_0%,#F2BE42_36%,#2DD4BF_36%,#2DD4BF_100%)] bg-clip-text text-transparent">
@@ -777,11 +788,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               </span>
               <span>n</span>
             </span>
-            <span className="font-signature text-[15px] font-semibold bg-gradient-to-r from-[#FCE38A] via-[#E5B84B] to-[#F5D675] bg-clip-text text-transparent leading-none -mt-0.5 px-1.5 py-0.5 translate-x-4 sm:translate-x-5 tracking-wide">
+            <span className="font-signature text-[12px] font-semibold bg-gradient-to-r from-[#FCE38A] via-[#E5B84B] to-[#F5D675] bg-clip-text text-transparent leading-none mt-0.5 px-1 translate-x-2 sm:translate-x-2.5 tracking-wide">
               by VMC
             </span>
           </div>
-        </Link>
+        </div>
         {onClose && (
           <button 
             onClick={onClose}
