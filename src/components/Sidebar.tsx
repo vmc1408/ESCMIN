@@ -139,12 +139,12 @@ const navItems = [
           { icon: Printer, label: 'Relatórios e Impressão', path: '/parishes?view=reports', tooltip: 'Gerar e imprimir catálogos e listagens da diocese' },
         ]
       },
-      { icon: UserManagementIcon, label: 'Usuários', path: '/users', tooltip: 'Gerenciar contas de acesso, perfis e permissões por módulo' },
       { 
         label: 'Configurações', 
         icon: SettingsIcon,
-        tooltip: 'Parâmetros institucionais, backup, importação e arquivo morto',
+        tooltip: 'Parâmetros institucionais, usuários, backup, importação e arquivo morto',
         children: [
+          { icon: UserManagementIcon, label: 'Usuários', path: '/users', tooltip: 'Gerenciar contas de acesso, perfis e permissões por módulo' },
           { icon: Database, label: 'Backup', path: '/backup', tooltip: 'Gerar cópias de segurança e restaurar dados do sistema' },
           { icon: SettingsIcon, label: 'Geral', path: '/settings', tooltip: 'Dados da instituição, logotipo, normas e parâmetros gerais' },
           { icon: DollarSign, label: 'Financeiro', path: '/settings?tab=financial', tooltip: 'Valores de mensalidades, matrícula, vencimentos e chave Pix' },
