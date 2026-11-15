@@ -201,11 +201,16 @@ export const schemaService = {
           .select('id')
           .limit(1);
 
-        const isMissing = existError && (
-          existError.code === '42P01' || 
-          existError.message.toLowerCase().includes('does not exist') ||
-          existError.message.toLowerCase().includes('não existe') ||
-          existError.message.toLowerCase().includes('relation')
+        const existErrMsg = (existError?.message || '').toLowerCase();
+        const isMissing = Boolean(existError) && (
+          existError?.code === '42P01' ||
+          existError?.code === 'PGRST205' ||
+          existError?.code === 'PGRST106' ||
+          existErrMsg.includes('does not exist') ||
+          existErrMsg.includes('não existe') ||
+          existErrMsg.includes('relation') ||
+          existErrMsg.includes('could not find the table') ||
+          existErrMsg.includes('schema cache')
         );
 
         if (isMissing) {
@@ -452,58 +457,85 @@ export const schemaService = {
   getPerformanceIndexesSQL() {
     return `-- ============================================================================
 -- SCRIPT DE OTIMIZAÇÃO E ÍNDICES DE PERFORMANCE (POSTGRESQL / SUPABASE)
--- Cria índices estratégicos nas colunas mais consultadas em relatórios e chamadas
+-- Cria índices estratégicos apenas nas tabelas existentes (seguro contra erro 42P01)
 -- ============================================================================
 
--- Índices de Alunos
-CREATE INDEX IF NOT EXISTS idx_students_class_id ON public.students(class_id);
-CREATE INDEX IF NOT EXISTS idx_students_status ON public.students(status);
-CREATE INDEX IF NOT EXISTS idx_students_unit_id ON public.students(unit_id);
-CREATE INDEX IF NOT EXISTS idx_students_registration ON public.students(registration_number);
+DO $$
+BEGIN
+  -- Índices de Alunos
+  IF to_regclass('public.students') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_students_class_id ON public.students(class_id);
+    CREATE INDEX IF NOT EXISTS idx_students_status ON public.students(status);
+    CREATE INDEX IF NOT EXISTS idx_students_unit_id ON public.students(unit_id);
+    CREATE INDEX IF NOT EXISTS idx_students_registration ON public.students(registration_number);
+  END IF;
 
--- Índices de Turmas e Disciplinas
-CREATE INDEX IF NOT EXISTS idx_classes_status ON public.classes(status);
-CREATE INDEX IF NOT EXISTS idx_classes_unit_id ON public.classes(unit_id);
-CREATE INDEX IF NOT EXISTS idx_subjects_unit_id ON public.subjects(unit_id);
+  -- Índices de Turmas, Cursos e Disciplinas
+  IF to_regclass('public.classes') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_classes_status ON public.classes(status);
+    CREATE INDEX IF NOT EXISTS idx_classes_unit_id ON public.classes(unit_id);
+  END IF;
+  IF to_regclass('public.subjects') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_subjects_unit_id ON public.subjects(unit_id);
+  END IF;
+  IF to_regclass('public.courses') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_courses_unit_id ON public.courses(unit_id);
+  END IF;
 
--- Índices de Chamada e Frequência
-CREATE INDEX IF NOT EXISTS idx_attendances_student_id ON public.attendances(student_id);
-CREATE INDEX IF NOT EXISTS idx_attendances_class_id ON public.attendances(class_id);
-CREATE INDEX IF NOT EXISTS idx_attendances_date ON public.attendances(date);
-CREATE INDEX IF NOT EXISTS idx_attendances_unit_id ON public.attendances(unit_id);
+  -- Índices de Matrículas
+  IF to_regclass('public.enrollments') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON public.enrollments(student_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_class_id ON public.enrollments(class_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_unit_id ON public.enrollments(unit_id);
+  END IF;
 
--- Índices de Notas e Avaliações
-CREATE INDEX IF NOT EXISTS idx_grades_student_id ON public.grades(student_id);
-CREATE INDEX IF NOT EXISTS idx_grades_class_id ON public.grades(class_id);
-CREATE INDEX IF NOT EXISTS idx_grades_subject_id ON public.grades(subject_id);
-CREATE INDEX IF NOT EXISTS idx_grades_unit_id ON public.grades(unit_id);
-CREATE INDEX IF NOT EXISTS idx_assessments_class_id ON public.assessments(class_id);
-CREATE INDEX IF NOT EXISTS idx_assessments_subject_id ON public.assessments(subject_id);
-CREATE INDEX IF NOT EXISTS idx_assessments_unit_id ON public.assessments(unit_id);
+  -- Índices de Chamada e Frequência
+  IF to_regclass('public.attendances') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_attendances_student_id ON public.attendances(student_id);
+    CREATE INDEX IF NOT EXISTS idx_attendances_class_id ON public.attendances(class_id);
+    CREATE INDEX IF NOT EXISTS idx_attendances_date ON public.attendances(date);
+    CREATE INDEX IF NOT EXISTS idx_attendances_unit_id ON public.attendances(unit_id);
+  END IF;
 
--- Índices de Matrículas e Cursos
-CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON public.enrollments(student_id);
-CREATE INDEX IF NOT EXISTS idx_enrollments_class_id ON public.enrollments(class_id);
-CREATE INDEX IF NOT EXISTS idx_enrollments_unit_id ON public.enrollments(unit_id);
-CREATE INDEX IF NOT EXISTS idx_courses_unit_id ON public.courses(unit_id);
+  -- Índices de Notas e Avaliações
+  IF to_regclass('public.grades') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_grades_student_id ON public.grades(student_id);
+    CREATE INDEX IF NOT EXISTS idx_grades_class_id ON public.grades(class_id);
+    CREATE INDEX IF NOT EXISTS idx_grades_subject_id ON public.grades(subject_id);
+    CREATE INDEX IF NOT EXISTS idx_grades_unit_id ON public.grades(unit_id);
+  END IF;
+  IF to_regclass('public.assessments') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_assessments_class_id ON public.assessments(class_id);
+    CREATE INDEX IF NOT EXISTS idx_assessments_subject_id ON public.assessments(subject_id);
+    CREATE INDEX IF NOT EXISTS idx_assessments_unit_id ON public.assessments(unit_id);
+  END IF;
 
--- Índices de Calendário Acadêmico e Importações
-CREATE INDEX IF NOT EXISTS idx_calendar_events_start_date ON public.calendar_events(start_date);
-CREATE INDEX IF NOT EXISTS idx_calendar_events_unit_id ON public.calendar_events(unit_id);
-CREATE INDEX IF NOT EXISTS idx_calendar_versions_year_unit ON public.academic_calendar_versions(year, unit_id);
-CREATE INDEX IF NOT EXISTS idx_import_history_created_at ON public.import_history(created_at DESC);
+  -- Índices de Calendário Acadêmico e Importações
+  IF to_regclass('public.calendar_events') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_calendar_events_start_date ON public.calendar_events(start_date);
+    CREATE INDEX IF NOT EXISTS idx_calendar_events_unit_id ON public.calendar_events(unit_id);
+  END IF;
+  IF to_regclass('public.academic_calendar_versions') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_calendar_versions_year_unit ON public.academic_calendar_versions(year, unit_id);
+  END IF;
+  IF to_regclass('public.import_history') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_import_history_created_at ON public.import_history(created_at DESC);
+  END IF;
 
--- Índices Financeiros, Recibos e Contribuições
-CREATE INDEX IF NOT EXISTS idx_contributions_student_id ON public.contributions(student_id);
-CREATE INDEX IF NOT EXISTS idx_contributions_ref ON public.contributions(reference_year, reference_month);
-CREATE INDEX IF NOT EXISTS idx_contributions_unit_id ON public.contributions(unit_id);
-CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_status ON public.pix_reconciliations(status);
-CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_batch ON public.pix_reconciliations(batch_id);
-CREATE INDEX IF NOT EXISTS idx_receipts_unit_id ON public.receipts(unit_id);
-
--- Confirmação
-COMMENT ON INDEX idx_students_class_id IS 'Otimiza listagens e relatórios de alunos por turma';
-COMMENT ON INDEX idx_contributions_ref IS 'Acelera fechamentos mensais e relatórios financeiros';
+  -- Índices Financeiros, Recibos e Contribuições
+  IF to_regclass('public.contributions') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_contributions_student_id ON public.contributions(student_id);
+    CREATE INDEX IF NOT EXISTS idx_contributions_ref ON public.contributions(reference_year, reference_month);
+    CREATE INDEX IF NOT EXISTS idx_contributions_unit_id ON public.contributions(unit_id);
+  END IF;
+  IF to_regclass('public.pix_reconciliations') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_status ON public.pix_reconciliations(status);
+    CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_batch ON public.pix_reconciliations(batch_id);
+  END IF;
+  IF to_regclass('public.receipts') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_receipts_unit_id ON public.receipts(unit_id);
+  END IF;
+END $$;
 `;
   }
 };
