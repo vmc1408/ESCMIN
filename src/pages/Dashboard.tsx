@@ -48,7 +48,8 @@ import {
   getFavoritePaths, 
   subscribeToFavorites, 
   ALL_SHORTCUT_REGISTRY, 
-  resetToDefaultFavorites 
+  resetToDefaultFavorites,
+  MAX_FAVORITES
 } from '../lib/favoriteShortcuts';
 
 const CHART_COLORS = [
@@ -1697,8 +1698,8 @@ export function Dashboard() {
         className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden"
       >
 
-        {/* Faixa de Botões em Ribbon estilo Eclesial - Customizável com até 10 atalhos favoritos via Sidebar */}
-        <div className="p-1.5 sm:p-2 flex items-stretch gap-1 sm:gap-1.5 overflow-x-auto custom-scrollbar">
+        {/* Faixa de Botões em Ribbon estilo Eclesial - Customizável com atalhos favoritos via Sidebar */}
+        <div className="p-1.5 sm:p-2 flex flex-wrap items-stretch gap-1 sm:gap-1.5">
           {activeShortcuts.length > 0 ? (
             activeShortcuts.map((item, i) => (
               <button 
@@ -1708,11 +1709,11 @@ export function Dashboard() {
                     navigate(item.path, item.state ? { state: item.state } : undefined);
                   }
                 }}
-                className="flex flex-col items-center justify-start p-1.5 sm:p-2 min-w-[82px] sm:min-w-[92px] max-w-[108px] rounded-lg transition-all duration-150 hover:bg-slate-50 hover:border-slate-200 border border-transparent active:bg-slate-100 group cursor-pointer text-center shrink-0 select-none"
+                className="flex flex-col items-center justify-start p-1.5 min-w-[78px] sm:min-w-[84px] max-w-[98px] rounded-lg transition-all duration-150 hover:bg-slate-50 hover:border-slate-200 border border-transparent active:bg-slate-100 group cursor-pointer text-center shrink-0 select-none"
                 title={`${item.label} - ${item.subtitle}`}
               >
                 <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center mb-1 transition-transform duration-150 group-hover:scale-105 shadow-2xs", item.iconBg)}>
-                  <item.icon size={15} className={cn("shrink-0", item.iconColor)} />
+                  <item.icon size={16} strokeWidth={1.75} className={cn("shrink-0", item.iconColor)} />
                 </div>
                 <span className="text-[10.5px] font-bold text-slate-800 group-hover:text-blue-900 transition-colors leading-tight text-center line-clamp-2">
                   {item.label}
@@ -1725,7 +1726,7 @@ export function Dashboard() {
           ) : (
             <div className="w-full py-2.5 px-3.5 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-slate-500">
               <span className="text-xs">
-                Nenhum atalho favorito marcado. Clique na estrela (⭐) ao lado dos módulos na barra lateral para fixá-los aqui (até 10 atalhos).
+                Nenhum atalho favorito marcado. Clique na estrela (⭐) ao lado dos módulos na barra lateral para fixá-los aqui (até {MAX_FAVORITES} atalhos).
               </span>
               <button 
                 onClick={() => resetToDefaultFavorites()}

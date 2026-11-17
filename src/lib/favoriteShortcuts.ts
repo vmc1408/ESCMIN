@@ -3,32 +3,46 @@ import {
   UserPlus, 
   UserSquare2, 
   School, 
+  GraduationCap,
   BookOpen, 
-  FileText, 
+  BookOpenCheck,
+  FilePenLine,
   FileSpreadsheet, 
-  FileCheck, 
+  FileCheck2,
   ClipboardCheck, 
+  ClipboardList,
   CalendarCheck, 
   Calendar, 
   CalendarDays, 
+  CalendarRange,
+  SlidersHorizontal,
   Sparkles, 
   Settings, 
-  Wallet, 
-  CreditCard, 
+  Landmark,
+  CircleDollarSign,
+  BadgeDollarSign,
+  QrCode,
   BarChart3, 
-  DollarSign, 
+  Receipt,
   Printer, 
-  User, 
+  MailCheck,
+  IdCard,
+  BadgeCheck,
   Tag, 
   Church, 
-  Scroll, 
+  ScrollText, 
   Database, 
+  DatabaseBackup,
   Archive, 
   Upload,
+  Contact,
   UserCircle
 } from 'lucide-react';
 
-export const MAX_FAVORITES = 10;
+// Capacidade operacional lógica da Barra de Acesso Rápido:
+// ~11–13 atalhos por linha em notebooks (1366–1440px) e ~15–17 em monitores Full HD (1920px),
+// permitindo até 20 atalhos distribuídos em até 2 linhas compactas sem poluir o Dashboard.
+export const MAX_FAVORITES = 20;
 
 export interface ShortcutItem {
   path: string;
@@ -62,7 +76,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/courses',
     label: 'Cursos',
     subtitle: 'Programas de ensino',
-    icon: School,
+    icon: GraduationCap,
     iconBg: 'bg-violet-50 border border-violet-200/80',
     iconColor: 'text-violet-700'
   },
@@ -82,11 +96,19 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     iconBg: 'bg-teal-50 border border-teal-200/80',
     iconColor: 'text-teal-700'
   },
+  '/cadastros-relatorios': {
+    path: '/cadastros-relatorios',
+    label: 'Rel. Cadastrais',
+    subtitle: 'Listagens A4',
+    icon: ClipboardList,
+    iconBg: 'bg-cyan-50 border border-cyan-200/80',
+    iconColor: 'text-cyan-700'
+  },
   '/assessments': {
     path: '/assessments',
     label: 'Cadastrar Avaliações',
     subtitle: 'Provas e trabalhos',
-    icon: FileText,
+    icon: FilePenLine,
     iconBg: 'bg-amber-50 border border-amber-200/80',
     iconColor: 'text-amber-700'
   },
@@ -102,7 +124,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/bulletin',
     label: 'Boletim de Notas',
     subtitle: 'Desempenho acadêmico',
-    icon: FileText,
+    icon: BookOpenCheck,
     iconBg: 'bg-blue-50 border border-blue-200/80',
     iconColor: 'text-blue-700'
   },
@@ -110,7 +132,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/documents',
     label: 'Certificados & Diplomas',
     subtitle: 'Emissão e registro',
-    icon: FileCheck,
+    icon: BadgeCheck,
     iconBg: 'bg-purple-50 border border-purple-200/80',
     iconColor: 'text-purple-700'
   },
@@ -134,7 +156,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/student-ficha',
     label: 'Controle e Histórico',
     subtitle: 'Ficha acadêmica',
-    icon: UserCircle,
+    icon: Contact,
     iconBg: 'bg-rose-50 border border-rose-200/80',
     iconColor: 'text-rose-700'
   },
@@ -150,7 +172,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/calendar?view=management',
     label: 'Grade Acadêmica',
     subtitle: 'Horários e turmas',
-    icon: FileText,
+    icon: CalendarRange,
     iconBg: 'bg-sky-50 border border-sky-200/80',
     iconColor: 'text-sky-700'
   },
@@ -158,7 +180,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/calendar?view=parameters',
     label: 'Parâmetros Letivos',
     subtitle: 'Semestres e datas',
-    icon: Settings,
+    icon: SlidersHorizontal,
     iconBg: 'bg-slate-50 border border-slate-200/80',
     iconColor: 'text-slate-700'
   },
@@ -182,7 +204,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/financial',
     label: 'Dashboard Financeiro',
     subtitle: 'Visão gerencial',
-    icon: Wallet,
+    icon: Landmark,
     iconBg: 'bg-emerald-50 border border-emerald-200/80',
     iconColor: 'text-emerald-700'
   },
@@ -190,7 +212,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/contributions',
     label: 'Contribuições',
     subtitle: 'Mensalidades e taxas',
-    icon: Wallet,
+    icon: CircleDollarSign,
     iconBg: 'bg-violet-50 border border-violet-200/80',
     iconColor: 'text-violet-700'
   },
@@ -198,7 +220,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/financial-report',
     label: 'Rel. Financeiro',
     subtitle: 'Previsto vs Realizado',
-    icon: DollarSign,
+    icon: BarChart3,
     iconBg: 'bg-emerald-50 border border-emerald-200/80',
     iconColor: 'text-emerald-700'
   },
@@ -206,7 +228,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/pix-conference',
     label: 'Conferência Pix',
     subtitle: 'Comprovantes e lotes',
-    icon: CreditCard,
+    icon: QrCode,
     iconBg: 'bg-cyan-50 border border-cyan-200/80',
     iconColor: 'text-cyan-700'
   },
@@ -214,7 +236,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/receipts',
     label: 'Recibos',
     subtitle: 'Pagamentos avulsos',
-    icon: FileText,
+    icon: Receipt,
     iconBg: 'bg-slate-50 border border-slate-200/80',
     iconColor: 'text-slate-700'
   },
@@ -230,7 +252,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/impressos?type=carta',
     label: 'Carta Apresentação',
     subtitle: 'Documentos eclesiásticos',
-    icon: FileText,
+    icon: MailCheck,
     iconBg: 'bg-sky-50 border border-sky-200/80',
     iconColor: 'text-sky-700'
   },
@@ -238,7 +260,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/impressos?type=ficha',
     label: 'Ficha de Inscrição',
     subtitle: 'Impressão de matrículas',
-    icon: User,
+    icon: UserCircle,
     iconBg: 'bg-rose-50 border border-rose-200/80',
     iconColor: 'text-rose-700'
   },
@@ -246,7 +268,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/impressos?type=declaracao',
     label: 'Declaração de Matrícula',
     subtitle: 'Comprovante acadêmico',
-    icon: FileText,
+    icon: FileCheck2,
     iconBg: 'bg-blue-50 border border-blue-200/80',
     iconColor: 'text-blue-700'
   },
@@ -254,7 +276,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/impressos?type=carteirinhas',
     label: 'Etiqueta Carteirinha',
     subtitle: 'Identificação do aluno',
-    icon: CreditCard,
+    icon: IdCard,
     iconBg: 'bg-teal-50 border border-teal-200/80',
     iconColor: 'text-teal-700'
   },
@@ -270,7 +292,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/impressos?type=quitacao',
     label: 'Certidão de Quitação',
     subtitle: 'Declaração financeira',
-    icon: FileCheck,
+    icon: BadgeCheck,
     iconBg: 'bg-emerald-50 border border-emerald-200/80',
     iconColor: 'text-emerald-700'
   },
@@ -286,7 +308,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     path: '/parishes?view=reports',
     label: 'Relatórios da Diocese',
     subtitle: 'Guias e impressos',
-    icon: Scroll,
+    icon: ScrollText,
     iconBg: 'bg-amber-50 border border-amber-200/80',
     iconColor: 'text-amber-700'
   },
@@ -306,11 +328,27 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
     iconBg: 'bg-slate-50 border border-slate-200/80',
     iconColor: 'text-slate-700'
   },
+  '/settings?tab=financial': {
+    path: '/settings?tab=financial',
+    label: 'Config. Financeira',
+    subtitle: 'Taxas e vencimentos',
+    icon: BadgeDollarSign,
+    iconBg: 'bg-emerald-50 border border-emerald-200/80',
+    iconColor: 'text-emerald-700'
+  },
+  '/settings?tab=database': {
+    path: '/settings?tab=database',
+    label: 'Base de Dados & SQL',
+    subtitle: 'Auditoria e scripts',
+    icon: Database,
+    iconBg: 'bg-indigo-50 border border-indigo-200/80',
+    iconColor: 'text-indigo-700'
+  },
   '/backup': {
     path: '/backup',
     label: 'Backup do Sistema',
     subtitle: 'Segurança de dados',
-    icon: Database,
+    icon: DatabaseBackup,
     iconBg: 'bg-blue-50 border border-blue-200/80',
     iconColor: 'text-blue-700'
   },
@@ -388,7 +426,7 @@ export function toggleFavoritePath(path: string): {
       success: false, 
       isFavorite: false, 
       favorites: current,
-      message: `Limite de ${MAX_FAVORITES} atalhos favoritos atingido. Desmarque um atalho antes de adicionar outro.` 
+      message: `Limite operacional de ${MAX_FAVORITES} atalhos favoritos atingido. Desmarque um atalho antes de adicionar outro.` 
     };
   }
 

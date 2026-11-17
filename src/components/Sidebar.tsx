@@ -41,7 +41,7 @@ import { cn } from '../lib/utils';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getInstitutionSettings } from '../lib/database';
 import { motion, AnimatePresence } from 'motion/react';
-import { getFavoritePaths, toggleFavoritePath, subscribeToFavorites } from '../lib/favoriteShortcuts';
+import { getFavoritePaths, toggleFavoritePath, subscribeToFavorites, MAX_FAVORITES } from '../lib/favoriteShortcuts';
 
 import { useAuth } from '../contexts/AuthContext';
 import { SidebarUnitSwitcher } from './SidebarUnitSwitcher';
@@ -649,7 +649,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                       ? "text-amber-300 opacity-100 hover:scale-125" 
                       : "text-slate-300 opacity-0 group-hover:opacity-80 hover:!opacity-100 hover:text-amber-300 hover:scale-125"
                   )}
-                  title={isFav ? "Remover da barra de acesso rápido do Dashboard" : "Fixar na barra de acesso rápido do Dashboard (máx. 10)"}
+                  title={isFav ? "Remover da barra de acesso rápido do Dashboard" : `Fixar na barra de acesso rápido do Dashboard (máx. ${MAX_FAVORITES})`}
                 >
                   <Star size={12} className={cn(isFav ? "fill-amber-300" : "")} />
                 </button>
@@ -758,7 +758,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                   ? "text-amber-300 opacity-100 hover:scale-125" 
                   : "text-slate-300 opacity-0 group-hover:opacity-80 hover:!opacity-100 hover:text-amber-300 hover:scale-125"
               )}
-              title={isFav ? "Remover da barra de acesso rápido do Dashboard" : "Fixar na barra de acesso rápido do Dashboard (máx. 10)"}
+              title={isFav ? "Remover da barra de acesso rápido do Dashboard" : `Fixar na barra de acesso rápido do Dashboard (máx. ${MAX_FAVORITES})`}
             >
               <Star size={12} className={cn(isFav ? "fill-amber-300" : "")} />
             </button>
