@@ -12,8 +12,15 @@ import {
   applyManualOverrideToDate,
   removeManualOverrideFromDate,
   regenerateMonthDays,
-  regeneratePeriodDays
+  regeneratePeriodDays,
+  buildInitialAnnualParamsFromAcademicSettings,
+  isDateWithinWeekdayTerms
 } from '../src/services/annualCalendarEngine';
+import {
+  sanitizeAcademicSettings,
+  getAllAcademicSchedulePeriods,
+  resolveAcademicSettingsForUnit
+} from '../src/lib/academicUtils';
 
 import {
   calculateEaster,
@@ -188,5 +195,86 @@ assert(summary.by_month.length === 12, 'Sumário mensal deve cobrir exatamente o
 assert(summary.by_period.length === 1, 'Sumário por período deve listar os períodos configurados');
 assert(summary.total_manual_overrides === 1, 'Total de ajustes manuais deve refletir a quantidade real');
 assert(summary.difference_from_target === summary.total_class_days - 100, 'Diferença da meta deve ser calculada corretamente');
+
+// 9. Teste de Integração Bidirecional: Parâmetros -> Calendário Anual e Respeito a weekday_terms
+console.log('\n9. Integração Bidirecional Parâmetros <-> Calendário Anual');
+const paramSettingsSample = {
+  id: 'current',
+  unit_id: 'matriz',
+  class_weekdays: [0, 3, 4], // inclui Domingo inválido que deve ser higienizado
+  term1_start: '',
+  term1_end: '',
+  term2_start: '',
+  term2_end: '',
+  weekday_terms: {
+    3: { term1_start: '11/03/2026', term1_end: '01/07/2026', term2_start: '05/08/2026', term2_end: '02/12/2026' },
+    4: { term1_start: '2026-03-19', term1_end: '2026-06-25', term2_start: '2026-08-06', term2_end: '2026-11-26' }
+  },
+  weekday_classes: {
+    3: ['turma_teo_1', 'turma_teo_2'],
+    4: ['turma_dsi']
+  }
+};
+
+const hydratedAnnual = buildInitialAnnualParamsFromAcademicSettings(paramSettingsSample, 2026);
+assert(hydratedAnnual !== null, 'Calendário Anual deve herdar configuração inicial quando Parâmetros existem');
+assert(
+  JSON.stringify(hydratedAnnual?.weekdays) === JSON.stringify([3, 4]),
+  'Dias da semana devem ser importados sem Domingo [3, 4]'
+);
+assert(
+  hydratedAnnual?.start_date === '2026-03-11' && hydratedAnnual?.end_date === '2026-12-02',
+  'Datas gerais (start_date/end_date) devem ser normalizadas a partir de weekday_terms'
+);
+assert(
+  hydratedAnnual?.periods[0].start_date === '2026-03-11' && hydratedAnnual?.periods[1].end_date === '2026-12-02',
+  '1º e 2º Semestres do Calendário Anual devem ser preenchidos automaticamente'
+);
+assert(
+  hydratedAnnual?.weekdayClasses[3]?.length === 2 && hydratedAnnual?.weekdayClasses[4]?.[0] === 'turma_dsi',
+  'Vínculos de turmas por dia da semana devem ser preservados na importação'
+);
+
+assert(isDateWithinWeekdayTerms('2026-03-12', 4, paramSettingsSample) === false, 'Quinta 12/03 fora do termo customizado da Quinta (início 19/03) deve ser ignorada');
+assert(isDateWithinWeekdayTerms('2026-03-19', 4, paramSettingsSample) === true, 'Quinta 19/03 dentro do termo customizado da Quinta deve ser incluída');
+assert(isDateWithinWeekdayTerms('2026-03-11', 3, paramSettingsSample) === true, 'Quarta 11/03/2026 em formato BR normalizado deve estar dentro do 1º Semestre da Quarta');
+
+// 10. Isolamento Estrito por Polo/Unidade e Higienização de Períodos
+console.log('\n10. Isolamento Estrito por Polo/Unidade e Fallback de Períodos');
+const classShadowDoc = {
+  id: 'turma_pimentas_1',
+  unit_id: 'pimentas',
+  class_weekdays: [2],
+  term1_start: '2026-02-01'
+};
+const pimentasMainDoc = {
+  id: 'academic_settings_pimentas',
+  unit_id: 'pimentas',
+  class_weekdays: [6],
+  term1_start: '2026-03-14',
+  term1_end: '2026-07-04'
+};
+const matrizMainDoc = sanitizeAcademicSettings(paramSettingsSample);
+
+const resolvedMatriz = resolveAcademicSettingsForUnit('matriz', [classShadowDoc, pimentasMainDoc, matrizMainDoc]);
+assert(resolvedMatriz.settings?.id === 'current', 'Matriz deve resolver prioritariamente para o documento current');
+
+const resolvedPimentas = resolveAcademicSettingsForUnit('pimentas', [classShadowDoc, pimentasMainDoc, matrizMainDoc]);
+assert(resolvedPimentas.settings?.id === 'academic_settings_pimentas' && resolvedPimentas.isCustom === true, 'Polo Pimentas deve priorizar academic_settings_pimentas sobre registro avulso de turma');
+
+const resolvedNewPolo = resolveAcademicSettingsForUnit('polo_novo', [matrizMainDoc]);
+assert(resolvedNewPolo.settings === null && resolvedNewPolo.isCustom === false, 'Novo polo sem parâmetros próprios NÃO deve herdar calendário da Matriz');
+
+const unconfiguredSanitized = sanitizeAcademicSettings({ id: 'academic_settings_polo_novo', unit_id: 'polo_novo', class_weekdays: [] });
+assert(Array.isArray(unconfiguredSanitized.class_weekdays) && unconfiguredSanitized.class_weekdays.length === 0, 'Array class_weekdays vazio explícito deve permanecer vazio sem inventar Quarta-feira');
+
+const multiDayPeriods = getAllAcademicSchedulePeriods({
+  class_weekdays: [3, 4],
+  weekday_terms: {
+    3: { term1_start: '2026-03-11', term1_end: '2026-07-01', term2_start: '2026-08-05', term2_end: '2026-12-02' }
+  }
+});
+assert(multiDayPeriods.length === 2, 'Quarta e Quinta ativas devem gerar exatamente 2 períodos de resumo');
+assert(multiDayPeriods[1].label === 'Quinta-feira' && multiDayPeriods[1].t1Start === '2026-03-11', 'Quinta sem data customizada deve herdar fallback de 1º/2º semestres válidos da unidade');
 
 console.log(`\n🎉 TODOS OS TESTES PASSARAM COM SUCESSO! TOTAL DE DIAS LETIVOS CALCULADOS: ${summary.total_class_days}`);

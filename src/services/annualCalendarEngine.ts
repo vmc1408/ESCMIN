@@ -15,7 +15,7 @@ import {
   HolidayEntry
 } from '../types/annualCalendar';
 import { fetchAll, saveData, saveBatch, deleteQuery, fetchQuery, fetchById } from '../lib/database';
-import { getClassWeekdays, sanitizeAcademicSettings } from '../lib/academicUtils';
+import { getClassWeekdays, sanitizeAcademicSettings, normalizeClassWeekdays, normalizeScheduleDate } from '../lib/academicUtils';
 import { isItemInUnit } from '../lib/unitService';
 
 export const MONTH_NAMES_BR = [
@@ -701,6 +701,123 @@ export async function saveCalendarVersion(
   return newVersion;
 }
 
+export interface InitialAnnualParamsFromSettings {
+  start_date: string;
+  end_date: string;
+  weekdays: number[];
+  periods: AcademicPeriod[];
+  weekdayClasses: Record<number, string[]>;
+}
+
+/**
+ * Converte os parâmetros salvos em `academic_settings` (Parâmetros Semanais e Semestres)
+ * no formato inicial esperado pelo Calendário Anual, respeitando fallbacks de `weekday_terms`.
+ */
+export function buildInitialAnnualParamsFromAcademicSettings(
+  settings: any,
+  targetYear: number
+): InitialAnnualParamsFromSettings | null {
+  if (!settings || typeof settings !== 'object') return null;
+
+  const cleaned = sanitizeAcademicSettings(settings);
+  const weekdays = normalizeClassWeekdays(cleaned.class_weekdays, []);
+  const weekdayTerms = cleaned.weekday_terms && typeof cleaned.weekday_terms === 'object' ? cleaned.weekday_terms : {};
+
+  let t1Start = normalizeScheduleDate(cleaned.term1_start || '');
+  let t1End = normalizeScheduleDate(cleaned.term1_end || '');
+  let t2Start = normalizeScheduleDate(cleaned.term2_start || '');
+  let t2End = normalizeScheduleDate(cleaned.term2_end || '');
+
+  const candidateDays = weekdays.length > 0
+    ? weekdays
+    : Object.keys(weekdayTerms).map(Number).filter(n => !isNaN(n) && n >= 1 && n <= 6).sort((a, b) => a - b);
+
+  for (const d of candidateDays) {
+    const dt = weekdayTerms[d] || weekdayTerms[String(d)];
+    if (!dt || typeof dt !== 'object') continue;
+    if (!t1Start && dt.term1_start) t1Start = normalizeScheduleDate(dt.term1_start);
+    if (!t1End && dt.term1_end) t1End = normalizeScheduleDate(dt.term1_end);
+    if (!t2Start && dt.term2_start) t2Start = normalizeScheduleDate(dt.term2_start);
+    if (!t2End && dt.term2_end) t2End = normalizeScheduleDate(dt.term2_end);
+  }
+
+  const periods: AcademicPeriod[] = [
+    {
+      id: `sem1_${targetYear}`,
+      name: '1º Semestre',
+      start_date: t1Start,
+      end_date: t1End,
+      is_active: true,
+      color: '#2563eb'
+    },
+    {
+      id: `sem2_${targetYear}`,
+      name: '2º Semestre',
+      start_date: t2Start,
+      end_date: t2End,
+      is_active: true,
+      color: '#059669'
+    }
+  ];
+
+  const allStarts = [t1Start, t2Start].filter(Boolean).sort();
+  const allEnds = [t1End, t2End].filter(Boolean).sort();
+  const start_date = allStarts[0] || '';
+  const end_date = allEnds[allEnds.length - 1] || '';
+
+  const weekdayClasses: Record<number, string[]> = {};
+  if (cleaned.weekday_classes && typeof cleaned.weekday_classes === 'object') {
+    Object.entries(cleaned.weekday_classes).forEach(([k, list]) => {
+      const dNum = Number(k);
+      if (!isNaN(dNum) && dNum >= 1 && dNum <= 6 && Array.isArray(list)) {
+        weekdayClasses[dNum] = list.filter(Boolean).map(String);
+      }
+    });
+  }
+
+  if (weekdays.length === 0 && !start_date && !end_date && Object.keys(weekdayClasses).length === 0) {
+    return null;
+  }
+
+  return {
+    start_date,
+    end_date,
+    weekdays,
+    periods,
+    weekdayClasses
+  };
+}
+
+/**
+ * Verifica se uma data respeita os termos específicos de um dia da semana (quando customizados em Parâmetros).
+ * Se o dia não possui `weekday_terms` próprios configurados, segue os períodos gerais do Calendário Anual.
+ */
+export function isDateWithinWeekdayTerms(
+  dateStr: string,
+  weekday: number,
+  settings: any
+): boolean {
+  if (!dateStr || !settings?.weekday_terms) return true;
+  const dayTerms = settings.weekday_terms[weekday] || settings.weekday_terms[String(weekday)];
+  if (!dayTerms || typeof dayTerms !== 'object') return true;
+
+  const hasCustom = Boolean(
+    dayTerms.term1_start || dayTerms.term1_end || dayTerms.term2_start || dayTerms.term2_end
+  );
+  if (!hasCustom) return true;
+
+  const t1s = normalizeScheduleDate(dayTerms.term1_start || settings.term1_start || '');
+  const t1e = normalizeScheduleDate(dayTerms.term1_end || settings.term1_end || '');
+  const t2s = normalizeScheduleDate(dayTerms.term2_start || settings.term2_start || '');
+  const t2e = normalizeScheduleDate(dayTerms.term2_end || settings.term2_end || '');
+
+  const inSem1 = Boolean(t1s && t1e && dateStr >= t1s && dateStr <= t1e);
+  const inSem2 = Boolean(t2s && t2e && dateStr >= t2s && dateStr <= t2e);
+
+  if (!t1s && !t1e && !t2s && !t2e) return true;
+  return inSem1 || inSem2;
+}
+
 /**
  * Sincroniza os dias letivos, termos, turmas vinculadas e academic_settings
  * com a tabela principal 'calendar_events' para que todo o sistema
@@ -727,12 +844,13 @@ export async function syncCalendarEventsWithPublishedDays(
       .filter((e: any) => {
         if (!e.start_date || !e.start_date.startsWith(yearStr)) return false;
         const eUnit = e.unit_id || 'matriz';
-        if (eUnit !== unitId && unitId !== 'all') return false;
+        if (unitId !== 'all' && !isItemInUnit(eUnit, unitId)) return false;
         const desc = (e.description || '').toLowerCase();
         const isAutoDesc = desc.includes('calendário anual') || desc.includes('cronograma automático');
         return (
           e.type === 'class_day' ||
           ((e.type === 'start_term' || e.type === 'end_term') && isAutoDesc) ||
+          ((e.type === 'event' || e.type === 'cancelled_class') && desc.includes('calendário anual')) ||
           isAutoDesc
         );
       })
@@ -740,8 +858,8 @@ export async function syncCalendarEventsWithPublishedDays(
       .filter(Boolean);
 
     if (toDeleteIds.length > 0) {
-      for (let i = 0; i < toDeleteIds.length; i += 100) {
-        const chunk = toDeleteIds.slice(i, i + 100);
+      for (let i = 0; i < toDeleteIds.length; i += 80) {
+        const chunk = toDeleteIds.slice(i, i + 80);
         await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: chunk }]);
       }
     }
@@ -753,13 +871,13 @@ export async function syncCalendarEventsWithPublishedDays(
       return isItemInUnit(c.unit_id || c.polo, unitId);
     });
 
-    const resolvedWeekdayClasses: Record<number, string[]> = {};
+    const resolvedWeekdayClasses: Record<number, string[]> = { ...(existingSettings?.weekday_classes || {}) };
     (version.weekdays || []).forEach(w => {
       if (w < 1 || w > 6) return;
       const explicitIds = options?.weekdayClasses?.[w];
       if (Array.isArray(explicitIds) && explicitIds.length > 0) {
         resolvedWeekdayClasses[w] = explicitIds;
-      } else {
+      } else if (!Array.isArray(resolvedWeekdayClasses[w]) || resolvedWeekdayClasses[w].length === 0) {
         const matched = unitClasses
           .filter((c: any) => getClassWeekdays(c, existingSettings).includes(w))
           .map((c: any) => c.id)
@@ -768,44 +886,81 @@ export async function syncCalendarEventsWithPublishedDays(
       }
     });
 
-    // 3. Cria eventos de dias letivos vinculados às turmas (ou global se nenhuma turma estiver associada)
+    // 3. Cria eventos de dias letivos vinculados às turmas (respeitando overrides e weekday_terms)
     const newItems: any[] = [];
     const nowIso = new Date().toISOString();
     const signatureDesc = `Calendário Anual Oficial (${version.title})`;
+    const configuredWeekdaysSet = new Set((version.weekdays || []).map(Number));
 
     Object.values(version.days).forEach(day => {
-      if (!day.is_class_day) return;
       const wDay = day.day_of_week;
-      const classIdsForDay = resolvedWeekdayClasses[wDay] || [];
 
-      if (classIdsForDay.length > 0) {
-        classIdsForDay.forEach(cid => {
-          const cls = unitClasses.find((c: any) => String(c.id) === String(cid));
+      if (day.is_class_day) {
+        if (!day.is_manual_override && !isDateWithinWeekdayTerms(day.date, wDay, existingSettings)) {
+          return;
+        }
+        const classIdsForDay = resolvedWeekdayClasses[wDay] || [];
+
+        if (classIdsForDay.length > 0) {
+          classIdsForDay.forEach(cid => {
+            const cls = unitClasses.find((c: any) => String(c.id) === String(cid));
+            newItems.push({
+              title: cls ? `Dia de Aula - ${cls.name}` : `Aula - ${day.period_name || 'Calendário Anual'}`,
+              start_date: day.date,
+              end_date: day.date,
+              type: 'class_day',
+              description: signatureDesc,
+              class_id: cid,
+              unit_id: cls?.unit_id || unitId,
+              ...(options?.userId ? { user_id: options.userId } : {}),
+              created_at: nowIso
+            });
+          });
+        } else {
           newItems.push({
-            title: cls ? `Dia de Aula - ${cls.name}` : `Aula - ${day.period_name || 'Calendário Anual'}`,
+            title: `Dia de Aula - ${day.period_name || 'Calendário Anual'}`,
             start_date: day.date,
             end_date: day.date,
             type: 'class_day',
             description: signatureDesc,
-            class_id: cid,
-            unit_id: cls?.unit_id || unitId,
+            class_id: null,
+            unit_id: unitId,
             ...(options?.userId ? { user_id: options.userId } : {}),
             created_at: nowIso
           });
-        });
-      } else {
+        }
+      } else if (day.is_manual_override && configuredWeekdaysSet.has(wDay)) {
         newItems.push({
-          title: `Dia de Aula - ${day.period_name || 'Calendário Anual'}`,
+          title: 'Suspensão / Ajuste Anual',
           start_date: day.date,
           end_date: day.date,
-          type: 'class_day',
-          description: signatureDesc,
+          type: 'cancelled_class',
+          description: `${signatureDesc}${day.override_reason ? ` - ${day.override_reason}` : ''}`,
           class_id: null,
           unit_id: unitId,
           ...(options?.userId ? { user_id: options.userId } : {}),
           created_at: nowIso
         });
       }
+    });
+
+    // 3.1. Persiste recessos e férias publicados para visibilidade e respeito no Calendário Mensal e Parâmetros
+    (version.recesses || []).forEach(recess => {
+      if (!recess.start_date || !recess.end_date) return;
+      const prefix = recess.type === 'ferias' ? 'Férias' : recess.type === 'suspensao' ? 'Suspensão' : 'Recesso';
+      const cleanName = recess.name?.trim() || prefix;
+      const hasKeyword = /f[eé]rias|recesso|suspens[aã]o/i.test(cleanName);
+      newItems.push({
+        title: hasKeyword ? cleanName : `${prefix} - ${cleanName}`,
+        start_date: recess.start_date,
+        end_date: recess.end_date,
+        type: 'event',
+        description: signatureDesc,
+        class_id: null,
+        unit_id: unitId,
+        ...(options?.userId ? { user_id: options.userId } : {}),
+        created_at: nowIso
+      });
     });
 
     // 4. Cria marcos de início e término de períodos ativos
@@ -839,12 +994,14 @@ export async function syncCalendarEventsWithPublishedDays(
       }
     });
 
-    // Salva em lotes
+    // Salva em lotes seguros
     if (newItems.length > 0) {
-      await saveBatch('calendar_events', newItems, 60000);
+      for (let i = 0; i < newItems.length; i += 150) {
+        await saveBatch('calendar_events', newItems.slice(i, i + 150), 60000);
+      }
     }
 
-    // 5. Sincroniza academic_settings para que Splash, Grade, Frequência e Boletim fiquem alinhados
+    // 5. Sincroniza academic_settings preservando weekday_terms e atualizando ciclos gerais
     if (options?.syncSettings !== false) {
       const targetSettingsId = unitId === 'matriz' ? 'current' : `academic_settings_${unitId}`;
       const p1 = activePeriods[0];
@@ -867,6 +1024,7 @@ export async function syncCalendarEventsWithPublishedDays(
         class_weekdays: (version.weekdays || []).filter(w => w >= 1 && w <= 6),
         weekday_titles: weekdayTitles,
         weekday_classes: resolvedWeekdayClasses,
+        weekday_terms: existingSettings?.weekday_terms || {},
         updated_at: nowIso
       });
 

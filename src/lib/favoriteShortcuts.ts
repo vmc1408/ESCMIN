@@ -179,7 +179,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
   '/calendar?view=parameters': {
     path: '/calendar?view=parameters',
     label: 'Parâmetros Letivos',
-    subtitle: 'Semestres e datas',
+    subtitle: 'Dias semanais e semestres',
     icon: SlidersHorizontal,
     iconBg: 'bg-slate-50 border border-slate-200/80',
     iconColor: 'text-slate-700'
@@ -187,7 +187,7 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
   '/calendar?view=annual': {
     path: '/calendar?view=annual',
     label: 'Calendário Anual',
-    subtitle: 'Visão do ano',
+    subtitle: 'Planejamento e homologação',
     icon: CalendarDays,
     iconBg: 'bg-orange-50 border border-orange-200/80',
     iconColor: 'text-orange-700'

@@ -92,8 +92,8 @@ const navItems = [
         children: [
           { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month', tooltip: 'Visualizar e gerenciar eventos e aulas no calendário mensal' },
           { icon: FileText, label: 'Grade Acadêmica', path: '/calendar?view=management', tooltip: 'Acompanhar o cronograma de aulas e progresso por turma' },
-          { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters', tooltip: 'Definir dias letivos, feriados e regras gerais do calendário' },
-          { icon: CalendarDays, label: 'Calendário Anual', path: '/calendar?view=annual', tooltip: 'Visão anual completa de aulas, recessos e datas diocesanas' },
+          { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters', tooltip: 'Definir dias semanais, turmas vinculadas e períodos semestrais por unidade' },
+          { icon: CalendarDays, label: 'Calendário Anual', path: '/calendar?view=annual', tooltip: 'Planejamento anual, recessos, feriados, ajustes pontuais e homologação' },
           { icon: Sparkles, label: 'Habilitação', path: '/calendar?view=habilitation', tooltip: 'Habilitar turmas e ciclos para novos períodos letivos' },
         ]
       },

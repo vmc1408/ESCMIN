@@ -54,6 +54,7 @@ import {
   saveCalendarVersion,
   saveCalendarDraft,
   getCalendarDraft,
+  buildInitialAnnualParamsFromAcademicSettings,
   isLeapYear,
   getDaysInMonth,
   MONTH_NAMES_BR,
@@ -63,8 +64,8 @@ import {
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitContext';
-import { fetchQuery, getInstitutionSettings } from '../../lib/database';
-import { getClassWeekdays } from '../../lib/academicUtils';
+import { fetchAll, fetchById, fetchQuery, getInstitutionSettings } from '../../lib/database';
+import { getClassWeekdays, resolveAcademicSettingsForUnit } from '../../lib/academicUtils';
 import { isItemInUnit } from '../../lib/unitService';
 import { StandardReportSheet } from '../print/StandardPrintLayout';
 import { Class } from '../../types';
@@ -108,11 +109,16 @@ export function AnnualCalendarManager({
     return selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz';
   });
 
+  const [parameterBaseline, setParameterBaseline] = useState<any>(null);
+  const [hydratedFromSettings, setHydratedFromSettings] = useState<boolean>(false);
+
   useEffect(() => {
-    if (isRestricted && !canSwitchUnit && selectedUnitId && selectedUnitId !== 'all') {
+    if (selectedUnitId && selectedUnitId !== 'all') {
       setTargetUnitId(selectedUnitId);
+    } else if (selectedUnitId === 'all' && !isRestricted) {
+      setTargetUnitId('matriz');
     }
-  }, [isRestricted, canSwitchUnit, selectedUnitId]);
+  }, [selectedUnitId, isRestricted]);
   const [stateUf, setStateUf] = useState<string>('SP');
   const [cityName, setCityName] = useState<string>('Guarulhos');
 
@@ -269,15 +275,43 @@ export function AnnualCalendarManager({
     loadHolidays(targetYear, stateUf, cityName);
   }, [targetYear, stateUf, cityName, loadHolidays]);
 
-  // Carrega versões salvas ou rascunho anterior do ano/unidade
+  const resolveLatestUnitSettings = useCallback(async (unitIdToResolve: string) => {
+    const settingsDocId = unitIdToResolve === 'matriz' || unitIdToResolve === 'all'
+      ? 'current'
+      : `academic_settings_${unitIdToResolve}`;
+    const [directDoc, allDocs] = await Promise.all([
+      fetchById('academic_settings', settingsDocId).catch(() => null),
+      fetchAll('academic_settings').catch(() => [])
+    ]);
+    const pool = [
+      ...(directDoc ? [directDoc] : []),
+      ...(Array.isArray(allDocs) ? allDocs : [])
+    ];
+    const resolved = resolveAcademicSettingsForUnit(unitIdToResolve, pool);
+    return resolved?.settings || directDoc || null;
+  }, []);
+
+  // Carrega versões salvas, rascunho anterior ou herda parâmetros da unidade quando ainda não há versão anual
   const loadVersions = useCallback(async () => {
     setSelectedVersionId(null);
     setErrorMsg(null);
+    setHydratedFromSettings(false);
     let loadedAny = false;
+
+    const unitSettings = await resolveLatestUnitSettings(targetUnitId).catch(() => null);
+    setParameterBaseline(unitSettings);
 
     // 1. Tenta recuperar rascunho salvo anteriormente
     const draft = getCalendarDraft(targetYear, targetUnitId);
-    if (draft && draft.params) {
+    const hasMeaningfulDraft = Boolean(
+      draft && draft.params && (
+        draft.params.start_date ||
+        draft.params.end_date ||
+        (Array.isArray(draft.params.weekdays) && draft.params.weekdays.length > 0) ||
+        (draft.days && Object.keys(draft.days).length > 0)
+      )
+    );
+    if (hasMeaningfulDraft && draft) {
       loadedAny = true;
       if (draft.params.start_date) setStartDate(draft.params.start_date);
       if (draft.params.end_date) setEndDate(draft.params.end_date);
@@ -311,15 +345,69 @@ export function AnnualCalendarManager({
       if (activeVer.holidays) setHolidays(activeVer.holidays);
     }
 
-    if (!loadedAny) {
-      setStartDate('');
-      setEndDate('');
-      setClassWeekdays([]);
-      setRecesses([]);
-      setCalendarDays(null);
-      setLastDraftSavedAt(null);
+    if (unitSettings?.weekday_classes) {
+      setWeekdayClasses(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.entries(unitSettings.weekday_classes).forEach(([wStr, ids]: [string, any]) => {
+          const wNum = Number(wStr);
+          if (!isNaN(wNum) && wNum >= 1 && wNum <= 6 && Array.isArray(ids) && (!Array.isArray(next[wNum]) || next[wNum].length === 0)) {
+            next[wNum] = ids;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
     }
-  }, [targetYear, targetUnitId]);
+
+    if (!loadedAny) {
+      const fromParams = buildInitialAnnualParamsFromAcademicSettings(unitSettings, targetYear);
+      if (fromParams) {
+        setStartDate(fromParams.start_date);
+        setEndDate(fromParams.end_date);
+        setClassWeekdays(fromParams.weekdays);
+        setPeriods(fromParams.periods);
+        if (Object.keys(fromParams.weekdayClasses).length > 0) {
+          setWeekdayClasses(fromParams.weekdayClasses);
+        }
+        setRecesses([]);
+        setCalendarDays(null);
+        setLastDraftSavedAt(null);
+        setHydratedFromSettings(true);
+      } else {
+        setStartDate('');
+        setEndDate('');
+        setClassWeekdays([]);
+        setRecesses([]);
+        setCalendarDays(null);
+        setLastDraftSavedAt(null);
+      }
+    }
+  }, [targetYear, targetUnitId, resolveLatestUnitSettings]);
+
+  const handleSyncFromParameters = useCallback(async () => {
+    const latest = await resolveLatestUnitSettings(targetUnitId).catch(() => parameterBaseline);
+    if (!latest) {
+      setErrorMsg('Nenhum parâmetro semanal/semestral configurado para esta unidade.');
+      return;
+    }
+    const mapped = buildInitialAnnualParamsFromAcademicSettings(latest, targetYear);
+    if (!mapped) {
+      setErrorMsg('Os parâmetros da unidade ainda não possuem dias ou datas configuradas.');
+      return;
+    }
+    setParameterBaseline(latest);
+    if (mapped.start_date) setStartDate(mapped.start_date);
+    if (mapped.end_date) setEndDate(mapped.end_date);
+    if (mapped.weekdays.length > 0) setClassWeekdays(mapped.weekdays);
+    setPeriods(mapped.periods);
+    if (Object.keys(mapped.weekdayClasses).length > 0) {
+      setWeekdayClasses(mapped.weekdayClasses);
+    }
+    setHydratedFromSettings(true);
+    setSaveSuccessMsg('Dias da semana, semestres e turmas importados dos Parâmetros da unidade! Recessos e ajustes manuais foram preservados.');
+    setTimeout(() => setSaveSuccessMsg(null), 5500);
+  }, [targetUnitId, targetYear, parameterBaseline, resolveLatestUnitSettings]);
 
   useEffect(() => {
     loadVersions();
@@ -780,6 +868,19 @@ export function AnnualCalendarManager({
             </button>
           </div>
 
+          {/* Importar / Sincronizar dos Parâmetros Semanais */}
+          {parameterBaseline && (
+            <button
+              type="button"
+              onClick={handleSyncFromParameters}
+              title="Puxar dias da semana, semestres e turmas atuais dos Parâmetros sem apagar recessos"
+              className="flex items-center gap-1.5 px-3 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+            >
+              <RefreshCw size={14} className="text-teal-700" />
+              <span>Puxar dos Parâmetros</span>
+            </button>
+          )}
+
           {/* Botão Salvar Rascunho */}
           <button
             type="button"
@@ -807,6 +908,25 @@ export function AnnualCalendarManager({
           </button>
         </div>
       </div>
+
+      {hydratedFromSettings && !calendarDays && (
+        <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 font-medium flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Info size={16} className="text-sky-600 shrink-0" />
+            <span>
+              Base inicial carregada dos <strong>Parâmetros</strong> desta unidade ({getUnitName(targetUnitId)}). Configure recessos/férias, se desejar, e clique em <strong>Gerar Calendário Anual</strong> para visualizar e homologar.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setHydratedFromSettings(false)}
+            className="text-sky-700 hover:text-sky-950 p-1 cursor-pointer"
+            title="Dispensar aviso"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Alerta de Sucesso, Erro ou Aviso de Fallback da API */}
       {errorMsg && (
