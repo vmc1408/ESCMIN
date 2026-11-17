@@ -48,7 +48,7 @@ import {
   Copy
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
-import { sanitizeAcademicSettings, normalizeClassWeekdays, getClassWeekdays, normalizeScheduleDate } from '../lib/academicUtils';
+import { sanitizeAcademicSettings, normalizeClassWeekdays, getClassWeekdays, normalizeScheduleDate, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
@@ -63,7 +63,42 @@ import { HabilitationModal } from '../components/HabilitationModal';
 import { AnnualCalendarManager } from '../components/calendar/AnnualCalendarManager';
 import { StandardReportSheet } from '../components/print/StandardPrintLayout';
 import { useUnits } from '../contexts/UnitContext';
-import { isItemInUnit } from '../lib/unitService';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+
+const isMatrizUnitSelection = (unitId?: string | null): boolean => {
+  const norm = (unitId || '').trim().toLowerCase();
+  return !norm || norm === 'all' || norm === 'todas' || norm === 'matriz' || norm === 'mat' || norm === 'sede' || norm === 'sede / matriz' || norm === 'global';
+};
+
+const getSettingsDocIdForUnit = (unitId?: string | null): string => {
+  return isMatrizUnitSelection(unitId) ? 'current' : `academic_settings_${unitId}`;
+};
+
+const deriveRootTermsWithFallback = (settingsObj: any) => {
+  let term1_start = normalizeScheduleDate(settingsObj?.term1_start || '');
+  let term1_end = normalizeScheduleDate(settingsObj?.term1_end || '');
+  let term2_start = normalizeScheduleDate(settingsObj?.term2_start || '');
+  let term2_end = normalizeScheduleDate(settingsObj?.term2_end || '');
+
+  const wt = settingsObj?.weekday_terms;
+  if (wt && typeof wt === 'object') {
+    const orderedKeys = Array.from(new Set([
+      ...(Array.isArray(settingsObj?.class_weekdays) ? settingsObj.class_weekdays.map(String) : []),
+      ...Object.keys(wt)
+    ]));
+    for (const k of orderedKeys) {
+      if (k === '0') continue;
+      const dayTerms = wt[k] || wt[Number(k)];
+      if (!dayTerms || typeof dayTerms !== 'object') continue;
+      if (!term1_start && dayTerms.term1_start) term1_start = normalizeScheduleDate(dayTerms.term1_start);
+      if (!term1_end && dayTerms.term1_end) term1_end = normalizeScheduleDate(dayTerms.term1_end);
+      if (!term2_start && dayTerms.term2_start) term2_start = normalizeScheduleDate(dayTerms.term2_start);
+      if (!term2_end && dayTerms.term2_end) term2_end = normalizeScheduleDate(dayTerms.term2_end);
+    }
+  }
+
+  return { term1_start, term1_end, term2_start, term2_end };
+};
 
 export function AcademicCalendar() {
   const { userAuth, isAdmin, isDirector, isSecretary, isAssistant, isTeacher, canDelete } = useAuth();
@@ -909,10 +944,13 @@ export function AcademicCalendar() {
             localStorage.setItem('academic_settings_current', JSON.stringify(parsed));
           }
         } catch {}
-        
+
+        const activeScreenSettingsId = getSettingsDocIdForUnit(selectedUnitId);
         if (activeTargetId === 'current') {
-          setAcademicSettings(parsed);
           setMatrizBaselineSettings(parsed);
+        }
+        if (activeTargetId === activeScreenSettingsId) {
+          setAcademicSettings(parsed);
         }
 
         const defaultDay = activeWeekdays.length > 0 ? activeWeekdays[0] : 3;
@@ -1137,13 +1175,14 @@ export function AcademicCalendar() {
 
   const fetchData = React.useCallback(async () => {
     try {
-      const targetSettingsId = (selectedUnitId && selectedUnitId !== 'all') ? `academic_settings_${selectedUnitId}` : 'current';
-      
+      const isMatrizOrAll = isMatrizUnitSelection(selectedUnitId);
+      const targetSettingsId = getSettingsDocIdForUnit(selectedUnitId);
+
       const fetchResults = await Promise.allSettled([
         fetchAll('calendar_events', '*', 'start_date'),
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchById('academic_settings', targetSettingsId),
+        fetchAll('academic_settings'),
         fetchAll('courses')
       ]);
 
@@ -1184,7 +1223,39 @@ export function AcademicCalendar() {
         ? allRawSubjects.filter((s: any) => !s.unit_id || s.unit_id === 'all' || isItemInUnit(s.unit_id, selectedUnitId, activeUnits))
         : allRawSubjects;
 
-      const settingsData = fetchResults[3].status === 'fulfilled' ? fetchResults[3].value : null;
+      const allSettingsList: any[] = fetchResults[3].status === 'fulfilled' && Array.isArray(fetchResults[3].value)
+        ? fetchResults[3].value
+        : [];
+      if (allSettingsList.length > 0) {
+        setAllAcademicSettingsList(allSettingsList);
+        const matrizDoc = allSettingsList.find((s: any) => s && (s.id === 'current' || s.id === 'academic_settings_matriz'));
+        if (matrizDoc) setMatrizBaselineSettings(matrizDoc);
+      }
+
+      // Resolve settings strictly for the active unit (Matriz -> 'current', other polo -> 'academic_settings_<unitId>')
+      let settingsData: any = null;
+      if (isMatrizOrAll) {
+        settingsData =
+          allSettingsList.find((s: any) => s && s.id === 'current')
+          || allSettingsList.find((s: any) => s && s.id === 'academic_settings_matriz')
+          || allSettingsList.find((s: any) => s && s.id === 'matriz')
+          || allSettingsList.find((s: any) => s && s.id?.startsWith?.('academic_settings_') && s.unit_id === 'matriz')
+          || null;
+      } else {
+        const selNorm = selectedUnitId.trim().toLowerCase();
+        settingsData =
+          allSettingsList.find((s: any) => s && s.id === targetSettingsId)
+          || allSettingsList.find((s: any) => s && s.id === selectedUnitId)
+          || allSettingsList.find((s: any) => s && s.id?.startsWith?.('academic_settings_') && s.unit_id && s.unit_id.toLowerCase() === selNorm)
+          || null;
+      }
+
+      if (!settingsData) {
+        settingsData = await fetchById('academic_settings', targetSettingsId).catch(() => null);
+        if (!settingsData && isMatrizOrAll) {
+          settingsData = await fetchById('academic_settings', 'academic_settings_matriz').catch(() => null);
+        }
+      }
 
       const coursesData = fetchResults[4].status === 'fulfilled' ? fetchResults[4].value : [];
 
@@ -1209,7 +1280,7 @@ export function AcademicCalendar() {
             }
             // Only public civic holidays (nac/est/mun) without unit_id apply to all polos;
             // legacy untagged institutional events & class schedules belong solely to Matriz
-            return PUBLIC_HOLIDAY_TYPES.includes(ev.type) || selectedUnitId === 'matriz';
+            return PUBLIC_HOLIDAY_TYPES.includes(ev.type) || isMatrizOrAll;
           })
         : deduplicatedEvents;
 
@@ -1240,9 +1311,17 @@ export function AcademicCalendar() {
       // Load local storage strictly for the selected unit (never fallback to Matriz)
       let localData: any = {};
       try {
-        const stored = localStorage.getItem(`academic_settings_${targetSettingsId}`)
-          || (selectedUnitId && selectedUnitId !== 'all' ? localStorage.getItem(`academic_settings_${selectedUnitId}`) : null)
-          || (targetSettingsId.startsWith('academic_settings_') ? localStorage.getItem(targetSettingsId) : null);
+        const stored = isMatrizOrAll
+          ? (
+              localStorage.getItem('academic_settings_current')
+              || localStorage.getItem('academic_settings_academic_settings_matriz')
+              || localStorage.getItem('academic_settings_matriz')
+            )
+          : (
+              localStorage.getItem(`academic_settings_${targetSettingsId}`)
+              || localStorage.getItem(`academic_settings_${selectedUnitId}`)
+              || localStorage.getItem(targetSettingsId)
+            );
         if (stored) {
           localData = JSON.parse(stored);
         }
@@ -1256,22 +1335,42 @@ export function AcademicCalendar() {
           ...(settingsObj || {})
         };
 
-        setAcademicSettings({
+        const normalizedWeekdayTerms: Record<number | string, any> = {};
+        if (mergedData.weekday_terms && typeof mergedData.weekday_terms === 'object') {
+          Object.entries(mergedData.weekday_terms).forEach(([k, v]: [string, any]) => {
+            if (k === '0' || !v || typeof v !== 'object') return;
+            normalizedWeekdayTerms[k] = {
+              term1_start: normalizeScheduleDate(v.term1_start || ''),
+              term1_end: normalizeScheduleDate(v.term1_end || ''),
+              term2_start: normalizeScheduleDate(v.term2_start || ''),
+              term2_end: normalizeScheduleDate(v.term2_end || ''),
+            };
+          });
+        }
+
+        const mergedWithNormTerms = {
           ...mergedData,
-          term1_start: mergedData.term1_start || '',
-          term1_end: mergedData.term1_end || '',
-          term2_start: mergedData.term2_start || '',
-          term2_end: mergedData.term2_end || '',
+          weekday_terms: normalizedWeekdayTerms
+        };
+        const rootFallbacks = deriveRootTermsWithFallback(mergedWithNormTerms);
+        const resolvedWeekdays = normalizeClassWeekdays(mergedData.class_weekdays ?? mergedData.class_weekday, [3]);
+
+        setAcademicSettings(sanitizeAcademicSettings({
+          ...mergedData,
+          term1_start: rootFallbacks.term1_start,
+          term1_end: rootFallbacks.term1_end,
+          term2_start: rootFallbacks.term2_start,
+          term2_end: rootFallbacks.term2_end,
           target_class_ids: mergedData.target_class_ids || (mergedData.target_class_id ? [mergedData.target_class_id] : []),
           weekday_titles: mergedData.weekday_titles || { 3: 'Dia de Aula' },
           weekday_classes: mergedData.weekday_classes || {},
-          weekday_terms: mergedData.weekday_terms || {},
-          class_weekdays: normalizeClassWeekdays(mergedData.class_weekdays ?? mergedData.class_weekday, [3])
-        });
+          weekday_terms: normalizedWeekdayTerms,
+          class_weekdays: resolvedWeekdays
+        }));
       } else {
         setAcademicSettings(sanitizeAcademicSettings({
           id: targetSettingsId,
-          unit_id: (selectedUnitId && selectedUnitId !== 'all') ? selectedUnitId : 'matriz',
+          unit_id: isMatrizOrAll ? 'matriz' : selectedUnitId,
           term1_start: '',
           term1_end: '',
           term2_start: '',
@@ -1596,21 +1695,27 @@ export function AcademicCalendar() {
 
       setSyncProgress(25);
       setSyncMessage('Limpando registros anteriores...');
-      // --- SURGICAL CLEAR: Clear prior automatically generated and class day events ---
-      const preData = await fetchData();
-      const allPrior = preData?.events || [];
-      const targetUnit = (settings?.unit_id && settings.unit_id !== 'matriz') 
-        ? settings.unit_id 
-        : (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
-      const priorAutoIds = allPrior.filter(e => {
+      // --- SURGICAL CLEAR: Scope strictly to the unit being saved/generated ---
+      const rawUnitCandidate = settings?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+      const isMatrizTarget = isMatrizUnitSelection(rawUnitCandidate);
+      const targetUnit = isMatrizTarget ? 'matriz' : rawUnitCandidate;
+
+      const [allPriorRaw, allRawClasses] = await Promise.all([
+        fetchAll('calendar_events', '*', 'start_date'),
+        fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]).catch(() => classes)
+      ]);
+      const allClassesPool: Class[] = (Array.isArray(allRawClasses) && allRawClasses.length > 0) ? allRawClasses : classes;
+
+      const priorAutoIds = (allPriorRaw || []).filter((e: any) => {
         const desc = (e.description || '').toLowerCase();
         const title = (e.title || '').toLowerCase();
         const type = e.type;
         const isSunday = e.start_date ? new Date(e.start_date + 'T00:00:00').getDay() === 0 : false;
-        
-        // Domingo NUNCA é dia de aula: se houver qualquer aula no domingo, expurga imediatamente!
+        const evUnit = e.unit_id || (e.class_id ? allClassesPool.find(c => c.id === e.class_id)?.unit_id : undefined) || 'matriz';
+
+        // Domingo NUNCA é dia de aula: expurga aulas no domingo desta unidade
         if (isSunday && (type === 'class_day' || desc.includes('cronograma automático'))) {
-          return true;
+          return isItemInUnit(evUnit, targetUnit, activeUnits);
         }
 
         const isAuto = type === 'class_day' || 
@@ -1619,27 +1724,33 @@ export function AcademicCalendar() {
                desc.includes('cronograma automático') || 
                title.includes('dia de aula');
         if (!isAuto) return false;
-        if (selectedUnitId === 'all') return true;
-        const evUnit = e.unit_id || (e.class_id ? classes.find(c => c.id === e.class_id)?.unit_id : undefined) || 'matriz';
-        return isItemInUnit(evUnit, selectedUnitId, activeUnits);
-      }).map(e => e.id).filter(Boolean);
+        return isItemInUnit(evUnit, targetUnit, activeUnits);
+      }).map((e: any) => e.id).filter(Boolean);
 
       if (priorAutoIds.length > 0) {
-        await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: priorAutoIds }]);
-      } else if (selectedUnitId === 'all') {
-        await deleteQuery('calendar_events', [{ field: 'description', operator: 'ilike', value: '%Cronograma automático%' }]);
+        const deleteBatchSize = 80;
+        for (let i = 0; i < priorAutoIds.length; i += deleteBatchSize) {
+          const chunk = priorAutoIds.slice(i, i + deleteBatchSize);
+          await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: chunk }]);
+        }
       }
 
       setSyncProgress(40);
       setSyncMessage('Preparando novos eventos...');
-      await new Promise(r => setTimeout(r, 800));
-      const freshData = await fetchData();
-      const currentEvents = freshData?.events || [];
+      const refreshedRaw = await fetchAll('calendar_events', '*', 'start_date');
+      const PUBLIC_HOLIDAY_TYPES = ['holiday', 'holiday_nac', 'holiday_est', 'holiday_mun'];
+      const currentEvents = (refreshedRaw || []).filter((ev: CalendarEvent) => {
+        if (ev.unit_id) return isItemInUnit(ev.unit_id, targetUnit, activeUnits);
+        if (ev.class_id) {
+          const cls = allClassesPool.find(c => c.id === ev.class_id);
+          const classUnit = cls ? (getItemUnitId(cls) || 'matriz') : undefined;
+          return classUnit ? isItemInUnit(classUnit, targetUnit, activeUnits) : false;
+        }
+        return PUBLIC_HOLIDAY_TYPES.includes(ev.type) || isMatrizTarget;
+      });
 
-      const ranges = [
-        { start: new Date(settings.term1_start + 'T00:00:00'), end: new Date(settings.term1_end + 'T00:00:00') },
-        { start: new Date(settings.term2_start + 'T00:00:00'), end: new Date(settings.term2_end + 'T00:00:00') }
-      ];
+      const effectiveRootTerms = deriveRootTermsWithFallback(settings);
+      const unitClassesPool = allClassesPool.filter(c => isItemInUnit(getItemUnitId(c) || c.unit_id, targetUnit, activeUnits));
 
       const newEvents: any[] = [];
       // Apenas dias letivos oficiais válidos (1 a 6 = Segunda a Sábado; nunca 0 = Domingo)
@@ -1678,12 +1789,12 @@ export function AcademicCalendar() {
         const linkedClassIds = settings.weekday_classes?.[weekdayNum] || settings.weekday_classes?.[String(weekdayNum)] || [];
         const finalTargetIds = linkedClassIds.length > 0 ? linkedClassIds : [null];
 
-        // Retrieve terms specific to this weekday or fallback to settings top-level terms!
+        // Retrieve terms specific to this weekday or fallback to effective root cycle terms!
         const dayTerms = settings.weekday_terms?.[weekdayNum] || settings.weekday_terms?.[String(weekdayNum)] || {};
-        const activeT1Start = dayTerms.term1_start || settings.term1_start;
-        const activeT1End = dayTerms.term1_end || settings.term1_end;
-        const activeT2Start = dayTerms.term2_start || settings.term2_start;
-        const activeT2End = dayTerms.term2_end || settings.term2_end;
+        const activeT1Start = normalizeScheduleDate(dayTerms.term1_start || effectiveRootTerms.term1_start || '');
+        const activeT1End = normalizeScheduleDate(dayTerms.term1_end || effectiveRootTerms.term1_end || '');
+        const activeT2Start = normalizeScheduleDate(dayTerms.term2_start || effectiveRootTerms.term2_start || '');
+        const activeT2End = normalizeScheduleDate(dayTerms.term2_end || effectiveRootTerms.term2_end || '');
 
         const weekdayRanges = [
           { start: new Date(activeT1Start + 'T00:00:00'), end: new Date(activeT1End + 'T00:00:00') },
@@ -1692,13 +1803,13 @@ export function AcademicCalendar() {
 
         for (let i = 0; i < finalTargetIds.length; i++) {
           const tid = finalTargetIds[i];
-          const targetClass = tid ? classes.find(c => c.id === tid) : null;
+          const targetClass = tid ? (unitClassesPool.find(c => c.id === tid) || allClassesPool.find(c => c.id === tid)) : null;
           const classLabel = targetClass ? ` - ${targetClass.name}` : '';
-          const eventSignature = `Cronograma automático`; // Class name REMOVED after 'Cronograma automático' as requested!
-          const effectiveEventUnitId = targetClass?.unit_id || (settings?.unit_id && settings.unit_id !== 'matriz' ? settings.unit_id : (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz'));
+          const eventSignature = `Cronograma automático`;
+          const effectiveEventUnitId = (targetClass ? (getItemUnitId(targetClass) || targetClass.unit_id) : undefined) || targetUnit;
           
           setSyncMessage(`Calculando aulas: ${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][weekdayNum]} - ${targetClass?.name || 'Geral'}`);
-          setSyncProgress(45 + Math.floor(((wIdx * finalTargetIds.length + i) / (activeWeekdays.length * finalTargetIds.length)) * 30));
+          setSyncProgress(45 + Math.floor(((wIdx * finalTargetIds.length + i) / Math.max(1, activeWeekdays.length * finalTargetIds.length)) * 30));
 
           // Add Term Start/End
           const termEvents = [
@@ -1718,7 +1829,7 @@ export function AcademicCalendar() {
               description: eventSignature,
               class_id: tid,
               unit_id: effectiveEventUnitId,
-              user_id: userAuth.uid,
+              user_id: userAuth?.uid || null,
               created_at: new Date().toISOString()
             });
           }
@@ -1756,7 +1867,7 @@ export function AcademicCalendar() {
                     description: eventSignature,
                     class_id: tid,
                     unit_id: effectiveEventUnitId,
-                    user_id: userAuth.uid,
+                    user_id: userAuth?.uid || null,
                     created_at: new Date().toISOString()
                   });
                 }
@@ -1769,13 +1880,24 @@ export function AcademicCalendar() {
 
       setSyncProgress(85);
       setSyncMessage(`Gravando ${newEvents.length} registros...`);
-      if (newEvents.length > 0) await saveBatch('calendar_events', newEvents);
+      if (newEvents.length > 0) {
+        const saveChunkSize = 150;
+        for (let i = 0; i < newEvents.length; i += saveChunkSize) {
+          const chunk = newEvents.slice(i, i + saveChunkSize);
+          await saveBatch('calendar_events', chunk, 45000);
+        }
+      }
       
       setSyncProgress(95);
       setSyncMessage('Finalizando...');
       await fetchData();
       setSyncProgress(100);
-      setNotification({ type: 'success', message: 'Cronograma gerado com sucesso!' });
+      setNotification({
+        type: newEvents.length > 0 ? 'success' : 'err',
+        message: newEvents.length > 0
+          ? `Cronograma gerado com sucesso (${newEvents.length} registros)!`
+          : 'Parâmetros salvos, mas nenhuma data de início/término de semestre foi definida para gerar aulas.'
+      });
     } catch (error) {
       console.error("Error generating class days:", error);
       setNotification({ type: 'err', message: 'Erro ao gerar cronograma.' });
@@ -2085,16 +2207,19 @@ export function AcademicCalendar() {
     const derived: CalendarEvent[] = [];
     const weekdayNamesFull = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
+    const effectiveRootTerms = deriveRootTermsWithFallback(academicSettings);
+
     activeWeekdays.forEach(wDay => {
       const dayTerms = academicSettings.weekday_terms?.[wDay] || academicSettings.weekday_terms?.[String(wDay)] || {};
-      const inferredTerms = (!dayTerms.term1_start && !academicSettings.term1_start)
+      const hasOwnDayTerms = Boolean(dayTerms.term1_start || dayTerms.term1_end || dayTerms.term2_start || dayTerms.term2_end);
+      const inferredTerms = (!hasOwnDayTerms && !effectiveRootTerms.term1_start)
         ? inferTermsForWeekday(wDay, yearEvents, academicSettings)
         : null;
 
-      const t1s = normalizeScheduleDate(dayTerms.term1_start || academicSettings.term1_start || inferredTerms?.term1_start || '');
-      const t1e = normalizeScheduleDate(dayTerms.term1_end || academicSettings.term1_end || inferredTerms?.term1_end || '');
-      const t2s = normalizeScheduleDate(dayTerms.term2_start || academicSettings.term2_start || inferredTerms?.term2_start || '');
-      const t2e = normalizeScheduleDate(dayTerms.term2_end || academicSettings.term2_end || inferredTerms?.term2_end || '');
+      const t1s = normalizeScheduleDate(dayTerms.term1_start || effectiveRootTerms.term1_start || inferredTerms?.term1_start || '');
+      const t1e = normalizeScheduleDate(dayTerms.term1_end || effectiveRootTerms.term1_end || inferredTerms?.term1_end || '');
+      const t2s = normalizeScheduleDate(dayTerms.term2_start || effectiveRootTerms.term2_start || inferredTerms?.term2_start || '');
+      const t2e = normalizeScheduleDate(dayTerms.term2_end || effectiveRootTerms.term2_end || inferredTerms?.term2_end || '');
 
       const ranges = [
         { s: t1s, e: t1e },
@@ -2731,7 +2856,8 @@ export function AcademicCalendar() {
                 showStats ? "flex animate-in slide-in-from-top-2 duration-200" : "hidden lg:flex"
               )}>
                 {(() => {
-                  const activeWeekdays = normalizeClassWeekdays(academicSettings.class_weekdays, [3, 4]);
+                  const activeWeekdays = normalizeClassWeekdays(academicSettings.class_weekdays, []);
+                  if (activeWeekdays.length === 0) return null;
                   const weekdayShortLabels: Record<number, string> = {
                     1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado'
                   };
@@ -5473,13 +5599,23 @@ export function AcademicCalendar() {
 
                             const isTargetMatriz = settingsTargetUnitId === 'matriz' || settingsTargetUnitId === 'all';
                             const targetSettingsId = isTargetMatriz ? 'current' : `academic_settings_${settingsTargetUnitId}`;
-                            const updatedSettings: AcademicSettings = sanitizeAcademicSettings({
-                              id: targetSettingsId,
-                              unit_id: isTargetMatriz ? 'matriz' : settingsTargetUnitId,
+
+                            const fallbackRootTerms = deriveRootTermsWithFallback({
                               term1_start: rootT1Start,
                               term1_end: rootT1End,
                               term2_start: rootT2Start,
                               term2_end: rootT2End,
+                              class_weekdays: nextWeekdays,
+                              weekday_terms: nextWeekdayTerms
+                            });
+
+                            const updatedSettings: AcademicSettings = sanitizeAcademicSettings({
+                              id: targetSettingsId,
+                              unit_id: isTargetMatriz ? 'matriz' : settingsTargetUnitId,
+                              term1_start: rootT1Start || fallbackRootTerms.term1_start || '',
+                              term1_end: rootT1End || fallbackRootTerms.term1_end || '',
+                              term2_start: rootT2Start || fallbackRootTerms.term2_start || '',
+                              term2_end: rootT2End || fallbackRootTerms.term2_end || '',
                               class_weekdays: nextWeekdays,
                               weekday_titles: nextTitles,
                               target_class_ids: selectedWeekdayDetail !== null ? settingsForm.target_class_ids : [],
@@ -5503,11 +5639,13 @@ export function AcademicCalendar() {
 
                             // Update local list of settings
                             setAllAcademicSettingsList(prev => {
-                              const filtered = (prev || []).filter(s => s && s.id !== targetSettingsId && s.unit_id !== (isTargetMatriz ? 'matriz' : settingsTargetUnitId));
+                              const filtered = (prev || []).filter(s => s && s.id !== targetSettingsId && !(s.id?.startsWith?.('academic_settings_') && s.unit_id === (isTargetMatriz ? 'matriz' : settingsTargetUnitId)));
                               return [...filtered, updatedSettings];
                             });
                             if (!isTargetMatriz) {
                               setIsTargetCustom(true);
+                            } else {
+                              setMatrizBaselineSettings(updatedSettings);
                             }
 
                             window.dispatchEvent(new Event('academic-settings-updated'));
@@ -5523,16 +5661,24 @@ export function AcademicCalendar() {
                               }
                             });
                             
-                            for (const cid of Array.from(allClassIdsSet)) {
-                              await saveData('academic_settings', cid, updatedSettings);
+                            const classIdsArr = Array.from(allClassIdsSet);
+                            if (classIdsArr.length > 0) {
+                              await Promise.allSettled(
+                                classIdsArr.map(cid => saveData('academic_settings', cid, { ...updatedSettings, id: cid }))
+                              );
                               try {
-                                localStorage.setItem(`academic_settings_${cid}`, JSON.stringify(updatedSettings));
+                                classIdsArr.forEach(cid => {
+                                  localStorage.setItem(`academic_settings_${cid}`, JSON.stringify(updatedSettings));
+                                });
                               } catch (e) {
                                 console.warn("Storage write error for class:", e);
                               }
                             }
 
-                            setAcademicSettings(updatedSettings);
+                            const activeScreenSettingsId = getSettingsDocIdForUnit(selectedUnitId);
+                            if (targetSettingsId === activeScreenSettingsId) {
+                              setAcademicSettings(updatedSettings);
+                            }
                             setSettingsForm({
                               ...updatedSettings,
                               target_class_ids: selectedWeekdayDetail !== null ? settingsForm.target_class_ids : []
@@ -5543,7 +5689,6 @@ export function AcademicCalendar() {
                             if (searchParams.get('view') === 'parameters') {
                               setSearchParams({ view: 'month' });
                             }
-                            setNotification({ type: 'success', message: 'Registro anual e todas as aulas semanais sincronizados com sucesso!' });
                           } catch (error) {
                             console.error("Error saving:", error);
                             setNotification({ type: 'err', message: 'Falha ao salvar os parâmetros do calendário.' });

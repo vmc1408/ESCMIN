@@ -748,10 +748,10 @@ export const sanitizeAcademicSettings = (settings: any): any => {
   const cleaned = { ...settings };
 
   // 1. Garante que class_weekdays seja SEMPRE um array válido de números (1 a 6, sem Domingo)
-  cleaned.class_weekdays = normalizeClassWeekdays(
-    cleaned.class_weekdays ?? cleaned.class_weekday,
-    [3]
-  );
+  // Se foi passado explicitamente um array vazio [], preserva [] para não inventar dias em unidades não configuradas
+  const rawWeekdaysInput = cleaned.class_weekdays !== undefined ? cleaned.class_weekdays : cleaned.class_weekday;
+  const fallbackWeekdays = Array.isArray(rawWeekdaysInput) ? [] : [3];
+  cleaned.class_weekdays = normalizeClassWeekdays(rawWeekdaysInput, fallbackWeekdays);
 
   // 2. Remove qualquer registro de domingo (0) em weekday_terms
   if (cleaned.weekday_terms && typeof cleaned.weekday_terms === 'object') {
@@ -800,20 +800,39 @@ export const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] =
   // Ordena os dias ativos de Segunda a Sábado
   const sortedDays = Array.from(new Set<number>(activeClassWeekdays)).sort((a: number, b: number) => a - b);
 
+  let fallbackT1Start = rootT1Start;
+  let fallbackT1End = rootT1End;
+  let fallbackT2Start = rootT2Start;
+  let fallbackT2End = rootT2End;
+
+  if (!fallbackT1Start || !fallbackT1End || !fallbackT2Start || !fallbackT2End) {
+    for (const d of sortedDays) {
+      const termObj = combined.weekday_terms?.[d] || combined.weekday_terms?.[String(d)];
+      if (!termObj) continue;
+      if (!fallbackT1Start && termObj.term1_start) fallbackT1Start = termObj.term1_start;
+      if (!fallbackT1End && termObj.term1_end) fallbackT1End = termObj.term1_end;
+      if (!fallbackT2Start && termObj.term2_start) fallbackT2Start = termObj.term2_start;
+      if (!fallbackT2End && termObj.term2_end) fallbackT2End = termObj.term2_end;
+    }
+  }
+
   // 2. Para CADA dia de aula devidamente registrado e ativo, monta seu período de cronograma
   for (const d of sortedDays) {
     const termObj = combined.weekday_terms?.[d] || combined.weekday_terms?.[String(d)];
     const labelName = WEEKDAY_NAMES[d] || `Dia ${d}`;
+    const hasOwnDates = Boolean(
+      termObj && (termObj.term1_start || termObj.term1_end || termObj.term2_start || termObj.term2_end)
+    );
 
     if (!seenLabels.has(labelName)) {
       seenLabels.add(labelName);
       periods.push({
         label: labelName,
         dayNum: d,
-        t1Start: termObj?.term1_start || rootT1Start,
-        t1End: termObj?.term1_end || rootT1End,
-        t2Start: termObj?.term2_start || rootT2Start,
-        t2End: termObj?.term2_end || rootT2End
+        t1Start: hasOwnDates ? (termObj?.term1_start || rootT1Start) : fallbackT1Start,
+        t1End: hasOwnDates ? (termObj?.term1_end || rootT1End) : fallbackT1End,
+        t2Start: hasOwnDates ? (termObj?.term2_start || rootT2Start) : fallbackT2Start,
+        t2End: hasOwnDates ? (termObj?.term2_end || rootT2End) : fallbackT2End
       });
     }
   }
@@ -845,13 +864,22 @@ export const resolveAcademicSettingsForUnit = (
   const isMatrizOrGlobal = !normUnit || normUnit === 'all' || normUnit === 'todas' || normUnit === 'matriz' || normUnit === 'mat' || normUnit === 'sede' || normUnit === 'global';
 
   const matrizDefault = Array.isArray(settingsList)
-    ? (settingsList.find(s => s && (s.id === 'current' || s.unit_id === 'matriz')) || null)
+    ? (
+        settingsList.find(s => s && s.id === 'current')
+        || settingsList.find(s => s && s.id === 'academic_settings_matriz')
+        || settingsList.find(s => s && s.id === 'matriz')
+        || settingsList.find(s => s && s.id?.startsWith?.('academic_settings_') && s.unit_id === 'matriz')
+        || settingsList.find(s => s && s.unit_id === 'matriz')
+        || null
+      )
     : null;
 
   if (isMatrizOrGlobal) {
     if (matrizDefault) return { settings: sanitizeAcademicSettings(matrizDefault), isCustom: false };
     try {
-      const stored = localStorage.getItem('academic_settings_current');
+      const stored = localStorage.getItem('academic_settings_current')
+        || localStorage.getItem('academic_settings_academic_settings_matriz')
+        || localStorage.getItem('academic_settings_matriz');
       if (stored) return { settings: sanitizeAcademicSettings(JSON.parse(stored)), isCustom: false };
     } catch {}
     return { settings: null, isCustom: false };
@@ -859,13 +887,11 @@ export const resolveAcademicSettingsForUnit = (
 
   const targetId = `academic_settings_${unitId}`;
   if (Array.isArray(settingsList) && settingsList.length > 0) {
-    const custom = settingsList.find(s =>
-      s && (
-        s.id === targetId ||
-        s.id === unitId ||
-        (s.unit_id && s.unit_id.toLowerCase() === normUnit)
-      )
-    );
+    const custom =
+      settingsList.find(s => s && s.id === targetId)
+      || settingsList.find(s => s && s.id === unitId)
+      || settingsList.find(s => s && s.id?.startsWith?.('academic_settings_') && s.unit_id && s.unit_id.toLowerCase() === normUnit)
+      || settingsList.find(s => s && s.unit_id && s.unit_id.toLowerCase() === normUnit);
 
     if (custom) {
       return { settings: sanitizeAcademicSettings(custom), isCustom: true };
