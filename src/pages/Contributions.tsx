@@ -593,6 +593,8 @@ export function Contributions() {
             window.history.replaceState({}, document.title);
           } else {
             setSelectedStudent(typedStudent);
+            setFormRAInput(typedStudent.registration_number || '');
+            setFormNameInput(typedStudent.name || '');
             setStudents([typedStudent]);
             setViewMode('individual');
             fetchContributions(typedStudent.id, selectedYear);
@@ -1203,13 +1205,24 @@ export function Contributions() {
     handleSelectStudentForForm(student);
   };
 
-  const handleSelectStudentForForm = useCallback((student: Student) => {
+  useEffect(() => {
+    if (viewMode === 'individual' && selectedStudent) {
+      setFormRAInput((prev) => prev || selectedStudent.registration_number || '');
+      setFormNameInput((prev) => prev || selectedStudent.name || '');
+    }
+  }, [viewMode, selectedStudent?.id]);
+
+  const handleSelectStudentForForm = useCallback((student: Student, targetYear?: number) => {
     if (!isStudentInActiveUnit(student)) {
       setNotification({
         type: 'error',
         message: 'Acesso restrito: este aluno pertence a outro polo/unidade e não pode ser acessado.'
       });
       return;
+    }
+    const refYear = targetYear ?? selectedYear;
+    if (targetYear !== undefined && targetYear !== selectedYear) {
+      setSelectedYear(targetYear);
     }
     setSelectedStudent(student);
     setIsSearchModalOpen(false);
@@ -1224,7 +1237,7 @@ export function Contributions() {
     
     const sClass = resolveStudentClass(student);
     const resolvedFee = financialConfigService.resolveFee({
-      year: selectedYear,
+      year: refYear,
       classId: student.class_id || sClass?.id,
       className: sClass?.name,
       studentClass: sClass,
@@ -1236,13 +1249,13 @@ export function Contributions() {
     
     setFormAmount(resolvedFee.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setSelectedPaymentDate(format(new Date(), 'yyyy-MM-dd'));
-    setSelectedFormYear(selectedYear);
+    setSelectedFormYear(refYear);
     
     const curMonth = new Date().getMonth() + 1;
     setSelectedFormMonth(curMonth);
     setFormMonthText(String(curMonth).padStart(2, '0'));
 
-    fetchContributions(student.id, selectedYear);
+    fetchContributions(student.id, refYear);
 
     // Pula para o campo Mês de Referência
     setTimeout(() => {
@@ -3559,13 +3572,9 @@ export function Contributions() {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   <button
-                                    onClick={() => {
-                                      setSelectedStudent(item.student);
-                                      setViewMode('individual');
-                                      fetchContributions(item.student.id, unpaidYear);
-                                    }}
+                                    onClick={() => handleSelectStudentForForm(item.student, unpaidYear)}
                                     title={`Regularizar pendências de ${item.student.name}`}
-                                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                                   >
                                     Regularizar
                                   </button>
@@ -4830,9 +4839,9 @@ export function Contributions() {
                                       onClick={(e) => { 
                                         e.stopPropagation(); 
                                         const studentWithId = group.student ? { id: studentId, ...group.student } : null;
-                                        setSelectedStudent(studentWithId as Student); 
-                                        setViewMode('individual'); 
-                                        fetchContributions(studentId, group.contributions[0].reference_year); 
+                                        if (studentWithId) {
+                                          handleSelectStudentForForm(studentWithId as Student, group.contributions[0]?.reference_year);
+                                        }
                                       }} 
                                       className="p-2 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm border border-blue-100 cursor-pointer" 
                                       title="Ficha e Extrato do Aluno"
