@@ -147,17 +147,18 @@ export function Contributions() {
   // Sincroniza viewMode com o estado de navegação caso o usuário venha do Dashboard ou outros atalhos
   useEffect(() => {
     const reqMode = (location.state as any)?.viewMode || (location.state as any)?.tab;
+    const reqStudentId = (location.state as any)?.studentId;
     if (reqMode === 'individual' || reqMode === 'period' || reqMode === 'unpaid') {
       setViewMode(reqMode);
-      if (reqMode === 'individual') {
-        setReportTarget('student');
-      }
+      setReportTarget(reqStudentId ? 'student' : null);
+      setSelectedClassId('');
+      setUnpaidClassFilter('');
     }
   }, [location.state, setViewMode]);
 
-  // Estados para seleção de tipo de alvo e periodicidade (mensal, semestral, anual)
-  const [reportTarget, setReportTarget] = useState<'class' | 'student'>('class');
-  const [selectedClassId, setSelectedClassId] = useState<string>('all');
+  // Estados para seleção de tipo de alvo e periodicidade (sem nenhuma turma ou aluno pré-carregado)
+  const [reportTarget, setReportTarget] = useState<'class' | 'student' | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [periodOption, setPeriodOption] = useState<'mensal' | 'semestral' | 'anual'>('mensal');
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedSemester, setSelectedSemester] = useState<1 | 2>(() => (new Date().getMonth() + 1 <= 6 ? 1 : 2));
@@ -535,9 +536,6 @@ export function Contributions() {
           });
 
       setRecentContributions(scopedRecent as any);
-      if (!selectedStudent && viewMode === 'individual' && !initialStudentId) {
-        setPeriodData(scopedRecent as any);
-      }
     } catch (error) {
       console.error('Error fetching recent:', error);
     }
@@ -651,6 +649,23 @@ export function Contributions() {
   };
 
   const fetchPeriodContributions = async (start = startDate, end = endDate) => {
+    // Exige escolha explícita de Alvo (Turma ou Aluno) antes de carregar listagens
+    if (!reportTarget) {
+      setPeriodData([]);
+      setLoading(false);
+      return;
+    }
+    if (reportTarget === 'class' && !selectedClassId) {
+      setPeriodData([]);
+      setLoading(false);
+      return;
+    }
+    if (reportTarget === 'student' && !selectedStudent && !searchByName.trim()) {
+      setPeriodData([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const dateField = filterType === 'payment' ? 'payment_date' : 'created_at';
@@ -788,13 +803,18 @@ export function Contributions() {
   const unpaidReportList = useMemo(() => {
     const activeSearch = (searchTerm || searchByName || unpaidSearchTerm).trim();
 
+    // Exige escolha explícita de Alvo (Turma ou Aluno) antes de carregar inadimplência
+    if (!reportTarget) {
+      return [];
+    }
+
     // Se o ALVO for "Por Aluno", e nenhum aluno estiver selecionado nem houver termo pesquisado, nunca traz a lista geral!
     if (reportTarget === 'student' && !selectedStudent && !activeSearch) {
       return [];
     }
 
     const targetClass = reportTarget === 'class' ? (selectedClassId || unpaidClassFilter) : (unpaidClassFilter || 'all');
-    if (!targetClass && reportTarget === 'class') return [];
+    if (reportTarget === 'class' && !targetClass) return [];
 
     const scopedPool = (!selectedUnitId || selectedUnitId === 'all')
       ? allActiveStudents
@@ -1037,15 +1057,18 @@ export function Contributions() {
 
       currentY += 6;
 
-      const selectedClassName = unpaidClassFilter === 'all'
-        ? 'TODAS AS TURMAS'
-        : (classes.find(c => c.id === unpaidClassFilter)?.name?.toUpperCase() || 'TURMA SELECIONADA');
+      const activeClassFilter = selectedClassId || unpaidClassFilter;
+      const selectedClassName = reportTarget === 'student' && selectedStudent
+        ? `ALUNO: ${selectedStudent.name.toUpperCase()}`
+        : activeClassFilter === 'all'
+          ? 'TODAS AS TURMAS'
+          : (classes.find(c => c.id === activeClassFilter)?.name?.toUpperCase() || 'TURMA SELECIONADA');
 
       // Prominent Class Title & Academic Reference Year
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(19, 27, 46);
-      doc.text(`TURMA: ${selectedClassName}   •   ANO LETIVO: ${unpaidYear}`, margin, currentY);
+      doc.text(`${reportTarget === 'student' && selectedStudent ? '' : 'TURMA: '}${selectedClassName}   •   ANO LETIVO: ${unpaidYear}`, margin, currentY);
 
       currentY += 5;
       if (hideStudentName) {
@@ -2604,9 +2627,12 @@ export function Contributions() {
     setIsSuggestionsOpen(false);
     setSearchTerm('');
     setSearchByName('');
+    setUnpaidSearchTerm('');
     setStudents([]);
-    setReportTarget('class');
-    setSelectedClassId('all');
+    setSelectedForPrint([]);
+    setPeriodData([]);
+    setReportTarget(null);
+    setSelectedClassId('');
     setUnpaidClassFilter('');
     setPeriodOption('mensal');
     const m = new Date().getMonth() + 1;
@@ -2616,18 +2642,53 @@ export function Contributions() {
     setSelectedSemester(sem);
     setSelectedYear(yr);
     applyPeriodDates('mensal', m, sem, yr);
-    
-    const d = new Date();
-    d.setDate(d.getDate() - 15);
-    const start = format(d, 'yyyy-MM-dd');
-    const end = format(new Date(), 'yyyy-MM-dd');
-    
-    setStartDate(start);
-    setEndDate(end);
-    if (viewMode === 'period') {
-      fetchPeriodContributions(start, end);
-    }
     focusStudentSearchField();
+  };
+
+  const handleSwitchTab = (nextMode: 'individual' | 'unpaid' | 'period') => {
+    if (nextMode === viewMode) return;
+    const now = new Date();
+    const curMonth = now.getMonth() + 1;
+    const curYear = now.getFullYear();
+    const curSem: 1 | 2 = curMonth <= 6 ? 1 : 2;
+
+    // Limpa todos os filtros, alvos, seleções e resultados ao alternar entre as abas
+    setSelectedStudent(null);
+    setContributions([]);
+    setSelectedHistoryId(null);
+    setEditingContributionId(null);
+    setOriginalContributionData(null);
+    setHistorySortBy('month');
+    setHistorySortDirection('asc');
+    setFormRAInput('');
+    setFormNameInput('');
+    setNameSuggestions([]);
+    setIsSuggestionsOpen(false);
+    setSearchTerm('');
+    setSearchByName('');
+    setUnpaidSearchTerm('');
+    setStudents([]);
+    setSelectedForPrint([]);
+    setPeriodData([]);
+    setExpandedStudents([]);
+    setIsResultsCollapsed(false);
+
+    setReportTarget(null);
+    setSelectedClassId('');
+    setUnpaidClassFilter('');
+
+    setPeriodOption('mensal');
+    setSelectedMonth(curMonth);
+    setSelectedSemester(curSem);
+    setSelectedYear(curYear);
+    setSelectedFormYear(curYear);
+    setUnpaidYear(curYear);
+    applyPeriodDates('mensal', curMonth, curSem, curYear);
+
+    setViewMode(nextMode);
+    if (nextMode === 'unpaid') {
+      fetchUnpaidData(curYear);
+    }
   };
 
   const filteredStudents = students;
@@ -2663,13 +2724,7 @@ export function Contributions() {
           <button
             type="button"
             title="Acessar lançamento individual de contribuições do aluno"
-            onClick={() => {
-              setViewMode('individual');
-              setReportTarget('student');
-              if (selectedStudent) {
-                fetchContributions(selectedStudent.id, selectedYear);
-              }
-            }}
+            onClick={() => handleSwitchTab('individual')}
             className={cn(
               "flex-1 py-2 px-3 text-center text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
               viewMode === 'individual'
@@ -2684,10 +2739,7 @@ export function Contributions() {
           <button
             type="button"
             title="Consultar inadimplência e mensalidades em atraso"
-            onClick={() => {
-              setViewMode('unpaid');
-              fetchUnpaidData(selectedYear);
-            }}
+            onClick={() => handleSwitchTab('unpaid')}
             className={cn(
               "flex-1 py-2 px-3 text-center text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
               viewMode === 'unpaid'
@@ -2702,10 +2754,7 @@ export function Contributions() {
           <button
             type="button"
             title="Conferir contribuições lançadas por período ou turma"
-            onClick={() => {
-              setViewMode('period');
-              fetchPeriodContributions();
-            }}
+            onClick={() => handleSwitchTab('period')}
             className={cn(
               "flex-1 py-2 px-3 text-center text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs",
               viewMode === 'period'
@@ -2762,10 +2811,14 @@ export function Contributions() {
               title="Filtrar consulta por turma"
               onClick={() => {
                 setReportTarget('class');
-                if (viewMode !== 'unpaid') {
-                  setViewMode('period');
-                  fetchPeriodContributions();
-                }
+                setSelectedClassId('');
+                setUnpaidClassFilter('');
+                setSelectedStudent(null);
+                setSearchTerm('');
+                setSearchByName('');
+                setUnpaidSearchTerm('');
+                setStudents([]);
+                setPeriodData([]);
               }}
               className={cn(
                 "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
@@ -2782,12 +2835,14 @@ export function Contributions() {
               title="Filtrar consulta por aluno específico"
               onClick={() => {
                 setReportTarget('student');
-                if (viewMode !== 'unpaid') {
-                  setViewMode('individual');
-                  if (selectedStudent) {
-                    fetchContributions(selectedStudent.id, selectedYear);
-                  }
-                }
+                setSelectedClassId('');
+                setUnpaidClassFilter('');
+                setSelectedStudent(null);
+                setSearchTerm('');
+                setSearchByName('');
+                setUnpaidSearchTerm('');
+                setStudents([]);
+                setPeriodData([]);
               }}
               className={cn(
                 "px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
@@ -2800,6 +2855,12 @@ export function Contributions() {
               <span>Por Aluno</span>
             </button>
           </div>
+
+          {!reportTarget && (
+            <span className="text-[11px] font-semibold text-slate-400 italic px-1">
+              Selecione Por Turma ou Por Aluno
+            </span>
+          )}
 
           {/* Opção Por Turma: Dropdown de Turmas */}
           {reportTarget === 'class' && (
@@ -2814,6 +2875,7 @@ export function Contributions() {
                 }}
                 className="w-full h-8.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
               >
+                <option value="">Selecione uma turma...</option>
                 <option value="all">Todas as Turmas ({scopedClasses.length})</option>
                 {scopedClasses.map(c => (
                   <option key={c.id} value={c.id}>{c.code ? `${c.code} - ${c.name}` : c.name}</option>
@@ -2822,7 +2884,7 @@ export function Contributions() {
             </div>
           )}
 
-          {/* Opção Por Aluno: Aluno Selecionado + Informação da Turma (Quadro 1) OU Campo de Busca */}
+          {/* Opção Por Aluno: Aluno Selecionado + Informação da Turma OU Campo de Busca */}
           {reportTarget === 'student' && (
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap min-w-0">
               {selectedStudent ? (
@@ -2841,7 +2903,9 @@ export function Contributions() {
                         setSelectedStudent(null);
                         setSearchByName('');
                         setSearchTerm('');
+                        setUnpaidSearchTerm('');
                         setStudents([]);
+                        setPeriodData([]);
                       }}
                       className="p-0.5 hover:bg-blue-200 rounded-md text-blue-700 hover:text-rose-600 transition-colors cursor-pointer"
                       title="Trocar aluno"
@@ -2850,7 +2914,7 @@ export function Contributions() {
                     </button>
                   </div>
 
-                  {/* Informação da Turma do Aluno (Quadro 1 Marcado pelo Usuário) */}
+                  {/* Informação da Turma do Aluno */}
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100/90 border border-slate-200/90 rounded-xl text-xs font-bold text-slate-800 shrink-0 shadow-2xs">
                     <GraduationCap size={14} className="text-blue-600 shrink-0" />
                     <span className="text-[10px] uppercase font-black text-slate-500 tracking-wider">Turma:</span>
@@ -2886,12 +2950,15 @@ export function Contributions() {
                           type="button"
                           title={`Selecionar ${s.name}`}
                           onClick={() => {
-                            handleSelectStudent(s);
-                            if (viewMode !== 'unpaid') {
-                              setViewMode('individual');
+                            if (!isStudentInActiveUnit(s)) {
+                              setNotification({
+                                type: 'error',
+                                message: 'Acesso restrito: este aluno pertence a outro polo/unidade e não pode ser acessado.'
+                              });
+                              return;
                             }
+                            setSelectedStudent(s);
                             setReportTarget('student');
-                            fetchContributions(s.id, selectedYear);
                             setSearchTerm('');
                             setSearchByName('');
                             setStudents([]);
@@ -3197,8 +3264,14 @@ export function Contributions() {
                     Inadimplência de Mensalidades
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    {reportTarget === 'class' ? (
-                      selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
+                    {!reportTarget ? (
+                      'Aguardando definição de Alvo (Por Turma ou Por Aluno)'
+                    ) : reportTarget === 'class' ? (
+                      !selectedClassId
+                        ? 'Aguardando seleção de turma'
+                        : selectedClassId === 'all'
+                          ? 'Todas as Turmas'
+                          : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
                     ) : (
                       selectedStudent 
                         ? selectedStudent.name 
@@ -3263,6 +3336,26 @@ export function Contributions() {
                   <div className="h-64 flex flex-col items-center justify-center gap-3">
                     <Loader2 size={36} className="text-blue-600 animate-spin" />
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Processando cruzamento de dados...</p>
+                  </div>
+                ) : !reportTarget ? (
+                  <div className="h-72 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-center">
+                    <div className="w-16 h-16 bg-slate-100 border border-slate-200 rounded-2xl flex items-center justify-center mb-4 text-[#00174b]">
+                      <Search size={30} />
+                    </div>
+                    <h4 className="text-sm font-black text-[#131b2e] uppercase tracking-wider">Selecione um Alvo para Consultar</h4>
+                    <p className="text-xs text-slate-500 max-w-md mt-2 leading-relaxed">
+                      Escolha acima <strong>Por Turma</strong> ou <strong>Por Aluno</strong> e selecione o filtro desejado para consultar as mensalidades em aberto.
+                    </p>
+                  </div>
+                ) : reportTarget === 'class' && !selectedClassId ? (
+                  <div className="h-72 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-center">
+                    <div className="w-16 h-16 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mb-4 text-[#00174b]">
+                      <GraduationCap size={32} />
+                    </div>
+                    <h4 className="text-sm font-black text-[#131b2e] uppercase tracking-wider">Nenhuma Turma Selecionada</h4>
+                    <p className="text-xs text-slate-500 max-w-md mt-2 leading-relaxed">
+                      Selecione uma turma específica ou a opção <strong>Todas as Turmas</strong> no seletor acima para listar as pendências.
+                    </p>
                   </div>
                 ) : reportTarget === 'student' && !selectedStudent && !(searchTerm || searchByName).trim() ? (
                   <div className="h-72 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-center">
@@ -4382,10 +4475,16 @@ export function Contributions() {
                     <h3 className="text-base font-black text-[#131b2e] leading-tight">Lançamentos de Contribuição</h3>
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                       <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                        {reportTarget === 'class' ? (
-                          selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
+                        {!reportTarget ? (
+                          'Selecione um Alvo'
+                        ) : reportTarget === 'class' ? (
+                          !selectedClassId
+                            ? 'Aguardando seleção de turma'
+                            : selectedClassId === 'all'
+                              ? 'Todas as Turmas'
+                              : classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'
                         ) : (
-                          selectedStudent ? selectedStudent.name : 'Aluno'
+                          selectedStudent ? selectedStudent.name : 'Aguardando seleção do aluno'
                         )}
                       </span>
                       <span className="text-slate-300">•</span>
@@ -4517,8 +4616,24 @@ export function Contributions() {
                           <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
                             <AlertCircle size={32} className="opacity-20" />
                           </div>
-                          <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Nenhum registro encontrado</p>
-                          <p className="text-sm text-slate-300 mt-2">Tente ajustar os filtros de período ou nome acima.</p>
+                          <p className="font-black text-slate-400 uppercase tracking-widest text-xs">
+                            {!reportTarget
+                              ? 'Selecione um Alvo para Consultar'
+                              : reportTarget === 'class' && !selectedClassId
+                                ? 'Nenhuma Turma Selecionada'
+                                : reportTarget === 'student' && !selectedStudent && !searchByName.trim()
+                                  ? 'Nenhum Aluno Selecionado'
+                                  : 'Nenhum registro encontrado'}
+                          </p>
+                          <p className="text-sm text-slate-400 mt-2">
+                            {!reportTarget
+                              ? 'Escolha acima Por Turma ou Por Aluno para iniciar a conferência.'
+                              : reportTarget === 'class' && !selectedClassId
+                                ? 'Escolha uma turma específica ou "Todas as Turmas" no seletor acima.'
+                                : reportTarget === 'student' && !selectedStudent && !searchByName.trim()
+                                  ? 'Digite o Nome ou RA do aluno no campo de busca acima.'
+                                  : 'Tente ajustar os filtros de período ou alvo acima.'}
+                          </p>
                         </td>
                       </tr>
                     ) : (
