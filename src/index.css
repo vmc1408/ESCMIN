@@ -95,6 +95,16 @@
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   }
 
+  /* Exceção controlada para folhas formato Carta (215.9mm x 279.4mm - Pimaco 6183/6180) */
+  html.print-letter-sheet,
+  body.print-letter-sheet,
+  html:has(.impressos-letter-sheet),
+  body:has(.impressos-letter-sheet) {
+    width: 215.9mm !important;
+    min-width: 215.9mm !important;
+    max-width: 215.9mm !important;
+  }
+
   /* Reset dos wrappers raiz da aplicação SPA */
   #root,
   .min-h-screen,
