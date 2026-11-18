@@ -1737,14 +1737,14 @@ export function Impressos() {
                 </div>
 
                 {/* Termo de Ciência e Assinatura */}
-                <div className="mt-3.5 pt-2 border-t border-slate-200 space-y-4 font-sans">
+                <div className="mt-3.5 pt-2 border-t border-slate-200 font-sans">
                   <p className="text-[9.5pt] text-justify text-slate-950 font-medium leading-[1.6]">
-                    Eu, <span className="inline-block w-[78mm] border-b border-dotted border-slate-900 align-baseline">&nbsp;</span>, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso escolhido, promovido pela <span className="uppercase font-semibold">{institutionDioceseLabel}</span>, e autorizo o armazenamento de meus dados pessoais necessários para a inscrição acadêmica.
+                    Eu, <span className="inline-block w-[102mm] border-b border-dotted border-slate-900 align-baseline">&nbsp;</span>, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso escolhido, promovido pela <span className="uppercase font-semibold">{institutionDioceseLabel}</span>, e autorizo o armazenamento de meus dados pessoais necessários para a inscrição acadêmica.
                   </p>
 
-                  <div className="pt-1 space-y-9 font-sans">
+                  <div className="mt-6 space-y-14 font-sans">
                     <div className="text-[9pt] text-slate-900 font-semibold">
-                      <span>{institutionCityName}, _____ de ____________________ de ________.</span>
+                      <span>{institutionCityName}, ________ de ____________________ de ________.</span>
                     </div>
                     <div className="w-full flex justify-center">
                       <div className="w-[78mm] flex flex-col items-center text-center">
