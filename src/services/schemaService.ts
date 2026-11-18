@@ -131,7 +131,8 @@ export const schemaService = {
       col === 'subject_ids' ||
       col === 'meeting_days' ||
       col === 'enabled_years' ||
-      col === 'inserted_ids'
+      col === 'inserted_ids' ||
+      col === 'favorite_shortcuts'
     ) {
       return 'TEXT[]';
     }

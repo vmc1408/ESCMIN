@@ -18,6 +18,7 @@
         "app_inactivity_timeout": { "type": "integer" },
         "unit_id": { "type": "string" },
         "teacher_id": { "type": "string" },
+        "favorite_shortcuts": { "type": "array", "items": { "type": "string" } },
         "is_pre_registered": { "type": "boolean" },
         "last_login": { "type": "string", "format": "date-time" },
         "created_at": { "type": "string", "format": "date-time" },

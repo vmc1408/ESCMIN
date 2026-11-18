@@ -56,11 +56,14 @@ CREATE TABLE IF NOT EXISTS public.users (
     app_inactivity_timeout INTEGER DEFAULT 900,
     unit_id TEXT DEFAULT 'all',
     teacher_id TEXT,
+    favorite_shortcuts TEXT[],
     is_pre_registered BOOLEAN DEFAULT false,
     last_login TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS favorite_shortcuts TEXT[];
 
 -- 4. Cursos
 CREATE TABLE IF NOT EXISTS public.courses (

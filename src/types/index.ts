@@ -19,6 +19,7 @@ export interface UserProfile {
   app_inactivity_timeout?: number;
   teacher_id?: string;
   unit_id?: string; // ID da unidade/polo ao qual o usuário está vinculado ('all' para todas ou ID do polo)
+  favorite_shortcuts?: string[]; // Atalhos favoritos fixados pelo usuário na barra de acesso rápido
 }
 
 export interface Unit {

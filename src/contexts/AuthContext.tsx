@@ -4,6 +4,7 @@ import { saveData, deleteData, fetchById, fetchQuery } from '../lib/database';
 import { UserProfile } from '../types';
 
 import { getItemUnitId, getUserRestrictedUnit } from '../lib/unitService';
+import { syncFavoriteShortcutsForUser, clearFavoriteShortcutsSession } from '../lib/favoriteShortcuts';
 
 type AppUser = {
   uid: string;
@@ -184,6 +185,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch {}
 
+      syncFavoriteShortcutsForUser({
+        profileId: finalProfile.id,
+        authUserId: targetUid,
+        email: userEmail,
+        isSwitched: false,
+        profileFavorites: rawData?.favorite_shortcuts,
+        metadataFavorites: resolvedMeta?.favorite_shortcuts
+      });
+
       setProfile(finalProfile);
     };
 
@@ -343,6 +353,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (event === 'SIGNED_OUT' || !session) {
         sessionStorage.removeItem('app_session_active');
+        clearFavoriteShortcutsSession();
         setUser(null);
         setProfile(null);
         setLoading(false);
@@ -379,18 +390,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setUser(prev => {
-          if (prev && prev.uid === session.user.id && prev.email === (session.user.email || null)) {
+          const nextMeta = session.user.user_metadata;
+          if (
+            prev &&
+            prev.uid === session.user.id &&
+            prev.email === (session.user.email || null) &&
+            prev.displayName === (nextMeta?.full_name || null) &&
+            JSON.stringify(prev.userMetadata || {}) === JSON.stringify(nextMeta || {})
+          ) {
             return prev;
           }
           return {
             uid: session.user.id,
             email: session.user.email || null,
-            displayName: session.user.user_metadata?.full_name || null,
-            userMetadata: session.user.user_metadata
+            displayName: nextMeta?.full_name || null,
+            userMetadata: nextMeta
           };
         });
-        refreshProfile(session.user.id, false, session.user);
+        if (event !== 'USER_UPDATED') {
+          refreshProfile(session.user.id, false, session.user);
+        }
       } else {
+        clearFavoriteShortcutsSession();
         setUser(null);
         setProfile(null);
         setLoading(false);
@@ -441,6 +462,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("[AuthContext] Erro silencioso ao chamar signOut:", err);
       }
 
+      clearFavoriteShortcutsSession();
       setUser(null);
       setProfile(null);
 
@@ -678,6 +700,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       window.dispatchEvent(new Event('units-updated'));
     } catch {}
+    syncFavoriteShortcutsForUser({
+      profileId: normalizedProfile.id,
+      authUserId: userRef.current?.uid,
+      email: normalizedProfile.email,
+      isSwitched: normalizedProfile.id !== userRef.current?.uid,
+      profileFavorites: normalizedProfile.favorite_shortcuts
+    });
     setProfile(normalizedProfile);
     window.location.hash = '#/';
   }, []);

@@ -1,4 +1,5 @@
-import { 
+import { supabase, isSupabaseConfigured } from './supabase';
+import {
   Users, 
   UserPlus, 
   UserSquare2, 
@@ -381,21 +382,233 @@ export const DEFAULT_FAVORITE_PATHS = [
   '/financial-report'
 ];
 
-const STORAGE_KEY = 'escmin_favorite_shortcuts';
+const LEGACY_STORAGE_KEY = 'escmin_favorite_shortcuts';
 const EVENT_NAME = 'escmin-favorites-updated';
 
-export function getFavoritePaths(): string[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_FAVORITE_PATHS;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.slice(0, MAX_FAVORITES);
-    }
-    return DEFAULT_FAVORITE_PATHS;
-  } catch {
-    return DEFAULT_FAVORITE_PATHS;
+interface FavoriteUserContext {
+  profileId: string;
+  authUserId?: string;
+  email?: string;
+  isSwitched?: boolean;
+}
+
+let activeUserContext: FavoriteUserContext | null = null;
+let activeFavoritesCache: string[] | null = null;
+let lastLocalMutationAt = 0;
+let lastServerFetchAt = 0;
+let lastServerFetchProfileId: string | null = null;
+
+function getUserStorageKey(profileId?: string | null): string {
+  return profileId ? `${LEGACY_STORAGE_KEY}_user_${profileId}` : LEGACY_STORAGE_KEY;
+}
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
   }
+  return true;
+}
+
+export function sanitizeFavoritePaths(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const seen = new Set<string>();
+  const valid: string[] = [];
+  for (const item of raw) {
+    if (typeof item === 'string' && ALL_SHORTCUT_REGISTRY[item] && !seen.has(item)) {
+      seen.add(item);
+      valid.push(item);
+      if (valid.length >= MAX_FAVORITES) break;
+    }
+  }
+  return valid;
+}
+
+function readStoredPaths(key: string): string[] | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return null;
+    return sanitizeFavoritePaths(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalUserCache(paths: string[], profileId?: string | null): void {
+  activeFavoritesCache = paths;
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    localStorage.setItem(getUserStorageKey(profileId), JSON.stringify(paths));
+  } catch {}
+}
+
+function emitFavoritesUpdated(paths: string[]): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { favorites: paths } }));
+}
+
+async function persistFavoritesToCloud(paths: string[], ctx: FavoriteUserContext | null): Promise<boolean> {
+  if (!isSupabaseConfigured || !ctx?.profileId) return false;
+  let savedAnywhere = false;
+
+  // 1. Persistência garantida na conta Supabase Auth (independe de alterações no schema SQL)
+  if (!ctx.isSwitched) {
+    try {
+      const { error: authErr } = await supabase.auth.updateUser({
+        data: { favorite_shortcuts: paths }
+      });
+      if (!authErr) {
+        savedAnywhere = true;
+      } else {
+        console.warn('[favoriteShortcuts] Aviso ao salvar favoritos no Auth:', authErr.message);
+      }
+    } catch (err: any) {
+      console.warn('[favoriteShortcuts] Erro ao salvar favoritos no Auth:', err?.message || err);
+    }
+  }
+
+  // 2. Persistência complementar na tabela relacional public.users (se a coluna existir)
+  try {
+    const { error: dbErr } = await supabase
+      .from('users')
+      .update({ favorite_shortcuts: paths })
+      .eq('id', ctx.profileId);
+
+    if (!dbErr) {
+      savedAnywhere = true;
+    } else {
+      const msg = (dbErr.message || '').toLowerCase();
+      const isMissingCol =
+        dbErr.code === '42703' ||
+        dbErr.code === 'PGRST204' ||
+        msg.includes('column') ||
+        msg.includes('schema cache');
+      if (!isMissingCol) {
+        console.warn('[favoriteShortcuts] Aviso ao salvar favoritos na tabela users:', dbErr.message);
+      }
+    }
+  } catch {}
+
+  return savedAnywhere;
+}
+
+async function refreshFavoriteShortcutsFromServer(ctx: FavoriteUserContext): Promise<void> {
+  if (!isSupabaseConfigured || ctx.isSwitched) return;
+  const now = Date.now();
+  if (lastServerFetchProfileId === ctx.profileId && now - lastServerFetchAt < 15000) {
+    return;
+  }
+  lastServerFetchProfileId = ctx.profileId;
+  lastServerFetchAt = now;
+
+  try {
+    const { data } = await supabase.auth.getUser();
+    const serverUser = data?.user;
+    if (!serverUser) return;
+    if (!activeUserContext || activeUserContext.profileId !== ctx.profileId) return;
+    if (Date.now() - lastLocalMutationAt < 4000) return;
+
+    const serverFavorites = sanitizeFavoritePaths(serverUser.user_metadata?.favorite_shortcuts);
+    if (serverFavorites !== null) {
+      const current = activeFavoritesCache ?? getFavoritePaths();
+      if (!arraysEqual(current, serverFavorites)) {
+        writeLocalUserCache(serverFavorites, ctx.profileId);
+        emitFavoritesUpdated(serverFavorites);
+      }
+    }
+  } catch {}
+}
+
+export function syncFavoriteShortcutsForUser(options: {
+  profileId: string;
+  authUserId?: string;
+  email?: string;
+  isSwitched?: boolean;
+  profileFavorites?: unknown;
+  metadataFavorites?: unknown;
+}): string[] {
+  const ctx: FavoriteUserContext = {
+    profileId: options.profileId,
+    authUserId: options.authUserId,
+    email: options.email,
+    isSwitched: options.isSwitched
+  };
+  activeUserContext = ctx;
+
+  const recentlyMutatedLocally = Date.now() - lastLocalMutationAt < 4000;
+  const fromProfile = sanitizeFavoritePaths(options.profileFavorites);
+  const fromMeta = !options.isSwitched ? sanitizeFavoritePaths(options.metadataFavorites) : null;
+  const cloudFavorites = fromProfile ?? fromMeta;
+
+  const userLocal = readStoredPaths(getUserStorageKey(ctx.profileId));
+  const legacyLocal = readStoredPaths(LEGACY_STORAGE_KEY);
+
+  let resolved: string[];
+  let shouldUploadToCloud = false;
+
+  if (recentlyMutatedLocally && activeFavoritesCache) {
+    resolved = activeFavoritesCache;
+  } else if (cloudFavorites !== null) {
+    resolved = cloudFavorites;
+    if (fromProfile === null && fromMeta !== null) {
+      shouldUploadToCloud = true;
+    }
+  } else if (userLocal !== null) {
+    resolved = userLocal;
+    shouldUploadToCloud = true;
+  } else if (legacyLocal !== null) {
+    resolved = legacyLocal;
+    shouldUploadToCloud = true;
+  } else {
+    resolved = DEFAULT_FAVORITE_PATHS;
+  }
+
+  const previous = activeFavoritesCache;
+  writeLocalUserCache(resolved, ctx.profileId);
+
+  if (!previous || !arraysEqual(previous, resolved)) {
+    emitFavoritesUpdated(resolved);
+  }
+
+  if (shouldUploadToCloud) {
+    void persistFavoritesToCloud(resolved, ctx).then((ok) => {
+      if (ok && legacyLocal !== null && cloudFavorites === null) {
+        try {
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } catch {}
+      }
+    });
+  }
+
+  if (!ctx.isSwitched && isSupabaseConfigured && !recentlyMutatedLocally) {
+    void refreshFavoriteShortcutsFromServer(ctx);
+  }
+
+  return resolved;
+}
+
+export function clearFavoriteShortcutsSession(): void {
+  activeUserContext = null;
+  activeFavoritesCache = null;
+  lastServerFetchAt = 0;
+  lastServerFetchProfileId = null;
+}
+
+export function getFavoritePaths(): string[] {
+  if (activeFavoritesCache) return activeFavoritesCache;
+  if (activeUserContext?.profileId) {
+    const userStored = readStoredPaths(getUserStorageKey(activeUserContext.profileId));
+    if (userStored !== null) {
+      activeFavoritesCache = userStored;
+      return userStored;
+    }
+  }
+  const legacyStored = readStoredPaths(LEGACY_STORAGE_KEY);
+  if (legacyStored !== null) {
+    return legacyStored;
+  }
+  return DEFAULT_FAVORITE_PATHS;
 }
 
 export function isFavoritePath(path: string): boolean {
@@ -403,50 +616,51 @@ export function isFavoritePath(path: string): boolean {
   return current.includes(path);
 }
 
-export function toggleFavoritePath(path: string): { 
-  success: boolean; 
-  isFavorite: boolean; 
+export function toggleFavoritePath(path: string): {
+  success: boolean;
+  isFavorite: boolean;
   favorites: string[];
-  message?: string 
+  message?: string;
 } {
   const current = getFavoritePaths();
   const exists = current.includes(path);
 
   if (exists) {
     const next = current.filter(p => p !== path);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {}
-    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { favorites: next } }));
+    lastLocalMutationAt = Date.now();
+    writeLocalUserCache(next, activeUserContext?.profileId || null);
+    emitFavoritesUpdated(next);
+    void persistFavoritesToCloud(next, activeUserContext);
     return { success: true, isFavorite: false, favorites: next };
   }
 
   if (current.length >= MAX_FAVORITES) {
-    return { 
-      success: false, 
-      isFavorite: false, 
+    return {
+      success: false,
+      isFavorite: false,
       favorites: current,
-      message: `Limite operacional de ${MAX_FAVORITES} atalhos favoritos atingido. Desmarque um atalho antes de adicionar outro.` 
+      message: `Limite operacional de ${MAX_FAVORITES} atalhos favoritos atingido. Desmarque um atalho antes de adicionar outro.`
     };
   }
 
   const next = [...current, path];
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {}
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { favorites: next } }));
+  lastLocalMutationAt = Date.now();
+  writeLocalUserCache(next, activeUserContext?.profileId || null);
+  emitFavoritesUpdated(next);
+  void persistFavoritesToCloud(next, activeUserContext);
   return { success: true, isFavorite: true, favorites: next };
 }
 
 export function resetToDefaultFavorites(): string[] {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_FAVORITE_PATHS));
-  } catch {}
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { favorites: DEFAULT_FAVORITE_PATHS } }));
+  lastLocalMutationAt = Date.now();
+  writeLocalUserCache(DEFAULT_FAVORITE_PATHS, activeUserContext?.profileId || null);
+  emitFavoritesUpdated(DEFAULT_FAVORITE_PATHS);
+  void persistFavoritesToCloud(DEFAULT_FAVORITE_PATHS, activeUserContext);
   return DEFAULT_FAVORITE_PATHS;
 }
 
 export function subscribeToFavorites(callback: (paths: string[]) => void): () => void {
+  if (typeof window === 'undefined') return () => {};
   const handler = (e: any) => {
     if (e.detail?.favorites) {
       callback(e.detail.favorites);
