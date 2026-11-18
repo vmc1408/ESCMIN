@@ -1,5 +1,5 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import React, { Component, ReactNode, ErrorInfo, Suspense, lazy } from 'react';
+import React, { Component, ReactNode, ErrorInfo, Suspense, lazy, ComponentType } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
@@ -14,34 +14,95 @@ import { GlobalTooltipProvider } from './components/GlobalTooltipProvider';
 import { isSupabaseConfigured, clearCorruptedAuthTokens } from './lib/supabase';
 import { AlertCircle, RefreshCw, Unplug } from 'lucide-react';
 
-// Code-splitting por módulo (carregamento sob demanda das páginas autenticadas)
-const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
-const Students = lazy(() => import('./pages/Students').then((m) => ({ default: m.Students })));
-const Teachers = lazy(() => import('./pages/Teachers').then((m) => ({ default: m.Teachers })));
-const Courses = lazy(() => import('./pages/Courses').then((m) => ({ default: m.Courses })));
-const Classes = lazy(() => import('./pages/Classes').then((m) => ({ default: m.Classes })));
-const Subjects = lazy(() => import('./pages/Subjects').then((m) => ({ default: m.Subjects })));
-const CadastrosRelatorios = lazy(() => import('./pages/CadastrosRelatorios').then((m) => ({ default: m.CadastrosRelatorios })));
-const AcademicCalendar = lazy(() => import('./pages/AcademicCalendar').then((m) => ({ default: m.AcademicCalendar })));
-const Attendance = lazy(() => import('./pages/Attendance').then((m) => ({ default: m.Attendance })));
-const Grades = lazy(() => import('./pages/Grades').then((m) => ({ default: m.Grades })));
-const Assessments = lazy(() => import('./pages/Assessments').then((m) => ({ default: m.Assessments })));
-const Bulletin = lazy(() => import('./pages/Bulletin').then((m) => ({ default: m.Bulletin })));
-const Documents = lazy(() => import('./pages/Documents').then((m) => ({ default: m.Documents })));
-const Impressos = lazy(() => import('./pages/Impressos').then((m) => ({ default: m.Impressos })));
-const StudentFicha = lazy(() => import('./pages/StudentFicha').then((m) => ({ default: m.StudentFicha })));
-const Diocese = lazy(() => import('./pages/Diocese').then((m) => ({ default: m.Diocese })));
-const Import = lazy(() => import('./pages/Import').then((m) => ({ default: m.Import })));
-const Reports = lazy(() => import('./pages/Reports').then((m) => ({ default: m.Reports })));
-const FinancialDashboard = lazy(() => import('./pages/FinancialDashboard').then((m) => ({ default: m.FinancialDashboard })));
-const Contributions = lazy(() => import('./pages/Contributions').then((m) => ({ default: m.Contributions })));
-const FinancialReport = lazy(() => import('./pages/FinancialReport').then((m) => ({ default: m.FinancialReport })));
-const PixConference = lazy(() => import('./pages/PixConference').then((m) => ({ default: m.PixConference })));
-const Receipts = lazy(() => import('./pages/Receipts').then((m) => ({ default: m.Receipts })));
-const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const BackupPage = lazy(() => import('./pages/Backup').then((m) => ({ default: m.BackupPage })));
-const ArchivePage = lazy(() => import('./pages/Archive').then((m) => ({ default: m.ArchivePage })));
-const Users = lazy(() => import('./pages/Users').then((m) => ({ default: m.Users })));
+const CHUNK_RELOAD_KEY = 'escmin_chunk_reload_at';
+const CHUNK_RELOAD_COOLDOWN_MS = 15000;
+
+export function isChunkLoadError(error: unknown): boolean {
+  const msg = (
+    typeof error === 'string'
+      ? error
+      : (error as any)?.message || String(error || '')
+  ).toLowerCase();
+
+  return (
+    msg.includes('failed to fetch dynamically imported module') ||
+    msg.includes('error loading dynamically imported module') ||
+    msg.includes('importing a module script failed') ||
+    msg.includes('unable to preload css') ||
+    msg.includes('chunkloaderror') ||
+    msg.includes('loading chunk')
+  );
+}
+
+function forceCacheBustedReload(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('_r', String(Date.now()));
+    window.location.replace(url.toString());
+  } catch {
+    window.location.reload();
+  }
+}
+
+function reloadOnceForChunkError(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const lastReloadRaw = sessionStorage.getItem(CHUNK_RELOAD_KEY);
+    const lastReloadAt = lastReloadRaw ? Number(lastReloadRaw) : 0;
+    if (lastReloadAt && Date.now() - lastReloadAt < CHUNK_RELOAD_COOLDOWN_MS) {
+      return false;
+    }
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+    forceCacheBustedReload();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function lazyWithRetry<T extends ComponentType<any>>(
+  importer: () => Promise<{ default: T }>
+) {
+  return lazy(() =>
+    importer().catch((err) => {
+      if (isChunkLoadError(err) && reloadOnceForChunkError()) {
+        // Mantém a Suspense ativa brevemente enquanto a página recarrega com o novo build
+        return new Promise<{ default: T }>(() => {});
+      }
+      throw err;
+    })
+  );
+}
+
+// Code-splitting por módulo com auto-recuperação pós-deploy (carregamento sob demanda das páginas autenticadas)
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Students = lazyWithRetry(() => import('./pages/Students').then((m) => ({ default: m.Students })));
+const Teachers = lazyWithRetry(() => import('./pages/Teachers').then((m) => ({ default: m.Teachers })));
+const Courses = lazyWithRetry(() => import('./pages/Courses').then((m) => ({ default: m.Courses })));
+const Classes = lazyWithRetry(() => import('./pages/Classes').then((m) => ({ default: m.Classes })));
+const Subjects = lazyWithRetry(() => import('./pages/Subjects').then((m) => ({ default: m.Subjects })));
+const CadastrosRelatorios = lazyWithRetry(() => import('./pages/CadastrosRelatorios').then((m) => ({ default: m.CadastrosRelatorios })));
+const AcademicCalendar = lazyWithRetry(() => import('./pages/AcademicCalendar').then((m) => ({ default: m.AcademicCalendar })));
+const Attendance = lazyWithRetry(() => import('./pages/Attendance').then((m) => ({ default: m.Attendance })));
+const Grades = lazyWithRetry(() => import('./pages/Grades').then((m) => ({ default: m.Grades })));
+const Assessments = lazyWithRetry(() => import('./pages/Assessments').then((m) => ({ default: m.Assessments })));
+const Bulletin = lazyWithRetry(() => import('./pages/Bulletin').then((m) => ({ default: m.Bulletin })));
+const Documents = lazyWithRetry(() => import('./pages/Documents').then((m) => ({ default: m.Documents })));
+const Impressos = lazyWithRetry(() => import('./pages/Impressos').then((m) => ({ default: m.Impressos })));
+const StudentFicha = lazyWithRetry(() => import('./pages/StudentFicha').then((m) => ({ default: m.StudentFicha })));
+const Diocese = lazyWithRetry(() => import('./pages/Diocese').then((m) => ({ default: m.Diocese })));
+const Import = lazyWithRetry(() => import('./pages/Import').then((m) => ({ default: m.Import })));
+const Reports = lazyWithRetry(() => import('./pages/Reports').then((m) => ({ default: m.Reports })));
+const FinancialDashboard = lazyWithRetry(() => import('./pages/FinancialDashboard').then((m) => ({ default: m.FinancialDashboard })));
+const Contributions = lazyWithRetry(() => import('./pages/Contributions').then((m) => ({ default: m.Contributions })));
+const FinancialReport = lazyWithRetry(() => import('./pages/FinancialReport').then((m) => ({ default: m.FinancialReport })));
+const PixConference = lazyWithRetry(() => import('./pages/PixConference').then((m) => ({ default: m.PixConference })));
+const Receipts = lazyWithRetry(() => import('./pages/Receipts').then((m) => ({ default: m.Receipts })));
+const Settings = lazyWithRetry(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const BackupPage = lazyWithRetry(() => import('./pages/Backup').then((m) => ({ default: m.BackupPage })));
+const ArchivePage = lazyWithRetry(() => import('./pages/Archive').then((m) => ({ default: m.ArchivePage })));
+const Users = lazyWithRetry(() => import('./pages/Users').then((m) => ({ default: m.Users })));
 
 function PageLoader() {
   return (
@@ -77,37 +138,54 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Critical Application Error:", error, errorInfo);
+    if (isChunkLoadError(error)) {
+      reloadOnceForChunkError();
+    }
   }
 
   render() {
     if (this.state.hasError) {
+      const isChunkErr = isChunkLoadError(this.state.error);
       return (
         <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6 font-sans">
           <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-200 text-center">
             <div className="w-16 h-16 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mx-auto mb-6 border border-red-200">
               <AlertCircle size={32} />
             </div>
-            <h1 className="text-xl font-bold text-slate-900 mb-4 uppercase">Erro Crítico</h1>
+            <h1 className="text-xl font-bold text-slate-900 mb-4 uppercase">
+              {isChunkErr ? 'Atualização Disponível' : 'Erro Crítico'}
+            </h1>
             <p className="text-slate-500 text-sm mb-8">
-              Ocorreu um erro inesperado ao carregar o sistema. Isso pode ser causado por falha na conexão ou erro de renderização.
+              {isChunkErr
+                ? 'Uma nova versão do sistema foi publicada ou houve oscilação momentânea na conexão. Recarregue a página para baixar os arquivos atualizados.'
+                : 'Ocorreu um erro inesperado ao carregar o sistema. Isso pode ser causado por falha na conexão ou erro de renderização.'}
             </p>
             <div className="bg-slate-100 p-4 rounded-lg mb-8 text-left overflow-auto max-h-40 border border-slate-200">
               <code className="text-[10px] text-red-600 font-mono font-semibold block whitespace-pre-wrap">
                 {this.state.error?.name}: {this.state.error?.message}
               </code>
             </div>
-            <button 
-              onClick={() => {
-                localStorage.clear();
-                sessionStorage.clear();
-                window.location.reload();
-              }}
-              title="Limpar cache local e recarregar o sistema"
-              className="w-full py-4 bg-slate-900 text-white rounded-lg font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg active:scale-95"
-            >
-              <RefreshCw size={18} />
-              Resetar e Recarregar
-            </button>
+            <div className="space-y-3">
+              <button 
+                onClick={() => forceCacheBustedReload()}
+                title="Atualizar a página mantendo seus dados locais"
+                className="w-full py-4 bg-slate-900 text-white rounded-lg font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg active:scale-95 cursor-pointer"
+              >
+                <RefreshCw size={18} />
+                {isChunkErr ? 'Atualizar e Recarregar' : 'Recarregar Sistema'}
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  forceCacheBustedReload();
+                }}
+                title="Limpar cache local e reiniciar sessão"
+                className="w-full py-2.5 text-slate-500 hover:text-red-600 text-[11px] font-semibold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Resetar Cache Local e Reiniciar
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -116,8 +194,21 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-// Neutraliza erros não capturados de tokens de atualização inválidos/expirados do Supabase
+// Neutraliza erros de tokens expirados, limpa parâmetro temporário de cache-bust e trata pré-carregamento pós-deploy
 if (typeof window !== 'undefined') {
+  try {
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.has('_r')) {
+      currentUrl.searchParams.delete('_r');
+      window.history.replaceState(null, '', currentUrl.toString());
+    }
+  } catch {}
+
+  window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
+    reloadOnceForChunkError();
+  });
+
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const msg = (typeof reason === 'string' ? reason : reason?.message || String(reason || '')).toLowerCase();
