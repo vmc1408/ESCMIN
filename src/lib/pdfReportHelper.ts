@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { DEFAULT_LOGO } from './default-logo';
+import { isInstitutionPhoneWhatsapp } from './utils';
 
 interface InstitutionData {
   name?: string;
@@ -9,9 +10,51 @@ interface InstitutionData {
   address?: string;
   cep?: string;
   phone?: string;
+  phone_is_whatsapp?: boolean | string;
   secretary?: string;
   email?: string;
   logo_url?: string;
+}
+
+/**
+ * Draws a crisp vector green WhatsApp icon in jsPDF right after a footer phone string.
+ */
+export function drawPdfWhatsAppIcon(
+  doc: jsPDF,
+  startX: number,
+  baselineY: number,
+  size: number = 2.6
+) {
+  const r = size / 2;
+  const cx = startX + r;
+  const cy = baselineY - r * 0.62;
+
+  // Green circular bubble (#25D366) + speech tail
+  doc.setFillColor(37, 211, 102);
+  doc.circle(cx, cy, r, 'F');
+  doc.triangle(
+    cx - r * 0.85,
+    cy + r * 0.42,
+    cx - r * 1.02,
+    cy + r * 1.02,
+    cx - r * 0.3,
+    cy + r * 0.85,
+    'F'
+  );
+
+  // Inner white curved telephone handset silhouette
+  doc.setDrawColor(255, 255, 255);
+  doc.setFillColor(255, 255, 255);
+  doc.setLineWidth(Math.max(0.28, size * 0.14));
+  doc.line(cx - r * 0.36, cy - r * 0.42, cx - r * 0.42, cy - r * 0.12);
+  doc.line(cx - r * 0.42, cy - r * 0.12, cx - r * 0.08, cy + r * 0.22);
+  doc.line(cx - r * 0.08, cy + r * 0.22, cx + r * 0.34, cy + r * 0.38);
+  doc.circle(cx - r * 0.34, cy - r * 0.42, r * 0.15, 'F');
+  doc.circle(cx + r * 0.36, cy + r * 0.36, r * 0.15, 'F');
+
+  // Restore standard dark text/draw state
+  doc.setDrawColor(15, 23, 42);
+  doc.setFillColor(15, 23, 42);
 }
 
 /**
@@ -170,6 +213,10 @@ export function drawStandardReportFooter(
     doc.text(addrLine1, margin, pageHeight - 14.5);
     doc.text(addrLine2, margin, pageHeight - 11);
     doc.text(addrLine3, margin, pageHeight - 7.5);
+    if (isInstitutionPhoneWhatsapp(inst)) {
+      const phoneW = doc.getTextWidth(addrLine3);
+      drawPdfWhatsAppIcon(doc, margin + phoneW + 1.4, pageHeight - 7.5, 2.5);
+    }
 
     // Coluna da Direita (Atendimento Secretaria & Paginação) - Exatamente 3 linhas (Fonte 7pt, bold, #0f172a)
     doc.setFontSize(7);
@@ -182,7 +229,7 @@ export function drawStandardReportFooter(
     doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
 
     const emailAndPage = [
-      `email: ${(inst?.email || 'email@email.com.br').toLowerCase()}`,
+      (inst?.email || 'email@email.com.br').toLowerCase(),
       `Página ${i} de ${pages}`
     ].join('  •  ');
     doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });

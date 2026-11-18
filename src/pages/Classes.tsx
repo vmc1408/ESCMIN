@@ -50,7 +50,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, filterStudentsForClass, isStudentActive } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, filterStudentsForClass, isStudentActive, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { detectSubjectSemester, getClassStartDateFromSchedule, computeAvailableAcademicYears } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
@@ -60,7 +60,8 @@ import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
-import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
+import { drawStandardReportHeader, drawStandardReportFooter, drawPdfWhatsAppIcon } from '../lib/pdfReportHelper';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { DEFAULT_LOGO } from '../lib/default-logo';
 
 interface Class {
@@ -1249,6 +1250,10 @@ export function Classes() {
       doc.text(addrLine1, margin, pageHeight - 14.5);
       doc.text(addrLine2, margin, pageHeight - 11);
       doc.text(addrLine3, margin, pageHeight - 7.5);
+      if (isInstitutionPhoneWhatsapp(inst)) {
+        const phoneW = doc.getTextWidth(addrLine3);
+        drawPdfWhatsAppIcon(doc, margin + phoneW + 1.4, pageHeight - 7.5, 2.5);
+      }
 
       // Coluna da Direita (Atendimento Secretaria & Paginação) - Exatamente 3 linhas (Fonte 7pt, bold, #0f172a)
       doc.setFontSize(7);
@@ -1261,7 +1266,7 @@ export function Classes() {
       doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
       
       const emailAndPage = [
-        inst?.email ? `email: ${inst.email.toLowerCase()}` : 'email: email@email.com.br',
+        inst?.email ? inst.email.toLowerCase() : 'email@email.com.br',
         `Página ${i} de ${totalPages}`
       ].join('  •  ');
       doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
@@ -5191,8 +5196,9 @@ export function Classes() {
                   </p>
                 )}
                 {inst?.phone && (
-                  <p className="leading-snug font-bold text-[7pt] pt-0.5">
+                  <p className="leading-snug font-bold text-[7pt] pt-0.5 inline-flex items-center gap-1">
                     <span className="normal-case">Telefone: {inst.phone}</span>
+                    {isInstitutionPhoneWhatsapp(inst) && <FooterWhatsAppIcon className="w-[10px] h-[10px]" />}
                   </p>
                 )}
               </div>
@@ -5205,7 +5211,7 @@ export function Classes() {
                 )}
                 {inst?.email && (
                   <p className="lowercase font-bold text-[7pt] pt-0.5">
-                    email: {inst.email.toLowerCase()}
+                    {inst.email.toLowerCase()}
                   </p>
                 )}
               </div>

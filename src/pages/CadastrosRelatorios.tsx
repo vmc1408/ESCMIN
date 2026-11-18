@@ -17,7 +17,8 @@ import autoTable from 'jspdf-autotable';
 import { fetchAll, getInstitutionSettings } from '../lib/database';
 import { DEFAULT_LOGO } from '../lib/default-logo';
 import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
-import { cn, detectSubjectSemester } from '../lib/utils';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
+import { cn, detectSubjectSemester, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { Student, Teacher, Course, Class, Subject, Enrollment } from '../types';
 import { useUnits } from '../contexts/UnitContext';
 import { getItemUnitId, isItemInUnit, isTeacherAssignedToUnit } from '../lib/unitService';
@@ -115,6 +116,7 @@ function StandardReportFooter({
   const phone = inst?.phone || '(11) 2421-2935';
   const secretary = inst?.secretary || 'quarta a sexta-feira das 14h às 18h';
   const email = (inst?.email || 'email@email.com.br').toLowerCase();
+  const hasWhatsapp = isInstitutionPhoneWhatsapp(inst);
 
   return (
     <div className="mt-auto pt-2 shrink-0">
@@ -127,8 +129,9 @@ function StandardReportFooter({
           <p className="leading-tight">
             CEP: {cep} - {cityUf}
           </p>
-          <p className="leading-tight pt-0.5">
-            Telefone: {phone}
+          <p className="leading-tight pt-0.5 inline-flex items-center gap-1">
+            <span>Telefone: {phone}</span>
+            {hasWhatsapp && <FooterWhatsAppIcon className="w-[10px] h-[10px]" />}
           </p>
         </div>
 
@@ -137,7 +140,7 @@ function StandardReportFooter({
           <p className="uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
           <p className="whitespace-pre-line text-[7pt] leading-tight font-bold">{secretary}</p>
           <p className="text-[7pt] pt-0.5 font-bold">
-            email: {email}  •  Página {pageNumber} de {totalPages}
+            {email}  •  Página {pageNumber} de {totalPages}
           </p>
         </div>
       </div>

@@ -63,9 +63,10 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, isStudentActive, isStudentInClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, isStudentActive, isStudentInClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
+import { drawPdfWhatsAppIcon } from '../lib/pdfReportHelper';
 import { financialService } from '../services/financialService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
@@ -2112,12 +2113,26 @@ export function Reports() {
         doc.text(addressLine.toUpperCase() || 'ESCMIN - GESTÃO ACADÊMICA E PASTORAL', margin, footerY + 4);
 
         if (institution?.phone || institution?.email) {
-          const contactLine = [
-            institution?.phone ? `Tel: ${institution.phone}` : '',
-            institution?.email ? `E-mail: ${institution.email}` : ''
-          ].filter(Boolean).join(' • ');
           doc.setFont('helvetica', 'normal');
-          doc.text(contactLine, margin, footerY + 7.5);
+          let curX = margin;
+          const contactY = footerY + 7.5;
+
+          if (institution?.phone) {
+            const phoneText = `Tel: ${institution.phone}`;
+            doc.text(phoneText, curX, contactY);
+            curX += doc.getTextWidth(phoneText);
+
+            if (isInstitutionPhoneWhatsapp(institution)) {
+              drawPdfWhatsAppIcon(doc, curX + 1.2, contactY, 2.3);
+              curX += 4.2;
+            }
+          }
+
+          if (institution?.email) {
+            const emailStr = institution.email.toLowerCase();
+            const prefix = institution?.phone ? ' • ' : '';
+            doc.text(`${prefix}${emailStr}`, curX, contactY);
+          }
         }
 
         doc.setFontSize(6.5);

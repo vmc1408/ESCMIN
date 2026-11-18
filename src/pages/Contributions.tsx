@@ -4,7 +4,9 @@ import { financialService } from '../services/financialService';
 import { financialConfigService } from '../services/financialConfigService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
 import { Student, Contribution, Class, FinancialSettings } from '../types';
-import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, detectCourseFromClass } from '../lib/utils';
+import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, detectCourseFromClass, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { drawPdfWhatsAppIcon } from '../lib/pdfReportHelper';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { PageHeader } from '../components/PageHeader';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -2541,6 +2543,10 @@ export function Contributions() {
         let currentLeftY = finalY + 5;
         leftLines.forEach(line => {
           doc.text(line, margin, currentLeftY);
+          if (line.startsWith('Telefone:') && isInstitutionPhoneWhatsapp(institution)) {
+            const phoneW = doc.getTextWidth(line);
+            drawPdfWhatsAppIcon(doc, margin + phoneW + 1.4, currentLeftY, 2.5);
+          }
           currentLeftY += 4;
         });
 
@@ -2561,7 +2567,7 @@ export function Contributions() {
           }
           if (institution?.email) {
             doc.setFont('helvetica', 'normal');
-            doc.text(`email: ${institution.email.toLowerCase()}`, pageWidth - margin, currentRightY, { align: 'right' });
+            doc.text(institution.email.toLowerCase(), pageWidth - margin, currentRightY, { align: 'right' });
           }
         }
       }
@@ -5848,8 +5854,9 @@ export function Contributions() {
                   </p>
                 )}
                 {institution?.phone && (
-                  <p className="leading-none font-bold text-[6.5pt] pt-0.5">
+                  <p className="leading-none font-bold text-[6.5pt] pt-0.5 inline-flex items-center gap-1">
                     <span className="normal-case">Telefone: {institution.phone}</span>
+                    {isInstitutionPhoneWhatsapp(institution) && <FooterWhatsAppIcon className="w-[9.5px] h-[9.5px]" />}
                   </p>
                 )}
               </div>
@@ -5862,7 +5869,7 @@ export function Contributions() {
                 )}
                 {institution?.email && (
                   <p className="lowercase font-bold text-[6.5pt] pt-0.5">
-                    email: {institution.email.toLowerCase()}
+                    {institution.email.toLowerCase()}
                   </p>
                 )}
               </div>

@@ -22,7 +22,8 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
 import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
-import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
+import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 import { getStudentContributionPlan, formatContributionMonth, isPeriodOverdue } from '../lib/contributionRules';
@@ -2271,8 +2272,9 @@ export function Impressos() {
                     <p className="leading-tight">
                       CEP: {institution?.cep || '07044-170'} - {institution?.city_uf || 'Guarulhos/SP'}
                     </p>
-                    <p className="leading-tight pt-0.5">
-                      Telefone: {institution?.phone || '(11) 2421-2935'}
+                    <p className="leading-tight pt-0.5 inline-flex items-center gap-1">
+                      <span>Telefone: {institution?.phone || '(11) 2421-2935'}</span>
+                      {isInstitutionPhoneWhatsapp(institution) && <FooterWhatsAppIcon />}
                     </p>
                   </div>
                   <div className="text-right max-w-[82mm] leading-tight text-slate-900 font-bold space-y-0.5">
@@ -2281,7 +2283,7 @@ export function Impressos() {
                       {institution?.secretary || 'quarta a sexta-feira das 14h às 18h'}
                     </p>
                     <p className="pt-0.5 font-bold lowercase">
-                      email: {(institution?.email || 'edm@diocesedeguarulhos.org.br').toLowerCase()}
+                      {(institution?.email || 'edm@diocesedeguarulhos.org.br').toLowerCase()}
                     </p>
                   </div>
                 </div>

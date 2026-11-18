@@ -21,7 +21,8 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
@@ -2140,12 +2141,15 @@ export function StudentFicha() {
               <div className="col-span-7 space-y-0.5">
                 <p className="font-extrabold uppercase tracking-wider text-slate-800">Endereço:</p>
                 <p className="font-medium uppercase">{institution?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP'}</p>
-                <p className="font-medium">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
+                <p className="font-medium inline-flex items-center gap-1">
+                  <span>Telefone: {institution?.phone || '(11) 2421-2935'}</span>
+                  {isInstitutionPhoneWhatsapp(institution) && <FooterWhatsAppIcon />}
+                </p>
               </div>
               <div className="col-span-5 text-right space-y-0.5">
                 <p className="font-extrabold uppercase tracking-wider text-slate-800">Atendimento Secretaria:</p>
                 <p className="font-medium uppercase whitespace-pre-line">{institution?.secretary || 'De Quarta à Sexta-feira das 14h às 18h'}</p>
-                <p className="font-medium lowercase">email: {institution?.email?.toLowerCase() || 'edm@diocesedeguarulhos.org.br'}</p>
+                <p className="font-medium lowercase">{institution?.email?.toLowerCase() || 'edm@diocesedeguarulhos.org.br'}</p>
               </div>
             </div>
           </div>

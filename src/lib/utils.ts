@@ -901,3 +901,17 @@ export function numberToPortugueseWords(value: number): string {
   return textoReais || textoCentavos || 'zero reais';
 }
 
+/**
+ * Checks whether the institution's main phone number is marked as WhatsApp in Settings.
+ */
+export function isInstitutionPhoneWhatsapp(inst: any): boolean {
+  if (!inst) return false;
+  const val = inst.phone_is_whatsapp;
+  if (val === true || val === 1) return true;
+  if (typeof val === 'string') {
+    const normalized = val.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'sim';
+  }
+  return false;
+}
+

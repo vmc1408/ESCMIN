@@ -43,7 +43,8 @@ import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank, safeFormat, numberToPortugueseWords, calculateAge, formatAge, isBirthdayToday, isValidCPF } from '../lib/utils';
+import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank, safeFormat, numberToPortugueseWords, calculateAge, formatAge, isBirthdayToday, isValidCPF, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { getClassStartDateFromSchedule } from '../lib/academicUtils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { Student, Class, Enrollment, Course, Contribution } from '../types';
@@ -2184,8 +2185,9 @@ export function Students() {
                 </p>
               )}
               {institution?.phone && (
-                <p className="leading-tight font-bold pt-0.5">
+                <p className="leading-tight font-bold pt-0.5 inline-flex items-center gap-1">
                   <span className="normal-case">Telefone: {institution.phone}</span>
+                  {isInstitutionPhoneWhatsapp(institution) && <FooterWhatsAppIcon className="w-[10px] h-[10px]" />}
                 </p>
               )}
             </div>
@@ -2198,7 +2200,7 @@ export function Students() {
               )}
               {institution?.email && (
                 <p className="lowercase font-bold text-[7pt] pt-0.5">
-                  email: {institution.email.toLowerCase()}
+                  {institution.email.toLowerCase()}
                 </p>
               )}
             </div>

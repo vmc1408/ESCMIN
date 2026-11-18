@@ -52,7 +52,8 @@ import {
 import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, deleteBatch, deleteData, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
-import { cn } from '../lib/utils';
+import { cn, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { UnitsSettingsTab } from '../components/UnitsSettingsTab';
 import { FinancialSettingsTab } from '../components/FinancialSettingsTab';
 import { DatabaseSettingsTab, DatabaseScriptKey } from '../components/DatabaseSettingsTab';
@@ -1572,8 +1573,9 @@ export function Settings() {
                             {institution.address || 'Endereço não configurado'} {institution.cep ? ` - CEP: ${institution.cep}` : ''} {institution.city_uf ? ` - ${institution.city_uf}` : ''}
                           </p>
                           {institution.phone && (
-                            <p className="leading-none font-bold text-[7pt]">
+                            <p className="leading-none font-bold text-[7pt] inline-flex items-center gap-1">
                               <span className="normal-case">Telefone: {institution.phone}</span>
+                              {isInstitutionPhoneWhatsapp(institution) && <FooterWhatsAppIcon className="w-[10px] h-[10px]" />}
                             </p>
                           )}
                         </div>
@@ -1586,7 +1588,7 @@ export function Settings() {
                           )}
                           {institution.email && (
                             <p className="lowercase font-bold text-[7pt] pt-0.5">
-                              email: {institution.email.toLowerCase()}
+                              {institution.email.toLowerCase()}
                             </p>
                           )}
                         </div>

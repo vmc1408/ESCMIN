@@ -26,9 +26,10 @@ import {
 import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatCurrency, cn, detectSubjectSemester, formatSubjectDisplayName } from '../lib/utils';
+import { formatCurrency, cn, detectSubjectSemester, formatSubjectDisplayName, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { fetchAll, saveData, deleteData, uploadImage } from '../lib/database';
-import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
+import { drawStandardReportHeader, drawStandardReportFooter, drawPdfWhatsAppIcon } from '../lib/pdfReportHelper';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { RotateCcw, FileText as FileIcon, Building2, UserX } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -947,6 +948,10 @@ export function Teachers() {
         doc.text(addrLine1, margin, pageHeight - 14.5);
         doc.text(addrLine2, margin, pageHeight - 11);
         doc.text(addrLine3, margin, pageHeight - 7.5);
+        if (isInstitutionPhoneWhatsapp(instData)) {
+          const phoneW = doc.getTextWidth(addrLine3);
+          drawPdfWhatsAppIcon(doc, margin + phoneW + 1.4, pageHeight - 7.5, 2.5);
+        }
 
         // Coluna da Direita (Atendimento Secretaria & Paginação)
         doc.setFontSize(7);
@@ -959,7 +964,7 @@ export function Teachers() {
         doc.text(secLine, pageWidth - margin, pageHeight - 11, { align: 'right' });
         
         const emailAndPage = [
-          instData?.email ? `email: ${instData.email.toLowerCase()}` : 'email: email@email.com.br',
+          instData?.email ? instData.email.toLowerCase() : 'email@email.com.br',
           `Página ${i} de ${pages}`
         ].join('  •  ');
         doc.text(emailAndPage, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
@@ -1255,15 +1260,16 @@ export function Teachers() {
               <p className="leading-tight font-bold">
                 {inst?.cep ? `CEP: ${inst.cep}` : 'CEP: 07044-170'} {inst?.city_uf ? ` - ${inst.city_uf}` : ' - GUARULHOS/SP'}
               </p>
-              <p className="leading-tight font-bold pt-0.5">
+              <p className="leading-tight font-bold pt-0.5 inline-flex items-center gap-1">
                 <span className="normal-case">Telefone: {inst?.phone || '(11) 2421-2935'}</span>
+                {isInstitutionPhoneWhatsapp(inst) && <FooterWhatsAppIcon className="w-[10px] h-[10px]" />}
               </p>
             </div>
             <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
               <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
               <p className="whitespace-pre-line lowercase font-bold text-[7pt]">{inst?.secretary || 'quarta a sexta-feira das 14h as 18h'}</p>
               <p className="lowercase font-bold text-[7pt] pt-0.5">
-                email: {(inst?.email || 'email@email.com.br').toLowerCase()}
+                {(inst?.email || 'email@email.com.br').toLowerCase()}
               </p>
             </div>
           </div>

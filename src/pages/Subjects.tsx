@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn } from '../lib/utils';
+import { cn, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { detectSubjectSemester } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { RotateCcw, FileText as FileIcon, UserX } from 'lucide-react';
@@ -30,6 +30,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { DEFAULT_LOGO } from '../lib/default-logo';
 import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
+import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 
 interface Subject {
   id: string;
@@ -1463,8 +1464,9 @@ export function Subjects() {
                   </p>
                 )}
                 {inst?.phone && (
-                  <p className="leading-snug font-bold text-[7pt] pt-0.5">
+                  <p className="leading-snug font-bold text-[7pt] pt-0.5 inline-flex items-center gap-1">
                     <span className="normal-case">Telefone: {inst.phone}</span>
+                    {isInstitutionPhoneWhatsapp(inst) && <FooterWhatsAppIcon className="w-[10px] h-[10px]" />}
                   </p>
                 )}
               </div>
@@ -1477,7 +1479,7 @@ export function Subjects() {
                 )}
                 {inst?.email && (
                   <p className="lowercase font-bold text-[7pt] pt-0.5">
-                    email: {inst.email.toLowerCase()}
+                    {inst.email.toLowerCase()}
                   </p>
                 )}
               </div>
