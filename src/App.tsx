@@ -1,8 +1,35 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import React, { Component, ReactNode, ErrorInfo, Suspense, lazy, ComponentType } from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
+import { Dashboard } from './pages/Dashboard';
+import { Students } from './pages/Students';
+import { Teachers } from './pages/Teachers';
+import { Courses } from './pages/Courses';
+import { Classes } from './pages/Classes';
+import { Subjects } from './pages/Subjects';
+import { CadastrosRelatorios } from './pages/CadastrosRelatorios';
+import { AcademicCalendar } from './pages/AcademicCalendar';
+import { Attendance } from './pages/Attendance';
+import { Grades } from './pages/Grades';
+import { Assessments } from './pages/Assessments';
+import { Bulletin } from './pages/Bulletin';
+import { Documents } from './pages/Documents';
+import { Impressos } from './pages/Impressos';
+import { StudentFicha } from './pages/StudentFicha';
+import { Diocese } from './pages/Diocese';
+import { Import } from './pages/Import';
+import { Reports } from './pages/Reports';
+import { FinancialDashboard } from './pages/FinancialDashboard';
+import { Contributions } from './pages/Contributions';
+import { FinancialReport } from './pages/FinancialReport';
+import { PixConference } from './pages/PixConference';
+import { Receipts } from './pages/Receipts';
+import { Settings } from './pages/Settings';
+import { BackupPage } from './pages/Backup';
+import { ArchivePage } from './pages/Archive';
+import { Users } from './pages/Users';
 import { ImportProvider } from './contexts/ImportContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnitProvider } from './contexts/UnitContext';
@@ -63,74 +90,6 @@ function reloadOnceForChunkError(): boolean {
   } catch {
     return false;
   }
-}
-
-function lazyWithRetry<T extends ComponentType<any>>(
-  importer: () => Promise<{ default: T }>
-) {
-  return lazy(() =>
-    importer().catch((err) => {
-      if (isChunkLoadError(err) && reloadOnceForChunkError()) {
-        // Mantém a Suspense ativa brevemente enquanto a página recarrega com o novo build
-        return new Promise<{ default: T }>(() => {});
-      }
-      throw err;
-    })
-  );
-}
-
-function lazyNamedWithRetry<T extends ComponentType<any>>(
-  importer: () => Promise<Record<string, any> | undefined>,
-  exportName: string
-) {
-  return lazyWithRetry<T>(async () => {
-    const mod = await importer();
-    const Component = mod?.[exportName] as T | undefined;
-    if (!Component) {
-      const err = new Error(`Failed to fetch dynamically imported module export: ${exportName}`);
-      err.name = 'ChunkLoadError';
-      throw err;
-    }
-    return { default: Component };
-  });
-}
-
-// Code-splitting por módulo com auto-recuperação pós-deploy (carregamento sob demanda das páginas autenticadas)
-const Dashboard = lazyNamedWithRetry(() => import('./pages/Dashboard'), 'Dashboard');
-const Students = lazyNamedWithRetry(() => import('./pages/Students'), 'Students');
-const Teachers = lazyNamedWithRetry(() => import('./pages/Teachers'), 'Teachers');
-const Courses = lazyNamedWithRetry(() => import('./pages/Courses'), 'Courses');
-const Classes = lazyNamedWithRetry(() => import('./pages/Classes'), 'Classes');
-const Subjects = lazyNamedWithRetry(() => import('./pages/Subjects'), 'Subjects');
-const CadastrosRelatorios = lazyNamedWithRetry(() => import('./pages/CadastrosRelatorios'), 'CadastrosRelatorios');
-const AcademicCalendar = lazyNamedWithRetry(() => import('./pages/AcademicCalendar'), 'AcademicCalendar');
-const Attendance = lazyNamedWithRetry(() => import('./pages/Attendance'), 'Attendance');
-const Grades = lazyNamedWithRetry(() => import('./pages/Grades'), 'Grades');
-const Assessments = lazyNamedWithRetry(() => import('./pages/Assessments'), 'Assessments');
-const Bulletin = lazyNamedWithRetry(() => import('./pages/Bulletin'), 'Bulletin');
-const Documents = lazyNamedWithRetry(() => import('./pages/Documents'), 'Documents');
-const Impressos = lazyNamedWithRetry(() => import('./pages/Impressos'), 'Impressos');
-const StudentFicha = lazyNamedWithRetry(() => import('./pages/StudentFicha'), 'StudentFicha');
-const Diocese = lazyNamedWithRetry(() => import('./pages/Diocese'), 'Diocese');
-const Import = lazyNamedWithRetry(() => import('./pages/Import'), 'Import');
-const Reports = lazyNamedWithRetry(() => import('./pages/Reports'), 'Reports');
-const FinancialDashboard = lazyNamedWithRetry(() => import('./pages/FinancialDashboard'), 'FinancialDashboard');
-const Contributions = lazyNamedWithRetry(() => import('./pages/Contributions'), 'Contributions');
-const FinancialReport = lazyNamedWithRetry(() => import('./pages/FinancialReport'), 'FinancialReport');
-const PixConference = lazyNamedWithRetry(() => import('./pages/PixConference'), 'PixConference');
-const Receipts = lazyNamedWithRetry(() => import('./pages/Receipts'), 'Receipts');
-const Settings = lazyNamedWithRetry(() => import('./pages/Settings'), 'Settings');
-const BackupPage = lazyNamedWithRetry(() => import('./pages/Backup'), 'BackupPage');
-const ArchivePage = lazyNamedWithRetry(() => import('./pages/Archive'), 'ArchivePage');
-const Users = lazyNamedWithRetry(() => import('./pages/Users'), 'Users');
-
-function PageLoader() {
-  return (
-    <div className="min-h-[55vh] flex flex-col items-center justify-center gap-3 text-slate-500">
-      <div className="w-8 h-8 rounded-full border-3 border-teal-200 border-t-teal-600 animate-spin" />
-      <span className="text-xs font-semibold tracking-wide uppercase">Carregando módulo...</span>
-    </div>
-  );
 }
 
 interface ErrorBoundaryProps {
@@ -303,8 +262,7 @@ function AppContent() {
       {user && <InactivityWarningModal />}
       <ImportProvider>
         <Router>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+          <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/" element={
@@ -343,8 +301,7 @@ function AppContent() {
                 <Route path="users" element={<ProtectedRoute requiredModule="/users"><Users /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
-            </Routes>
-          </Suspense>
+          </Routes>
           <GlobalImportOverlay />
         </Router>
       </ImportProvider>

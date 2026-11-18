@@ -12,7 +12,7 @@ export default defineConfig(({mode}) => {
       outDir: 'dist',
       assetsDir: 'assets',
       emptyOutDir: true,
-      chunkSizeWarningLimit: 900,
+      chunkSizeWarningLimit: 2500,
       rollupOptions: {
         output: {
           manualChunks: {
