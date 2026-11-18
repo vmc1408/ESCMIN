@@ -31,6 +31,7 @@ interface StudentRowItem {
   turmaName?: string;
   count?: number;
   student?: Student;
+  rowNumber?: number;
 }
 
 function formatDisplayPhone(phone?: string) {
@@ -512,6 +513,7 @@ export function CadastrosRelatorios() {
 
   // Generate unified list of rows for Alunos: separated by Turma or continuous
   const studentItems = useMemo<StudentRowItem[]>(() => {
+    let seq = 1;
     if (sortByTurma && selectedClassId === 'all') {
       const items: StudentRowItem[] = [];
       
@@ -527,7 +529,7 @@ export function CadastrosRelatorios() {
             count: clsStudents.length
           });
           clsStudents.forEach(s => {
-            items.push({ type: 'student', student: s });
+            items.push({ type: 'student', student: s, rowNumber: seq++ });
           });
         }
       });
@@ -543,13 +545,13 @@ export function CadastrosRelatorios() {
           count: unallocated.length
         });
         unallocated.forEach(s => {
-          items.push({ type: 'student', student: s });
+          items.push({ type: 'student', student: s, rowNumber: seq++ });
         });
       }
 
       return items;
     } else {
-      return sortedStudents.map(s => ({ type: 'student', student: s }));
+      return sortedStudents.map(s => ({ type: 'student', student: s, rowNumber: seq++ }));
     }
   }, [sortByTurma, selectedClassId, unitClasses, sortedStudents, enrollments]);
 
@@ -758,6 +760,7 @@ export function CadastrosRelatorios() {
       if (activeTab === 'alunos') {
         const startY = drawStandardReportHeader(doc, inst, reportConfig.title, reportConfig.filterText, margin);
         const body: any[] = [];
+        let seq = 1;
 
         if (sortByTurma && selectedClassId === 'all') {
           // Grouped by class with section banners
@@ -767,11 +770,12 @@ export function CadastrosRelatorios() {
             if (clsStudents.length > 0) {
               body.push([{
                 content: `TURMA: ${cls.name.toUpperCase()} (${clsStudents.length} ALUNOS)`,
-                colSpan: 5,
+                colSpan: 6,
                 styles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold', fontSize: 7.5 }
               }]);
               clsStudents.forEach(s => {
                 body.push([
+                  seq++,
                   s.registration_number || '---',
                   s.name.toUpperCase(),
                   cls.name.toUpperCase(),
@@ -789,11 +793,12 @@ export function CadastrosRelatorios() {
           if (unallocated.length > 0) {
             body.push([{
               content: `ALUNOS NÃO ALOCADOS EM TURMA (${unallocated.length} ALUNOS)`,
-              colSpan: 5,
+              colSpan: 6,
               styles: { fillColor: [100, 116, 139], textColor: 255, fontStyle: 'bold', fontSize: 7.5 }
             }]);
             unallocated.forEach(s => {
               body.push([
+                seq++,
                 s.registration_number || '---',
                 s.name.toUpperCase(),
                 'NÃO ALOCADO',
@@ -808,6 +813,7 @@ export function CadastrosRelatorios() {
             const effId = getStudentEffectiveClassId(s);
             const cls = classes.find(c => c.id === effId);
             body.push([
+              seq++,
               s.registration_number || '---',
               s.name.toUpperCase(),
               cls?.name?.toUpperCase() || 'NÃO ALOCADO',
@@ -819,16 +825,17 @@ export function CadastrosRelatorios() {
 
         autoTable(doc, {
           startY,
-          head: [['MATRÍCULA', 'NOME DO ALUNO', 'TURMA', 'CONTATO', 'STATUS']],
+          head: [['Nº', 'MATRÍCULA', 'NOME DO ALUNO', 'TURMA', 'CONTATO', 'STATUS']],
           body,
           headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold' },
           styles: { fontSize: 7, cellPadding: 2.2, font: 'helvetica' },
           columnStyles: {
-            0: { cellWidth: 26 },
-            1: { cellWidth: 68 },
-            2: { cellWidth: 46 },
-            3: { cellWidth: 25 },
-            4: { cellWidth: 15 }
+            0: { cellWidth: 9, halign: 'center' },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 64 },
+            3: { cellWidth: 42 },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 15, halign: 'center' }
           },
           alternateRowStyles: { fillColor: [248, 250, 252] },
           margin: { left: margin, right: margin, bottom: 25 }
@@ -841,11 +848,12 @@ export function CadastrosRelatorios() {
         let columnStyles: any = {};
 
         if (activeTab === 'professores') {
-          head = [['CÓD.', 'NOME DO PROFESSOR', 'E-MAIL', 'DISCIPLINAS', 'STATUS']];
-          body = filteredTeachers.map(t => {
+          head = [['Nº', 'CÓD.', 'NOME DO PROFESSOR', 'E-MAIL', 'DISCIPLINAS', 'STATUS']];
+          body = filteredTeachers.map((t, idx) => {
             const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
             const subNames = tSubList.map(s => s.name).join(', ') || '---';
             return [
+              idx + 1,
               t.code,
               t.name.toUpperCase(),
               t.email || '---',
@@ -854,29 +862,33 @@ export function CadastrosRelatorios() {
             ];
           });
           columnStyles = {
-            0: { cellWidth: 15 },
-            1: { cellWidth: 60 },
-            2: { cellWidth: 45 },
-            3: { cellWidth: 45 },
-            4: { cellWidth: 15 }
+            0: { cellWidth: 9, halign: 'center' },
+            1: { cellWidth: 15 },
+            2: { cellWidth: 56 },
+            3: { cellWidth: 43 },
+            4: { cellWidth: 42 },
+            5: { cellWidth: 15, halign: 'center' }
           };
         } else if (activeTab === 'cursos') {
-          head = [['CÓD.', 'NOME DO CURSO', 'DURAÇÃO', 'STATUS']];
-          body = filteredCourses.map(c => [
+          head = [['Nº', 'CÓD.', 'NOME DO CURSO', 'DURAÇÃO', 'STATUS']];
+          body = filteredCourses.map((c, idx) => [
+            idx + 1,
             c.code,
             c.name.toUpperCase(),
             c.duration_total || '---',
             c.status || 'Ativo'
           ]);
           columnStyles = {
-            0: { cellWidth: 20 },
-            1: { cellWidth: 100 },
-            2: { cellWidth: 40 },
-            3: { cellWidth: 20 }
+            0: { cellWidth: 9, halign: 'center' },
+            1: { cellWidth: 19 },
+            2: { cellWidth: 94 },
+            3: { cellWidth: 38 },
+            4: { cellWidth: 20, halign: 'center' }
           };
         } else if (activeTab === 'turmas') {
-          head = [['CÓD.', 'NOME DA TURMA', 'ANO', 'PERÍODO', 'DIAS', 'STATUS']];
-          body = filteredClasses.map(c => [
+          head = [['Nº', 'CÓD.', 'NOME DA TURMA', 'ANO', 'PERÍODO', 'DIAS', 'STATUS']];
+          body = filteredClasses.map((c, idx) => [
+            idx + 1,
             c.code,
             c.name.toUpperCase(),
             c.year || '---',
@@ -885,18 +897,20 @@ export function CadastrosRelatorios() {
             c.status || 'Ativo'
           ]);
           columnStyles = {
-            0: { cellWidth: 20 },
-            1: { cellWidth: 70 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 25 },
-            4: { cellWidth: 30 },
-            5: { cellWidth: 15 }
+            0: { cellWidth: 9, halign: 'center' },
+            1: { cellWidth: 18 },
+            2: { cellWidth: 65 },
+            3: { cellWidth: 18 },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 30 },
+            6: { cellWidth: 15, halign: 'center' }
           };
         } else if (activeTab === 'disciplinas') {
-          head = [['CÓD.', 'NOME DA DISCIPLINA', 'ANO', 'SEM.', 'PROFESSOR', 'STATUS']];
-          body = filteredSubjects.map(s => {
+          head = [['Nº', 'CÓD.', 'NOME DA DISCIPLINA', 'ANO', 'SEM.', 'PROFESSOR', 'STATUS']];
+          body = filteredSubjects.map((s, idx) => {
             const teacher = teachers.find(t => t.subject_ids?.includes(s.id));
             return [
+              idx + 1,
               s.code || '---',
               s.name.toUpperCase(),
               s.year ? `${s.year}º Ano` : '---',
@@ -906,12 +920,13 @@ export function CadastrosRelatorios() {
             ];
           });
           columnStyles = {
-            0: { cellWidth: 18 },
-            1: { cellWidth: 65 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 20 },
-            4: { cellWidth: 42 },
-            5: { cellWidth: 15 }
+            0: { cellWidth: 9, halign: 'center' },
+            1: { cellWidth: 17 },
+            2: { cellWidth: 60 },
+            3: { cellWidth: 19 },
+            4: { cellWidth: 20 },
+            5: { cellWidth: 40 },
+            6: { cellWidth: 15, halign: 'center' }
           };
         }
 
@@ -1337,9 +1352,10 @@ export function CadastrosRelatorios() {
                   <table className="w-full text-left border-collapse text-[7.5pt]">
                     <thead>
                       <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                        <th className="py-1 px-2 w-[16%]">Matrícula</th>
-                        <th className="py-1 px-2 w-[38%]">Nome do Aluno</th>
-                        <th className="py-1 px-2 w-[24%]">Turma</th>
+                        <th className="py-1 px-1.5 w-[5%] text-center">Nº</th>
+                        <th className="py-1 px-2 w-[15%]">Matrícula</th>
+                        <th className="py-1 px-2 w-[35%]">Nome do Aluno</th>
+                        <th className="py-1 px-2 w-[23%]">Turma</th>
                         <th className="py-1 px-2 w-[14%]">Contato</th>
                         <th className="py-1 px-2 w-[8%] text-center">Status</th>
                       </tr>
@@ -1350,7 +1366,7 @@ export function CadastrosRelatorios() {
                           if (item.type === 'header') {
                             return (
                               <tr key={`header-${idx}`} className="bg-slate-800 text-white font-bold">
-                                <td colSpan={5} className="py-1 px-2.5 text-[7pt] uppercase tracking-wider">
+                                <td colSpan={6} className="py-1 px-2.5 text-[7pt] uppercase tracking-wider">
                                   TURMA: {item.turmaName} • {item.count} ALUNOS
                                 </td>
                               </tr>
@@ -1361,6 +1377,9 @@ export function CadastrosRelatorios() {
                           const cls = classes.find(c => c.id === effId);
                           return (
                             <tr key={s.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-600 text-[6.5pt]">
+                                {item.rowNumber}
+                              </td>
                               <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">
                                 {s.registration_number || '---'}
                               </td>
@@ -1381,7 +1400,7 @@ export function CadastrosRelatorios() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                          <td colSpan={6} className="py-6 text-center text-slate-400 italic">
                             Nenhum aluno encontrado com os filtros selecionados.
                           </td>
                         </tr>
@@ -1419,10 +1438,11 @@ export function CadastrosRelatorios() {
                   <table className="w-full text-left border-collapse text-[7.5pt]">
                     <thead>
                       <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                        <th className="py-1 px-2 w-[10%]">Cód.</th>
-                        <th className="py-1 px-2 w-[35%]">Nome do Professor</th>
-                        <th className="py-1 px-2 w-[25%]">E-mail</th>
-                        <th className="py-1 px-2 w-[22%]">Disciplinas</th>
+                        <th className="py-1 px-1.5 w-[5%] text-center">Nº</th>
+                        <th className="py-1 px-2 w-[9%]">Cód.</th>
+                        <th className="py-1 px-2 w-[34%]">Nome do Professor</th>
+                        <th className="py-1 px-2 w-[23%]">E-mail</th>
+                        <th className="py-1 px-2 w-[21%]">Disciplinas</th>
                         <th className="py-1 px-2 w-[8%] text-center">Status</th>
                       </tr>
                     </thead>
@@ -1430,8 +1450,10 @@ export function CadastrosRelatorios() {
                       {sheet.items.length > 0 ? (
                         sheet.items.map((t, idx) => {
                           const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
+                          const rowNumber = (sheet.sheetIndex - 1) * ROWS_PER_PAGE + idx + 1;
                           return (
                             <tr key={t.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-600 text-[6.5pt]">{rowNumber}</td>
                               <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{t.code}</td>
                               <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{t.name}</td>
                               <td className="py-1 px-2 lowercase text-slate-700 text-[6.5pt]">{t.email || '---'}</td>
@@ -1444,7 +1466,7 @@ export function CadastrosRelatorios() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                          <td colSpan={6} className="py-6 text-center text-slate-400 italic">
                             Nenhum professor encontrado com os filtros selecionados.
                           </td>
                         </tr>
@@ -1480,25 +1502,30 @@ export function CadastrosRelatorios() {
                   <table className="w-full text-left border-collapse text-[7.5pt]">
                     <thead>
                       <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                        <th className="py-1 px-2 w-[15%]">Cód.</th>
-                        <th className="py-1 px-2 w-[55%]">Nome do Curso</th>
+                        <th className="py-1 px-1.5 w-[5%] text-center">Nº</th>
+                        <th className="py-1 px-2 w-[14%]">Cód.</th>
+                        <th className="py-1 px-2 w-[51%]">Nome do Curso</th>
                         <th className="py-1 px-2 w-[20%]">Duração</th>
                         <th className="py-1 px-2 w-[10%] text-center">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {sheet.items.length > 0 ? (
-                        sheet.items.map((c, idx) => (
-                          <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
-                            <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{c.code}</td>
-                            <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{c.name}</td>
-                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.duration_total || '---'}</td>
-                            <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{c.status || 'Ativo'}</td>
-                          </tr>
-                        ))
+                        sheet.items.map((c, idx) => {
+                          const rowNumber = (sheet.sheetIndex - 1) * ROWS_PER_PAGE + idx + 1;
+                          return (
+                            <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-600 text-[6.5pt]">{rowNumber}</td>
+                              <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{c.code}</td>
+                              <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{c.name}</td>
+                              <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.duration_total || '---'}</td>
+                              <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{c.status || 'Ativo'}</td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
-                          <td colSpan={4} className="py-6 text-center text-slate-400 italic">
+                          <td colSpan={5} className="py-6 text-center text-slate-400 italic">
                             Nenhum curso encontrado com os filtros selecionados.
                           </td>
                         </tr>
@@ -1534,9 +1561,10 @@ export function CadastrosRelatorios() {
                   <table className="w-full text-left border-collapse text-[7.5pt]">
                     <thead>
                       <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                        <th className="py-1 px-2 w-[12%]">Cód.</th>
-                        <th className="py-1 px-2 w-[42%]">Nome da Turma</th>
-                        <th className="py-1 px-2 w-[12%]">Ano</th>
+                        <th className="py-1 px-1.5 w-[5%] text-center">Nº</th>
+                        <th className="py-1 px-2 w-[11%]">Cód.</th>
+                        <th className="py-1 px-2 w-[39%]">Nome da Turma</th>
+                        <th className="py-1 px-2 w-[11%]">Ano</th>
                         <th className="py-1 px-2 w-[14%]">Período</th>
                         <th className="py-1 px-2 w-[12%]">Dias</th>
                         <th className="py-1 px-2 w-[8%] text-center">Status</th>
@@ -1544,19 +1572,23 @@ export function CadastrosRelatorios() {
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {sheet.items.length > 0 ? (
-                        sheet.items.map((c, idx) => (
-                          <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
-                            <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{c.code}</td>
-                            <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{c.name}</td>
-                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.year || '---'}</td>
-                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.period || '---'}</td>
-                            <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{(c.days_of_week || []).join(', ') || '---'}</td>
-                            <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{c.status || 'Ativo'}</td>
-                          </tr>
-                        ))
+                        sheet.items.map((c, idx) => {
+                          const rowNumber = (sheet.sheetIndex - 1) * ROWS_PER_PAGE + idx + 1;
+                          return (
+                            <tr key={c.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-600 text-[6.5pt]">{rowNumber}</td>
+                              <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{c.code}</td>
+                              <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{c.name}</td>
+                              <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.year || '---'}</td>
+                              <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{c.period || '---'}</td>
+                              <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{(c.days_of_week || []).join(', ') || '---'}</td>
+                              <td className="py-1 px-2 text-center font-bold text-slate-900 text-[6.5pt]">{c.status || 'Ativo'}</td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
-                          <td colSpan={6} className="py-6 text-center text-slate-400 italic">
+                          <td colSpan={7} className="py-6 text-center text-slate-400 italic">
                             Nenhuma turma encontrada com os filtros selecionados.
                           </td>
                         </tr>
@@ -1592,9 +1624,10 @@ export function CadastrosRelatorios() {
                   <table className="w-full text-left border-collapse text-[7.5pt]">
                     <thead>
                       <tr className="bg-slate-900 text-white font-bold uppercase text-[7pt]">
-                        <th className="py-1 px-2 w-[10%]">Cód.</th>
-                        <th className="py-1 px-2 w-[38%]">Nome da Disciplina</th>
-                        <th className="py-1 px-2 w-[12%]">Ano</th>
+                        <th className="py-1 px-1.5 w-[5%] text-center">Nº</th>
+                        <th className="py-1 px-2 w-[9%]">Cód.</th>
+                        <th className="py-1 px-2 w-[35%]">Nome da Disciplina</th>
+                        <th className="py-1 px-2 w-[11%]">Ano</th>
                         <th className="py-1 px-2 w-[12%]">Semestre</th>
                         <th className="py-1 px-2 w-[20%]">Professor</th>
                         <th className="py-1 px-2 w-[8%] text-center">Status</th>
@@ -1604,8 +1637,10 @@ export function CadastrosRelatorios() {
                       {sheet.items.length > 0 ? (
                         sheet.items.map((s, idx) => {
                           const teacher = teachers.find(t => t.subject_ids?.includes(s.id));
+                          const rowNumber = (sheet.sheetIndex - 1) * ROWS_PER_PAGE + idx + 1;
                           return (
                             <tr key={s.id || idx} className={idx % 2 === 1 ? "bg-slate-50/70" : "bg-white"}>
+                              <td className="py-1 px-1.5 text-center font-mono font-bold text-slate-600 text-[6.5pt]">{rowNumber}</td>
                               <td className="py-1 px-2 font-mono font-bold text-slate-950 text-[7pt]">{s.code || '---'}</td>
                               <td className="py-1 px-2 font-bold uppercase text-slate-950 text-[7pt]">{s.name}</td>
                               <td className="py-1 px-2 text-slate-700 text-[6.5pt]">{s.year ? `${s.year}º Ano` : '---'}</td>
@@ -1619,7 +1654,7 @@ export function CadastrosRelatorios() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan={6} className="py-6 text-center text-slate-400 italic">
+                          <td colSpan={7} className="py-6 text-center text-slate-400 italic">
                             Nenhuma disciplina encontrada com os filtros selecionados.
                           </td>
                         </tr>
