@@ -2426,28 +2426,30 @@ export function Reports() {
             
             <div className="flex-1 flex flex-col justify-center">
               <div className="h-[250px] w-full relative mb-10">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={75}
-                      outerRadius={100}
-                      paddingAngle={10}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none select-none">
                   <span className="text-4xl font-black text-[#00174b] tracking-tighter">{stats.totalStudents}</span>
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alunos</span>
+                </div>
+                <div className="relative z-10 w-full h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={statusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={75}
+                        outerRadius={100}
+                        paddingAngle={10}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {statusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip wrapperStyle={{ zIndex: 50, pointerEvents: 'none', outline: 'none' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 

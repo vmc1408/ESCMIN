@@ -172,6 +172,11 @@ export function Dashboard() {
   const [selectedContributionMonth, setSelectedContributionMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedContributionYear, setSelectedContributionYear] = useState<number>(() => new Date().getFullYear());
   const [academicViewMode, setAcademicViewMode] = useState<'charts' | 'cards'>('charts');
+  const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
+  const [pieTooltipPlacement, setPieTooltipPlacement] = useState<{
+    width: number;
+    side: 'left' | 'right';
+  }>({ width: 0, side: 'right' });
 
   // Atalhos favoritos dinâmicos (selecionados via estrelas da sidebar)
   const [favoritePaths, setFavoritePaths] = useState<string[]>(() => getFavoritePaths());
@@ -2267,62 +2272,101 @@ export function Dashboard() {
 
                 {/* Gráfico Tipo Pizza / Donut com Indicador Central */}
                 {pieOccupationData.length > 0 ? (
-                  <div className="relative flex items-center justify-center py-1">
-                    <ResponsiveContainer width="100%" height={190}>
-                      <PieChart>
-                        <RechartsTooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const data = payload[0].payload;
-                              return (
-                                <div className="bg-slate-900/95 backdrop-blur-xs text-white p-2.5 rounded-xl shadow-xl border border-slate-700/80 text-xs">
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: data.color }} />
-                                    <span className="font-bold text-slate-100">{data.code} - {data.name}</span>
-                                  </div>
-                                  <div className="space-y-1 text-slate-300 text-[11px]">
-                                    <div className="flex justify-between gap-4">
-                                      <span>Alunos:</span>
-                                      <span className="font-bold text-white">{data.count} alunos</span>
-                                    </div>
-                                    <div className="flex justify-between gap-4">
-                                      <span>Participação:</span>
-                                      <span className="font-bold text-emerald-400">{data.percentage}%</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Pie
-                          data={pieOccupationData}
-                          dataKey="count"
-                          nameKey="code"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={78}
-                          paddingAngle={3}
-                          stroke="#ffffff"
-                          strokeWidth={2}
-                        >
-                          {pieOccupationData.map((entry, index) => (
-                            <Cell key={`pie-cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-
-                    {/* Rótulo Central do Donut */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-xl font-black text-slate-800 tracking-tight leading-none">
+                  <div
+                    className="relative flex items-center justify-center py-1"
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const width = Math.round(rect.width);
+                      const side: 'left' | 'right' = e.clientX - rect.left < rect.width / 2 ? 'left' : 'right';
+                      setPieTooltipPlacement((prev) =>
+                        prev.width === width && prev.side === side ? prev : { width, side }
+                      );
+                    }}
+                    onMouseLeave={() => setActivePieIndex(null)}
+                  >
+                    {/* Rótulo Central do Donut (em camada inferior z-0 para nunca sobrepor o tooltip) */}
+                    <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                      <span className="text-xl font-black text-slate-800 tracking-tight leading-none tabular-nums">
                         {pieOccupationData.reduce((acc, c) => acc + c.count, 0)}
                       </span>
                       <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
                         Alunos
                       </span>
+                    </div>
+
+                    <div className="relative z-10 w-full h-[190px]">
+                      <ResponsiveContainer width="100%" height={190}>
+                        <PieChart>
+                          <RechartsTooltip
+                            wrapperStyle={{ zIndex: 50, pointerEvents: 'none', outline: 'none' }}
+                            allowEscapeViewBox={{ x: true, y: false }}
+                            position={
+                              pieTooltipPlacement.width >= 440
+                                ? {
+                                    x:
+                                      pieTooltipPlacement.side === 'left'
+                                        ? Math.max(4, Math.round(pieTooltipPlacement.width / 2 - 78 - 208))
+                                        : Math.min(
+                                            Math.round(pieTooltipPlacement.width - 204),
+                                            Math.round(pieTooltipPlacement.width / 2 + 88)
+                                          ),
+                                    y: 44
+                                  }
+                                : undefined
+                            }
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="bg-slate-900 text-white p-2.5 rounded-xl shadow-xl border border-slate-700 text-xs min-w-[175px] max-w-[205px]">
+                                    <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: data.color }} />
+                                      <span className="font-bold text-slate-100 truncate" title={`${data.code} - ${data.name}`}>
+                                        {data.code} - {data.name}
+                                      </span>
+                                    </div>
+                                    <div className="space-y-1 text-slate-300 text-[11px]">
+                                      <div className="flex justify-between gap-4">
+                                        <span>Alunos:</span>
+                                        <span className="font-bold text-white tabular-nums">{data.count} alunos</span>
+                                      </div>
+                                      <div className="flex justify-between gap-4">
+                                        <span>Participação:</span>
+                                        <span className="font-bold text-emerald-400 tabular-nums">{data.percentage}%</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Pie
+                            data={pieOccupationData}
+                            dataKey="count"
+                            nameKey="code"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={78}
+                            paddingAngle={3}
+                            stroke="#ffffff"
+                            strokeWidth={2}
+                            onMouseEnter={(_, index) => setActivePieIndex(index)}
+                            onMouseLeave={() => setActivePieIndex(null)}
+                          >
+                            {pieOccupationData.map((entry, index) => (
+                              <Cell
+                                key={`pie-cell-${index}`}
+                                fill={entry.color}
+                                fillOpacity={activePieIndex === null || activePieIndex === index ? 1 : 0.45}
+                                cursor="pointer"
+                                onClick={() => handleViewStudents(entry.id, entry.name, !!entry.unallocated)}
+                              />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
                 ) : (
@@ -2487,11 +2531,12 @@ export function Dashboard() {
                         axisLine={false}
                       />
                       <RechartsTooltip
+                        wrapperStyle={{ zIndex: 50, pointerEvents: 'none', outline: 'none' }}
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="bg-slate-900/95 backdrop-blur-xs text-white p-2.5 rounded-xl shadow-xl border border-slate-700/80 text-xs">
+                              <div className="bg-slate-900 text-white p-2.5 rounded-xl shadow-xl border border-slate-700 text-xs">
                                 <div className="flex items-center gap-2 mb-1.5">
                                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: data.color }} />
                                   <span className="font-bold text-slate-100">{data.code} - {data.name}</span>

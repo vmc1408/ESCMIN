@@ -1675,11 +1675,12 @@ export function FinancialDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={delinquencyMonthlyData.monthlyHistoryBars} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
                 <RechartsTooltip
+                  wrapperStyle={{ zIndex: 50, pointerEvents: 'none', outline: 'none' }}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const d = payload[0].payload;
                       return (
-                        <div className="bg-slate-900/95 backdrop-blur-xs text-white p-2 rounded-lg shadow-lg border border-slate-700 text-[10px] z-50">
+                        <div className="bg-slate-900 text-white p-2 rounded-lg shadow-lg border border-slate-700 text-[10px]">
                           <p className="font-bold text-slate-100">{d.fullName} / {delinquencyYear}</p>
                           <p className="text-emerald-400 font-bold">Faturado: {formatCurrency(d.realizado)}</p>
                           <p className="text-slate-300 text-[9px]">Previsto: {formatCurrency(d.previsto)}</p>
@@ -2661,11 +2662,12 @@ export function FinancialDashboard() {
                   axisLine={false}
                 />
                 <RechartsTooltip
+                  wrapperStyle={{ zIndex: 50, pointerEvents: 'none', outline: 'none' }}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-slate-900/95 backdrop-blur-xs text-white p-3 rounded-xl shadow-2xl border border-slate-700/80 text-xs min-w-[260px]">
+                        <div className="bg-slate-900 text-white p-3 rounded-xl shadow-2xl border border-slate-700 text-xs min-w-[260px]">
                           <div className="flex items-center justify-between gap-2 border-b border-slate-700/80 pb-1.5 mb-2">
                             <div className="flex items-center gap-1.5">
                               <span className="font-bold text-white text-[13px]">{data.monthName} / {delinquencyYear}</span>
