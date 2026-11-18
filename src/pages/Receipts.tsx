@@ -28,6 +28,7 @@ import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { PinInput } from '../components/PinInput';
 import { financialService } from '../services/financialService';
+import { DEFAULT_LOGO } from '../lib/default-logo';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -215,7 +216,7 @@ export function Receipts() {
 
   // Print/Preview State
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [printJob, setPrintJob] = useState<{ receipt: Receipt; copies: 1 | 2 } | null>(null);
   const [deleteConfirmationFor, setDeleteConfirmationFor] = useState<Receipt | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [copiesModal, setCopiesModal] = useState<{
@@ -235,6 +236,41 @@ export function Receipts() {
       action
     });
   };
+
+  useEffect(() => {
+    if (!printJob) return;
+
+    document.documentElement.classList.add('printing-receipt-portal');
+    document.body.classList.add('printing-receipt-portal');
+
+    let cancelled = false;
+    let printTimer: number | undefined;
+    const rafId = window.requestAnimationFrame(() => {
+      printTimer = window.setTimeout(() => {
+        if (!cancelled) {
+          window.print();
+        }
+      }, 120);
+    });
+
+    const handleAfterPrint = () => {
+      document.documentElement.classList.remove('printing-receipt-portal');
+      document.body.classList.remove('printing-receipt-portal');
+      if (!cancelled) {
+        setPrintJob(null);
+      }
+    };
+
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(rafId);
+      if (printTimer !== undefined) window.clearTimeout(printTimer);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.documentElement.classList.remove('printing-receipt-portal');
+      document.body.classList.remove('printing-receipt-portal');
+    };
+  }, [printJob]);
 
   useEffect(() => {
     fetchInitialData();
@@ -616,17 +652,12 @@ export function Receipts() {
     }
 
     if (action === 'print') {
-      try {
-        doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
-        setNotification({ type: 'success', message: 'Recibo gerado em PDF para impressão! O download foi iniciado.' });
-      } catch (err: any) {
-        console.error('Erro ao gerar recibo:', err);
-        setNotification({ type: 'error', message: 'Erro ao gerar o PDF do recibo.' });
-      }
-    } else {
-      doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
-      setNotification({ type: 'success', message: `PDF do recibo gerado em ${copies} via(s) com sucesso!` });
+      setPrintJob({ receipt, copies });
+      return;
     }
+
+    doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
+    setNotification({ type: 'success', message: `PDF do recibo gerado em ${copies} via(s) com sucesso!` });
   };
 
   const formatLongDate = (dateString: string) => {
@@ -820,18 +851,14 @@ export function Receipts() {
                 >
                   {/* Header */}
                   <div className="border-b border-black pb-2 flex items-center justify-between gap-4">
-                    {institution?.logo_url ? (
-                      <div className="w-12 h-12 flex items-center justify-start shrink-0">
-                        <img 
-                          src={institution.logo_url} 
-                          className="h-12 w-12 object-contain" 
-                          referrerPolicy="no-referrer" 
-                          alt="Logo"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 shrink-0" />
-                    )}
+                    <div className="w-12 h-12 flex items-center justify-start shrink-0">
+                      <img 
+                        src={institution?.logo_url || DEFAULT_LOGO} 
+                        className="h-12 w-12 object-contain" 
+                        referrerPolicy="no-referrer" 
+                        alt="Logo"
+                      />
+                    </div>
                     <div className="flex-1 text-center">
                       <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
                       <h4 className="text-xs font-bold uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
@@ -907,68 +934,122 @@ export function Receipts() {
 
 
 
-      {selectedReceipt && createPortal(
-        <div 
+      {printJob && createPortal(
+        <div
           id="printable-receipt-portal"
-          className="hidden print:block bg-white text-black font-sans"
+          className="hidden print:flex flex-col bg-white text-black font-sans box-border"
         >
-          {/* Header */}
-          <div className="border-b border-black pb-2 flex items-center justify-between gap-4">
-            {institution?.logo_url ? (
-              <div className="w-12 h-12 flex items-center justify-start shrink-0">
-                <img 
-                  src={institution.logo_url} 
-                  className="h-12 w-12 object-contain" 
-                  referrerPolicy="no-referrer" 
-                  alt="Logo"
-                />
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+            }
+          ` }} />
+          {(printJob.copies === 1
+            ? [{ viaLabel: 'VIA ÚNICA' }]
+            : [
+                { viaLabel: '1ª VIA - BENEFICIÁRIO' },
+                { viaLabel: '2ª VIA - ARQUIVO INSTITUIÇÃO' }
+              ]
+          ).map((copy, copyIdx) => (
+            <React.Fragment key={copy.viaLabel}>
+              {copyIdx === 1 && (
+                <div className="h-[16mm] w-full flex items-center justify-center relative shrink-0">
+                  <div className="w-full border-t border-dashed border-slate-400" />
+                  <span className="absolute bg-white px-3 text-[7.5pt] font-medium text-slate-400 tracking-wide">
+                    recortar na linha pontilhada
+                  </span>
+                </div>
+              )}
+
+              <div className="w-full h-[128mm] border border-slate-400 px-[12mm] py-[7mm] flex flex-col justify-between bg-white text-black box-border relative shrink-0">
+                {/* Via badge */}
+                <span className="absolute top-[4.5mm] right-[10mm] text-[7pt] font-bold uppercase tracking-wider text-slate-400">
+                  {copy.viaLabel}
+                </span>
+
+                {/* Cabeçalho */}
+                <div className="border-b border-slate-300 pb-2.5 flex items-center justify-between gap-4 pt-1">
+                  <div className="w-[16mm] h-[16mm] flex items-center justify-center shrink-0">
+                    <img
+                      src={institution?.logo_url || DEFAULT_LOGO}
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                      alt="Logo"
+                    />
+                  </div>
+                  <div className="flex-1 text-center">
+                    <p className="text-[8.5pt] font-bold tracking-widest text-slate-600 uppercase leading-tight">
+                      MITRA DIOCESANA DE GUARULHOS
+                    </p>
+                    <h4 className="text-[11.5pt] font-bold uppercase leading-tight text-slate-900 mt-0.5">
+                      {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                    </h4>
+                    {institution?.subtitle && (
+                      <p className="text-[8pt] font-medium text-slate-600 uppercase leading-tight mt-0.5">
+                        {institution.subtitle}
+                      </p>
+                    )}
+                    {institution?.address && (
+                      <p className="text-[7.5pt] text-slate-500 mt-0.5 leading-tight">
+                        {institution.address}
+                      </p>
+                    )}
+                  </div>
+                  <div className="w-[16mm] shrink-0" />
+                </div>
+
+                {/* Número e Valor */}
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-[10.5pt] font-bold text-slate-800 uppercase">
+                    RECIBO Nº {printJob.receipt.receipt_number}
+                  </span>
+                  <span className="px-3 py-1 bg-slate-50 border border-slate-300 text-[10.5pt] font-bold text-slate-800">
+                    {formatCurrency(printJob.receipt.amount)}
+                  </span>
+                </div>
+
+                {/* Título */}
+                <h3 className="text-center font-bold uppercase text-[13pt] tracking-wider text-slate-900 py-0.5">
+                  RECIBO DE PAGAMENTO
+                </h3>
+
+                {/* Texto Principal */}
+                <p className="text-[9.5pt] leading-[1.45] text-justify text-slate-800 break-words whitespace-pre-wrap">
+                  Recebi da <span className="font-bold">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</span>
+                  {institution?.cnpj ? `, CNPJ Nº ${institution.cnpj}` : ''}
+                  {institution?.address ? `, ${institution.address}` : ''}, a importância de{' '}
+                  <span className="font-bold">{formatCurrency(printJob.receipt.amount)}</span> ({numberToPortugueseWords(printJob.receipt.amount)}) referente a{' '}
+                  <span className="font-bold">{printJob.receipt.description}</span>.
+                </p>
+
+                {/* Local e Data */}
+                <p className="text-right text-[9pt] font-bold uppercase tracking-wide text-slate-900 pt-1">
+                  {institution?.city_uf ? institution.city_uf.split('/')[0].trim() : 'GUARULHOS'}, {formatLongDate(printJob.receipt.payment_date)}.
+                </p>
+
+                {/* Assinatura */}
+                <div className="pt-4 text-center space-y-0.5">
+                  <div className="w-[80mm] mx-auto border-t border-slate-400 pt-1" />
+                  <p className="text-[9.5pt] font-bold uppercase tracking-wide text-slate-900">
+                    {printJob.receipt.payee_name}
+                  </p>
+                  {printJob.receipt.signature_label && (
+                    <p className="text-[8pt] text-slate-500 font-semibold uppercase">
+                      {printJob.receipt.signature_label}
+                    </p>
+                  )}
+                </div>
+
+                {/* Data de Emissão */}
+                <p className="text-right text-[7.5pt] text-slate-400 font-medium pt-0.5">
+                  Emissão em {safeFormat(printJob.receipt.issue_date, 'dd/MM/yyyy')}
+                </p>
               </div>
-            ) : (
-              <div className="w-12 h-12 shrink-0" />
-            )}
-            <div className="flex-1 text-center">
-              <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
-              <h4 className="text-xs font-bold uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
-              {institution?.subtitle && <p className="text-[9px] font-medium text-slate-500 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
-              {institution?.address && <p className="text-[8px] text-slate-400 mt-1 leading-none">{institution.address}</p>}
-            </div>
-            <div className="w-12 shrink-0" />
-          </div>
-
-          {/* Num & Value row */}
-          <div className="flex justify-between items-start text-xs font-bold pt-1">
-            <span>Recibo Nº: {selectedReceipt.receipt_number}</span>
-            <span className="px-2 py-0.5 bg-slate-100 border border-slate-300">{formatCurrency(selectedReceipt.amount)}</span>
-          </div>
-
-          {/* Title */}
-          <h3 className="text-center font-black uppercase text-sm tracking-widest py-1">Recibo de Pagamento</h3>
-
-          {/* Description Paragraph */}
-          <p className="text-[10px] leading-relaxed text-justify break-words whitespace-pre-wrap">
-            Recebi da <span className="font-bold">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</span>
-            {institution?.cnpj ? `, CNPJ Nº ${institution.cnpj}` : ''}
-            {institution?.address ? `, ${institution.address}` : ''}, a importância de <span className="font-bold">{formatCurrency(selectedReceipt.amount)}</span> ({numberToPortugueseWords(selectedReceipt.amount)}) referente a <span className="font-bold">{selectedReceipt.description}</span>.
-          </p>
-
-          {/* Date line */}
-          <p className="text-right text-[9px] font-bold uppercase tracking-wider pt-2">
-            {institution?.city_uf ? institution.city_uf.split('/')[0] : 'GUARULHOS'}, {formatLongDate(selectedReceipt.payment_date)}.
-          </p>
-
-          {/* Signature block */}
-          <div className="pt-6 text-center space-y-1">
-            <div className="w-2/3 mx-auto border-b border-black"></div>
-            <p className="text-[10px] font-black uppercase tracking-wider">{selectedReceipt.payee_name}</p>
-            {selectedReceipt.signature_label && (
-              <p className="text-[8px] text-slate-500 font-bold uppercase">{selectedReceipt.signature_label}</p>
-            )}
-          </div>
-
-          {/* Emission label */}
-          <p className="text-right text-[8px] text-slate-400 font-bold pt-2">
-            Emissão em {safeFormat(selectedReceipt.issue_date, 'dd/MM/yyyy')}
-          </p>
+            </React.Fragment>
+          ))}
         </div>,
         document.body
       )}
@@ -1372,10 +1453,14 @@ export function Receipts() {
               <div className="grid grid-cols-1 gap-3">
                 {/* 1 Copy Button */}
                 <button 
-                  title="Gerar recibo em 1 via ocupando metade da folha A4"
+                  title="Gerar ou imprimir recibo em 1 via ocupando metade da folha A4"
                   onClick={() => {
                     if (copiesModal.receipt) {
-                      generatePDF(copiesModal.receipt, copiesModal.action, 1);
+                      if (copiesModal.action === 'print') {
+                        setPrintJob({ receipt: copiesModal.receipt, copies: 1 });
+                      } else {
+                        generatePDF(copiesModal.receipt, 'download', 1);
+                      }
                       setCopiesModal({ isOpen: false, receipt: null, action: 'download' });
                     }
                   }}
@@ -1396,10 +1481,14 @@ export function Receipts() {
 
                 {/* 2 Copies Button */}
                 <button 
-                  title="Gerar recibo em 2 vias (Beneficiário e Arquivo) na mesma folha A4"
+                  title="Gerar ou imprimir recibo em 2 vias (Beneficiário e Arquivo) na mesma folha A4"
                   onClick={() => {
                     if (copiesModal.receipt) {
-                      generatePDF(copiesModal.receipt, copiesModal.action, 2);
+                      if (copiesModal.action === 'print') {
+                        setPrintJob({ receipt: copiesModal.receipt, copies: 2 });
+                      } else {
+                        generatePDF(copiesModal.receipt, 'download', 2);
+                      }
                       setCopiesModal({ isOpen: false, receipt: null, action: 'download' });
                     }
                   }}

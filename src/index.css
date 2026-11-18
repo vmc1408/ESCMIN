@@ -77,7 +77,7 @@
   /* SISTEMA GLOBAL DE IMPRESSÃO - PADRÃO OFICIAL BRASILEIRO A4 (210mm x 297mm) */
   @page {
     size: 210mm 297mm;
-    margin: 0 !important;
+    margin: 0;
   }
 
   /* Reset estrutural do body/html para impressão */
@@ -103,6 +103,35 @@
     width: 215.9mm !important;
     min-width: 215.9mm !important;
     max-width: 215.9mm !important;
+  }
+
+  /* Portal exclusivo de impressão nativa de recibos */
+  html.printing-receipt-portal #root,
+  body.printing-receipt-portal #root {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html.printing-receipt-portal #printable-receipt-portal,
+  body.printing-receipt-portal #printable-receipt-portal {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    padding: 10mm !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: hidden !important;
+    visibility: visible !important;
   }
 
   /* Reset dos wrappers raiz da aplicação SPA */

@@ -32,6 +32,42 @@ import { DEFAULT_LOGO } from '../lib/default-logo';
 
 type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'quitacao' | 'carta' | 'etiquetas';
 
+const stripEmbeddedSettingsTags = (text?: string | null): string => {
+  if (!text) return '';
+  let result = text;
+  const tagRegex = /\[[A-Z0-9_]+_SETTINGS:/;
+
+  while (true) {
+    const match = tagRegex.exec(result);
+    if (!match || match.index === undefined) break;
+
+    const startIdx = match.index;
+    const scanStart = startIdx + match[0].length;
+    let depth = 1;
+    let endIdx = -1;
+
+    for (let i = scanStart; i < result.length; i++) {
+      if (result[i] === '[') depth++;
+      else if (result[i] === ']') {
+        depth--;
+        if (depth === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (endIdx === -1) {
+      result = result.slice(0, startIdx);
+      break;
+    }
+
+    result = result.slice(0, startIdx) + result.slice(endIdx + 1);
+  }
+
+  return result.trim();
+};
+
 export function Impressos() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { selectedUnitId, activeUnits } = useUnits();
@@ -76,14 +112,28 @@ export function Impressos() {
   const [showPhotoBorder, setShowPhotoBorder] = useState(false);
   const [isFormFilled, setIsFormFilled] = useState(true);
 
-  // Sincroniza classe global no html/body para folhas Carta (Pimaco 6183/6180) tanto pelo botão quanto por Ctrl+P
+  // Sincroniza classe global e folha @page no head para folhas Carta (Pimaco 6183/6180) tanto no botão quanto por Ctrl+P
   useEffect(() => {
     const isLetterSheet = selectedType === 'carteirinhas' || selectedType === 'etiquetas';
     document.documentElement.classList.toggle('print-letter-sheet', isLetterSheet);
     document.body.classList.toggle('print-letter-sheet', isLetterSheet);
+
+    const styleId = 'impressos-page-size-style';
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = isLetterSheet
+      ? '@page { size: letter portrait; margin: 0; } @media print { @page { size: letter portrait; margin: 0; } }'
+      : '@page { size: A4 portrait; margin: 0; } @media print { @page { size: A4 portrait; margin: 0; } }';
+
     return () => {
       document.documentElement.classList.remove('print-letter-sheet');
       document.body.classList.remove('print-letter-sheet');
+      const existing = document.getElementById(styleId);
+      if (existing) existing.remove();
     };
   }, [selectedType]);
 
@@ -148,11 +198,13 @@ export function Impressos() {
   }, [selectedType]);
 
   const admissionNorms = useMemo(() => {
-    if (institution?.admission_norms && institution.admission_norms.trim()) {
-      return institution.admission_norms
+    const cleaned = stripEmbeddedSettingsTags(institution?.admission_norms);
+    if (cleaned) {
+      const lines = cleaned
         .split('\n')
         .map((line: string) => line.trim())
         .filter((line: string) => line.length > 0);
+      if (lines.length > 0) return lines;
     }
     return [
       "No ato da matrícula o(a) aluno(a) concorda em priorizar a frequência no curso escolhido.",
@@ -163,11 +215,13 @@ export function Impressos() {
   }, [institution?.admission_norms]);
 
   const presentationInfo = useMemo(() => {
-    if (institution?.presentation_info && institution.presentation_info.trim()) {
-      return institution.presentation_info
+    const cleaned = stripEmbeddedSettingsTags(institution?.presentation_info);
+    if (cleaned) {
+      const lines = cleaned
         .split('\n')
         .map((line: string) => line.trim())
         .filter((line: string) => line.length > 0);
+      if (lines.length > 0) return lines;
     }
     return [
       "Vá até a Secretaria da escola (endereço abaixo no rodapé)",
@@ -593,18 +647,22 @@ export function Impressos() {
         @media print {
           ${isLetterType ? `
             @page {
-              size: 215.9mm 279.4mm !important;
-              margin: 0mm !important;
+              size: letter portrait;
+              margin: 0;
             }
           ` : `
             @page {
-              size: 210mm 297mm !important;
-              margin: 0mm !important;
+              size: A4 portrait;
+              margin: 0;
             }
           `}
 
           .pimaco-sheet, .pimaco-sheet-6180 {
             display: grid !important;
+            height: 279mm !important;
+            min-height: 279mm !important;
+            max-height: 279mm !important;
+            overflow: hidden !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             background-color: #fff !important;
@@ -1377,7 +1435,7 @@ export function Impressos() {
 
             {/* 1. DECLARAÇÃO DE MATRÍCULA */}
             {selectedType === 'declaracao' && (
-              <div className="flex-1 min-h-0 flex flex-col justify-between pt-[8mm] pb-[6mm]">
+              <div className="flex-1 min-h-0 flex flex-col justify-between pt-[10mm] pb-[14mm]">
                 {activeStudent ? (
                   <>
                     <div className="space-y-6">
@@ -1392,7 +1450,7 @@ export function Impressos() {
                       </div>
 
                       {/* Corpo Editorial */}
-                      <div className="text-[11.5pt] text-slate-900 leading-[1.9] text-justify font-serif space-y-4 pt-4">
+                      <div className="text-[11.5pt] text-slate-900 leading-[1.9] text-justify font-serif space-y-5 pt-4">
                         <p className="indent-8">
                           Declaramos, para os devidos fins de direito e a quem possa interessar, que o(a) estudante{' '}
                           <strong className="text-slate-950 font-bold uppercase tracking-wide">
@@ -1434,38 +1492,53 @@ export function Impressos() {
                     </div>
 
                     {/* Local, Data e Assinaturas */}
-                    <div className="mt-auto pt-8 space-y-12">
-                      <div className="text-right text-[11pt] font-serif text-slate-900">
+                    <div className="w-full pt-8 space-y-16">
+                      <div className="w-full text-right text-[11pt] font-serif text-slate-900">
                         <p className="font-semibold tracking-wide">
                           {institutionCityName}, {formatLongDate(documentDate)}.
                         </p>
                       </div>
 
-                      <div className="flex items-start justify-around gap-10 font-sans pt-2">
-                        {signerRole !== 'diretor' && (
-                          <div className="w-[62mm] flex flex-col items-center text-center">
+                      {signerRole === 'ambos' ? (
+                        <div className="w-full grid grid-cols-2 gap-12 justify-items-center font-sans">
+                          <div className="w-[68mm] flex flex-col items-center text-center">
                             <div className="w-full border-t border-slate-900 pt-1.5" />
-                            <p className="text-[9.5pt] font-bold text-slate-950 uppercase tracking-wider leading-tight min-h-[14px]">
-                              {signerName}
-                            </p>
-                            <p className="text-[8pt] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
+                            {signerName.trim() && (
+                              <p className="text-[9.5pt] font-bold text-slate-950 uppercase tracking-wider leading-tight">
+                                {signerName.trim()}
+                              </p>
+                            )}
+                            <p className="text-[8pt] font-bold text-slate-700 uppercase tracking-widest mt-0.5">
                               {signerTitle}
                             </p>
                           </div>
-                        )}
-
-                        {signerRole !== 'secretario' && (
-                          <div className="w-[62mm] flex flex-col items-center text-center">
+                          <div className="w-[68mm] flex flex-col items-center text-center">
                             <div className="w-full border-t border-slate-900 pt-1.5" />
-                            <p className="text-[9.5pt] font-bold text-slate-950 uppercase tracking-wider leading-tight min-h-[14px]">
-                              {signerRole === 'ambos' ? coSignerName : signerName}
-                            </p>
-                            <p className="text-[8pt] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
-                              {signerRole === 'ambos' ? coSignerTitle : signerTitle}
+                            {coSignerName.trim() && (
+                              <p className="text-[9.5pt] font-bold text-slate-950 uppercase tracking-wider leading-tight">
+                                {coSignerName.trim()}
+                              </p>
+                            )}
+                            <p className="text-[8pt] font-bold text-slate-700 uppercase tracking-widest mt-0.5">
+                              {coSignerTitle}
                             </p>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="w-full flex justify-center font-sans">
+                          <div className="w-[74mm] mx-auto flex flex-col items-center text-center">
+                            <div className="w-full border-t border-slate-900 pt-1.5" />
+                            {signerName.trim() && (
+                              <p className="text-[9.5pt] font-bold text-slate-950 uppercase tracking-wider leading-tight">
+                                {signerName.trim()}
+                              </p>
+                            )}
+                            <p className="text-[8pt] font-bold text-slate-700 uppercase tracking-widest mt-0.5">
+                              {signerTitle}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -1487,203 +1560,200 @@ export function Impressos() {
 
             {/* 2. FICHA DE INSCRIÇÃO (CADASTRAL EM BRANCO) */}
             {selectedType === 'ficha' && (
-              <div className="flex-1 min-h-0 flex flex-col justify-between pt-2.5 pb-2 text-[9pt] leading-snug font-sans text-slate-950">
-                <div className="space-y-2.5">
-                  {/* Título */}
-                  <div className="text-center">
-                    <h2 className="text-[13.5pt] font-extrabold uppercase tracking-[0.2em] text-slate-950 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
-                      Ficha de Inscrição
-                    </h2>
+              <div className="flex-1 min-h-0 flex flex-col justify-between pt-4 pb-3 text-[9pt] leading-snug font-sans text-slate-950">
+                {/* Título */}
+                <div className="text-center pb-1">
+                  <h2 className="text-[13.5pt] font-extrabold uppercase tracking-[0.2em] text-slate-950 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
+                    Ficha de Inscrição
+                  </h2>
+                </div>
+
+                {/* Bloco Superior: Controle da Escola | Curso | Foto 3x4 */}
+                <div className="grid grid-cols-12 gap-3 border-[1.5px] border-slate-900 p-3 items-stretch">
+                  {/* Esquerda: Controle da Escola */}
+                  <div className="col-span-4 border-r border-slate-900 pr-3 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-950 border-b border-slate-900 pb-1 mb-2.5">
+                        Controle da Escola
+                      </h4>
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-[8pt] font-bold uppercase text-slate-800">Nº de Inscrição:</p>
+                        <div className="flex items-baseline gap-1.5 pt-3">
+                          <span className="text-[9pt] font-bold uppercase text-slate-800 shrink-0">Nº</span>
+                          <div className="flex-1 border-b border-dotted border-slate-800 h-[5mm]">&nbsp;</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-2 text-[8pt] font-bold uppercase text-slate-800">
+                      <span>Data Mat.: ____/____/______</span>
+                    </div>
                   </div>
 
-                  {/* Bloco Superior: Controle da Escola | Curso | Foto 3x4 */}
-                  <div className="grid grid-cols-12 gap-3 border-[1.5px] border-slate-900 p-2.5 items-stretch">
-                    {/* Esquerda: Controle da Escola */}
-                    <div className="col-span-4 border-r border-slate-900 pr-3 flex flex-col justify-between">
-                      <div>
-                        <h4 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-950 border-b border-slate-900 pb-1 mb-2">
-                          Controle da Escola
-                        </h4>
-                        <div className="space-y-2">
-                          <div>
-                            <p className="text-[8pt] font-bold uppercase text-slate-800 mb-1">Nº de Inscrição:</p>
-                            <div className="h-8 w-full border-[1.5px] border-slate-900 rounded-xs bg-white flex items-center px-2">
-                              <span className="text-[8.5pt] font-black text-slate-500 uppercase tracking-widest">Nº</span>
-                            </div>
-                          </div>
+                  {/* Centro: CURSO */}
+                  <div className="col-span-5 border-r border-slate-900 pr-3 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-950 border-b border-slate-900 pb-1 mb-3">
+                        Curso Pretendido
+                      </h4>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 text-[8.5pt] font-bold text-slate-900 pt-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white" />
+                          <span className="leading-tight">Teologia</span>
                         </div>
-                      </div>
-                      <div className="pt-2 text-[8pt] font-bold uppercase text-slate-700">
-                        <span>Data Mat.: ____/____/______</span>
-                      </div>
-                    </div>
-
-                    {/* Centro: CURSO */}
-                    <div className="col-span-5 border-r border-slate-900 pr-3 flex flex-col justify-between">
-                      <div>
-                        <h4 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-950 border-b border-slate-900 pb-1 mb-2">
-                          Curso Pretendido
-                        </h4>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-[8.5pt] font-bold text-slate-900 pt-0.5">
-                          <div className="flex items-start gap-2">
-                            <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
-                            <span className="leading-tight">Teologia</span>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
-                            <span className="leading-tight">Latim</span>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
-                            <span className="leading-tight">Doutrina Social da Igreja</span>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
-                            <span className="leading-tight">História dos Santos Negros</span>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white" />
+                          <span className="leading-tight">Latim</span>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Direita: Foto 3x4 real (30mm x 40mm) */}
-                    <div className="col-span-3 flex items-center justify-center">
-                      <div className="w-[30mm] h-[40mm] border-[1.5px] border-dashed border-slate-700 flex flex-col items-center justify-center text-center p-1 bg-white">
-                        <span className="text-[7.5pt] font-black text-slate-600 uppercase tracking-wider leading-tight">COLE AQUI</span>
-                        <span className="text-[7.5pt] font-black text-slate-600 uppercase tracking-wider leading-tight mt-0.5">FOTO 3X4</span>
+                        <div className="flex items-start gap-2">
+                          <div className="w-5 h-5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
+                          <span className="leading-tight">Doutrina Social da Igreja</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-5 h-5 border-[1.5px] border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
+                          <span className="leading-tight">História dos Santos Negros</span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Campos de Preenchimento Manuscrito */}
-                  <div className="space-y-2 pt-0.5">
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Nome:</span>
-                      <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
+                  {/* Direita: Foto 3x4 real (30mm x 40mm) */}
+                  <div className="col-span-3 flex items-center justify-center">
+                    <div className="w-[30mm] h-[40mm] border-[1.5px] border-dashed border-slate-700 flex flex-col items-center justify-center text-center p-1 bg-white">
+                      <span className="text-[7.5pt] font-black text-slate-600 uppercase tracking-wider leading-tight">COLE AQUI</span>
+                      <span className="text-[7.5pt] font-black text-slate-600 uppercase tracking-wider leading-tight mt-0.5">FOTO 3X4</span>
                     </div>
+                  </div>
+                </div>
 
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Endereço:</span>
-                      <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
+                {/* Campos de Preenchimento Manuscrito */}
+                <div className="space-y-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Nome:</span>
+                    <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
+                  </div>
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Endereço:</span>
+                    <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-x-3">
+                    <div className="col-span-5 flex items-baseline gap-2">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Bairro:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
                     </div>
-
-                    <div className="grid grid-cols-12 gap-x-3">
-                      <div className="col-span-5 flex items-baseline gap-2">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Bairro:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
-                      </div>
-                      <div className="col-span-5 flex items-baseline gap-2">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Cidade:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
-                      </div>
-                      <div className="col-span-2 flex items-baseline gap-2">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">UF:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
-                      </div>
+                    <div className="col-span-5 flex items-baseline gap-2">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Cidade:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
                     </div>
-
-                    <div className="grid grid-cols-12 gap-x-3">
-                      <div className="col-span-4 flex items-baseline gap-2">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">CEP:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
-                      </div>
-                      <div className="col-span-8 flex items-baseline gap-2">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">E-mail:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
-                      </div>
+                    <div className="col-span-2 flex items-baseline gap-2">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">UF:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-12 gap-x-3 items-end">
-                      <div className="col-span-4 flex items-baseline gap-1.5">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Fone:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm] flex items-end justify-between px-1 text-[8.5pt] text-slate-700 font-bold">
-                          <span>( &nbsp; &nbsp; )</span>
-                          <span>-</span>
-                          <span className="invisible select-none">.</span>
-                        </div>
-                      </div>
-                      <div className="col-span-4 flex items-center justify-center gap-2 h-[5.5mm]">
-                        <div className="flex items-center gap-1 shrink-0">
-                          <svg className="w-3 h-3 text-[#25D366] fill-current shrink-0" viewBox="0 0 24 24" aria-label="WhatsApp">
-                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                          </svg>
-                          <span className="font-bold text-slate-800 text-[8pt] uppercase">WhatsApp:</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[8pt] font-bold">
-                          <span>Sim</span>
-                          <div className="w-3 h-3 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
-                        </div>
-                        <div className="flex items-center gap-1 text-[8pt] font-bold">
-                          <span>Não</span>
-                          <div className="w-3 h-3 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
-                        </div>
-                      </div>
-                      <div className="col-span-4 flex items-baseline justify-end gap-1 whitespace-nowrap h-[5.5mm]">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Nasc.:</span>
-                        <span className="text-slate-700 font-mono text-[8.5pt] tracking-wider">____ / ____ / ______</span>
+                  <div className="grid grid-cols-12 gap-x-3">
+                    <div className="col-span-4 flex items-baseline gap-2">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">CEP:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
+                    </div>
+                    <div className="col-span-8 flex items-baseline gap-2">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">E-mail:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-x-3 items-end">
+                    <div className="col-span-4 flex items-baseline gap-1.5">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Fone:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm] flex items-end justify-between px-1 text-[8.5pt] text-slate-700 font-bold">
+                        <span>( &nbsp; &nbsp; )</span>
+                        <span>-</span>
+                        <span className="invisible select-none">.</span>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-12 gap-x-3">
-                      <div className="col-span-6 flex items-baseline gap-2">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">RG:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
+                    <div className="col-span-4 flex items-center justify-center gap-2 h-[6mm]">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <svg className="w-3 h-3 text-[#25D366] fill-current shrink-0" viewBox="0 0 24 24" aria-label="WhatsApp">
+                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                        </svg>
+                        <span className="font-bold text-slate-800 text-[8pt] uppercase">WhatsApp:</span>
                       </div>
-                      <div className="col-span-6 flex items-baseline gap-2">
-                        <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">CPF:</span>
-                        <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Paróquia / Comunidade:</span>
-                      <div className="flex-1 border-b border-dotted border-slate-700 h-[5.5mm]">&nbsp;</div>
-                    </div>
-
-                    <div className="flex items-center gap-5 pt-1">
-                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Já foi aluno(a) da Escola?</span>
-                      <div className="flex items-center gap-1.5 text-[8.5pt] font-bold">
+                      <div className="flex items-center gap-1 text-[8pt] font-bold">
                         <span>Sim</span>
-                        <div className="w-3 h-3 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
+                        <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
                       </div>
-                      <div className="flex items-center gap-1.5 text-[8.5pt] font-bold">
+                      <div className="flex items-center gap-1 text-[8pt] font-bold">
                         <span>Não</span>
-                        <div className="w-3 h-3 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
+                        <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
                       </div>
+                    </div>
+                    <div className="col-span-4 flex items-baseline justify-end gap-1 whitespace-nowrap h-[6mm]">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Nasc.:</span>
+                      <span className="text-slate-700 font-mono text-[8.5pt] tracking-wider">____ / ____ / ______</span>
                     </div>
                   </div>
 
-                  {/* Normas de Admissão */}
-                  <div className="pt-2 border-t-[1.5px] border-slate-900">
-                    <h3 className="font-black uppercase text-[8.5pt] tracking-wider text-slate-950 text-center border-b border-slate-300 pb-1 mb-2">
-                      Informações básicas para admissão ao curso escolhido
-                    </h3>
-                    <ul className="text-[8.5pt] text-slate-900 leading-[1.45] space-y-1 font-medium list-none px-0.5">
-                      {admissionNorms.map((norm, index) => {
-                        const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
-                        return (
-                          <li key={index} className="flex items-start gap-1.5">
-                            {!hasIndexPrefix && <strong className="text-slate-950 font-black shrink-0">{index + 1})</strong>}
-                            <span>{norm}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                  <div className="grid grid-cols-12 gap-x-3">
+                    <div className="col-span-6 flex items-baseline gap-2">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">RG:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
+                    </div>
+                    <div className="col-span-6 flex items-baseline gap-2">
+                      <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">CPF:</span>
+                      <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
+                    </div>
                   </div>
 
-                  {/* Termo de Ciência e Assinatura */}
-                  <div className="pt-2 space-y-4 font-sans">
-                    <p className="text-[9.5pt] text-justify text-slate-950 font-medium leading-[1.6]">
-                      Eu, <span className="inline-block w-[78mm] border-b border-dotted border-slate-900 align-baseline">&nbsp;</span>, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso escolhido, promovido pela <span className="uppercase font-semibold">{institutionDioceseLabel}</span>, e autorizo o armazenamento de meus dados pessoais necessários para a inscrição acadêmica.
-                    </p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Paróquia / Comunidade:</span>
+                    <div className="flex-1 border-b border-dotted border-slate-700 h-[6mm]">&nbsp;</div>
+                  </div>
 
-                    <div className="pt-4 flex justify-between items-end gap-8 font-sans">
-                      <div className="w-1/2 text-[9pt] text-slate-900 font-semibold">
-                        <span>{institutionCityName}, _____ de ____________________ de ________.</span>
-                      </div>
-                      <div className="w-[68mm] shrink-0 flex flex-col items-center text-center">
-                        <div className="w-full border-t border-slate-900 pt-1">
-                          <span className="text-[8pt] font-black text-slate-800 uppercase tracking-widest">Assinatura do(a) Aluno(a)</span>
-                        </div>
+                  <div className="flex items-center gap-5 pt-1">
+                    <span className="font-bold text-slate-800 uppercase text-[8.5pt] tracking-wider shrink-0">Já foi aluno(a) da Escola?</span>
+                    <div className="flex items-center gap-1.5 text-[8.5pt] font-bold">
+                      <span>Sim</span>
+                      <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[8.5pt] font-bold">
+                      <span>Não</span>
+                      <div className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rounded-[2px] bg-white" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Normas de Admissão */}
+                <div className="pt-3 border-t-[1.5px] border-slate-900">
+                  <h3 className="font-black uppercase text-[8.5pt] tracking-wider text-slate-950 text-center border-b border-slate-300 pb-1.5 mb-2.5">
+                    Informações básicas para admissão ao curso escolhido
+                  </h3>
+                  <ul className="text-[8.5pt] text-slate-900 leading-[1.5] space-y-1.5 font-medium list-none px-0.5">
+                    {admissionNorms.map((norm, index) => {
+                      const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
+                      return (
+                        <li key={index} className="flex items-start gap-1.5 break-words">
+                          {!hasIndexPrefix && <strong className="text-slate-950 font-black shrink-0">{index + 1})</strong>}
+                          <span className="min-w-0 break-words">{norm}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                {/* Termo de Ciência e Assinatura */}
+                <div className="pt-2 space-y-8 font-sans">
+                  <p className="text-[9.5pt] text-justify text-slate-950 font-medium leading-[1.65]">
+                    Eu, <span className="inline-block w-[78mm] border-b border-dotted border-slate-900 align-baseline">&nbsp;</span>, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso escolhido, promovido pela <span className="uppercase font-semibold">{institutionDioceseLabel}</span>, e autorizo o armazenamento de meus dados pessoais necessários para a inscrição acadêmica.
+                  </p>
+
+                  <div className="pt-3 flex justify-between items-end gap-8 font-sans">
+                    <div className="w-1/2 text-[9pt] text-slate-900 font-semibold">
+                      <span>{institutionCityName}, _____ de ____________________ de ________.</span>
+                    </div>
+                    <div className="w-[68mm] shrink-0 flex flex-col items-center text-center">
+                      <div className="w-full border-t border-slate-900 pt-1">
+                        <span className="text-[8pt] font-black text-slate-800 uppercase tracking-widest">Assinatura do(a) Aluno(a)</span>
                       </div>
                     </div>
                   </div>
@@ -1780,13 +1850,13 @@ export function Impressos() {
                     <h4 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1">
                       Para efetivar a matrícula:
                     </h4>
-                    <ol className="text-[8.5pt] text-slate-800 font-medium space-y-1 list-none leading-[1.45]">
+                    <ol className="text-[8.5pt] text-slate-800 font-medium space-y-1.5 list-none leading-[1.45]">
                       {presentationInfo.map((item, index) => {
                         const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(item);
                         return (
-                          <li key={index} className="flex items-start gap-1.5">
+                          <li key={index} className="flex items-start gap-1.5 min-w-0 break-words">
                             {!hasIndexPrefix && <strong className="text-slate-950 font-bold shrink-0">{index + 1}.</strong>}
-                            <span>{item}</span>
+                            <span className="min-w-0 break-words">{item}</span>
                           </li>
                         );
                       })}
@@ -2101,7 +2171,7 @@ export function Impressos() {
 
             {/* 5. DECLARAÇÃO DE QUITAÇÃO FINANCEIRA */}
             {selectedType === 'quitacao' && (
-              <div className="flex-1 min-h-0 flex flex-col justify-between pt-[8mm] pb-[6mm]">
+              <div className="flex-1 min-h-0 flex flex-col justify-between pt-[10mm] pb-[14mm]">
                 {activeStudent ? (
                   <>
                     <div className="space-y-6">
@@ -2116,7 +2186,7 @@ export function Impressos() {
                       </div>
 
                       {/* Corpo Editorial */}
-                      <div className="text-[11.5pt] text-slate-900 leading-[1.9] text-justify font-serif space-y-4 pt-4">
+                      <div className="text-[11.5pt] text-slate-900 leading-[1.9] text-justify font-serif space-y-5 pt-4">
                         <p className="indent-8">
                           A tesouraria e diretoria administrativa da{' '}
                           <strong className="text-slate-950 font-bold uppercase tracking-wide">{institutionNameLabel}</strong>
@@ -2153,20 +2223,22 @@ export function Impressos() {
                     </div>
 
                     {/* Local, Data e Assinatura */}
-                    <div className="mt-auto pt-8 space-y-12">
-                      <div className="text-right text-[11pt] font-serif text-slate-900">
+                    <div className="w-full pt-8 space-y-16">
+                      <div className="w-full text-right text-[11pt] font-serif text-slate-900">
                         <p className="font-semibold tracking-wide">
                           {institutionCityName}, {formatLongDate(documentDate)}.
                         </p>
                       </div>
 
-                      <div className="flex flex-col items-center justify-center font-sans pt-2">
-                        <div className="w-[68mm] flex flex-col items-center text-center">
+                      <div className="w-full flex justify-center font-sans">
+                        <div className="w-[74mm] mx-auto flex flex-col items-center text-center">
                           <div className="w-full border-t border-slate-900 pt-1.5" />
-                          <p className="text-[9.5pt] font-bold text-slate-950 uppercase tracking-wider leading-tight min-h-[14px]">
-                            {signerName}
-                          </p>
-                          <p className="text-[8pt] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
+                          {signerName.trim() && (
+                            <p className="text-[9.5pt] font-bold text-slate-950 uppercase tracking-wider leading-tight">
+                              {signerName.trim()}
+                            </p>
+                          )}
+                          <p className="text-[8pt] font-bold text-slate-700 uppercase tracking-widest mt-0.5">
                             {signerTitle || 'Tesouraria / Gestão de Contas'}
                           </p>
                         </div>
