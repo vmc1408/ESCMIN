@@ -39,10 +39,20 @@ async function startServer() {
   } else {
     // Serve static files in production
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+      }
+    }));
 
-    // Handle SPA fallback - serve index.html for any unknown route (Express 5 compatible)
+    // Handle SPA fallback - never serve index.html for missing hashed assets
     app.use((req, res) => {
+      if (req.path.startsWith("/assets/")) {
+        return res.status(404).end();
+      }
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

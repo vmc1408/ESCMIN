@@ -30,13 +30,17 @@ export function isChunkLoadError(error: unknown): boolean {
     msg.includes('importing a module script failed') ||
     msg.includes('unable to preload css') ||
     msg.includes('chunkloaderror') ||
-    msg.includes('loading chunk')
+    msg.includes('loading chunk') ||
+    msg.includes("cannot read properties of undefined (reading '")
   );
 }
 
-function forceCacheBustedReload(): void {
+function forceCacheBustedReload(clearCooldown = false): void {
   if (typeof window === 'undefined') return;
   try {
+    if (clearCooldown) {
+      sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+    }
     const url = new URL(window.location.href);
     url.searchParams.set('_r', String(Date.now()));
     window.location.replace(url.toString());
@@ -75,34 +79,50 @@ function lazyWithRetry<T extends ComponentType<any>>(
   );
 }
 
+function lazyNamedWithRetry<T extends ComponentType<any>>(
+  importer: () => Promise<Record<string, any> | undefined>,
+  exportName: string
+) {
+  return lazyWithRetry<T>(async () => {
+    const mod = await importer();
+    const Component = mod?.[exportName] as T | undefined;
+    if (!Component) {
+      const err = new Error(`Failed to fetch dynamically imported module export: ${exportName}`);
+      err.name = 'ChunkLoadError';
+      throw err;
+    }
+    return { default: Component };
+  });
+}
+
 // Code-splitting por módulo com auto-recuperação pós-deploy (carregamento sob demanda das páginas autenticadas)
-const Dashboard = lazyWithRetry(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
-const Students = lazyWithRetry(() => import('./pages/Students').then((m) => ({ default: m.Students })));
-const Teachers = lazyWithRetry(() => import('./pages/Teachers').then((m) => ({ default: m.Teachers })));
-const Courses = lazyWithRetry(() => import('./pages/Courses').then((m) => ({ default: m.Courses })));
-const Classes = lazyWithRetry(() => import('./pages/Classes').then((m) => ({ default: m.Classes })));
-const Subjects = lazyWithRetry(() => import('./pages/Subjects').then((m) => ({ default: m.Subjects })));
-const CadastrosRelatorios = lazyWithRetry(() => import('./pages/CadastrosRelatorios').then((m) => ({ default: m.CadastrosRelatorios })));
-const AcademicCalendar = lazyWithRetry(() => import('./pages/AcademicCalendar').then((m) => ({ default: m.AcademicCalendar })));
-const Attendance = lazyWithRetry(() => import('./pages/Attendance').then((m) => ({ default: m.Attendance })));
-const Grades = lazyWithRetry(() => import('./pages/Grades').then((m) => ({ default: m.Grades })));
-const Assessments = lazyWithRetry(() => import('./pages/Assessments').then((m) => ({ default: m.Assessments })));
-const Bulletin = lazyWithRetry(() => import('./pages/Bulletin').then((m) => ({ default: m.Bulletin })));
-const Documents = lazyWithRetry(() => import('./pages/Documents').then((m) => ({ default: m.Documents })));
-const Impressos = lazyWithRetry(() => import('./pages/Impressos').then((m) => ({ default: m.Impressos })));
-const StudentFicha = lazyWithRetry(() => import('./pages/StudentFicha').then((m) => ({ default: m.StudentFicha })));
-const Diocese = lazyWithRetry(() => import('./pages/Diocese').then((m) => ({ default: m.Diocese })));
-const Import = lazyWithRetry(() => import('./pages/Import').then((m) => ({ default: m.Import })));
-const Reports = lazyWithRetry(() => import('./pages/Reports').then((m) => ({ default: m.Reports })));
-const FinancialDashboard = lazyWithRetry(() => import('./pages/FinancialDashboard').then((m) => ({ default: m.FinancialDashboard })));
-const Contributions = lazyWithRetry(() => import('./pages/Contributions').then((m) => ({ default: m.Contributions })));
-const FinancialReport = lazyWithRetry(() => import('./pages/FinancialReport').then((m) => ({ default: m.FinancialReport })));
-const PixConference = lazyWithRetry(() => import('./pages/PixConference').then((m) => ({ default: m.PixConference })));
-const Receipts = lazyWithRetry(() => import('./pages/Receipts').then((m) => ({ default: m.Receipts })));
-const Settings = lazyWithRetry(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const BackupPage = lazyWithRetry(() => import('./pages/Backup').then((m) => ({ default: m.BackupPage })));
-const ArchivePage = lazyWithRetry(() => import('./pages/Archive').then((m) => ({ default: m.ArchivePage })));
-const Users = lazyWithRetry(() => import('./pages/Users').then((m) => ({ default: m.Users })));
+const Dashboard = lazyNamedWithRetry(() => import('./pages/Dashboard'), 'Dashboard');
+const Students = lazyNamedWithRetry(() => import('./pages/Students'), 'Students');
+const Teachers = lazyNamedWithRetry(() => import('./pages/Teachers'), 'Teachers');
+const Courses = lazyNamedWithRetry(() => import('./pages/Courses'), 'Courses');
+const Classes = lazyNamedWithRetry(() => import('./pages/Classes'), 'Classes');
+const Subjects = lazyNamedWithRetry(() => import('./pages/Subjects'), 'Subjects');
+const CadastrosRelatorios = lazyNamedWithRetry(() => import('./pages/CadastrosRelatorios'), 'CadastrosRelatorios');
+const AcademicCalendar = lazyNamedWithRetry(() => import('./pages/AcademicCalendar'), 'AcademicCalendar');
+const Attendance = lazyNamedWithRetry(() => import('./pages/Attendance'), 'Attendance');
+const Grades = lazyNamedWithRetry(() => import('./pages/Grades'), 'Grades');
+const Assessments = lazyNamedWithRetry(() => import('./pages/Assessments'), 'Assessments');
+const Bulletin = lazyNamedWithRetry(() => import('./pages/Bulletin'), 'Bulletin');
+const Documents = lazyNamedWithRetry(() => import('./pages/Documents'), 'Documents');
+const Impressos = lazyNamedWithRetry(() => import('./pages/Impressos'), 'Impressos');
+const StudentFicha = lazyNamedWithRetry(() => import('./pages/StudentFicha'), 'StudentFicha');
+const Diocese = lazyNamedWithRetry(() => import('./pages/Diocese'), 'Diocese');
+const Import = lazyNamedWithRetry(() => import('./pages/Import'), 'Import');
+const Reports = lazyNamedWithRetry(() => import('./pages/Reports'), 'Reports');
+const FinancialDashboard = lazyNamedWithRetry(() => import('./pages/FinancialDashboard'), 'FinancialDashboard');
+const Contributions = lazyNamedWithRetry(() => import('./pages/Contributions'), 'Contributions');
+const FinancialReport = lazyNamedWithRetry(() => import('./pages/FinancialReport'), 'FinancialReport');
+const PixConference = lazyNamedWithRetry(() => import('./pages/PixConference'), 'PixConference');
+const Receipts = lazyNamedWithRetry(() => import('./pages/Receipts'), 'Receipts');
+const Settings = lazyNamedWithRetry(() => import('./pages/Settings'), 'Settings');
+const BackupPage = lazyNamedWithRetry(() => import('./pages/Backup'), 'BackupPage');
+const ArchivePage = lazyNamedWithRetry(() => import('./pages/Archive'), 'ArchivePage');
+const Users = lazyNamedWithRetry(() => import('./pages/Users'), 'Users');
 
 function PageLoader() {
   return (
@@ -167,7 +187,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             </div>
             <div className="space-y-3">
               <button 
-                onClick={() => forceCacheBustedReload()}
+                onClick={() => forceCacheBustedReload(true)}
                 title="Atualizar a página mantendo seus dados locais"
                 className="w-full py-4 bg-slate-900 text-white rounded-lg font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg active:scale-95 cursor-pointer"
               >
@@ -178,7 +198,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 onClick={() => {
                   localStorage.clear();
                   sessionStorage.clear();
-                  forceCacheBustedReload();
+                  forceCacheBustedReload(true);
                 }}
                 title="Limpar cache local e reiniciar sessão"
                 className="w-full py-2.5 text-slate-500 hover:text-red-600 text-[11px] font-semibold uppercase tracking-wider transition-colors cursor-pointer"
@@ -204,8 +224,10 @@ if (typeof window !== 'undefined') {
     }
   } catch {}
 
-  window.addEventListener('vite:preloadError', (event) => {
-    event.preventDefault();
+  // IMPORTANTE: Não chamar event.preventDefault() em vite:preloadError!
+  // No Vite, event.preventDefault() faz __vitePreload() resolver com `undefined` em vez de rejeitar,
+  // o que quebra `.then(m => ...)` antes mesmo do lazyWithRetry capturar a falha.
+  window.addEventListener('vite:preloadError', () => {
     reloadOnceForChunkError();
   });
 
