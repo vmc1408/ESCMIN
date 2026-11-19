@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject } from '../lib/academicUtils';
-import { getClassSubjects, doesSubjectYearMatchClass } from '../lib/classSubjectUtils';
+import { getClassSubjects, doesSubjectYearMatchClass, normalizeClass, normalizeSubject, isSubjectActive } from '../lib/classSubjectUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
@@ -178,7 +178,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     try {
       const [classesData, subjectsData, paramsData, instData, teachersData] = await Promise.all([
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+        fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
         fetchAll('academic_parameters', '*', ''),
         fetchAll('institution_settings'),
         fetchAll('teachers', 'id, name, subject_ids, status', 'name', true)
@@ -208,58 +208,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       });
       setTeachers(normalizedTeachers);
 
-      const normalizedClasses = (classesData || []).map((cls: any) => {
-        let normalized = { ...cls };
-        // Ensure subject_ids is always an array
-        let sIds: string[] = [];
-        if (Array.isArray(normalized.subject_ids)) {
-          sIds = normalized.subject_ids;
-        } else if (typeof normalized.subject_ids === 'string') {
-          try {
-            const parsed = JSON.parse(normalized.subject_ids);
-            sIds = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            sIds = normalized.subject_ids ? [normalized.subject_ids] : [];
-          }
-        } else if (normalized.subject_id) {
-          sIds = [normalized.subject_id];
-        }
-        normalized.subject_ids = sIds;
-
-        // Ensure days_of_week is always an array
-        if (typeof normalized.days_of_week === 'string') {
-          try {
-            normalized.days_of_week = JSON.parse(normalized.days_of_week);
-          } catch (e) {
-            normalized.days_of_week = normalized.days_of_week ? [normalized.days_of_week] : [];
-          }
-        } else if (!Array.isArray(normalized.days_of_week)) {
-          normalized.days_of_week = [];
-        }
-
-        if (normalized.observations) {
-          try {
-            const match = String(normalized.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
-            if (match && match[1]) {
-              const meta = JSON.parse(match[1]);
-              if (!normalized.semester && (meta.semester || meta.semester_id)) {
-                normalized.semester = meta.semester || meta.semester_id;
-              }
-              if (meta.subject_id_sem1_h1) normalized.subject_id_sem1_h1 = meta.subject_id_sem1_h1;
-              if (meta.subject_id_sem1_h2) normalized.subject_id_sem1_h2 = meta.subject_id_sem1_h2;
-              if (meta.subject_id_sem2_h1) normalized.subject_id_sem2_h1 = meta.subject_id_sem2_h1;
-              if (meta.subject_id_sem2_h2) normalized.subject_id_sem2_h2 = meta.subject_id_sem2_h2;
-              if (meta.subject_id_sem1) normalized.subject_id_sem1 = meta.subject_id_sem1;
-              if (meta.subject_id_sem2) normalized.subject_id_sem2 = meta.subject_id_sem2;
-              if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
-                normalized.subject_ids = meta.subject_ids;
-              }
-            }
-          } catch (e) {}
-        }
-
-        return normalized;
-      });
+      const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
+      const normalizedClasses = (classesData || []).map((cls: any) => normalizeClass(cls, normalizedSubjects));
 
       const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
         const extract = (s: string) => {
@@ -274,24 +224,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         const infoB = extract(b.name || '');
         if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
         return infoB.yr - infoA.yr;
-      });
-
-      const normalizedSubjects = (subjectsData || []).map((s: any) => {
-        let normalized = { ...s };
-        if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
-          const match = normalized.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
-          if (match && match[1]) {
-            try {
-              const meta = JSON.parse(match[1]);
-              if (!normalized.semester) normalized.semester = meta.semester;
-              if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
-              if (!normalized.year) normalized.year = meta.year;
-            } catch (e) {
-              // ignore
-            }
-          }
-        }
-        return normalized;
       });
 
       setClasses(sortedClasses);
@@ -428,7 +360,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     const classSubjects = getClassSubjects(cls, subjects);
     const baseList = classSubjects.length > 0
       ? classSubjects
-      : (cls.subject_ids && cls.subject_ids.length > 0 ? subjects.filter(s => cls.subject_ids?.includes(s.id)) : subjects);
+      : (cls.subject_ids && cls.subject_ids.length > 0 ? subjects.filter(s => cls.subject_ids?.includes(s.id)) : subjects.filter(isSubjectActive));
 
     // Se for perfil de professor, garante que todas as disciplinas atribuídas a ele na escala sejam mostradas se pertencerem ao mesmo "Ano/Série" da turma
     if (teacherScope.isTeacherRole) {
@@ -439,7 +371,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         if (classSubjects.find(cs => cs.id === s.id)) return true;
         
         // Fallback seguro por ano acadêmico apenas se a turma não possuir disciplinas vinculadas
-        if (classSubjects.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
+        if (classSubjects.length === 0 && isSubjectActive(s) && doesSubjectYearMatchClass(s.year, cls)) return true;
         
         return false;
       });

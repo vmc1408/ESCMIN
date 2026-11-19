@@ -50,7 +50,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, filterStudentsForClass, isStudentActive, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, normalizeSubject, normalizeAcademicYearTag, doesSubjectYearMatchClass, isSubjectActive, filterStudentsForClass, isStudentActive, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { detectSubjectSemester, getClassStartDateFromSchedule, computeAvailableAcademicYears } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
@@ -564,10 +564,7 @@ export function Classes() {
     const currentIds = formData.subject_ids || [];
     const sem1Subs = currentIds.filter(id => {
       const s = subjects.find(sub => sub.id === id);
-      if (!s) return false;
-      const sem = (s.semester || '').toLowerCase();
-      const name = (s.name || '').toLowerCase();
-      return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
+      return s ? detectSubjectSemester(s) === '1º Semestre' : false;
     });
     return sem1Subs[0] || currentIds[0] || '';
   }, [formData.subject_id_sem1_h1, formData.subject_id_sem1, formData.subject_ids, subjects]);
@@ -579,10 +576,7 @@ export function Classes() {
     const currentIds = formData.subject_ids || [];
     const sem1Subs = currentIds.filter(id => {
       const s = subjects.find(sub => sub.id === id);
-      if (!s) return false;
-      const sem = (s.semester || '').toLowerCase();
-      const name = (s.name || '').toLowerCase();
-      return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
+      return s ? detectSubjectSemester(s) === '1º Semestre' : false;
     });
     if (sem1Subs.length > 1) {
       return sem1Subs.find(id => id !== sem1H1SubjectId) || '';
@@ -598,10 +592,7 @@ export function Classes() {
     const currentIds = formData.subject_ids || [];
     const sem2Subs = currentIds.filter(id => {
       const s = subjects.find(sub => sub.id === id);
-      if (!s) return false;
-      const sem = (s.semester || '').toLowerCase();
-      const name = (s.name || '').toLowerCase();
-      return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
+      return s ? detectSubjectSemester(s) === '2º Semestre' : false;
     });
     return sem2Subs[0] || currentIds.find(id => id !== sem1H1SubjectId && id !== sem1H2SubjectId) || '';
   }, [formData.subject_id_sem2_h1, formData.subject_id_sem2, formData.subject_ids, subjects, sem1H1SubjectId, sem1H2SubjectId]);
@@ -613,10 +604,7 @@ export function Classes() {
     const currentIds = formData.subject_ids || [];
     const sem2Subs = currentIds.filter(id => {
       const s = subjects.find(sub => sub.id === id);
-      if (!s) return false;
-      const sem = (s.semester || '').toLowerCase();
-      const name = (s.name || '').toLowerCase();
-      return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
+      return s ? detectSubjectSemester(s) === '2º Semestre' : false;
     });
     if (sem2Subs.length > 1) {
       return sem2Subs.find(id => id !== sem2H1SubjectId) || '';
@@ -675,9 +663,12 @@ export function Classes() {
 
   const getSubjectsForCourseAndYear = React.useCallback((allSubjects: Subject[], courseName: string, yearStr: string) => {
     if (!yearStr) return [];
+    const targetYearTag = normalizeAcademicYearTag(yearStr);
     const yearMatched = allSubjects.filter(s => {
-      if (yearStr === 'Curso Extra') return s.year === 'Curso Extra' || !s.year;
-      return s.year === yearStr;
+      if (!isSubjectActive(s)) return false;
+      const subYearTag = normalizeAcademicYearTag(s.year);
+      if (targetYearTag === 'curso extra') return subYearTag === 'curso extra' || !subYearTag;
+      return subYearTag === targetYearTag;
     });
 
     if (!courseName) return [];
@@ -738,14 +729,14 @@ export function Classes() {
     const s1h1 = subjects.find(s => s.id === sem1H1SubjectId);
     const s1h2 = subjects.find(s => s.id === sem1H2SubjectId);
     if (s1h1 || s1h2) return [s1h1, s1h2].filter(Boolean) as Subject[];
-    return autoFoundSubjects.filter(s => (s.semester || '').includes('1'));
+    return autoFoundSubjects.filter(s => detectSubjectSemester(s) === '1º Semestre');
   }, [subjects, sem1H1SubjectId, sem1H2SubjectId, autoFoundSubjects]);
 
   const sem2AutoSubs = React.useMemo(() => {
     const s2h1 = subjects.find(s => s.id === sem2H1SubjectId);
     const s2h2 = subjects.find(s => s.id === sem2H2SubjectId);
     if (s2h1 || s2h2) return [s2h1, s2h2].filter(Boolean) as Subject[];
-    return autoFoundSubjects.filter(s => (s.semester || '').includes('2'));
+    return autoFoundSubjects.filter(s => detectSubjectSemester(s) === '2º Semestre');
   }, [subjects, sem2H1SubjectId, sem2H2SubjectId, autoFoundSubjects]);
 
   const handleSelectCourseStartYearAndAcademicYear = React.useCallback((
@@ -755,8 +746,8 @@ export function Classes() {
   ) => {
     const matched = getSubjectsForCourseAndYear(subjects, newCourse, newAcademicYear);
 
-    const sem1Subs = matched.filter(s => (s.semester || '').includes('1'));
-    const sem2Subs = matched.filter(s => (s.semester || '').includes('2'));
+    const sem1Subs = matched.filter(s => detectSubjectSemester(s) === '1º Semestre');
+    const sem2Subs = matched.filter(s => detectSubjectSemester(s) === '2º Semestre');
 
     const s1h1 = sem1Subs[0]?.id || '';
     const s1h2 = sem1Subs[1]?.id || '';
@@ -840,9 +831,14 @@ export function Classes() {
   };
 
   const getSemOptions = (semesterNum: 1 | 2, currentSlotValue?: string) => {
+    const targetYearTag = normalizeAcademicYearTag(formData.year);
+    const isCursoExtraClass = targetYearTag === 'curso extra';
     return subjects.filter(s => {
-      const isCursoExtraClass = formData.year === 'Curso Extra';
-      const matchesYear = isCursoExtraClass || !formData.year || !s.year || s.year === formData.year;
+      // Sempre manter a disciplina já vinculada neste horário visível no select
+      if (currentSlotValue && s.id === currentSlotValue) return true;
+
+      const subYearTag = normalizeAcademicYearTag(s.year);
+      const matchesYear = isCursoExtraClass || !targetYearTag || !subYearTag || subYearTag === targetYearTag;
 
       const semType = detectSubjectSemester(s);
       let matchesSem = true;
@@ -850,7 +846,7 @@ export function Classes() {
       if (semType === '1º Semestre' && semesterNum === 2) matchesSem = false;
       if (semType === '2º Semestre' && semesterNum === 1) matchesSem = false;
 
-      const isActiveOrSelected = s.status === 'Ativo' || (formData.subject_ids || []).includes(s.id) || s.id === currentSlotValue;
+      const isActiveOrSelected = isSubjectActive(s) || (formData.subject_ids || []).includes(s.id);
       return matchesYear && matchesSem && isActiveOrSelected;
     });
   };
@@ -887,34 +883,26 @@ export function Classes() {
         setAcadSettings(currentSettings);
       }
       
-      const normalizedSubjects = (subjectsData || []).map((s: any) => {
-        let normalized = { ...s };
-        if ((!normalized.year || !normalized.semester) && normalized.program_content) {
-          const match = normalized.program_content.match(/\[METADATA:(.+?)\]/);
-          if (match && match[1]) {
-            try {
-              const meta = JSON.parse(match[1]);
-              if (!normalized.year) normalized.year = meta.year;
-              if (!normalized.semester) normalized.semester = meta.semester;
-            } catch (e) {}
-          }
-        }
-        return normalized;
-      });
+      const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
 
       const normalizedClasses = (classesData || []).map((cls: Class) => {
         let normalized = { ...cls };
         
-        // Normalize subject_ids (could be single ID from subject_id column or JSON string, or array)
+        // Normalize subject_ids (could be array, JSON string, Postgres {a,b}, or single ID)
         let sIds: string[] = [];
         if (Array.isArray((normalized as any).subject_ids)) {
           sIds = (normalized as any).subject_ids;
         } else if (typeof (normalized as any).subject_ids === 'string') {
-          try {
-            const parsed = JSON.parse((normalized as any).subject_ids);
-            sIds = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
+          const rawSids = String((normalized as any).subject_ids).trim();
+          if (rawSids.startsWith('{')) {
+            sIds = rawSids.replace(/[{}]/g, '').split(',').map(v => v.trim()).filter(Boolean);
+          } else {
+            try {
+              const parsed = JSON.parse(rawSids);
+              sIds = Array.isArray(parsed) ? parsed : [parsed];
+            } catch (e) {
+              sIds = rawSids ? [rawSids] : [];
+            }
           }
         } else if ((normalized as any).subject_id) {
           sIds = [(normalized as any).subject_id];
@@ -927,7 +915,7 @@ export function Classes() {
         let metaSem2H2 = (normalized as any).subject_id_sem2_h2 || '';
 
         if (normalized.observations) {
-          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*?\})\]/);
           if (match && match[1]) {
             try {
               const meta = JSON.parse(match[1]);
@@ -974,10 +962,16 @@ export function Classes() {
         }
 
         // Infer sem1 and sem2 slots ONLY if class has no linked subjects at all and is a regular curriculum year
-        if (!metaSem1H1 && !metaSem1H2 && !metaSem2H1 && !metaSem2H2 && sIds.length === 0 && normalized.year && normalized.year !== 'Curso Extra') {
-          const yearSubs = normalizedSubjects.filter(s => s.year === normalized.year);
-          const yearSem1 = yearSubs.filter(s => (s.semester || '').includes('1'));
-          const yearSem2 = yearSubs.filter(s => (s.semester || '').includes('2'));
+        const normYearTag = normalizeAcademicYearTag(normalized.year);
+        if (!metaSem1H1 && !metaSem1H2 && !metaSem2H1 && !metaSem2H2 && sIds.length === 0 && normYearTag && normYearTag !== 'curso extra') {
+          const courseMatched = (normalized as any).course
+            ? getSubjectsForCourseAndYear(normalizedSubjects, (normalized as any).course, normalized.year || '')
+            : [];
+          const yearSubs = courseMatched.length > 0
+            ? courseMatched
+            : normalizedSubjects.filter(s => isSubjectActive(s) && doesSubjectYearMatchClass(s.year, normalized));
+          const yearSem1 = yearSubs.filter(s => detectSubjectSemester(s) === '1º Semestre');
+          const yearSem2 = yearSubs.filter(s => detectSubjectSemester(s) === '2º Semestre');
 
           if (!metaSem1H1 && yearSem1[0]) metaSem1H1 = yearSem1[0].id;
           if (!metaSem1H2 && yearSem1[1]) metaSem1H2 = yearSem1[1].id;
@@ -987,19 +981,8 @@ export function Classes() {
 
         if ((!metaSem1H1 && !metaSem1H2 && !metaSem2H1 && !metaSem2H2) && sIds.length > 0) {
           const loadedSubs = sIds.map(sid => normalizedSubjects.find(s => s.id === sid)).filter(Boolean);
-          const isSem1Sub = (s: any) => {
-            const sem = (s?.semester || '').toLowerCase();
-            const name = (s?.name || '').toLowerCase();
-            return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
-          };
-          const isSem2Sub = (s: any) => {
-            const sem = (s?.semester || '').toLowerCase();
-            const name = (s?.name || '').toLowerCase();
-            return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
-          };
-
-          const s1List = loadedSubs.filter(s => isSem1Sub(s));
-          const s2List = loadedSubs.filter(s => isSem2Sub(s));
+          const s1List = loadedSubs.filter(s => detectSubjectSemester(s) === '1º Semestre');
+          const s2List = loadedSubs.filter(s => detectSubjectSemester(s) === '2º Semestre');
 
           if (!metaSem1H1 && s1List[0]) metaSem1H1 = s1List[0].id;
           if (!metaSem1H2 && s1List[1]) metaSem1H2 = s1List[1].id;
@@ -1083,7 +1066,7 @@ export function Classes() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getSubjectsForCourseAndYear]);
 
   useEffect(() => {
     fetchClasses();
@@ -2043,10 +2026,14 @@ export function Classes() {
       setImportProgress(10);
       setImportProgressText('Criando nova estrutura da turma no banco de dados...');
 
-      // Automatically link all subjects belonging to target year for both 1st and 2nd semesters
-      const targetYearSubs = subjects.filter(s => s.year === importTargetYear);
-      const sem1Subs = targetYearSubs.filter(s => (s.semester || '').includes('1'));
-      const sem2Subs = targetYearSubs.filter(s => (s.semester || '').includes('2'));
+      // Automatically link all subjects belonging to target year (and course) for both 1st and 2nd semesters
+      const sourceCourse = (sourceClass as any).course || detectCourseFromClass(sourceClass) || '';
+      const courseSubs = sourceCourse ? getSubjectsForCourseAndYear(subjects, sourceCourse, importTargetYear) : [];
+      const targetYearSubs = courseSubs.length > 0
+        ? courseSubs
+        : subjects.filter(s => isSubjectActive(s) && normalizeAcademicYearTag(s.year) === normalizeAcademicYearTag(importTargetYear));
+      const sem1Subs = targetYearSubs.filter(s => detectSubjectSemester(s) === '1º Semestre');
+      const sem2Subs = targetYearSubs.filter(s => detectSubjectSemester(s) === '2º Semestre');
 
       const s1h1 = sem1Subs[0]?.id || '';
       const s1h2 = sem1Subs[1]?.id || '';

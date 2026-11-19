@@ -101,11 +101,16 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
   if (Array.isArray(normalized.subject_ids)) {
     sIds = [...normalized.subject_ids];
   } else if (typeof normalized.subject_ids === 'string') {
-    try {
-      const parsed = JSON.parse(normalized.subject_ids);
-      sIds = Array.isArray(parsed) ? parsed : [parsed];
-    } catch {
-      sIds = normalized.subject_ids ? [normalized.subject_ids] : [];
+    const rawSids = normalized.subject_ids.trim();
+    if (rawSids.startsWith('{')) {
+      sIds = rawSids.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+    } else {
+      try {
+        const parsed = JSON.parse(rawSids);
+        sIds = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        sIds = rawSids ? [rawSids] : [];
+      }
     }
   } else if (normalized.subject_id) {
     sIds = [normalized.subject_id];
@@ -142,6 +147,8 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
           meta.subject_ids.forEach((id: string) => {
             if (id && !sIds.includes(id)) sIds.push(id);
           });
+        } else if (meta.subject_id && typeof meta.subject_id === 'string' && !sIds.includes(meta.subject_id)) {
+          sIds.push(meta.subject_id);
         }
         if (meta.unit_id && (!normalized.unit_id || normalized.unit_id === 'matriz')) {
           normalized.unit_id = meta.unit_id;
@@ -555,6 +562,15 @@ export function normalizeAcademicYearTag(val?: string | number | null): string {
 }
 
 /**
+ * Returns true if a subject is active (or has no status set).
+ */
+export function isSubjectActive(subject: SubjectItemType | null | undefined): boolean {
+  if (!subject) return false;
+  if (!subject.status) return true;
+  return String(subject.status).trim().toLowerCase() === 'ativo';
+}
+
+/**
  * Safely checks whether a subject's academic year matches a class WITHOUT raw substring
  * checks that falsely match years like "2026" with subject year "2".
  */
@@ -564,9 +580,12 @@ export function doesSubjectYearMatchClass(
 ): boolean {
   if (!subjectYear || !classItem) return false;
   const subTag = normalizeAcademicYearTag(subjectYear);
-  if (!subTag || subTag === 'curso extra') return false;
+  if (!subTag) return false;
 
   const clsTag = normalizeAcademicYearTag(classItem.year);
+  if (subTag === 'curso extra') {
+    return clsTag === 'curso extra';
+  }
   if (clsTag) {
     return clsTag === subTag;
   }
@@ -691,8 +710,10 @@ export function getClassSubjects(
     if (activityIds.size > 0) {
       matchedSubjects = allSubjects.filter(sub => activityIds.has(sub.id));
     } else {
-      // Safe normalized year fallback only when neither explicit links nor academic records exist
-      matchedSubjects = allSubjects.filter(sub => doesSubjectYearMatchClass(sub.year, classItem));
+      // Safe normalized year fallback only for active subjects when neither explicit links nor academic records exist
+      matchedSubjects = allSubjects.filter(
+        sub => isSubjectActive(sub) && doesSubjectYearMatchClass(sub.year, classItem)
+      );
     }
   }
 

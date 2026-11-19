@@ -21,7 +21,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment, Teacher } from '../types';
-import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass } from '../lib/utils';
+import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass, isSubjectActive } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -98,7 +98,7 @@ export function Grades() {
     const [params, classesData, subjectsData, instSettings, teachersData] = await Promise.all([
       fetchAll('academic_parameters', '*', ''), // Passing empty string to avoid ordering by created_at
       fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-      fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+      fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
       financialService.getInstitutionSettings(),
       fetchAll('teachers', '*', 'name')
     ]);
@@ -130,7 +130,7 @@ export function Grades() {
     });
 
     setClasses(sortedClasses);
-    setSubjects(subjectsData || []);
+    setSubjects(normalizedSubjects);
     setTeachers(teachersData || []);
   }, []);
 
@@ -288,7 +288,7 @@ export function Grades() {
       
       const teacherSubsForThisClass = teacherAllowed.filter(s => {
         if (subs.find(cs => cs.id === s.id)) return true;
-        if (subs.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
+        if (subs.length === 0 && isSubjectActive(s) && doesSubjectYearMatchClass(s.year, cls)) return true;
         return false;
       });
 
@@ -300,7 +300,7 @@ export function Grades() {
       return combined.filter(s => teacherScope.allowedSubjectIds.has(s.id));
     }
 
-    return subs.length > 0 ? subs : subjects;
+    return subs.length > 0 ? subs : subjects.filter(isSubjectActive);
   }, [selectedClass, classes, subjects, assessments, dbGrades, teacherScope]);
 
   // Se o professor tiver apenas 1 disciplina disponível para a turma, pré-seleciona automaticamente

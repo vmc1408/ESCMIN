@@ -27,7 +27,7 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject, Teacher } from '../types';
-import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass } from '../lib/utils';
+import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass, isSubjectActive } from '../lib/utils';
 import { detectSubjectSemester, getAvailablePeriodsForSubject } from '../lib/academicUtils';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
@@ -112,7 +112,7 @@ export const Assessments: React.FC = () => {
       const [assessData, classesData, subjectsData, studentsData, enrollmentsData, gradesData, teachersData] = await Promise.all([
         fetchAll('assessments'),
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+        fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
         fetchAll('students'),
         fetchAll('enrollments').catch(() => []),
         fetchAll('grades'),
@@ -352,14 +352,14 @@ export const Assessments: React.FC = () => {
   // Disciplinas disponíveis para os filtros
   const availableSubjectsForFilter = React.useMemo(() => {
     const cls = filterClass ? classes.find(c => c.id === filterClass) : null;
-    const base = cls ? getClassSubjects(cls, subjects) : subjects;
+    const base = cls ? getClassSubjects(cls, subjects) : subjects.filter(isSubjectActive);
     
     if (teacherScope.isTeacherRole && cls) {
       const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
       
       const teacherSubsForThisClass = teacherAllowed.filter(s => {
         if (base.find(cs => cs.id === s.id)) return true;
-        if (base.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
+        if (base.length === 0 && isSubjectActive(s) && doesSubjectYearMatchClass(s.year, cls)) return true;
         return false;
       });
 
@@ -380,14 +380,14 @@ export const Assessments: React.FC = () => {
   // Disciplinas disponíveis para o formulário de cadastro/edição
   const availableSubjectsForForm = React.useMemo(() => {
     const cls = formData.class_id ? classes.find(c => c.id === formData.class_id) : null;
-    const base = cls ? getClassSubjects(cls, subjects) : subjects;
+    const base = cls ? getClassSubjects(cls, subjects) : subjects.filter(isSubjectActive);
 
     if (teacherScope.isTeacherRole && cls) {
       const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
       
       const teacherSubsForThisClass = teacherAllowed.filter(s => {
         if (base.find(cs => cs.id === s.id)) return true;
-        if (base.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
+        if (base.length === 0 && isSubjectActive(s) && doesSubjectYearMatchClass(s.year, cls)) return true;
         return false;
       });
 

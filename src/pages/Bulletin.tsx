@@ -91,7 +91,7 @@ export function Bulletin() {
           acadSettings
         ] = await Promise.all([
           fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-          fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+          fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
           fetchAll('students', 'id,name,registration_number,class_id,unit_id,status,observations'),
           fetchAll('enrollments', 'id,student_id,class_id,status').catch(() => []),
           fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]),
