@@ -133,6 +133,18 @@ ON CONFLICT (id) DO NOTHING;`;
   },
 
   /**
+   * Invalida o cache em memória para forçar releitura real do banco (usado após restauração de backup).
+   */
+  invalidateCache(): void {
+    cachedSettings = null;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('cached_financial_settings');
+      }
+    } catch {}
+  },
+
+  /**
    * Carrega as configurações financeiras vigentes (memória -> Supabase / institution_settings -> localStorage -> Padrão).
    */
   async getSettings(): Promise<FinancialSettings> {
