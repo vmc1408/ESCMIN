@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   FileSpreadsheet, 
   Search, 
@@ -9,8 +9,8 @@ import {
   Printer,
   ChevronDown,
   FileText,
+  Download,
   User,
-  GraduationCap,
   ArrowUp,
   ArrowDown,
   ArrowUpDown
@@ -18,16 +18,18 @@ import {
 import { Student, Class, Subject, AcademicParameters } from '../types';
 import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
 import { fetchAll, fetchQuery } from '../lib/database';
+import { supabase, fetchWithTimeout, isSupabaseConfigured } from '../lib/supabase';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
-import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PageHeader } from '../components/PageHeader';
+import { drawStandardReportHeader, drawStandardReportFooter, preloadReportLogoDataUrl } from '../lib/pdfReportHelper';
+import { StandardReportHeader, StandardReportFooter } from '../components/print/StandardPrintLayout';
 
 interface GradeRecord {
   id: string;
@@ -67,18 +69,13 @@ export function Bulletin() {
   const [viewMode, setViewMode] = useState<'student' | 'class'>('student');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [loadingClassData, setLoadingClassData] = useState<boolean>(false);
   const [exportingPDF, setExportingPDF] = useState<boolean>(false);
-  const [isPrinting, setIsPrinting] = useState<boolean>(false);
 
-  useEffect(() => {
-    const handleAfterPrint = () => {
-      setIsPrinting(false);
-    };
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, []);
+  // Cache per-class grades/assessments/attendances to make switching classes instantaneous
+  const classAcademicCacheRef = useRef<Map<string, { grades: GradeRecord[]; assessments: any[]; attendances: any[] }>>(new Map());
 
-  // Load Database Records
+  // Load Lightweight Initial Catalogs (avoids downloading full historical attendances/grades upfront)
   useEffect(() => {
     async function loadInitialData() {
       setLoading(true);
@@ -88,9 +85,6 @@ export function Bulletin() {
           subjectsData,
           studentsData,
           enrollmentsData,
-          gradesData,
-          assessmentsData,
-          attendancesData,
           calendarData,
           paramsData,
           instSettings,
@@ -98,22 +92,17 @@ export function Bulletin() {
         ] = await Promise.all([
           fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
           fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-          fetchAll('students'),
-          fetchAll('enrollments').catch(() => []),
-          fetchAll('grades'),
-          fetchAll('assessments'),
-          fetchAll('attendances'),
+          fetchAll('students', 'id,name,registration_number,class_id,unit_id,status,observations'),
+          fetchAll('enrollments', 'id,student_id,class_id,status').catch(() => []),
           fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]),
           fetchAll('academic_parameters'),
           financialService.getInstitutionSettings(),
           fetchAll('academic_settings').catch(() => [])
         ]);
 
-        // Normalize classes and subjects
         const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
         const normalizedClasses = (classesData || []).map((c: any) => normalizeClass(c, normalizedSubjects));
 
-        // Prioritize actively listed classes
         const sortedClasses = normalizedClasses.sort((a: any, b: any) => 
           (a.name || '').localeCompare(b.name || '')
         );
@@ -122,9 +111,6 @@ export function Bulletin() {
         setSubjects(normalizedSubjects);
         setStudents(studentsData || []);
         setEnrollments(enrollmentsData || []);
-        setDbGrades(gradesData || []);
-        setAssessments(assessmentsData || []);
-        setAttendanceData(attendancesData || []);
         setCalendarEvents(calendarData || []);
         setAcademicSettingsList(Array.isArray(acadSettings) ? acadSettings : []);
         
@@ -141,6 +127,7 @@ export function Bulletin() {
         }
         if (instSettings) {
           setInstitution(instSettings);
+          preloadReportLogoDataUrl(instSettings.logo_url).catch(() => {});
         }
       } catch (error) {
         console.error("Error loading Bulletin components database:", error);
@@ -150,6 +137,106 @@ export function Bulletin() {
     }
     loadInitialData();
   }, []);
+
+  // Scoped, paginated fetch for ONLY the selected class (supports >1000 rows & instantaneous cache hits)
+  useEffect(() => {
+    if (!selectedClassId) {
+      setDbGrades([]);
+      setAssessments([]);
+      setAttendanceData([]);
+      return;
+    }
+
+    const cached = classAcademicCacheRef.current.get(selectedClassId);
+    if (cached) {
+      setDbGrades(cached.grades);
+      setAssessments(cached.assessments);
+      setAttendanceData(cached.attendances);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchClassTablePaged = async (tableName: string, selectCols: string) => {
+      if (!isSupabaseConfigured) return [];
+      const rows: any[] = [];
+      let from = 0;
+      const step = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const res = await fetchWithTimeout(
+          () => supabase
+            .from(tableName)
+            .select(selectCols)
+            .eq('class_id', selectedClassId)
+            .order('id', { ascending: true })
+            .range(from, from + step - 1),
+          25000
+        );
+        if (res?.error) {
+          if (selectCols !== '*' && res.error.message?.includes('column')) {
+            const fallback = await fetchWithTimeout(
+              () => supabase.from(tableName).select('*').eq('class_id', selectedClassId).order('id', { ascending: true }).range(from, from + step - 1),
+              25000
+            );
+            if (!fallback?.error && Array.isArray(fallback?.data)) {
+              rows.push(...fallback.data);
+              from += step;
+              hasMore = fallback.data.length === step;
+              continue;
+            }
+          }
+          break;
+        }
+        const chunk = Array.isArray(res?.data) ? res.data : [];
+        rows.push(...chunk);
+        from += step;
+        hasMore = chunk.length === step;
+      }
+      return rows;
+    };
+
+    async function loadSelectedClassAcademicData() {
+      setLoadingClassData(true);
+      try {
+        const [gradesRows, assessmentsRows, attendanceRows] = await Promise.all([
+          fetchClassTablePaged('grades', 'id,student_id,class_id,subject_id,period,value'),
+          fetchClassTablePaged('assessments', 'id,class_id,subject_id,title,date,weight'),
+          fetchClassTablePaged('attendances', 'id,student_id,class_id,subject_id,date,status')
+        ]);
+
+        if (cancelled) return;
+        classAcademicCacheRef.current.set(selectedClassId, {
+          grades: gradesRows,
+          assessments: assessmentsRows,
+          attendances: attendanceRows
+        });
+        setDbGrades(gradesRows);
+        setAssessments(assessmentsRows);
+        setAttendanceData(attendanceRows);
+      } catch (err) {
+        console.error('Error loading class academic records:', err);
+      } finally {
+        if (!cancelled) setLoadingClassData(false);
+      }
+    }
+
+    loadSelectedClassAcademicData();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedClassId]);
+
+  const classesById = useMemo(() => {
+    const map = new Map<string, Class>();
+    classes.forEach(c => { if (c?.id) map.set(c.id, c); });
+    return map;
+  }, [classes]);
+
+  const activeClassObj = useMemo(() => {
+    return selectedClassId ? classesById.get(selectedClassId) : undefined;
+  }, [selectedClassId, classesById]);
 
   // Scoped Classes to active unit
   const scopedClasses = useMemo(() => {
@@ -161,11 +248,11 @@ export function Bulletin() {
   const scopedStudents = useMemo(() => {
     if (!selectedUnitId || selectedUnitId === 'all') return students;
     return students.filter(s => {
-      const studentClass = classes.find(c => c.id === s.class_id);
+      const studentClass = s.class_id ? classesById.get(s.class_id) : undefined;
       const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
       return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
     });
-  }, [students, classes, selectedUnitId, activeUnits]);
+  }, [students, classesById, selectedUnitId, activeUnits]);
 
   // If active class does not belong to active unit, clear it
   useEffect(() => {
@@ -296,155 +383,176 @@ export function Bulletin() {
     return false;
   };
 
-  // Core calculations memo to map student performance structured cards
+  // Core O(N) indexed calculations memo to map student performance structured cards instantaneously
   const studentReports = useMemo(() => {
     if (!selectedClassId || classStudents.length === 0 || classSubjects.length === 0) return [];
 
-    return classStudents.map(student => {
-      // 1. Calculate general stats across multiple subjects
-      const subjectsPerformance = classSubjects.map(sub => {
-        const subSemester = getSubjectSemester(sub);
-        
-        // 1a. Attendance per subject month
-        const subjectAttendances = attendanceData.filter(a => 
-          a.student_id === student.id && 
-          a.class_id === selectedClassId &&
-          a.subject_id === sub.id
-        );
+    // Pre-index attendances, assessments, and grades once in O(N)
+    const attByStudentSubj = new Map<string, any[]>();
+    for (let i = 0; i < attendanceData.length; i++) {
+      const a = attendanceData[i];
+      if (a.class_id !== selectedClassId) continue;
+      const key = `${a.student_id}::${a.subject_id}`;
+      let arr = attByStudentSubj.get(key);
+      if (!arr) {
+        arr = [];
+        attByStudentSubj.set(key, arr);
+      }
+      arr.push(a);
+    }
 
-        // Calculate absences and presences per Month Index
-        const monthlyAbsences: Record<number, number> = {};
-        const monthlyPresences: Record<number, number> = {};
-        monthsList.forEach(m => { 
-          monthlyAbsences[m.index] = 0; 
-          monthlyPresences[m.index] = 0;
-        });
-        
-        subjectAttendances.forEach(a => {
+    const assessmentsBySubj = new Map<string, any[]>();
+    for (let i = 0; i < assessments.length; i++) {
+      const a = assessments[i];
+      if (a.class_id !== selectedClassId) continue;
+      let arr = assessmentsBySubj.get(a.subject_id);
+      if (!arr) {
+        arr = [];
+        assessmentsBySubj.set(a.subject_id, arr);
+      }
+      arr.push(a);
+    }
+
+    const gradesByStudentSubj = new Map<string, GradeRecord[]>();
+    for (let i = 0; i < dbGrades.length; i++) {
+      const g = dbGrades[i];
+      if (g.class_id !== selectedClassId) continue;
+      const key = `${g.student_id}::${g.subject_id}`;
+      let arr = gradesByStudentSubj.get(key);
+      if (!arr) {
+        arr = [];
+        gradesByStudentSubj.set(key, arr);
+      }
+      arr.push(g);
+    }
+
+    const minApp = academicParams.approval_grade || 7.0;
+    const minRec = academicParams.recovery_grade !== undefined && academicParams.recovery_grade !== null
+      ? academicParams.recovery_grade
+      : 5.0;
+    const absenceLimit = academicParams.absence_limit_percentage || 25;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hasFutureClasses = classSchoolDays.some(d => d.start_date > todayStr);
+
+    // Precompute per-subject metadata (semester, class days, sorted assessments)
+    const subjectMetaList = classSubjects.map(sub => {
+      const details = getSubjectClassDetails(sub, activeClassObj);
+      const subSemester: '1º Semestre' | '2º Semestre' | 'Geral' =
+        details.semester === '1º Semestre' ? '1º Semestre' :
+        details.semester === '2º Semestre' ? '2º Semestre' : 'Geral';
+      const subjectTotalClassDays = getSubjectTotalClassDays(subSemester, scheduledDaysByMonth, totalClassDays);
+      const subAssessments = assessmentsBySubj.get(sub.id) || [];
+      const sortedAssessments = [...subAssessments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const halfIndex = Math.ceil(sortedAssessments.length / 2);
+      return {
+        sub,
+        subSemester,
+        subjectTotalClassDays,
+        subAssessments,
+        assessmentIdSet: new Set(subAssessments.map(a => a.id)),
+        assessmentTitleSet: new Set(subAssessments.map(a => a.title)),
+        g1KeySet: new Set([
+          ...sortedAssessments.slice(0, halfIndex).map(a => a.id),
+          ...sortedAssessments.slice(0, halfIndex).map(a => a.title)
+        ]),
+        g2KeySet: new Set([
+          ...sortedAssessments.slice(halfIndex).map(a => a.id),
+          ...sortedAssessments.slice(halfIndex).map(a => a.title)
+        ])
+      };
+    });
+
+    const parseNum = (val: any): number =>
+      typeof val === 'string' ? parseFloat(val.replace(',', '.')) : Number(val);
+
+    return classStudents.map(student => {
+      const subjectsPerformance = subjectMetaList.map(meta => {
+        const { sub, subSemester, subjectTotalClassDays, subAssessments, assessmentIdSet, assessmentTitleSet, g1KeySet, g2KeySet } = meta;
+        const lookupKey = `${student.id}::${sub.id}`;
+
+        // 1a. Attendance per subject month (direct map lookup)
+        const subjectAttendances = attByStudentSubj.get(lookupKey) || [];
+        const monthlyAbsences: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0 };
+        const monthlyPresences: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0 };
+        let totalAbsences = 0;
+        let totalPresences = 0;
+
+        for (let j = 0; j < subjectAttendances.length; j++) {
+          const a = subjectAttendances[j];
+          if (a.status === 'F') totalAbsences++;
+          else if (a.status === 'P') totalPresences++;
           const mIdx = getMonthFromDate(a.date);
           if (mIdx >= 0 && mIdx < 12) {
-            if (a.status === 'F') {
-              monthlyAbsences[mIdx] += 1;
-            } else if (a.status === 'P') {
-              monthlyPresences[mIdx] += 1;
-            }
+            if (a.status === 'F') monthlyAbsences[mIdx] += 1;
+            else if (a.status === 'P') monthlyPresences[mIdx] += 1;
           }
-        });
-
-        const totalAbsences = subjectAttendances.filter(a => a.status === 'F').length;
-        const totalPresences = subjectAttendances.filter(a => a.status === 'P').length;
-
-        // Accurate total class days based on the subject's semester
-        const subjectTotalClassDays = getSubjectTotalClassDays(subSemester, scheduledDaysByMonth, totalClassDays);
+        }
 
         const attMetrics = calculateAttendanceMetrics({
           presences: totalPresences,
           absences: totalAbsences,
           subjectTotalClassDays,
-          absenceLimitPercentage: academicParams.absence_limit_percentage || 25
+          absenceLimitPercentage: absenceLimit
         });
 
         const presencePct = attMetrics.presencePercentage;
         const isAttendanceApproved = attMetrics.isAttendanceApproved;
 
-        // 1b. Grades resolver: search "Resultado Final" first, else average assessments
-        const finalGradeRecord = dbGrades.find(g => 
-          g.student_id === student.id && 
-          g.class_id === selectedClassId && 
-          g.subject_id === sub.id && 
-          g.period === 'Resultado Final'
-        );
+        // 1b. Grades lookup (O(1) per student+subject list)
+        const studGrades = gradesByStudentSubj.get(lookupKey) || [];
+        let finalGradeRecord: GradeRecord | undefined;
+        let g1Record: GradeRecord | undefined;
+        let g2Record: GradeRecord | undefined;
+        const gradeByPeriod = new Map<string, GradeRecord>();
+        const studentSubGrades: GradeRecord[] = [];
+
+        for (let gIdx = 0; gIdx < studGrades.length; gIdx++) {
+          const g = studGrades[gIdx];
+          if (g.period) gradeByPeriod.set(g.period, g);
+          if (g.period === 'Resultado Final') finalGradeRecord = g;
+          if (g.period === 'Avaliação 1' || g.period === '1ª Avaliação' || g.period === '1º Bimestre') g1Record = g;
+          if (g.period === 'Avaliação 2' || g.period === '2ª Avaliação' || g.period === '2º Bimestre') g2Record = g;
+          if (
+            (assessmentIdSet.has(g.period) || assessmentTitleSet.has(g.period)) &&
+            g.value !== null && g.value !== undefined && g.value !== ''
+          ) {
+            studentSubGrades.push(g);
+          }
+        }
 
         let finalGradeValue: number | null = null;
         let isCalculated = false;
 
-        // Fetch all subject assessments
-        const subAssessments = assessments.filter(a => 
-          a.class_id === selectedClassId && 
-          a.subject_id === sub.id
-        );
-        const assessmentIds = subAssessments.map(a => a.id);
-        const assessmentTitles = subAssessments.map(a => a.title);
-
-        const studentSubGrades = dbGrades.filter(g => 
-          g.student_id === student.id && 
-          g.class_id === selectedClassId && 
-          g.subject_id === sub.id && 
-          (assessmentIds.includes(g.period) || assessmentTitles.includes(g.period)) &&
-          g.value !== null && g.value !== undefined && g.value !== ''
-        );
-
         if (finalGradeRecord && finalGradeRecord.value !== null && finalGradeRecord.value !== undefined && finalGradeRecord.value !== '') {
-          finalGradeValue = typeof finalGradeRecord.value === 'string'
-            ? parseFloat(finalGradeRecord.value.replace(',', '.'))
-            : finalGradeRecord.value;
+          finalGradeValue = parseNum(finalGradeRecord.value);
         } else if (subAssessments.length > 0 && studentSubGrades.length > 0) {
-          const sum = studentSubGrades.reduce((acc, curr) => {
-            const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
-            return acc + (v || 0);
-          }, 0);
+          let sum = 0;
+          for (let sIdx = 0; sIdx < studentSubGrades.length; sIdx++) {
+            sum += parseNum(studentSubGrades[sIdx].value) || 0;
+          }
           finalGradeValue = sum / subAssessments.length;
           isCalculated = true;
         }
 
-        // Split assessments into 1ª and 2ª parts to represent standard mid-term / final-term evaluation
-        let grade1: number | null = null;
-        let grade2: number | null = null;
+        let grade1: number | null = (g1Record && g1Record.value !== null && g1Record.value !== '') ? parseNum(g1Record.value) : null;
+        let grade2: number | null = (g2Record && g2Record.value !== null && g2Record.value !== '') ? parseNum(g2Record.value) : null;
 
-        // Try exact match first
-        const g1Record = dbGrades.find(g => 
-          g.student_id === student.id && 
-          g.class_id === selectedClassId && 
-          g.subject_id === sub.id && 
-          (g.period === 'Avaliação 1' || g.period === '1ª Avaliação' || g.period === '1º Bimestre')
-        );
-        const g2Record = dbGrades.find(g => 
-          g.student_id === student.id && 
-          g.class_id === selectedClassId && 
-          g.subject_id === sub.id && 
-          (g.period === 'Avaliação 2' || g.period === '2ª Avaliação' || g.period === '2º Bimestre')
-        );
-
-        if (g1Record && g1Record.value !== null && g1Record.value !== '') {
-          grade1 = typeof g1Record.value === 'string' ? parseFloat(g1Record.value.replace(',', '.')) : g1Record.value;
-        }
-        if (g2Record && g2Record.value !== null && g2Record.value !== '') {
-          grade2 = typeof g2Record.value === 'string' ? parseFloat(g2Record.value.replace(',', '.')) : g2Record.value;
-        }
-
-        // Fallback: If no exact pre-named periods exist, split student assessments sequentially by date
         if (grade1 === null && grade2 === null && studentSubGrades.length > 0) {
-          const sortedAssessments = [...subAssessments].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-          const halfIndex = Math.ceil(sortedAssessments.length / 2);
-          
-          const g1Ids = sortedAssessments.slice(0, halfIndex).map(a => a.id);
-          const g1Titles = sortedAssessments.slice(0, halfIndex).map(a => a.title);
-          const g2Ids = sortedAssessments.slice(halfIndex).map(a => a.id);
-          const g2Titles = sortedAssessments.slice(halfIndex).map(a => a.title);
-
-          const g1Matches = studentSubGrades.filter(g => g1Ids.includes(g.period) || g1Titles.includes(g.period));
-          const g2Matches = studentSubGrades.filter(g => g2Ids.includes(g.period) || g2Titles.includes(g.period));
-
-          if (g1Matches.length > 0) {
-            const sumG1 = g1Matches.reduce((acc, curr) => acc + (typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value || 0), 0);
-            grade1 = sumG1 / g1Matches.length;
+          let g1Sum = 0, g1Count = 0, g2Sum = 0, g2Count = 0;
+          for (let sIdx = 0; sIdx < studentSubGrades.length; sIdx++) {
+            const g = studentSubGrades[sIdx];
+            const val = parseNum(g.value) || 0;
+            if (g1KeySet.has(g.period)) { g1Sum += val; g1Count++; }
+            if (g2KeySet.has(g.period)) { g2Sum += val; g2Count++; }
           }
-          if (g2Matches.length > 0) {
-            const sumG2 = g2Matches.reduce((acc, curr) => acc + (typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value || 0), 0);
-            grade2 = sumG2 / g2Matches.length;
-          }
+          if (g1Count > 0) grade1 = g1Sum / g1Count;
+          if (g2Count > 0) grade2 = g2Sum / g2Count;
         }
 
-        // Build list of detailed assessments and their grade
-        let detailedAssessments = subAssessments.map(assessment => {
-          const gradeRec = dbGrades.find(g => 
-            g.student_id === student.id && 
-            g.class_id === selectedClassId && 
-            g.subject_id === sub.id && 
-            (g.period === assessment.id || g.period === assessment.title)
-          );
+        const detailedAssessments = subAssessments.map(assessment => {
+          const gradeRec = gradeByPeriod.get(assessment.id) || gradeByPeriod.get(assessment.title);
           const gradeVal = gradeRec && gradeRec.value !== null && gradeRec.value !== undefined && gradeRec.value !== ''
-            ? (typeof gradeRec.value === 'string' ? parseFloat(gradeRec.value.replace(',', '.')) : gradeRec.value)
+            ? parseNum(gradeRec.value)
             : null;
           return {
             id: assessment.id,
@@ -457,36 +565,26 @@ export function Bulletin() {
 
         if (detailedAssessments.length === 0) {
           if (grade1 !== null) {
-            detailedAssessments.push({
-              id: 'virtual-g1',
-              title: '1ª Avaliação',
-              date: '',
-              weight: 1,
-              grade: grade1
-            });
+            detailedAssessments.push({ id: 'virtual-g1', title: '1ª Avaliação', date: '', weight: 1, grade: grade1 });
           }
           if (grade2 !== null) {
-            detailedAssessments.push({
-              id: 'virtual-g2',
-              title: '2ª Avaliação',
-              date: '',
-              weight: 1,
-              grade: grade2
-            });
+            detailedAssessments.push({ id: 'virtual-g2', title: '2ª Avaliação', date: '', weight: 1, grade: grade2 });
           }
         }
 
-        const validDetailedGrades = detailedAssessments.filter(da => da.grade !== null && da.grade !== undefined) as { grade: number }[];
-        const gradesSum = validDetailedGrades.length > 0 ? validDetailedGrades.reduce((sum, item) => sum + item.grade, 0) : null;
-        const gradesAverage = validDetailedGrades.length > 0 ? (gradesSum! / validDetailedGrades.length) : null;
+        let gradesSumVal = 0;
+        let gradesValidCount = 0;
+        for (let dIdx = 0; dIdx < detailedAssessments.length; dIdx++) {
+          const gVal = detailedAssessments[dIdx].grade;
+          if (gVal !== null && gVal !== undefined) {
+            gradesSumVal += gVal;
+            gradesValidCount++;
+          }
+        }
+        const gradesSum = gradesValidCount > 0 ? gradesSumVal : null;
+        const gradesAverage = gradesValidCount > 0 ? (gradesSumVal / gradesValidCount) : null;
 
-        // Determine Status per Subject
         let subjectStatus: 'Aprovado' | 'Reprovado' | 'Recuperação' | 'Pendente' = 'Pendente';
-        const minApp = academicParams.approval_grade || 7.0;
-        const minRec = academicParams.recovery_grade !== undefined && academicParams.recovery_grade !== null
-          ? academicParams.recovery_grade
-          : 5.0;
-
         if (!isAttendanceApproved) {
           subjectStatus = 'Reprovado';
         } else if (finalGradeValue === null) {
@@ -496,7 +594,7 @@ export function Bulletin() {
         } else if (finalGradeValue >= minRec) {
           subjectStatus = 'Recuperação';
         } else {
-          subjectStatus = 'Reprovado'; // If below recovery limit
+          subjectStatus = 'Reprovado';
         }
 
         return {
@@ -522,7 +620,6 @@ export function Bulletin() {
         };
       });
 
-      // Calculate Class averages for the summary footer
       let overallAbsences = 0;
       let validGradesCount = 0;
       let overallGradesSum = 0;
@@ -544,36 +641,26 @@ export function Bulletin() {
       const averageFrequency = validPresenceCount > 0 ? (overallPresenceSum / validPresenceCount) : null;
       const averageGrade = validGradesCount > 0 ? (overallGradesSum / validGradesCount) : 0;
 
-      // Class status evaluation
       let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' | 'Informativo' = 'Aprovado';
-      
-      const todayStr = new Date().toISOString().split('T')[0];
-      const hasFutureClasses = classSchoolDays.some(d => d.start_date > todayStr);
       const hasMissingGrades = subjectsPerformance.some(sp => sp.grade1 === null || sp.grade2 === null || sp.finalGrade === null);
-      
+
       if (hasFutureClasses || hasMissingGrades) {
         finalStatus = 'Informativo';
       } else {
         const hasPending = subjectsPerformance.some(sp => sp.status === 'Pendente');
-        const minApp = academicParams.approval_grade || 5.0;
-        const maxAbsencePct = academicParams.absence_limit_percentage || 25;
-        const attendanceThreshold = 100 - maxAbsencePct;
+        const minApproval = academicParams.approval_grade || 5.0;
         const isAttendanceApprovedClass = subjectsPerformance.every(sp => sp.isAttendanceApproved);
 
         if (!isAttendanceApprovedClass) {
           finalStatus = 'Reprovado';
         } else if (hasPending) {
           finalStatus = 'Pendente';
+        } else if (subjectsPerformance.some(sp => sp.status === 'Reprovado')) {
+          finalStatus = 'Reprovado';
         } else {
-          const hasDirectReprovado = subjectsPerformance.some(sp => sp.status === 'Reprovado');
-          if (hasDirectReprovado) {
-            finalStatus = 'Reprovado';
-          } else {
-            const failedSubjectCount = subjectsPerformance.filter(sp => sp.finalGrade !== null && sp.finalGrade < minApp).length;
-            if (failedSubjectCount > 0) {
-              // If failing in 1 or 2 subjects => eligible for Recuperação, if more => Reprovado
-              finalStatus = failedSubjectCount <= 2 ? 'Recuperação' : 'Reprovado';
-            }
+          const failedSubjectCount = subjectsPerformance.filter(sp => sp.finalGrade !== null && sp.finalGrade < minApproval).length;
+          if (failedSubjectCount > 0) {
+            finalStatus = failedSubjectCount <= 2 ? 'Recuperação' : 'Reprovado';
           }
         }
       }
@@ -587,7 +674,7 @@ export function Bulletin() {
         finalStatus
       };
     });
-  }, [selectedClassId, classStudents, classSubjects, attendanceData, dbGrades, assessments, academicParams, totalClassDays, classSchoolDays]);
+  }, [selectedClassId, activeClassObj, classStudents, classSubjects, attendanceData, dbGrades, assessments, academicParams, totalClassDays, classSchoolDays, scheduledDaysByMonth]);
 
   // Current selected student report (individual bulletin card)
   const activeStudentReport = useMemo(() => {
@@ -685,10 +772,7 @@ export function Bulletin() {
 
   // Print current screen report card
   const handlePrint = () => {
-    setIsPrinting(true);
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    window.print();
   };
 
   // Helper function to format grade values safely
@@ -735,309 +819,347 @@ export function Bulletin() {
     return "";
   };
 
-  // 1. Export Dynamic Individual Report Card as A4 PDF
-  const exportIndividualPDF = (reportToPdf: any) => {
+  // Shared builder for a student bulletin inside an A4 portrait jsPDF document
+  const renderStudentBulletinToDoc = (
+    doc: jsPDF,
+    report: any,
+    classObj: Class | undefined,
+    preloadedLogo: string,
+    margin: number = 14
+  ) => {
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const contentWidth = pageWidth - margin * 2; // 182mm on A4 portrait
+    const filterText = `TURMA: ${classObj?.name || 'N/D'}  •  ALUNO: ${formatRegistrationNumber(report.student.registration_number, 'S/M')}`;
+
+    const headerBottomY = drawStandardReportHeader(
+      doc,
+      institution,
+      'BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO',
+      filterText,
+      margin,
+      preloadedLogo
+    );
+
+    // --- Student Metadata Box (strictly bounded within [margin, pageWidth - margin]) ---
+    const metaY = headerBottomY;
+    const metaH = 14;
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.25);
+    doc.rect(margin, metaY, contentWidth, metaH, 'FD');
+
+    const leftColMaxW = 104;
+    const rightColMaxW = 66;
+    const rightX = pageWidth - margin - 3;
+
+    // Row 1: Aluno & Situação Cadastral
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('ALUNO:', margin + 3, metaY + 5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    const studentText = `${formatRegistrationNumber(report.student.registration_number, 'S/M')} - ${(report.student.name || '').toUpperCase()}`;
+    const fittedStudent = doc.splitTextToSize(studentText, leftColMaxW - 14)[0] || studentText;
+    doc.text(fittedStudent, margin + 17, metaY + 5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    const statusValue = `${report.student.status || 'Ativo'}`.toUpperCase();
+    doc.text(`SITUAÇÃO: ${statusValue}`, rightX, metaY + 5, { align: 'right', maxWidth: rightColMaxW });
+
+    // Row 2: Turma & Período
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('TURMA:', margin + 3, metaY + 10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    const classLabel = `${classObj?.name || 'N/D'}`.toUpperCase();
+    const fittedClass = doc.splitTextToSize(classLabel, leftColMaxW - 14)[0] || classLabel;
+    doc.text(fittedClass, margin + 17, metaY + 10.5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    const periodText = `PERÍODO: ${classObj?.period || 'Noite'} - ${(classObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase();
+    const fittedPeriod = doc.splitTextToSize(periodText, rightColMaxW)[0] || periodText;
+    doc.text(fittedPeriod, rightX, metaY + 10.5, { align: 'right' });
+
+    let cursorY = metaY + metaH + 5;
+
+    // --- Section I Label ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    doc.text('I. CONTROLE DE FALTAS MENSAIS E FREQUÊNCIA', margin, cursorY);
+    cursorY += 2.5;
+
+    // --- Table I: Frequency (strict 182mm total width = 52 + 12*8.2 + 14.6 + 17) ---
+    const headersFreq: any[] = [[
+      { content: 'Disciplinas', styles: { halign: 'left' as any, valign: 'middle' as any } },
+      'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
+      { content: 'Faltas', styles: { halign: 'center' as any, valign: 'middle' as any } },
+      { content: '% Freq.', styles: { halign: 'center' as any, valign: 'middle' as any } }
+    ]];
+
+    const rowsFreq = report.subjectsPerformance.map((sp: any) => {
+      const row = [`${sp.subjectCode} - ${sp.subjectName}`];
+      const subSem = sp.semester || 'Geral';
+      monthsList.forEach(m => {
+        const isBlocked = isSubjectMonthBlocked(subSem, m.index);
+        if (isBlocked) {
+          row.push('-');
+        } else {
+          const abs = sp.monthlyAbsences[m.index];
+          row.push(abs > 0 ? abs.toString() : '');
+        }
+      });
+      row.push(sp.totalAbsences.toString());
+      row.push(sp.presencePercentage !== null ? `${formatPresence(sp.presencePercentage)}%` : '-');
+      return row;
+    });
+
+    const rowScheduled = ['AULAS NO MÊS'];
+    monthsList.forEach(m => {
+      const count = scheduledDaysByMonth[m.index];
+      rowScheduled.push(count > 0 ? count.toString() : '-');
+    });
+    rowScheduled.push(totalClassDays.toString());
+    rowScheduled.push('-');
+    rowsFreq.unshift(rowScheduled);
+
+    autoTable(doc, {
+      head: headersFreq,
+      body: rowsFreq,
+      startY: cursorY,
+      margin: { top: 56, left: margin, right: margin, bottom: 25 },
+      tableWidth: contentWidth,
+      theme: 'grid',
+      styles: {
+        fontSize: 6.8,
+        cellPadding: { top: 1.8, bottom: 1.8, left: 0.6, right: 0.6 },
+        lineColor: [203, 213, 225],
+        lineWidth: 0.15,
+        textColor: [30, 41, 59],
+        font: 'helvetica',
+        overflow: 'linebreak'
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 6.5,
+        lineWidth: 0.15,
+        lineColor: [15, 23, 42]
+      },
+      columnStyles: {
+        0: { cellWidth: 52, fontStyle: 'bold' },
+        1: { cellWidth: 8.2, halign: 'center' },
+        2: { cellWidth: 8.2, halign: 'center' },
+        3: { cellWidth: 8.2, halign: 'center' },
+        4: { cellWidth: 8.2, halign: 'center' },
+        5: { cellWidth: 8.2, halign: 'center' },
+        6: { cellWidth: 8.2, halign: 'center' },
+        7: { cellWidth: 8.2, halign: 'center' },
+        8: { cellWidth: 8.2, halign: 'center' },
+        9: { cellWidth: 8.2, halign: 'center' },
+        10: { cellWidth: 8.2, halign: 'center' },
+        11: { cellWidth: 8.2, halign: 'center' },
+        12: { cellWidth: 8.2, halign: 'center' },
+        13: { cellWidth: 14.6, halign: 'center' },
+        14: { cellWidth: 17, halign: 'center' }
+      }
+    });
+
+    cursorY = (doc as any).lastAutoTable.finalY + 6;
+    if (cursorY > pageHeight - 45) {
+      doc.addPage();
+      cursorY = drawStandardReportHeader(
+        doc,
+        institution,
+        'BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO',
+        filterText,
+        margin,
+        preloadedLogo
+      );
+    }
+
+    // --- Section II Label ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    doc.text('II. APROVEITAMENTO ACADÊMICO E SITUAÇÃO FINAL', margin, cursorY);
+    cursorY += 2.5;
+
+    // --- Table II: Grades (strict 182mm total width = 92 + 22 + 20 + 20 + 28) ---
+    const headersGrades: any[] = [[
+      { content: 'Disciplina / Avaliações', styles: { halign: 'left' as any, valign: 'middle' as any } },
+      { content: 'Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+      { content: 'Soma', styles: { halign: 'center' as any, valign: 'middle' as any } },
+      { content: 'Média Final', styles: { halign: 'center' as any, valign: 'middle' as any } },
+      { content: 'Situação', styles: { halign: 'center' as any, valign: 'middle' as any } }
+    ]];
+
+    const rowsGrades: any[] = [];
+    report.subjectsPerformance.forEach((sp: any) => {
+      rowsGrades.push([
+        {
+          content: `${sp.subjectCode} - ${sp.subjectName}`,
+          colSpan: 5,
+          styles: { fontStyle: 'bold' as any, fillColor: [241, 245, 249], textColor: [15, 23, 42] }
+        }
+      ]);
+
+      sp.detailedAssessments?.forEach((da: any, idx: number) => {
+        rowsGrades.push([
+          `  ↳ ${da.title || `Avaliação ${idx + 1}`}`,
+          da.grade !== null && da.grade !== undefined ? formatGrade(da.grade) : '-',
+          '-',
+          '-',
+          '-'
+        ]);
+      });
+
+      rowsGrades.push([
+        { content: '  SOMA E MÉDIA DO COMPONENTE', styles: { fontStyle: 'bold' as any, textColor: [71, 85, 105] } },
+        '-',
+        sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-',
+        sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-',
+        sp.status === 'Pendente' ? 'Pendente' : (report.finalStatus === 'Informativo' ? '-' : sp.status)
+      ]);
+    });
+
+    autoTable(doc, {
+      head: headersGrades,
+      body: rowsGrades,
+      startY: cursorY,
+      margin: { top: 56, left: margin, right: margin, bottom: 25 },
+      tableWidth: contentWidth,
+      theme: 'grid',
+      styles: {
+        fontSize: 7.2,
+        cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 },
+        lineColor: [203, 213, 225],
+        lineWidth: 0.15,
+        textColor: [30, 41, 59],
+        font: 'helvetica'
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7,
+        lineWidth: 0.15,
+        lineColor: [15, 23, 42]
+      },
+      columnStyles: {
+        0: { cellWidth: 92 },
+        1: { cellWidth: 22, halign: 'center' },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }
+      }
+    });
+
+    // --- Summary Card + Justification Panel (with bottom footer clearance guard) ---
+    let finalY = (doc as any).lastAutoTable.finalY + 5;
+    const justificationText = getReportJustificationText(report, academicParams);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.2);
+    const wrappedJustif = doc.splitTextToSize(justificationText, contentWidth - 8);
+    const justifHeight = 8 + wrappedJustif.length * 3.4;
+    const summaryHeight = 16;
+    const neededBlockHeight = summaryHeight + 4 + justifHeight;
+
+    if (finalY + neededBlockHeight > pageHeight - 23) {
+      doc.addPage();
+      finalY = drawStandardReportHeader(
+        doc,
+        institution,
+        'BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO',
+        filterText,
+        margin,
+        preloadedLogo
+      );
+    }
+
+    // 3-column summary card aligned strictly to [margin, pageWidth - margin] (width = 114mm, right-aligned)
+    const cardW = 114;
+    const cardX = pageWidth - margin - cardW;
+    const colW = cardW / 3;
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.25);
+    doc.setFillColor(248, 250, 252);
+    doc.rect(cardX, finalY, cardW, summaryHeight, 'FD');
+    doc.line(cardX + colW, finalY, cardX + colW, finalY + summaryHeight);
+    doc.line(cardX + colW * 2, finalY, cardX + colW * 2, finalY + summaryHeight);
+    doc.line(cardX, finalY + 7.5, cardX + cardW, finalY + 7.5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('MÉDIA FREQUÊNCIA', cardX + colW * 0.5, finalY + 5, { align: 'center' });
+    doc.text('MÉDIA DE NOTAS', cardX + colW * 1.5, finalY + 5, { align: 'center' });
+    doc.text('SITUAÇÃO GERAL', cardX + colW * 2.5, finalY + 5, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(report.averageFrequency !== null ? `${formatPresence(report.averageFrequency)}%` : '-', cardX + colW * 0.5, finalY + 13, { align: 'center' });
+    doc.text(formatGrade(report.averageGrade), cardX + colW * 1.5, finalY + 13, { align: 'center' });
+    doc.text(String(report.finalStatus || '-').toUpperCase(), cardX + colW * 2.5, finalY + 13, { align: 'center' });
+
+    // Justification block
+    const jY = finalY + summaryHeight + 4;
+    doc.setFillColor(255, 241, 242);
+    doc.setDrawColor(254, 205, 211);
+    doc.setLineWidth(0.25);
+    doc.rect(margin, jY, contentWidth, justifHeight, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.8);
+    doc.setTextColor(190, 18, 60);
+    doc.text('JUSTIFICATIVA DO RESULTADO / PARECER DA SECRETARIA:', margin + 4, jY + 4.8);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.2);
+    doc.setTextColor(51, 65, 85);
+    doc.text(wrappedJustif, margin + 4, jY + 9);
+  };
+
+  // 1. Export Dynamic Individual Report Card as A4 PDF (Fast, async preloaded logo)
+  const exportIndividualPDF = async (reportToPdf: any) => {
     if (!reportToPdf) return;
     setExportingPDF(true);
 
     try {
+      const preloadedLogo = await preloadReportLogoDataUrl(institution?.logo_url);
       const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
         format: 'a4'
       });
 
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 15;
-      const centerX = pageWidth / 2;
-      let y = 15;
+      const margin = 14;
+      renderStudentBulletinToDoc(doc, reportToPdf, activeClassObj, preloadedLogo, margin);
+      drawStandardReportFooter(doc, institution, margin);
 
-      const darkColor = [33, 41, 54]; // Dark slate
-
-      // --- 1. Logo or School Standard Header ---
-      let textStartX = margin;
-      let logoWidth = 0;
-
-      if (institution?.logo_url) {
-        try { 
-          doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
-          logoWidth = 26;
-        } catch (e) {}
-      }
-      
-      textStartX = margin + logoWidth;
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
-
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
-      
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80);
-      const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
-      doc.text(subTitleText, textStartX, y + 17);
-
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.8);
-      doc.line(margin, y + 24, pageWidth - margin, y + 24);
-
-      y += 32;
-
-      // --- 2. Centered Page Title ---
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-      doc.text('BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
-
-      // --- 3. Student Metadata block ---
-      const activeClassObj = classes.find(c => c.id === selectedClassId);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      doc.setTextColor(60);
-      doc.text('ALUNO:', 15, y + 10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(30);
-      doc.text(`${formatRegistrationNumber(reportToPdf.student.registration_number, 'S/M')} - ${reportToPdf.student.name.toUpperCase()}`, 32, y + 10);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(60);
-      doc.text('SITUAÇÃO:', 150, y + 10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(30);
-      doc.text(`${reportToPdf.student.status || 'Ativo'}`.toUpperCase(), 170, y + 10);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(60);
-      doc.text('TURMA:', 15, y + 16);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(30);
-      doc.text(`${activeClassObj?.name || 'N/D'}`.toUpperCase(), 32, y + 16);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(60);
-      doc.text('PERÍODO:', 150, y + 16);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(30);
-      doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 170, y + 16);
-
-      doc.setDrawColor(220);
-      doc.setLineWidth(0.3);
-      doc.line(margin, y + 20, pageWidth - margin, y + 20);
-
-      const tableStartY = y + 23;
-
-      // --- 4. VIA FREQUÊNCIA: Monthly Absences Table ---
-      const headersFreq: any[] = [[
-        { content: 'Disciplinas (Controle de Faltas Mensais)', styles: { halign: 'left' as any, valign: 'middle' as any } },
-        'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
-        { content: 'Qt. Faltas', styles: { halign: 'center' as any, valign: 'middle' as any } },
-        { content: '% Freq.', styles: { halign: 'center' as any, valign: 'middle' as any } }
-      ]];
-
-      const rowsFreq = reportToPdf.subjectsPerformance.map((sp: any) => {
-        const row = [
-          `${sp.subjectCode} - ${sp.subjectName}`
-        ];
-        const subSem = sp.semester || getSubjectSemester(subjects.find(s => s.id === sp.subjectId));
-        monthsList.forEach(m => {
-          const isBlocked = isSubjectMonthBlocked(subSem, m.index);
-          if (isBlocked) {
-            row.push('-');
-          } else {
-            const abs = sp.monthlyAbsences[m.index];
-            row.push(abs > 0 ? abs.toString() : '');
-          }
-        });
-        row.push(sp.totalAbsences.toString());
-        row.push(sp.presencePercentage !== null ? formatPresence(sp.presencePercentage) + '%' : '-');
-        return row;
-      });
-
-      // Add "Aulas no Mês" row to PDF
-      const rowScheduled = [
-        'AULAS NO MÊS'
-      ];
-      monthsList.forEach(m => {
-        const count = scheduledDaysByMonth[m.index];
-        rowScheduled.push(count > 0 ? count.toString() : '-');
-      });
-      rowScheduled.push(totalClassDays.toString());
-      rowScheduled.push('-');
-      rowsFreq.unshift(rowScheduled);
-
-      autoTable(doc, {
-        head: headersFreq,
-        body: rowsFreq,
-        startY: tableStartY,
-        theme: 'grid',
-        styles: {
-          fontSize: 7,
-          cellPadding: { top: 2, bottom: 2, left: 0.5, right: 0.5 },
-          lineColor: [226, 232, 240],
-          lineWidth: 0.15,
-          textColor: [33, 41, 54],
-          font: 'helvetica'
-        },
-        headStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          fontSize: 6.8,
-          lineWidth: 0.15,
-          lineColor: [226, 232, 240]
-        },
-        columnStyles: {
-          0: { cellWidth: 54, fontStyle: 'bold' },
-          1: { cellWidth: 8.5, halign: 'center' },
-          2: { cellWidth: 8.5, halign: 'center' },
-          3: { cellWidth: 8.5, halign: 'center' },
-          4: { cellWidth: 8.5, halign: 'center' },
-          5: { cellWidth: 8.5, halign: 'center' },
-          6: { cellWidth: 8.5, halign: 'center' },
-          7: { cellWidth: 8.5, halign: 'center' },
-          8: { cellWidth: 8.5, halign: 'center' },
-          9: { cellWidth: 8.5, halign: 'center' },
-          10: { cellWidth: 8.5, halign: 'center' },
-          11: { cellWidth: 8.5, halign: 'center' },
-          12: { cellWidth: 8.5, halign: 'center' },
-          13: { cellWidth: 11, halign: 'center' },
-          14: { cellWidth: 13, halign: 'center' }
-        }
-      });
-
-      const nextY = (doc as any).lastAutoTable.finalY + 8;
-
-      // --- 5. VIA RENDIMENTO: Grades and Academic Performance Table ---
-      const headersGrades: any[] = [[
-        { content: 'Disciplina / Avaliações', styles: { halign: 'left' as any, valign: 'middle' as any } },
-        { content: 'Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
-        { content: 'Soma', styles: { halign: 'center' as any, valign: 'middle' as any } },
-        { content: 'Média Final', styles: { halign: 'center' as any, valign: 'middle' as any } },
-        { content: 'Situação Geral', styles: { halign: 'center' as any, valign: 'middle' as any } }
-      ]];
-
-      const rowsGrades: any[] = [];
-      reportToPdf.subjectsPerformance.forEach((sp: any) => {
-        // Subject header row
-        rowsGrades.push([
-          { 
-            content: `${sp.subjectCode} - ${sp.subjectName}`, 
-            colSpan: 5, 
-            styles: { fontStyle: 'bold' as any, fillColor: [241, 245, 249], textColor: [15, 23, 42] } 
-          }
-        ]);
-
-        // Detailed assessments
-        sp.detailedAssessments?.forEach((da: any, idx: number) => {
-          rowsGrades.push([
-            `  ↳ ${da.title || `Avaliação ${idx + 1}`}`,
-            da.grade !== null && da.grade !== undefined ? formatGrade(da.grade) : '-',
-            '-',
-            '-',
-            '-'
-          ]);
-        });
-
-        // Totals row
-        rowsGrades.push([
-          { content: '  SOMA E MÉDIA DO COMPONENTE', styles: { fontStyle: 'bold' as any, textColor: [71, 85, 105] } },
-          '-',
-          sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-',
-          sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-',
-          sp.status === 'Pendente' ? 'Pendente' : (reportToPdf.finalStatus === 'Informativo' ? '-' : sp.status)
-        ]);
-      });
-
-      autoTable(doc, {
-        head: headersGrades,
-        body: rowsGrades,
-        startY: nextY,
-        theme: 'grid',
-        styles: {
-          fontSize: 7.5,
-          cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
-          lineColor: [226, 232, 240],
-          lineWidth: 0.15,
-          textColor: [33, 41, 54],
-          font: 'helvetica'
-        },
-        headStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          fontSize: 7,
-          lineWidth: 0.15,
-          lineColor: [226, 232, 240]
-        },
-        columnStyles: {
-          0: { cellWidth: 92 },
-          1: { cellWidth: 20, halign: 'center' },
-          2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 20, halign: 'center' },
-          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }
-        }
-      });
-
-      // --- 6. Summary Footer block ---
-      const finalY = (doc as any).lastAutoTable.finalY + 4;
-      
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.2);
-
-      // Drawing elegant averages summary card aligned to the right margin (195mm)
-      // Card width is 80mm, so starting X is 195 - 80 = 115mm
-      doc.setFillColor(248, 250, 252);
-      doc.rect(115, finalY, 80, 14, 'F');
-      doc.rect(115, finalY, 80, 14, 'S');
-
-      doc.line(155, finalY, 155, finalY + 14);
-      doc.line(115, finalY + 7, 195, finalY + 7);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.5);
-      doc.setTextColor(51, 65, 85);
-      doc.text('MÉDIA DE FREQUÊNCIA', 135, finalY + 4.5, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.text(reportToPdf.averageFrequency !== null ? `${formatPresence(reportToPdf.averageFrequency)}%` : '-', 135, finalY + 11.5, { align: 'center' });
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.5);
-      doc.text('MÉDIA GERAL DE NOTAS', 175, finalY + 4.5, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.text(formatGrade(reportToPdf.averageGrade), 175, finalY + 11.5, { align: 'center' });
-
-      // --- 7. Bottom System Footer ---
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.3);
-      doc.line(margin, 282, pageWidth - margin, 282);
-
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(120);
-      doc.text('Página 1 de 1', pageWidth - margin, 288, { align: 'right' });
-
-      doc.save(`boletim_${reportToPdf.student.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}.pdf`);
+      const safeName = (reportToPdf.student.name || 'aluno').toLowerCase().replace(/\s+/g, '_');
+      doc.save(`boletim_${safeName}_${new Date().getFullYear()}.pdf`);
     } catch (err) {
       console.error('Error generating individual PDF:', err);
     } finally {
-      setKeepStateTimeout(() => setExportingPDF(false), 800);
+      setExportingPDF(false);
     }
   };
 
-  // 2. Export Class-wide summary situation report as PDF (fixed and aligned)
-  const exportClassSummaryPDF = () => {
+  // 2. Export Class-wide summary situation report as PDF (Aligned inside A4 margins with standard header/footer)
+  const exportClassSummaryPDF = async () => {
     if (!selectedClassId) return;
     setExportingPDF(true);
 
     try {
+      const preloadedLogo = await preloadReportLogoDataUrl(institution?.logo_url);
       const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
@@ -1045,88 +1167,46 @@ export function Bulletin() {
       });
 
       const pageWidth = doc.internal.pageSize.width;
-      const margin = 15;
-      const centerX = pageWidth / 2;
-      let y = 15;
+      const margin = 14;
+      const contentWidth = pageWidth - margin * 2; // 182mm
 
-      const activeClassObj = classes.find(c => c.id === selectedClassId);
+      const filterText = `TURMA: ${activeClassObj?.name || 'N/D'}  •  SEMESTRE: ${activeClassObj?.semester || '1º'}  •  TURNO: ${activeClassObj?.period || 'Noite'}  •  DIAS LETIVOS: ${totalClassDays}`;
+      let y = drawStandardReportHeader(
+        doc,
+        institution,
+        'RELATÓRIO RESUMIDO DE RENDIMENTO ACADÊMICO',
+        filterText,
+        margin,
+        preloadedLogo
+      );
 
-      // --- 1. Logo or School Standard Header ---
-      let textStartX = margin;
-      let logoWidth = 0;
-
-      if (institution?.logo_url) {
-        try { 
-          doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
-          logoWidth = 26;
-        } catch (e) {}
-      }
-      
-      textStartX = margin + logoWidth;
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
-
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
-      
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80);
-      const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
-      doc.text(subTitleText, textStartX, y + 17);
-
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.8);
-      doc.line(margin, y + 24, pageWidth - margin, y + 24);
-
-      y += 32;
-
-      // --- 2. Centered Page Title ---
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(33, 41, 54);
-      doc.text('RELATÓRIO RESUMIDO DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(100);
-      doc.text(`Turma: ${activeClassObj?.name || 'N/D'} | Semestre: ${activeClassObj?.semester || '1º'} | Turno: ${activeClassObj?.period || 'Noite'}`, centerX, y + 6, { align: 'center' });
-      doc.text(`Quantidade total de dias letivos considerados: ${totalClassDays} dias`, centerX, y + 11, { align: 'center' });
-
-      y += 18;
-
-      // Statistics grid
-      const total = studentReports.length;
-      const approved = studentReports.filter(r => r.finalStatus === 'Aprovado').length;
-      const recuperation = studentReports.filter(r => r.finalStatus === 'Recuperação').length;
-      const failed = studentReports.filter(r => r.finalStatus === 'Reprovado').length;
-      const pending = studentReports.filter(r => r.finalStatus === 'Pendente').length;
-      const informative = studentReports.filter(r => r.finalStatus === 'Informativo').length;
-
+      // Summary Statistics Strip (bounded cleanly inside contentWidth = 182mm)
       doc.setFillColor(248, 250, 252);
-      doc.rect(margin, y, pageWidth - (margin * 2), 14, 'F');
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(margin, y, pageWidth - (margin * 2), 14, 'S');
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.25);
+      doc.rect(margin, y, contentWidth, 12, 'FD');
 
+      const statsLabels = [
+        `ALUNOS: ${total}`,
+        `INFORMATIVOS: ${informative}`,
+        `APROVADOS: ${approved}`,
+        `RECUPERAÇÃO: ${recuperation}`,
+        `REPROVADOS: ${failed}`,
+        `PENDENTES: ${pending}`
+      ];
+      const segmentW = contentWidth / statsLabels.length;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(71, 85, 105);
-      doc.text(`Total Alunos: ${total}`, margin + 4, y + 8.5);
-      doc.text(`Informativos: ${informative}`, margin + 33, y + 8.5);
-      doc.text(`Aprovados: ${approved}`, margin + 62, y + 8.5);
-      doc.text(`Em Recuperação: ${recuperation}`, margin + 90, y + 8.5);
-      doc.text(`Reprovados: ${failed}`, margin + 125, y + 8.5);
-      doc.text(`Pendentes: ${pending}`, margin + 152, y + 8.5);
+      doc.setFontSize(6.8);
+      doc.setTextColor(30, 41, 59);
+      statsLabels.forEach((lbl, idx) => {
+        doc.text(lbl, margin + segmentW * (idx + 0.5), y + 7.2, { align: 'center' });
+      });
 
-      y += 20;
+      y += 16;
 
-      // Student rows Table
+      // Student rows Table (strict 182mm total width = 26 + 66 + 22 + 22 + 18 + 28)
       const headers = [['Matrícula', 'Aluno', 'Média Notas', 'Total Faltas', 'Freq. %', 'Situação Geral']];
-      const rows = filteredReports.map(res => [
+      const rows = sortedReports.map(res => [
         formatRegistrationNumber(res.student.registration_number, 'N/D'),
         res.student.name.toUpperCase(),
         formatGrade(res.averageGrade),
@@ -1139,357 +1219,75 @@ export function Bulletin() {
         head: headers,
         body: rows,
         startY: y,
+        margin: { top: 56, left: margin, right: margin, bottom: 25 },
+        tableWidth: contentWidth,
         theme: 'grid',
-        styles: { 
-          fontSize: 8, 
-          cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
-          lineColor: [226, 232, 240],
+        styles: {
+          fontSize: 7.5,
+          cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
+          lineColor: [203, 213, 225],
           lineWidth: 0.15,
-          textColor: [33, 41, 54],
+          textColor: [30, 41, 59],
           font: 'helvetica'
         },
-        headStyles: { 
-          fillColor: [241, 245, 249], 
-          textColor: [15, 23, 42], 
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
           fontStyle: 'bold',
+          fontSize: 7.5,
           lineWidth: 0.15,
-          lineColor: [226, 232, 240]
+          lineColor: [15, 23, 42]
         },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
         columnStyles: {
-          0: { cellWidth: 28 },
-          1: { cellWidth: 62 },
+          0: { cellWidth: 26 },
+          1: { cellWidth: 66 },
           2: { cellWidth: 22, halign: 'center' },
           3: { cellWidth: 22, halign: 'center' },
-          4: { cellWidth: 20, halign: 'center' },
-          5: { cellWidth: 26, halign: 'center', fontStyle: 'bold' }
+          4: { cellWidth: 18, halign: 'center' },
+          5: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }
         }
       });
 
-      // Bottom footer information
-      const finalHeight = doc.internal.pageSize.height;
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.3);
-      doc.line(margin, finalHeight - 15, pageWidth - margin, finalHeight - 15);
-
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(140);
-      doc.text('Página 1 de 1', pageWidth - margin, finalHeight - 9, { align: 'right' });
+      drawStandardReportFooter(doc, institution, margin);
 
       doc.save(`situacao_academica_turma_${activeClassObj?.name.toLowerCase().replace(/\s+/g, '_') || 'classe'}.pdf`);
     } catch (e) {
       console.error('Error generating class summary PDF:', e);
     } finally {
-      setKeepStateTimeout(() => setExportingPDF(false), 800);
+      setExportingPDF(false);
     }
   };
 
-  // 3. Export ALL active bulletins of the class sequentially (Lote) in a single dynamic file!
-  const exportAllClassBulletinsPDF = () => {
+  // 3. Export ALL active bulletins of the class sequentially (Lote) without blocking UI
+  const exportAllClassBulletinsPDF = async () => {
     if (!selectedClassId || studentReports.length === 0) return;
     setExportingPDF(true);
 
     try {
+      const preloadedLogo = await preloadReportLogoDataUrl(institution?.logo_url);
       const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
         format: 'a4'
       });
 
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 15;
-      const centerX = pageWidth / 2;
-
-      const darkColor = [33, 41, 54];
-      const activeClassObj = classes.find(c => c.id === selectedClassId);
-
-      studentReports.forEach((report, index) => {
-        // Only trigger page addition if index > 0 (subsequent pages)
-        if (index > 0) {
-          doc.addPage();
+      const margin = 14;
+      for (let i = 0; i < studentReports.length; i++) {
+        if (i > 0) doc.addPage();
+        renderStudentBulletinToDoc(doc, studentReports[i], activeClassObj, preloadedLogo, margin);
+        if ((i + 1) % 6 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
         }
+      }
 
-        let y = 15;
-
-        // --- 1. Logo or School Standard Header ---
-        let textStartX = margin;
-        let logoWidth = 0;
-
-        if (institution?.logo_url) {
-          try { 
-            doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
-            logoWidth = 26;
-          } catch (e) {}
-        }
-        
-        textStartX = margin + logoWidth;
-
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
-
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80);
-        const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
-        doc.text(subTitleText, textStartX, y + 17);
-
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.8);
-        doc.line(margin, y + 24, pageWidth - margin, y + 24);
-
-        y += 32;
-
-        // --- 2. Centered Page Title ---
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-        doc.text('BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
-
-        // --- 3. Student Metadata block ---
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(60);
-        doc.text('ALUNO:', 15, y + 10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(30);
-        doc.text(`${formatRegistrationNumber(report.student.registration_number, 'S/M')} - ${report.student.name.toUpperCase()}`, 32, y + 10);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(60);
-        doc.text('SITUAÇÃO:', 150, y + 10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(30);
-        doc.text(`${report.student.status || 'Ativo'}`.toUpperCase(), 170, y + 10);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(60);
-        doc.text('TURMA:', 15, y + 16);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(30);
-        doc.text(`${activeClassObj?.name || 'N/D'}`.toUpperCase(), 32, y + 16);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(60);
-        doc.text('PERÍODO:', 150, y + 16);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(30);
-        doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 170, y + 16);
-
-        doc.setDrawColor(220);
-        doc.setLineWidth(0.3);
-        doc.line(margin, y + 20, pageWidth - margin, y + 20);
-
-        const tableStartY = y + 23;
-
-        // --- 4. VIA FREQUÊNCIA: Monthly Absences Table ---
-        const headersFreq: any[] = [[
-          { content: 'Disciplinas (Controle de Faltas Mensais)', styles: { halign: 'left' as any, valign: 'middle' as any } },
-          'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
-          { content: 'Qt. Faltas', styles: { halign: 'center' as any, valign: 'middle' as any } },
-          { content: '% Freq.', styles: { halign: 'center' as any, valign: 'middle' as any } }
-        ]];
-
-        const rowsFreq = report.subjectsPerformance.map((sp: any) => {
-          const row = [
-            `${sp.subjectCode} - ${sp.subjectName}`
-          ];
-          const subSem = sp.semester || getSubjectSemester(subjects.find(s => s.id === sp.subjectId));
-          monthsList.forEach(m => {
-            const isBlocked = isSubjectMonthBlocked(subSem, m.index);
-            if (isBlocked) {
-              row.push('-');
-            } else {
-              const abs = sp.monthlyAbsences[m.index];
-              row.push(abs > 0 ? abs.toString() : '');
-            }
-          });
-          row.push(sp.totalAbsences.toString());
-          row.push(sp.presencePercentage !== null ? formatPresence(sp.presencePercentage) + '%' : '-');
-          return row;
-        });
-
-        // Add "Aulas no Mês" row to PDF
-        const rowScheduled = [
-          'AULAS NO MÊS'
-        ];
-        monthsList.forEach(m => {
-          const count = scheduledDaysByMonth[m.index];
-          rowScheduled.push(count > 0 ? count.toString() : '-');
-        });
-        rowScheduled.push(totalClassDays.toString());
-        rowScheduled.push('-');
-        rowsFreq.unshift(rowScheduled);
-
-        autoTable(doc, {
-          head: headersFreq,
-          body: rowsFreq,
-          startY: tableStartY,
-          theme: 'grid',
-          styles: {
-            fontSize: 7,
-            cellPadding: { top: 2, bottom: 2, left: 0.5, right: 0.5 },
-            lineColor: [226, 232, 240],
-            lineWidth: 0.15,
-            textColor: [33, 41, 54],
-            font: 'helvetica'
-          },
-          headStyles: {
-            fillColor: [241, 245, 249],
-            textColor: [15, 23, 42],
-            fontStyle: 'bold',
-            fontSize: 6.8,
-            lineWidth: 0.15,
-            lineColor: [226, 232, 240]
-          },
-          columnStyles: {
-            0: { cellWidth: 54, fontStyle: 'bold' },
-            1: { cellWidth: 8.5, halign: 'center' },
-            2: { cellWidth: 8.5, halign: 'center' },
-            3: { cellWidth: 8.5, halign: 'center' },
-            4: { cellWidth: 8.5, halign: 'center' },
-            5: { cellWidth: 8.5, halign: 'center' },
-            6: { cellWidth: 8.5, halign: 'center' },
-            7: { cellWidth: 8.5, halign: 'center' },
-            8: { cellWidth: 8.5, halign: 'center' },
-            9: { cellWidth: 8.5, halign: 'center' },
-            10: { cellWidth: 8.5, halign: 'center' },
-            11: { cellWidth: 8.5, halign: 'center' },
-            12: { cellWidth: 8.5, halign: 'center' },
-            13: { cellWidth: 11, halign: 'center' },
-            14: { cellWidth: 13, halign: 'center' }
-          }
-        });
-
-        const nextY = (doc as any).lastAutoTable.finalY + 8;
-
-        // --- 5. VIA RENDIMENTO: Grades and Academic Performance Table ---
-        const headersGrades: any[] = [[
-          { content: 'Disciplina / Avaliações', styles: { halign: 'left' as any, valign: 'middle' as any } },
-          { content: 'Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
-          { content: 'Soma', styles: { halign: 'center' as any, valign: 'middle' as any } },
-          { content: 'Média Final', styles: { halign: 'center' as any, valign: 'middle' as any } },
-          { content: 'Situação Geral', styles: { halign: 'center' as any, valign: 'middle' as any } }
-        ]];
-
-        const rowsGrades: any[] = [];
-        report.subjectsPerformance.forEach((sp: any) => {
-          // Subject header row
-          rowsGrades.push([
-            { 
-              content: `${sp.subjectCode} - ${sp.subjectName}`, 
-              colSpan: 5, 
-              styles: { fontStyle: 'bold' as any, fillColor: [241, 245, 249], textColor: [15, 23, 42] } 
-            }
-          ]);
-
-          // Detailed assessments
-          sp.detailedAssessments?.forEach((da: any, idx: number) => {
-            rowsGrades.push([
-              `  ↳ ${da.title || `Avaliação ${idx + 1}`}`,
-              da.grade !== null && da.grade !== undefined ? formatGrade(da.grade) : '-',
-              '-',
-              '-',
-              '-'
-            ]);
-          });
-
-          // Totals row
-          rowsGrades.push([
-            { content: '  SOMA E MÉDIA DO COMPONENTE', styles: { fontStyle: 'bold' as any, textColor: [71, 85, 105] } },
-            '-',
-            sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-',
-            sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-',
-            sp.status === 'Pendente' ? 'Pendente' : (report.finalStatus === 'Informativo' ? '-' : sp.status)
-          ]);
-        });
-
-        autoTable(doc, {
-          head: headersGrades,
-          body: rowsGrades,
-          startY: nextY,
-          theme: 'grid',
-          styles: {
-            fontSize: 7.5,
-            cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
-            lineColor: [226, 232, 240],
-            lineWidth: 0.15,
-            textColor: [33, 41, 54],
-            font: 'helvetica'
-          },
-          headStyles: {
-            fillColor: [241, 245, 249],
-            textColor: [15, 23, 42],
-            fontStyle: 'bold',
-            fontSize: 7,
-            lineWidth: 0.15,
-            lineColor: [226, 232, 240]
-          },
-          columnStyles: {
-            0: { cellWidth: 92 },
-            1: { cellWidth: 20, halign: 'center' },
-            2: { cellWidth: 20, halign: 'center' },
-            3: { cellWidth: 20, halign: 'center' },
-            4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }
-          }
-        });
-
-        // --- 6. Summary Footer block ---
-        const finalY = (doc as any).lastAutoTable.finalY + 4;
-        
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.2);
-
-        doc.setFillColor(248, 250, 252);
-        doc.rect(115, finalY, 80, 14, 'F');
-        doc.rect(115, finalY, 80, 14, 'S');
-
-        doc.line(155, finalY, 155, finalY + 14);
-        doc.line(115, finalY + 7, 195, finalY + 7);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.setTextColor(51, 65, 85);
-        doc.text('MÉDIA DE FREQUÊNCIA', 135, finalY + 4.5, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.text(report.averageFrequency !== null ? `${formatPresence(report.averageFrequency)}%` : '-', 135, finalY + 11.5, { align: 'center' });
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.text('MÉDIA GERAL DE NOTAS', 175, finalY + 4.5, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.text(formatGrade(report.averageGrade), 175, finalY + 11.5, { align: 'center' });
-
-        // --- 7. Bottom System Footer ---
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
-        doc.line(margin, 282, pageWidth - margin, 282);
-
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(120);
-        doc.text(`Página ${index + 1} de ${studentReports.length}`, pageWidth - margin, 288, { align: 'right' });
-      });
-
+      drawStandardReportFooter(doc, institution, margin);
       doc.save(`boletins_lote_turma_${activeClassObj?.name.toLowerCase().replace(/\s+/g, '_') || 'classe'}.pdf`);
     } catch (e) {
       console.error('Error in batch PDF export:', e);
     } finally {
-      setKeepStateTimeout(() => setExportingPDF(false), 800);
+      setExportingPDF(false);
     }
-  };
-
-  // Safe helper to timeout spinner
-  const setKeepStateTimeout = (fn: Function, ms: number) => {
-    const timer = setTimeout(fn, ms);
-    return () => clearTimeout(timer);
   };
 
   return (
@@ -1631,15 +1429,48 @@ export function Bulletin() {
 
               {/* Action buttons area */}
               {selectedClassId && (
-                <div className="md:col-span-3">
+                <div className="md:col-span-3 flex flex-wrap items-center gap-2">
                   <button
                     onClick={handlePrint}
+                    disabled={loadingClassData}
                     title={viewMode === 'student' ? 'Imprimir boletim individual do aluno selecionado' : 'Imprimir quadro resumido de rendimento da turma'}
-                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 border border-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                    className="flex-1 min-w-[96px] py-2.5 px-3 bg-slate-900 hover:bg-slate-950 disabled:opacity-60 border border-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
                   >
                     <Printer size={13} />
                     Imprimir
                   </button>
+                  {viewMode === 'student' ? (
+                    <button
+                      onClick={() => exportIndividualPDF(activeStudentReport)}
+                      disabled={exportingPDF || loadingClassData || !activeStudentReport}
+                      title="Gerar e baixar o Boletim Individual em arquivo PDF"
+                      className="flex-1 min-w-[106px] py-2.5 px-3 bg-white hover:bg-slate-50 disabled:opacity-50 border border-slate-300 text-slate-800 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                    >
+                      {exportingPDF ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                      {exportingPDF ? 'Gerando...' : 'Baixar PDF'}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={exportClassSummaryPDF}
+                        disabled={exportingPDF || loadingClassData || sortedReports.length === 0}
+                        title="Baixar o quadro resumido da turma em PDF"
+                        className="flex-1 min-w-[96px] py-2.5 px-2.5 bg-white hover:bg-slate-50 disabled:opacity-50 border border-slate-300 text-slate-800 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-sm"
+                      >
+                        {exportingPDF ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                        PDF
+                      </button>
+                      <button
+                        onClick={exportAllClassBulletinsPDF}
+                        disabled={exportingPDF || loadingClassData || studentReports.length === 0}
+                        title="Gerar PDF único com todos os boletins individuais da turma"
+                        className="flex-1 min-w-[102px] py-2.5 px-2.5 bg-white hover:bg-slate-50 disabled:opacity-50 border border-slate-300 text-slate-800 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-sm"
+                      >
+                        {exportingPDF ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                        Lote PDF
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1655,108 +1486,86 @@ export function Bulletin() {
                 Por favor, escolha uma de suas turmas ativas no seletor acima para renderizar os boletins individuais ou visões gerais.
               </p>
             </div>
+          ) : loadingClassData ? (
+            <div className="min-h-[300px] bg-white border border-slate-200 rounded-lg flex items-center justify-center flex-col gap-3 print:hidden">
+              <Loader2 className="animate-spin text-slate-500" size={28} />
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Carregando notas e frequência da turma...</p>
+            </div>
           ) : viewMode === 'student' ? (
             activeStudentReport ? (
               /* --- INDIVIDUAL INDOOR BULLETIN LAYOUT --- */
               <div className="space-y-4">
                 
                 {/* On-screen paper layout framing simulating standard print sheet */}
-                <div id="printable-boletim" className="bg-white p-4 sm:p-6 text-slate-900 max-w-[210mm] mx-auto relative font-sans leading-relaxed animate-in fade-in duration-300 print:p-0 print:border-none print:shadow-none">
+                <div id="printable-boletim" className="bg-white p-4 sm:p-6 text-slate-900 max-w-[210mm] mx-auto relative font-sans leading-relaxed border border-slate-200 shadow-sm print:shadow-none print:p-0 print:border-none print:max-w-none print:w-full">
                   
                   {/* Inner container */}
-                  <div className="space-y-6">
+                  <div className="space-y-5 flex flex-col justify-between min-h-[268mm] print:min-h-0">
                     
-                    {/* Professional Header using Institution Data */}
-                    <div className="flex flex-col sm:flex-row items-center gap-4 border-b border-slate-200 pb-5">
-                      {institution?.logo_url ? (
-                        <img 
-                          src={institution.logo_url} 
-                          alt="Logo" 
-                          referrerPolicy="no-referrer"
-                          className="w-16 h-16 object-contain"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-lg flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
-                          <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
-                          <School size={16} className="text-slate-350 my-1" />
-                          <span className="text-[5px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
+                    <div className="space-y-4">
+                      {/* Standardized Institutional Header */}
+                      <StandardReportHeader
+                        inst={institution}
+                        title="BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO"
+                        filterText={`TURMA: ${activeClassObj?.name || 'N/D'}  •  PERÍODO: ${activeClassObj?.period || 'Noite'}`}
+                      />
+
+                      {/* Student details display bar */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50/70 border border-slate-200 p-3 rounded-sm print:grid-cols-2 print:gap-y-1.5 print:p-2.5">
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[8px] font-bold text-slate-400">Aluno</span>
+                          <span className="text-slate-900 font-extrabold truncate">
+                            <strong className="text-slate-950 font-mono mr-1.5">{formatRegistrationNumber(activeStudentReport.student.registration_number, '000000/0000')}</strong> 
+                            {activeStudentReport.student.name}
+                          </span>
                         </div>
-                      )}
-                      
-                      <div className="text-center sm:text-left flex-1 min-w-0">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
-                        <h1 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight leading-snug">
-                          {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                        </h1>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5 leading-normal truncate">
-                          {institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA'}
-                        </p>
-                      </div>
-                    </div>
+                        
+                        <div className="flex flex-col gap-0.5 sm:items-end print:items-end">
+                          <span className="text-[8px] font-bold text-slate-400">Situação Cadastral</span>
+                          <span className="text-emerald-700 font-extrabold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 inline-block text-[9px] leading-tight select-none">
+                            {activeStudentReport.student.status || 'Ativo'}
+                          </span>
+                        </div>
 
-                    {/* Report title header */}
-                    <div className="bg-slate-50 border border-slate-200 py-2.5 text-center">
-                      <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                        Boletim Escolar de Rendimento Acadêmico
-                      </h2>
-                    </div>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[8px] font-bold text-slate-400">Turma</span>
+                          <span className="text-slate-900 font-extrabold truncate">
+                            {activeClassObj?.name || 'N/D'}
+                          </span>
+                        </div>
 
-                    {/* Student details display bar */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500 border-b border-slate-100 pb-5">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[8px] font-bold text-slate-400">Aluno</span>
-                        <span className="text-slate-800 font-extrabold">
-                          <strong className="text-slate-950 font-mono mr-1.5">{formatRegistrationNumber(activeStudentReport.student.registration_number, '000000/0000')}</strong> 
-                          {activeStudentReport.student.name}
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-col gap-1 sm:items-end">
-                        <span className="text-[8px] font-bold text-slate-400">Situação Cadastral</span>
-                        <span className="text-emerald-700 font-extrabold bg-emerald-50 border border-emerald-250 px-3 py-0.5 inline-block text-[9px] leading-tight select-none">
-                          {activeStudentReport.student.status || 'Ativo'}
-                        </span>
+                        <div className="flex flex-col gap-0.5 sm:items-end print:items-end min-w-0">
+                          <span className="text-[8px] font-bold text-slate-400">Período / Frequência</span>
+                          <span className="text-slate-800 font-bold text-right">
+                            {activeClassObj?.period || 'Noite'} - {(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[8px] font-bold text-slate-400">Turma</span>
-                        <span className="text-slate-800 font-extrabold">
-                          {classes.find(c => c.id === selectedClassId)?.name || 'N/D'}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-1 sm:items-end">
-                        <span className="text-[8px] font-bold text-slate-400">Período / Frequência</span>
-                        <span className="text-slate-800 font-bold">
-                          {classes.find(c => c.id === selectedClassId)?.period || 'Noite'} - {(classes.find(c => c.id === selectedClassId)?.days_of_week || []).join(', ') || 'Semanal'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Tabela I - Registro de Frequência e Faltas */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 pb-1">
-                        <span className="w-1.5 h-1.5 bg-slate-800" />
-                        <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-wider">
-                          Controle de Faltas Mensais e Frequência
-                        </h3>
-                      </div>
-                      <div className="overflow-x-auto select-text border border-slate-200">
-                        <table className="w-full text-left font-sans text-[10px] border-collapse uppercase table-fixed">
-                          <colgroup>
-                            <col className="w-[30%] sm:w-[32%] md:w-[35%]" />
-                            {monthsList.map(m => (
-                              <col key={m.index} className="w-[4.5%] sm:w-[4.6%] md:w-[4.5%]" />
-                            ))}
-                            <col className="w-[8%] sm:w-[7%] md:w-[6%]" />
-                            <col className="w-[8%] sm:w-[7%] md:w-[5%]" />
-                          </colgroup>
-                          <thead>
-                            {/* Semester Groupings Header Row */}
-                            <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-800 text-[8px] sm:text-[8.5px] font-black tracking-wider">
-                              <th rowSpan={2} className="px-2.5 py-1.5 border-r border-slate-200 text-left align-middle">
-                                Disciplinas
-                              </th>
+                      {/* Tabela I - Registro de Frequência e Faltas */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 pb-0.5">
+                          <span className="w-1.5 h-1.5 bg-slate-800" />
+                          <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-wider">
+                            Controle de Faltas Mensais e Frequência
+                          </h3>
+                        </div>
+                        <div className="overflow-x-auto select-text border border-slate-200 print:overflow-visible">
+                          <table className="w-full text-left font-sans text-[10px] border-collapse uppercase table-fixed boletim-freq-table">
+                            <colgroup>
+                              <col className="w-[33%]" />
+                              {monthsList.map(m => (
+                                <col key={m.index} className="w-[4.2%]" />
+                              ))}
+                              <col className="w-[7.6%]" />
+                              <col className="w-[9%]" />
+                            </colgroup>
+                            <thead>
+                              {/* Semester Groupings Header Row */}
+                              <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-800 text-[8px] sm:text-[8.5px] font-black tracking-wider">
+                                <th rowSpan={2} className="px-2 py-1.5 border-r border-slate-200 text-left align-middle">
+                                  Disciplinas
+                                </th>
                               <th colSpan={7} className="py-1 text-center border-r border-slate-200 bg-slate-100/90 text-slate-800 font-extrabold text-[7.5px] sm:text-[8px] md:text-[8.5px]">
                                 1º Semestre {sem1Days > 0 ? `(${sem1Days} Aulas)` : ''}
                               </th>
@@ -1811,7 +1620,7 @@ export function Bulletin() {
                                       <span className="truncate text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
                                         {sp.subjectCode} - {sp.subjectName}
                                       </span>
-                                      <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-lg shrink-0">FALTAS</span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-lg shrink-0 boletim-badge-pill">FALTAS</span>
                                     </div>
                                   </td>
                                   {monthsList.map(m => {
@@ -1822,9 +1631,8 @@ export function Bulletin() {
                                         key={m.index} 
                                         className={cn(
                                           "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px]",
-                                          isBlocked && "bg-slate-50 text-slate-400"
+                                          isBlocked && "bg-amber-50/40 text-slate-400"
                                         )}
-                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
                                       >
                                         {isBlocked ? '-' : (absCount > 0 ? absCount : '')}
                                       </td>
@@ -1844,7 +1652,7 @@ export function Bulletin() {
                                       <span className="truncate text-slate-450 text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
                                         {sp.subjectCode} - {sp.subjectName}
                                       </span>
-                                      <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-lg shrink-0 font-bold">PRESENÇAS</span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-lg shrink-0 font-bold boletim-badge-pill">PRESENÇAS</span>
                                     </div>
                                   </td>
                                   {monthsList.map(m => {
@@ -1855,9 +1663,8 @@ export function Bulletin() {
                                         key={m.index} 
                                         className={cn(
                                           "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px] text-slate-600",
-                                          isBlocked && "bg-slate-50 text-slate-400"
+                                          isBlocked && "bg-amber-50/40 text-slate-400"
                                         )}
-                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
                                       >
                                         {isBlocked ? '-' : (presCount > 0 ? presCount : '')}
                                       </td>
@@ -1988,7 +1795,7 @@ export function Bulletin() {
                     </div>
 
                     {/* Justification / Explanation panel (represented as Pink highlighted card area) */}
-                    <div className="border border-rose-250 bg-rose-50/10 p-3 mt-4 text-left rounded-lg break-inside-avoid page-break-inside-avoid">
+                    <div className="border border-rose-250 bg-rose-50/10 p-3 mt-3 text-left rounded-lg break-inside-avoid page-break-inside-avoid">
                       <p className="text-[8.5px] font-black text-rose-700 uppercase tracking-widest mb-1.5">
                         Justificativa do Resultado / Parecer da Secretaria
                       </p>
@@ -1997,10 +1804,14 @@ export function Bulletin() {
                       </p>
                     </div>
 
-                    {/* Clean Document Footer */}
-                    <div className="pt-3 border-t border-slate-200/80 flex justify-end items-center text-[8.5px] uppercase font-sans font-bold text-slate-400 select-none break-inside-avoid page-break-inside-avoid">
-                      <span>Página 1 de 1</span>
                     </div>
+
+                    {/* Standardized Institutional Footer (no email: prefix, green WhatsApp icon when marked) */}
+                    <StandardReportFooter
+                      inst={institution}
+                      pageNumber={1}
+                      totalPages={1}
+                    />
 
                   </div>
                 </div>
@@ -2011,7 +1822,7 @@ export function Bulletin() {
                      <Info size={14} />
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-wider leading-relaxed">
-                    Dica: Use as opções do navegador para imprimir em formato Retrato (A4). As margens e botões de controle serão omitidos automaticamente no papel!
+                    Dica: Use Imprimir (A4 Retrato) ou Baixar PDF para gerar o documento oficial com margens, cabeçalho e rodapé institucional.
                   </p>
                 </div>
               </div>
@@ -2049,10 +1860,10 @@ export function Bulletin() {
                  </div>
               </div>
 
-              <div id="printable-class-bulletin" className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
+              <div id="printable-class-bulletin" className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none print:overflow-visible">
                 <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
                   <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                    Quadro Geral de Rendimento e Presença ({classes.find(c => c.id === selectedClassId)?.name})
+                    Quadro Geral de Rendimento e Presença ({activeClassObj?.name})
                   </h3>
                   <span className="text-[9px] font-bold text-slate-600 bg-slate-200 border border-slate-300 px-3 py-1 uppercase tracking-widest leading-none">
                     {classSubjects.length} Disciplinas Ativas nesta Turma
@@ -2064,50 +1875,17 @@ export function Bulletin() {
                     Nenhum registro de aluno correspondente na busca.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto print:overflow-visible">
                     <table className="w-full text-left font-sans">
                       <thead>
-                        {/* PRINT REPEATED CORPORATE HEADER - Visible only when printing */}
+                        {/* PRINT REPEATED STANDARD HEADER - Visible only when printing */}
                         <tr className="hidden print:table-row">
-                          <td colSpan={classSubjects.length + 3} className="p-8 border-b border-slate-200 bg-white">
-                            <div className="flex items-center gap-6 mb-6">
-                              {institution?.logo_url ? (
-                                <img 
-                                  src={institution.logo_url} 
-                                  alt="Logo" 
-                                  referrerPolicy="no-referrer"
-                                  className="w-16 h-16 object-contain"
-                                />
-                              ) : (
-                                <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
-                                  <span className="text-[4px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
-                                  <School size={16} className="text-slate-350 my-1" />
-                                  <span className="text-[3px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
-                                </div>
-                              )}
-                              <div className="flex-1 text-left">
-                                <span className="text-[9px] font-black text-slate-455 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
-                                <h1 className="text-sm font-black text-slate-900 uppercase tracking-tight">
-                                  {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                                </h1>
-                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
-                                  {institution?.address || 'SECRETARIA ACADÊMICA'}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="bg-slate-100/60 border border-slate-200 p-3 text-center uppercase mb-6">
-                              <h2 className="text-[10px] font-black text-slate-800 tracking-widest">
-                                Notas e Frequência por Turma
-                              </h2>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-wider mb-2">
-                              <div className="text-left font-bold uppercase">
-                                Turma: <span className="text-slate-900 font-extrabold">{classes.find(c => c.id === selectedClassId)?.name}</span>
-                              </div>
-                              <div className="text-right font-bold uppercase">
-                                Emissão: <span className="text-slate-900 font-extrabold">{new Date().toLocaleDateString('pt-BR')}</span>
-                              </div>
-                            </div>
+                          <td colSpan={classSubjects.length + 3} className="p-0 pb-3 bg-white border-b-0">
+                            <StandardReportHeader
+                              inst={institution}
+                              title="NOTAS E FREQUÊNCIA POR TURMA"
+                              filterText={`TURMA: ${activeClassObj?.name || 'N/D'}  •  ${classSubjects.length} DISCIPLINAS ATIVAS  •  ${sortedReports.length} ALUNOS`}
+                            />
                           </td>
                         </tr>
 
@@ -2207,10 +1985,12 @@ export function Bulletin() {
                       </tbody>
                       <tfoot className="hidden print:table-footer-group">
                         <tr>
-                          <td colSpan={classSubjects.length + 3} className="p-0 border-t-0 pt-4">
-                            <div className="border-t border-slate-200 pt-3 flex justify-center items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
-                              <span>ESCMIN - Sistema de Gestão de Secretaria</span>
-                            </div>
+                          <td colSpan={classSubjects.length + 3} className="p-0 border-t-0 pt-3 bg-white">
+                            <StandardReportFooter
+                              inst={institution}
+                              pageNumber={1}
+                              totalPages={1}
+                            />
                           </td>
                         </tr>
                       </tfoot>
@@ -2223,28 +2003,58 @@ export function Bulletin() {
         </div>
       )}
 
-      {/* Custom print rules overrides to optimize height, layout, and eliminate scrollbars */}
-      {isPrinting && (
+      {/* Persistent @media print rules ensuring clean A4 margins, zero right-edge clipping, and Ctrl+P parity */}
       <style>{`
         @media print {
           @page {
-            size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'} !important;
-            margin: ${viewMode === 'class' ? '10mm 12mm' : '12mm 15mm'} !important;
+            size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'};
+            margin: 10mm 12mm;
           }
 
-          /* General breaking helper */
+          /* Override src/index.css global width: 210mm !important which clips inside @page margins */
+          html, body {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+          }
+
+          #root, main {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+
           .break-inside-avoid,
           .page-break-inside-avoid {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
           }
 
-          /* Hide scrolling wrapper behaviors to prevent scrollbars printing */
+          #printable-boletim,
+          #printable-class-bulletin {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+
           #printable-boletim .overflow-x-auto,
           #printable-class-bulletin .overflow-x-auto {
             overflow: visible !important;
             overflow-x: visible !important;
-            border: none !important;
+            width: 100% !important;
           }
 
           #printable-boletim table {
@@ -2252,157 +2062,55 @@ export function Bulletin() {
             width: 100% !important;
           }
 
-          /* Spacing compression on print */
-          #printable-boletim .space-y-6 > :not([hidden]) ~ :not([hidden]),
-          #printable-boletim .space-y-6 > * + * {
-            margin-top: 14px !important;
-          }
-          #printable-boletim .space-y-2 > :not([hidden]) ~ :not([hidden]),
-          #printable-boletim .space-y-2 > * + * {
-            margin-top: 6px !important;
-          }
-
-          /* Header area compaction */
-          #printable-boletim .border-b.pb-5 {
-            padding-bottom: 10px !important;
-          }
-          #printable-boletim img,
-          #printable-boletim .w-16,
-          #printable-boletim .h-16 {
-            width: 52px !important;
-            height: 52px !important;
-          }
-          #printable-boletim h1 {
-            font-size: 13px !important;
-            line-height: 1.3 !important;
-            font-weight: 900 !important;
-          }
-          #printable-boletim p.text-[9px] {
-            font-size: 9px !important;
+          /* Table I (15 columns) compact padding so Freq.% never overflows the right margin */
+          #printable-boletim table.boletim-freq-table th,
+          #printable-boletim table.boletim-freq-table td {
+            font-size: 7pt !important;
+            padding: 2px 1.5px !important;
             line-height: 1.2 !important;
-          }
-          #printable-boletim h2 {
-            font-size: 10.5px !important;
-            line-height: 1.3 !important;
-            font-weight: 900 !important;
-          }
-          #printable-boletim .bg-slate-50.border {
-            padding: 5px 0 !important;
-          }
-          #printable-boletim h3 {
-            font-size: 9.5px !important;
-            font-weight: 950 !important;
+            box-sizing: border-box !important;
           }
 
-          /* Student details grid compression */
-          #printable-boletim .grid.grid-cols-1 {
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            column-gap: 24px !important;
-            row-gap: 5px !important;
-            padding-bottom: 10px !important;
-          }
-          #printable-boletim .grid.grid-cols-1 .text-[8px] {
-            font-size: 7.5px !important;
-            font-weight: 700 !important;
-          }
-          #printable-boletim .grid.grid-cols-1 .text-slate-805,
-          #printable-boletim .grid.grid-cols-1 .text-slate-800,
-          #printable-boletim .grid.grid-cols-1 .text-slate-950 {
-            font-size: 9.5px !important;
-            font-weight: 800 !important;
-          }
-          #printable-boletim .grid.grid-cols-1 .bg-emerald-50 {
-            padding: 2px 8px !important;
-            font-size: 8.5px !important;
-            font-weight: 800 !important;
+          #printable-boletim table.boletim-freq-table .boletim-badge-pill {
+            font-size: 5pt !important;
+            padding: 0.5px 2.5px !important;
+            border-radius: 2px !important;
           }
 
-          /* Table Cells compaction */
-          #printable-boletim th,
-          #printable-boletim td {
-            font-size: 9px !important;
-            padding: 4px 6px !important;
-            line-height: 1.2 !important;
-          }
-          #printable-boletim thead tr th {
-            font-size: 9px !important;
-            font-weight: 900 !important;
-          }
-          #printable-boletim tr.bg-slate-50\/70 td {
-            font-size: 9.5px !important;
-            font-weight: 900 !important;
-            background-color: #f1f5f9 !important;
-            padding: 4px 6px !important;
-          }
-          #printable-boletim tr.bg-slate-50\/20 td {
-            font-size: 9px !important;
-            font-weight: 800 !important;
-            background-color: #f8fafc !important;
-            padding: 4px 6px !important;
+          /* Table II compact padding */
+          #printable-boletim table:not(.boletim-freq-table) th,
+          #printable-boletim table:not(.boletim-freq-table) td {
+            font-size: 7.5pt !important;
+            padding: 2.5px 4px !important;
+            line-height: 1.25 !important;
+            box-sizing: border-box !important;
           }
 
-          /* Totals panel compaction */
-          #printable-boletim .flex.justify-end {
-            margin-top: 6px !important;
-          }
-          #printable-boletim .flex.justify-end .w-full {
-            max-width: 320px !important;
-          }
-          #printable-boletim .flex.justify-end .px-3.py-1.5 {
-            padding: 4px 6px !important;
-            font-size: 8.5px !important;
+          /* Landscape Class Bulletin table fit within 100% printable width */
+          #printable-class-bulletin table {
+            table-layout: auto !important;
+            width: 100% !important;
           }
 
-          /* Parecer e Justificativa panel compaction */
-          #printable-boletim .p-3.mt-4,
-          #printable-boletim .border-rose-250 {
-            padding: 8px 10px !important;
-            margin-top: 8px !important;
-          }
-          #printable-boletim .border-rose-250 p.text-rose-700 {
-            font-size: 8px !important;
-            font-weight: 900 !important;
-            margin-bottom: 3px !important;
-          }
-          #printable-boletim .border-rose-250 p.text-[10px] {
-            font-size: 9px !important;
-            line-height: 1.3 !important;
-          }
-
-          /* Footer pagination section compaction */
-          #printable-boletim .pt-5.border-t {
-            padding-top: 10px !important;
-            margin-top: 10px !important;
-            font-size: 8.5px !important;
-          }
-
-          /* === CLASS BULLETIN GENERAL PRINT STYLE OVERRIDES === */
           #printable-class-bulletin thead tr.table-columns-header th,
           #printable-class-bulletin tbody td {
-            padding: 1.5mm 1mm !important;
-            word-break: normal !important;
+            padding: 2.5px 3px !important;
+            font-size: 7pt !important;
             white-space: normal !important;
+            word-break: break-word !important;
           }
 
-          #printable-class-bulletin thead tr.table-columns-header th {
-            font-size: 8px !important;
-            white-space: nowrap !important;
-          }
-          
-          #printable-class-bulletin thead tr.table-columns-header th:nth-child(1),
-          #printable-class-bulletin tbody td:nth-child(1) {
-            width: 30% !important;
+          #printable-class-bulletin thead tr.table-columns-header th:first-child,
+          #printable-class-bulletin tbody td:first-child {
+            width: 26% !important;
             text-align: left !important;
           }
 
           #printable-class-bulletin tbody td span {
-            padding: 0.5mm 1mm !important;
-            font-size: 8px !important;
+            padding: 1px 3px !important;
+            font-size: 7pt !important;
             width: auto !important;
             min-width: 0 !important;
-            max-width: none !important;
-            display: inline-block !important;
             box-shadow: none !important;
             white-space: nowrap !important;
           }
@@ -2419,7 +2127,6 @@ export function Bulletin() {
           }
         }
       `}</style>
-      )}
     </div>
   );
 }

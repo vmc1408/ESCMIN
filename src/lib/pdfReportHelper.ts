@@ -16,6 +16,60 @@ interface InstitutionData {
   logo_url?: string;
 }
 
+const logoDataUrlCache = new Map<string, string>();
+
+/**
+ * Preloads and caches an external or base64 logo URL into a DataURL once,
+ * preventing slow synchronous network fetches or repeated embedding during PDF generation.
+ */
+export async function preloadReportLogoDataUrl(logoUrl?: string | null): Promise<string> {
+  if (!logoUrl) return DEFAULT_LOGO;
+  if (logoUrl.startsWith('data:image/')) return logoUrl;
+
+  const cached = logoDataUrlCache.get(logoUrl);
+  if (cached) return cached;
+
+  try {
+    const dataUrl = await new Promise<string>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      const timer = setTimeout(() => resolve(DEFAULT_LOGO), 3000);
+
+      img.onload = () => {
+        clearTimeout(timer);
+        try {
+          const canvas = document.createElement('canvas');
+          const maxDim = 256;
+          const scale = Math.min(1, maxDim / Math.max(img.naturalWidth || maxDim, img.naturalHeight || maxDim));
+          canvas.width = Math.max(1, Math.round((img.naturalWidth || 200) * scale));
+          canvas.height = Math.max(1, Math.round((img.naturalHeight || 200) * scale));
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/png'));
+          } else {
+            resolve(DEFAULT_LOGO);
+          }
+        } catch {
+          resolve(DEFAULT_LOGO);
+        }
+      };
+
+      img.onerror = () => {
+        clearTimeout(timer);
+        resolve(DEFAULT_LOGO);
+      };
+
+      img.src = logoUrl;
+    });
+
+    logoDataUrlCache.set(logoUrl, dataUrl);
+    return dataUrl;
+  } catch {
+    return DEFAULT_LOGO;
+  }
+}
+
 /**
  * Draws a crisp vector green WhatsApp icon in jsPDF right after a footer phone string.
  */
@@ -98,32 +152,36 @@ export function drawStandardReportHeader(
   inst: InstitutionData | null | undefined,
   docTitle: string,
   filterText: string = 'FILTRO: TODOS',
-  margin: number = 15
+  margin: number = 15,
+  preloadedLogoDataUrl?: string
 ): number {
   const pageWidth = doc.internal.pageSize.width;
-  const logoToUse = inst?.logo_url || DEFAULT_LOGO;
+  const rawLogo = preloadedLogoDataUrl || (inst?.logo_url ? logoDataUrlCache.get(inst.logo_url) || inst.logo_url : DEFAULT_LOGO);
+  const logoToUse = rawLogo || DEFAULT_LOGO;
   let textStartX = margin;
 
   if (logoToUse) {
+    const imgFormat = logoToUse.startsWith('data:image/jpeg') || logoToUse.startsWith('data:image/jpg') ? 'JPEG' : 'PNG';
+    const alias = logoToUse === DEFAULT_LOGO ? 'escmin-default-logo' : 'escmin-inst-logo';
     try {
-      // Natural dimensions of DEFAULT_LOGO are 204 x 191
-      // If base64 or URL, compute or use natural circular ratio ~ 1.068
       const naturalW = 204;
       const naturalH = 191;
       const fitted = getFittedImageDimensions(naturalW, naturalH, 20, 20);
 
       doc.addImage(
         logoToUse,
-        'PNG',
+        imgFormat,
         margin + fitted.offsetX,
         12 + fitted.offsetY,
         fitted.width,
-        fitted.height
+        fitted.height,
+        alias,
+        'FAST'
       );
       textStartX = margin + 24;
-    } catch (e) {
+    } catch {
       try {
-        doc.addImage(logoToUse, 'auto', margin, 12, 20, 20);
+        doc.addImage(DEFAULT_LOGO, 'PNG', margin, 12, 20, 18.7, 'escmin-default-logo', 'FAST');
         textStartX = margin + 24;
       } catch (err2) {
         console.warn('Error rendering logo in report:', err2);
@@ -131,24 +189,25 @@ export function drawStandardReportHeader(
     }
   }
 
-  // Institutional Texts (3 Lines, exact vertical alignment)
+  // Institutional Texts (3 Lines, exact vertical alignment, bounded inside right margin)
+  const textMaxW = Math.max(60, pageWidth - margin - textStartX);
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'bold');
-  const dioceseName = inst?.city_uf 
-    ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` 
+  const dioceseName = inst?.city_uf
+    ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}`
     : (inst?.diocese_name || 'DIOCESE DE GUARULHOS');
-  doc.text(dioceseName.toUpperCase(), textStartX, 17);
+  doc.text(dioceseName.toUpperCase(), textStartX, 17, { maxWidth: textMaxW });
 
   doc.setFontSize(14.5);
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 23.5);
+  doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO').toUpperCase(), textStartX, 23.5, { maxWidth: textMaxW });
 
   doc.setFontSize(9);
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'bold');
-  doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 29.5);
+  doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 29.5, { maxWidth: textMaxW });
 
   // Continuous Header Divider Line (0.8pt matching border-b-2 border-slate-900)
   doc.setDrawColor(15, 23, 42);
@@ -156,25 +215,30 @@ export function drawStandardReportHeader(
   doc.line(margin, 34.5, pageWidth - margin, 34.5);
 
   // Document Title with Standard Underline Banner
-  doc.setFontSize(12);
+  doc.setFontSize(11.5);
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text(docTitle, pageWidth / 2, 44, { align: 'center', charSpace: 1.0 });
+  doc.text(docTitle, pageWidth / 2, 43.5, { align: 'center', charSpace: 0.7 });
 
-  const titleWidth = doc.getTextWidth(docTitle);
+  const titleWidth = Math.min(pageWidth - margin * 2 - 20, doc.getTextWidth(docTitle) + (docTitle.length * 0.7));
   doc.setDrawColor(15, 23, 42);
   doc.setLineWidth(0.8);
-  doc.line(pageWidth / 2 - (titleWidth / 2) - 10, 46.5, pageWidth / 2 + (titleWidth / 2) + 10, 46.5);
+  doc.line(pageWidth / 2 - (titleWidth / 2) - 6, 46, pageWidth / 2 + (titleWidth / 2) + 6, 46);
 
-  // Context Metadata Line (Filter on left, timestamp on right)
-  doc.setFontSize(7.5);
+  // Context Metadata Line (Filter on left, timestamp on right, bounded to avoid collision)
+  const emissionText = `EMISSÃO: ${new Date().toLocaleString('pt-BR')}`;
+  doc.setFontSize(7.2);
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'bold');
-  doc.text(filterText.toUpperCase(), margin, 52.5);
-  doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 52.5, { align: 'right' });
+  const emissionW = doc.getTextWidth(emissionText);
+  const maxFilterW = Math.max(40, pageWidth - margin * 2 - emissionW - 6);
+  const filterUpper = filterText.toUpperCase();
+  const fittedFilter = doc.splitTextToSize(filterUpper, maxFilterW)[0] || '';
+  doc.text(fittedFilter, margin, 52);
+  doc.text(emissionText, pageWidth - margin, 52, { align: 'right' });
 
   // Return the start Y position for tables
-  return 56.5;
+  return 56;
 }
 
 /**
