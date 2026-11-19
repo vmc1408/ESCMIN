@@ -539,23 +539,55 @@ export function getSubjectClassDetails(
 }
 
 /**
- * Returns all subjects belonging to a class, sorted strictly by:
- * 1º Semestre (1º Horário -> 2º Horário -> Outros)
- * followed by 2º Semestre (1º Horário -> 2º Horário -> Outros)
- * followed by Anual/Geral.
+ * Normalizes academic year identifiers so shorthand DB values ('1', '2', '3', '4')
+ * match standard labels ('1º Ano', '2º Ano', '3º Ano', '4º Ano') without substring collisions.
  */
-export function getClassSubjects(
-  classItem: ClassItemType | null | undefined,
-  allSubjects: SubjectItemType[],
-  assessments?: any[],
-  grades?: any[]
-): SubjectItemType[] {
-  if (!classItem) return [];
+export function normalizeAcademicYearTag(val?: string | number | null): string {
+  if (val === undefined || val === null) return '';
+  const raw = String(val).trim().toLowerCase();
+  if (!raw) return '';
+  if (raw === '1' || /^1[º°o]?(\s*ano)?$/.test(raw)) return '1º ano';
+  if (raw === '2' || /^2[º°o]?(\s*ano)?$/.test(raw)) return '2º ano';
+  if (raw === '3' || /^3[º°o]?(\s*ano)?$/.test(raw)) return '3º ano';
+  if (raw === '4' || /^4[º°o]?(\s*ano)?$/.test(raw)) return '4º ano';
+  if (raw.includes('curso extra') || raw === 'extra') return 'curso extra';
+  return raw;
+}
 
-  const classId = classItem.id;
-  const sIds = new Set<string>();
+/**
+ * Safely checks whether a subject's academic year matches a class WITHOUT raw substring
+ * checks that falsely match years like "2026" with subject year "2".
+ */
+export function doesSubjectYearMatchClass(
+  subjectYear: string | number | undefined | null,
+  classItem: ClassItemType | null | undefined
+): boolean {
+  if (!subjectYear || !classItem) return false;
+  const subTag = normalizeAcademicYearTag(subjectYear);
+  if (!subTag || subTag === 'curso extra') return false;
 
-  // Add from slots
+  const clsTag = normalizeAcademicYearTag(classItem.year);
+  if (clsTag) {
+    return clsTag === subTag;
+  }
+
+  // Only inspect class name when classItem.year is absent, matching explicit "Xº Ano" tokens (never calendar years like 2026)
+  const clsName = String(classItem.name || '').toLowerCase();
+  const yearNumMatch = subTag.match(/^([1-4])[º°o]\s*ano$/);
+  if (yearNumMatch) {
+    const n = yearNumMatch[1];
+    return new RegExp(`\\b${n}[º°o]\\s*ano\\b`, 'i').test(clsName);
+  }
+  return false;
+}
+
+/**
+ * Extracts all explicitly linked subject IDs from class slot fields, subject_ids, and metadata.
+ */
+export function extractExplicitClassSubjectIds(classItem: ClassItemType | null | undefined): Set<string> {
+  const explicitIds = new Set<string>();
+  if (!classItem) return explicitIds;
+
   [
     classItem.subject_id_sem1_h1,
     classItem.subject_id_sem1_h2,
@@ -565,10 +597,9 @@ export function getClassSubjects(
     classItem.subject_id_sem2,
     classItem.subject_id
   ].forEach(id => {
-    if (id) sIds.add(id);
+    if (id && typeof id === 'string' && id.trim()) explicitIds.add(id.trim());
   });
 
-  // Add from subject_ids
   let classSubIds: string[] = [];
   if (Array.isArray(classItem.subject_ids)) {
     classSubIds = classItem.subject_ids;
@@ -589,12 +620,11 @@ export function getClassSubjects(
       }
     }
   }
-  
+
   classSubIds.forEach(id => {
-    if (id) sIds.add(id);
+    if (id && typeof id === 'string' && id.trim()) explicitIds.add(id.trim());
   });
 
-  // Add from observations metadata
   if (classItem.observations) {
     try {
       const match = String(classItem.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
@@ -608,40 +638,63 @@ export function getClassSubjects(
           meta.subject_id_sem1,
           meta.subject_id_sem2
         ].forEach(id => {
-          if (id) sIds.add(id);
+          if (id && typeof id === 'string' && id.trim()) explicitIds.add(id.trim());
         });
         if (meta.subject_ids && Array.isArray(meta.subject_ids)) {
           meta.subject_ids.forEach((id: string) => {
-            if (id) sIds.add(id);
+            if (id && typeof id === 'string' && id.trim()) explicitIds.add(id.trim());
           });
         }
       }
     } catch {}
   }
 
-  // Fallback: assessments or grades for this class
-  if (assessments && assessments.length > 0) {
-    assessments.forEach(a => {
-      if (a.class_id === classId && a.subject_id) sIds.add(a.subject_id);
-    });
-  }
-  if (grades && grades.length > 0) {
-    grades.forEach(g => {
-      if (g.class_id === classId && g.subject_id) sIds.add(g.subject_id);
-    });
-  }
+  return explicitIds;
+}
 
-  const matchedSubjects = allSubjects.filter(sub => {
-    // 1. Explicit ID match (slots or subject_ids array)
-    if (sIds.has(sub.id)) return true;
-    
-    // 2. Heuristic: Subject year matches Class name or year
-    if (sub.year && (classItem.year === sub.year || (classItem.name && String(classItem.name).includes(String(sub.year))))) {
-      return true;
+/**
+ * Returns all subjects belonging to a class, sorted strictly by:
+ * 1º Semestre (1º Horário -> 2º Horário -> Outros)
+ * followed by 2º Semestre (1º Horário -> 2º Horário -> Outros)
+ * followed by Anual/Geral.
+ */
+export function getClassSubjects(
+  classItem: ClassItemType | null | undefined,
+  allSubjects: SubjectItemType[],
+  assessments?: any[],
+  grades?: any[]
+): SubjectItemType[] {
+  if (!classItem) return [];
+
+  const classId = classItem.id;
+  const explicitIds = extractExplicitClassSubjectIds(classItem);
+
+  let matchedSubjects: SubjectItemType[] = [];
+
+  if (explicitIds.size > 0) {
+    // Strictly respect explicitly linked curriculum when the class defines subjects
+    matchedSubjects = allSubjects.filter(sub => explicitIds.has(sub.id));
+  } else {
+    // Legacy class without explicit subject links: check class-scoped assessments/grades first
+    const activityIds = new Set<string>();
+    if (assessments && assessments.length > 0) {
+      assessments.forEach(a => {
+        if (a.class_id === classId && a.subject_id) activityIds.add(a.subject_id);
+      });
     }
-    
-    return false;
-  });
+    if (grades && grades.length > 0) {
+      grades.forEach(g => {
+        if (g.class_id === classId && g.subject_id) activityIds.add(g.subject_id);
+      });
+    }
+
+    if (activityIds.size > 0) {
+      matchedSubjects = allSubjects.filter(sub => activityIds.has(sub.id));
+    } else {
+      // Safe normalized year fallback only when neither explicit links nor academic records exist
+      matchedSubjects = allSubjects.filter(sub => doesSubjectYearMatchClass(sub.year, classItem));
+    }
+  }
 
   // Sort strictly by semester and slot
   matchedSubjects.sort((a, b) => {

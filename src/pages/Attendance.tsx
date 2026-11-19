@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject } from '../lib/academicUtils';
-import { getClassSubjects } from '../lib/classSubjectUtils';
+import { getClassSubjects, doesSubjectYearMatchClass } from '../lib/classSubjectUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
@@ -433,14 +433,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     // Se for perfil de professor, garante que todas as disciplinas atribuídas a ele na escala sejam mostradas se pertencerem ao mesmo "Ano/Série" da turma
     if (teacherScope.isTeacherRole) {
       const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
-      const classYear = String(cls.year || cls.name || '');
       
       const teacherSubsForThisClass = teacherAllowed.filter(s => {
-        // Já está explicitamente na turma (via slots ou heurística do getClassSubjects)
+        // Já está explicitamente na turma
         if (classSubjects.find(cs => cs.id === s.id)) return true;
         
-        // Ou o ano da disciplina bate com o ano/nome da turma
-        if (s.year && classYear.includes(String(s.year))) return true;
+        // Fallback seguro por ano acadêmico apenas se a turma não possuir disciplinas vinculadas
+        if (classSubjects.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
         
         return false;
       });

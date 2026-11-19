@@ -973,8 +973,8 @@ export function Classes() {
           (normalized as any).course = detectCourseFromClass(normalized);
         }
 
-        // Infer sem1 and sem2 slots if missing
-        if ((!metaSem1H1 || !metaSem1H2 || !metaSem2H1 || !metaSem2H2) && normalized.year) {
+        // Infer sem1 and sem2 slots ONLY if class has no linked subjects at all and is a regular curriculum year
+        if (!metaSem1H1 && !metaSem1H2 && !metaSem2H1 && !metaSem2H2 && sIds.length === 0 && normalized.year && normalized.year !== 'Curso Extra') {
           const yearSubs = normalizedSubjects.filter(s => s.year === normalized.year);
           const yearSem1 = yearSubs.filter(s => (s.semester || '').includes('1'));
           const yearSem2 = yearSubs.filter(s => (s.semester || '').includes('2'));

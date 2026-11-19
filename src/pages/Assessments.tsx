@@ -27,7 +27,7 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject, Teacher } from '../types';
-import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
+import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass } from '../lib/utils';
 import { detectSubjectSemester, getAvailablePeriodsForSubject } from '../lib/academicUtils';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
@@ -356,11 +356,10 @@ export const Assessments: React.FC = () => {
     
     if (teacherScope.isTeacherRole && cls) {
       const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
-      const classYear = String(cls.year || cls.name || '');
       
       const teacherSubsForThisClass = teacherAllowed.filter(s => {
         if (base.find(cs => cs.id === s.id)) return true;
-        if (s.year && classYear.includes(String(s.year))) return true;
+        if (base.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
         return false;
       });
 
@@ -385,11 +384,10 @@ export const Assessments: React.FC = () => {
 
     if (teacherScope.isTeacherRole && cls) {
       const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
-      const classYear = String(cls.year || cls.name || '');
       
       const teacherSubsForThisClass = teacherAllowed.filter(s => {
         if (base.find(cs => cs.id === s.id)) return true;
-        if (s.year && classYear.includes(String(s.year))) return true;
+        if (base.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
         return false;
       });
 

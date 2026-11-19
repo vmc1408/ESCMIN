@@ -21,7 +21,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment, Teacher } from '../types';
-import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
+import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -285,11 +285,10 @@ export function Grades() {
     // Se for perfil de professor, garante que todas as disciplinas atribuídas a ele na escala sejam mostradas se pertencerem ao mesmo "Ano/Série" da turma
     if (teacherScope.isTeacherRole) {
       const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
-      const classYear = String(cls.year || cls.name || '');
       
       const teacherSubsForThisClass = teacherAllowed.filter(s => {
         if (subs.find(cs => cs.id === s.id)) return true;
-        if (s.year && classYear.includes(String(s.year))) return true;
+        if (subs.length === 0 && doesSubjectYearMatchClass(s.year, cls)) return true;
         return false;
       });
 
