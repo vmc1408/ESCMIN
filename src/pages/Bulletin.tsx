@@ -1499,10 +1499,10 @@ export function Bulletin() {
                 {/* On-screen paper layout framing simulating standard print sheet */}
                 <div id="printable-boletim" className="bg-white p-4 sm:p-6 text-slate-900 max-w-[210mm] mx-auto relative font-sans leading-relaxed border border-slate-200 shadow-sm print:shadow-none print:p-0 print:border-none print:max-w-none print:w-full">
                   
-                  {/* Inner container: fills printable A4 height so StandardReportFooter anchors cleanly at page bottom */}
-                  <div className="space-y-6 flex flex-col justify-between min-h-[272mm] print:min-h-[272mm]">
+                  {/* Inner container: flex-col on screen, block with bottom-anchored footer in print to avoid Chromium flex fragmentation bug */}
+                  <div className="space-y-6 print:space-y-0 flex flex-col justify-between min-h-[272mm] boletim-print-sheet">
                     
-                    <div className="space-y-6 print:space-y-6">
+                    <div className="space-y-6 print:space-y-3 boletim-print-body">
                       {/* Standardized Institutional Header */}
                       <StandardReportHeader
                         inst={institution}
@@ -1511,7 +1511,7 @@ export function Bulletin() {
                       />
 
                       {/* Student details display bar */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50/70 border border-slate-200 p-3.5 sm:p-4 rounded-sm print:grid-cols-2 print:gap-x-8 print:gap-y-3 print:p-3.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50/70 border border-slate-200 p-3.5 sm:p-4 rounded-sm print:grid-cols-2 print:gap-x-6 print:gap-y-1.5 print:p-2.5">
                         <div className="flex flex-col gap-1 min-w-0">
                           <span className="text-[8px] font-bold text-slate-400">Aluno</span>
                           <span className="text-slate-900 font-extrabold truncate">
@@ -1682,7 +1682,7 @@ export function Bulletin() {
                     </div>
 
                     {/* Tabela II - Aproveitamento Acadêmico (Notas e Situação) */}
-                    <div className="space-y-2.5 pt-2">
+                    <div className="space-y-2.5 print:space-y-1.5 pt-2 print:pt-0.5">
                       <div className="flex items-center gap-1.5 pb-0.5">
                         <span className="w-1.5 h-1.5 bg-slate-800" />
                         <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-wider">
@@ -1763,25 +1763,25 @@ export function Bulletin() {
                     </div>
 
                     {/* Integrated footer statistics aligned right below table */}
-                    <div className="flex justify-end pt-2 break-inside-avoid page-break-inside-avoid">
+                    <div className="flex justify-end pt-2 print:pt-0.5 break-inside-avoid page-break-inside-avoid">
                       <div className="border border-slate-200 font-sans text-[10px] w-full sm:max-w-[380px] uppercase">
                         <div className="grid grid-cols-[1.65fr_1fr] border-b border-slate-200 divide-x divide-slate-200 bg-slate-50/40">
-                          <div className="px-4 py-2 font-bold text-slate-500 whitespace-nowrap">Média Geral de Frequência</div>
-                          <div className="px-4 py-2 text-right font-black font-mono text-slate-800">
+                          <div className="px-4 py-2 print:py-1.5 font-bold text-slate-500 whitespace-nowrap">Média Geral de Frequência</div>
+                          <div className="px-4 py-2 print:py-1.5 text-right font-black font-mono text-slate-800">
                             {activeStudentReport.averageFrequency !== null ? `${formatPresence(activeStudentReport.averageFrequency)}%` : '-'}
                           </div>
                         </div>
                         <div className="grid grid-cols-[1.65fr_1fr] border-b border-slate-200 divide-x divide-slate-200 bg-slate-50/40">
-                          <div className="px-4 py-2 font-bold text-slate-500 whitespace-nowrap">Média Geral de Notas</div>
-                          <div className="px-4 py-2 text-right font-black font-mono text-slate-800">
+                          <div className="px-4 py-2 print:py-1.5 font-bold text-slate-500 whitespace-nowrap">Média Geral de Notas</div>
+                          <div className="px-4 py-2 print:py-1.5 text-right font-black font-mono text-slate-800">
                             {formatGrade(activeStudentReport.averageGrade)}
                           </div>
                         </div>
                         {/* Final Status row replacing previous in-table column */}
                         <div className="grid grid-cols-[1.65fr_1fr] divide-x divide-slate-200 bg-slate-50/40">
-                          <div className="px-4 py-2 font-bold text-slate-500 whitespace-nowrap">SITUAÇÃO GERAL (FINAL)</div>
+                          <div className="px-4 py-2 print:py-1.5 font-bold text-slate-500 whitespace-nowrap">SITUAÇÃO GERAL (FINAL)</div>
                           <div className={cn(
-                            "px-4 py-2 text-right font-black tracking-wider uppercase",
+                            "px-4 py-2 print:py-1.5 text-right font-black tracking-wider uppercase",
                             activeStudentReport.finalStatus === 'Reprovado' ? "text-rose-700 bg-rose-50/30" :
                             activeStudentReport.finalStatus === 'Recuperação' ? "text-amber-700 bg-amber-50/30" :
                             activeStudentReport.finalStatus === 'Pendente' ? "text-slate-400 bg-slate-50" :
@@ -1795,11 +1795,11 @@ export function Bulletin() {
                     </div>
 
                     {/* Justification / Explanation panel (represented as Pink highlighted card area) */}
-                    <div className="border border-rose-200 bg-rose-50/15 p-4 mt-4 text-left rounded-lg break-inside-avoid page-break-inside-avoid">
-                      <p className="text-[8.5px] font-black text-rose-700 uppercase tracking-widest mb-2">
+                    <div className="border border-rose-200 bg-rose-50/15 p-4 print:p-2.5 mt-4 print:mt-1 text-left rounded-lg break-inside-avoid page-break-inside-avoid">
+                      <p className="text-[8.5px] font-black text-rose-700 uppercase tracking-widest mb-2 print:mb-1">
                         Justificativa do Resultado / Parecer da Secretaria
                       </p>
-                      <p className="text-[10px] font-extrabold text-slate-700 leading-relaxed uppercase">
+                      <p className="text-[10px] print:text-[8.5px] font-extrabold text-slate-700 leading-relaxed print:leading-snug uppercase">
                         {getReportJustificationText(activeStudentReport, academicParams)}
                       </p>
                     </div>
@@ -1807,11 +1807,13 @@ export function Bulletin() {
                     </div>
 
                     {/* Standardized Institutional Footer (no email: prefix, green WhatsApp icon when marked) */}
-                    <StandardReportFooter
-                      inst={institution}
-                      pageNumber={1}
-                      totalPages={1}
-                    />
+                    <div className="boletim-print-footer-anchor shrink-0 mt-auto">
+                      <StandardReportFooter
+                        inst={institution}
+                        pageNumber={1}
+                        totalPages={1}
+                      />
+                    </div>
 
                   </div>
                 </div>
@@ -2008,7 +2010,7 @@ export function Bulletin() {
         @media print {
           @page {
             size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'};
-            margin: 10mm 12mm;
+            margin: ${viewMode === 'class' ? '10mm 12mm' : '8mm 12mm'};
           }
 
           /* Override src/index.css global width: 210mm !important which clips inside @page margins */
@@ -2050,6 +2052,28 @@ export function Bulletin() {
             box-shadow: none !important;
           }
 
+          #printable-boletim .boletim-print-sheet {
+            display: block !important;
+            position: relative !important;
+            min-height: 274mm !important;
+            padding-bottom: 22mm !important;
+            box-sizing: border-box !important;
+          }
+
+          #printable-boletim .boletim-print-body {
+            display: block !important;
+          }
+
+          #printable-boletim .boletim-print-footer-anchor {
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            display: block !important;
+            background: #ffffff !important;
+          }
+
           #printable-boletim .overflow-x-auto,
           #printable-class-bulletin .overflow-x-auto {
             overflow: visible !important;
@@ -2062,12 +2086,12 @@ export function Bulletin() {
             width: 100% !important;
           }
 
-          /* Table I (15 columns) airy readable padding while keeping Freq.% inside right margin */
+          /* Table I (15 columns) airy readable padding while keeping 4 subjects within 1 A4 page */
           #printable-boletim table.boletim-freq-table th,
           #printable-boletim table.boletim-freq-table td {
-            font-size: 7.2pt !important;
-            padding: 4.5px 2px !important;
-            line-height: 1.35 !important;
+            font-size: 7pt !important;
+            padding: 3.2px 2px !important;
+            line-height: 1.25 !important;
             box-sizing: border-box !important;
           }
 
@@ -2077,12 +2101,12 @@ export function Bulletin() {
             border-radius: 2px !important;
           }
 
-          /* Table II airy padding */
+          /* Table II airy padding fitted for 4+ subjects */
           #printable-boletim table:not(.boletim-freq-table) th,
           #printable-boletim table:not(.boletim-freq-table) td {
-            font-size: 7.8pt !important;
-            padding: 5.5px 8px !important;
-            line-height: 1.4 !important;
+            font-size: 7.4pt !important;
+            padding: 3.5px 7px !important;
+            line-height: 1.28 !important;
             box-sizing: border-box !important;
           }
 
