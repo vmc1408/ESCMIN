@@ -43,12 +43,30 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const getLocalTodayDbDate = (): string => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
+const formatLocalDateYmd = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+};
+
+const getLocalTodayDbDate = (): string => formatLocalDateYmd(new Date());
+
+const getCurrentWeekBounds = (): { weekStart: string; weekEnd: string } => {
+  const now = new Date();
+  const todayMidday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+  const dayOfWeek = todayMidday.getDay(); // 0 = Domingo .. 6 = Sábado
+
+  const start = new Date(todayMidday);
+  start.setDate(todayMidday.getDate() - dayOfWeek);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  return {
+    weekStart: formatLocalDateYmd(start),
+    weekEnd: formatLocalDateYmd(end)
+  };
 };
 
 const NON_BLOCKING_HOLIDAY_KEYWORDS = ['servidor público', 'servidor publico', 'santo antônio', 'santo antonio', 'dia do professor', 'consciência negra', 'consciencia negra'];
@@ -1012,28 +1030,37 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     return currentSelectedDbDate === getTodayDbDate();
   }, [currentSelectedDbDate]);
 
+  const isInCurrentWeek = React.useMemo(() => {
+    if (!currentSelectedDbDate) return false;
+    const { weekStart, weekEnd } = getCurrentWeekBounds();
+    return currentSelectedDbDate >= weekStart && currentSelectedDbDate <= weekEnd;
+  }, [currentSelectedDbDate]);
+
   const isPastDate = React.useMemo(() => {
     if (!currentSelectedDbDate) return false;
-    return currentSelectedDbDate < getTodayDbDate();
+    const { weekStart } = getCurrentWeekBounds();
+    return currentSelectedDbDate < weekStart;
   }, [currentSelectedDbDate]);
 
   const isFutureDate = React.useMemo(() => {
     if (!currentSelectedDbDate) return false;
-    return currentSelectedDbDate > getTodayDbDate();
+    const { weekEnd } = getCurrentWeekBounds();
+    return currentSelectedDbDate > weekEnd;
   }, [currentSelectedDbDate]);
 
-  // Regra de Bloqueio: apenas a data de hoje fica liberada automaticamente.
-  // Datas passadas e futuras ficam bloqueadas automaticamente, liberando-se apenas via PIN de usuário com nível de privilégio.
+  // Regra de Bloqueio: todas as datas da semana vigente ficam liberadas automaticamente
+  // (facilitando lançamentos por esquecimento ou adiantamento na mesma semana).
+  // Datas de semanas anteriores ou posteriores ficam bloqueadas, exigindo PIN de usuário com nível de privilégio.
   const isDateLockedByRule = React.useMemo(() => {
     if (!selectedClass || !selectedSubject || !currentSelectedDbDate) return false;
-    if ((isPastDate || isFutureDate) && !isDateUnlockedByPin) {
+    if (!isInCurrentWeek && !isDateUnlockedByPin) {
       return true;
     }
     return false;
-  }, [selectedClass, selectedSubject, currentSelectedDbDate, isPastDate, isFutureDate, isDateUnlockedByPin]);
+  }, [selectedClass, selectedSubject, currentSelectedDbDate, isInCurrentWeek, isDateUnlockedByPin]);
 
   const openPinModalForLockedDate = React.useCallback((action: 'launch' | 'save' | 'close' | 'reopen' | 'edit' = 'launch') => {
-    const dateKind = isFutureDate ? 'futura' : isPastDate ? 'passada' : '';
+    const dateKind = isFutureDate ? 'de semana posterior' : isPastDate ? 'de semana anterior' : '';
     const prefix = dateKind ? `Esta data ${dateKind}` : 'Esta data';
     const actionText =
       action === 'save' ? 'salvar alterações' :
@@ -1154,7 +1181,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
       const roleLabel = getRoleDisplayLabel(authorizedUser.role);
       const authorizerTitle = `${authorizedUser.name || authorizedUser.email || 'Usuário Autorizado'} (${roleLabel})`;
-      const dateCategoryLabel = isFutureDate ? 'Data futura' : isPastDate ? 'Data passada' : 'Data';
+      const dateCategoryLabel = isFutureDate ? 'Data de semana posterior' : isPastDate ? 'Data de semana anterior' : 'Data';
 
       // Desbloqueio autorizado para a data atual
       setUnlockedDate(currentSelectedDbDate);
@@ -2253,11 +2280,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               className="text-[8px] font-bold text-amber-800 uppercase tracking-widest px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
                               title="Clique para inserir o PIN de usuário com privilégio e desbloquear"
                             >
-                              <Lock size={9} /> {isFutureDate ? 'Bloqueada (Data Futura - Requer PIN)' : 'Bloqueada (Data Passada - Requer PIN)'}
+                              <Lock size={9} /> {isFutureDate ? 'Bloqueada (Semana Posterior - Requer PIN)' : 'Bloqueada (Semana Anterior - Requer PIN)'}
                             </button>
                           ) : isTodayDate ? (
                             <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 flex items-center gap-1">
                               <Check size={9} /> Aula de Hoje (Liberada)
+                            </span>
+                          ) : isInCurrentWeek ? (
+                            <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 flex items-center gap-1">
+                              <Check size={9} /> Semana Atual (Liberada)
                             </span>
                           ) : null
                         )}
@@ -2301,17 +2332,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <option value="">SELECIONAR DATA...</option>
                               {[...availableDates].reverse().map((date, dIdx) => {
                                 const todayDb = getTodayDbDate();
+                                const { weekStart, weekEnd } = getCurrentWeekBounds();
                                 const isDateToday = date.dbValue === todayDb;
-                                const isDateFuture = date.dbValue > todayDb;
+                                const isDateCurrentWeek = date.dbValue >= weekStart && date.dbValue <= weekEnd;
+                                const isDateFutureWeek = date.dbValue > weekEnd;
                                 const isPinUnlocked = date.dbValue === unlockedDate;
 
-                                let tag = '🔒 [DATA PASSADA - REQUER PIN]';
+                                let tag = '🔒 [SEMANA ANTERIOR - REQUER PIN]';
                                 if (isPinUnlocked) {
                                   tag = '🔓 [DESBLOQUEADA COM PIN]';
                                 } else if (isDateToday) {
                                   tag = '⭐ [AULA DE HOJE]';
-                                } else if (isDateFuture) {
-                                  tag = '🔒 [DATA FUTURA - REQUER PIN]';
+                                } else if (isDateCurrentWeek) {
+                                  tag = '✓ [SEMANA ATUAL - LIBERADA]';
+                                } else if (isDateFutureWeek) {
+                                  tag = '🔒 [SEMANA POSTERIOR - REQUER PIN]';
                                 }
 
                                 return (
@@ -2514,13 +2549,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wider text-amber-950">
                               {isFutureDate
-                                ? `Data Futura Bloqueada para Lançamentos (${selectedDate})`
-                                : `Data Passada Bloqueada para Alterações (${selectedDate})`}
+                                ? `Semana Posterior Bloqueada para Lançamentos (${selectedDate})`
+                                : `Semana Anterior Bloqueada para Alterações (${selectedDate})`}
                             </p>
                             <p className="text-[11px] text-amber-850 mt-0.5">
                               {isFutureDate
-                                ? 'Por segurança acadêmica, lançamentos de frequência em datas futuras ficam bloqueados automaticamente. Somente a data de hoje permanece liberada. Para antecipar lançamentos nesta data, utilize o PIN de um Administrador, Diretor ou Secretário.'
-                                : 'Por segurança acadêmica, alterações de frequência em datas passadas ficam bloqueadas automaticamente. Somente a data de hoje permanece liberada. Para editar esta data, utilize o PIN de um Administrador, Diretor ou Secretário.'}
+                                ? 'Por segurança acadêmica, apenas as datas da semana atual ficam liberadas automaticamente. Datas de semanas posteriores exigem desbloqueio com o PIN de um Administrador, Diretor ou Secretário.'
+                                : 'Por segurança acadêmica, apenas as datas da semana atual ficam liberadas automaticamente. Datas de semanas anteriores exigem desbloqueio com o PIN de um Administrador, Diretor ou Secretário.'}
                             </p>
                           </div>
                         </div>
@@ -2696,7 +2731,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                     : !isDateValidForSubject 
                                       ? `Data fora do ${currentSubjectSemester}` 
                                       : isDateLockedByRule
-                                        ? `${isFutureDate ? 'Data futura' : 'Data passada'} bloqueada. Clique para inserir o PIN de Administrador, Diretor ou Secretário e desbloquear`
+                                        ? `${isFutureDate ? 'Data de semana posterior' : 'Data de semana anterior'} bloqueada. Clique para inserir o PIN de Administrador, Diretor ou Secretário e desbloquear`
                                         : "Dê um clique simples para marcar ou duplo clique para limpar a seleção"
                                 }
                                 onClick={() => {
@@ -2943,7 +2978,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">Data Solicitada:</span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                    {isFutureDate ? '(Data Futura)' : isPastDate ? '(Data Passada)' : ''}
+                    {isFutureDate ? '(Semana Posterior)' : isPastDate ? '(Semana Anterior)' : ''}
                   </span>
                   <span className="font-bold font-mono text-amber-900 bg-amber-100 px-1.5 py-0.5 border border-amber-200">{selectedDate}</span>
                 </div>
@@ -2957,8 +2992,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 </label>
                 <p className="text-[11px] text-slate-500 mb-2.5 leading-relaxed">
                   {isFutureDate
-                    ? 'Digite o PIN de segurança de um usuário com nível de privilégio (Administrador, Diretor ou Secretário) para autorizar lançamentos nesta data futura.'
-                    : 'Digite o PIN de segurança de um usuário com nível de privilégio (Administrador, Diretor ou Secretário) para autorizar alterações nesta data passada.'}
+                    ? 'Digite o PIN de segurança de um usuário com nível de privilégio (Administrador, Diretor ou Secretário) para autorizar lançamentos nesta data de semana posterior.'
+                    : 'Digite o PIN de segurança de um usuário com nível de privilégio (Administrador, Diretor ou Secretário) para autorizar alterações nesta data de semana anterior.'}
                 </p>
 
                 <input
