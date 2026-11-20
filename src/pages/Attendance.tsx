@@ -53,6 +53,39 @@ const getLocalTodayDbDate = (): string => {
 
 const NON_BLOCKING_HOLIDAY_KEYWORDS = ['servidor público', 'servidor publico', 'santo antônio', 'santo antonio', 'dia do professor', 'consciência negra', 'consciencia negra'];
 
+const PRIVILEGED_PIN_ROLES = new Set(['admin', 'diretor', 'secretario']);
+
+const normalizeRoleKey = (role?: string): string =>
+  String(role || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+const isPinUserActive = (userObj: any): boolean => {
+  if (!userObj) return false;
+  const status = String(userObj.status || 'active').trim().toLowerCase();
+  return status !== 'inactive' && status !== 'inativo' && status !== 'blocked' && status !== 'bloqueado';
+};
+
+const isPrivilegedPinUser = (userObj: any): boolean => {
+  if (!isPinUserActive(userObj)) return false;
+  return PRIVILEGED_PIN_ROLES.has(normalizeRoleKey(userObj.role));
+};
+
+const getRoleDisplayLabel = (role?: string): string => {
+  const roleKey = normalizeRoleKey(role);
+  switch (roleKey) {
+    case 'admin': return 'Administrador';
+    case 'diretor': return 'Diretor';
+    case 'secretario': return 'Secretário';
+    case 'assistente': return 'Assistente';
+    case 'professor': return 'Professor';
+    case 'docente': return 'Docente';
+    default: return role ? String(role) : 'Usuário';
+  }
+};
+
 interface Student {
   id: string;
   name: string;
@@ -562,9 +595,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       return;
     }
     if (isDateLockedByRule) {
-      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
-      setEnteredPin('');
-      setIsPinModalOpen(true);
+      openPinModalForLockedDate('launch');
       return;
     }
     setAttendance(prev => ({
@@ -587,9 +618,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       return;
     }
     if (isDateLockedByRule) {
-      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
-      setEnteredPin('');
-      setIsPinModalOpen(true);
+      openPinModalForLockedDate('launch');
       return;
     }
     const newAttendance = { ...attendance };
@@ -983,20 +1012,40 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     return currentSelectedDbDate === getTodayDbDate();
   }, [currentSelectedDbDate]);
 
+  const isPastDate = React.useMemo(() => {
+    if (!currentSelectedDbDate) return false;
+    return currentSelectedDbDate < getTodayDbDate();
+  }, [currentSelectedDbDate]);
+
   const isFutureDate = React.useMemo(() => {
     if (!currentSelectedDbDate) return false;
     return currentSelectedDbDate > getTodayDbDate();
   }, [currentSelectedDbDate]);
 
-  // Regra de Bloqueio: datas futuras ficam bloqueadas automaticamente, liberando-se apenas via PIN
-  // Datas de hoje ou passadas são liberadas normalmente para lançamento
+  // Regra de Bloqueio: apenas a data de hoje fica liberada automaticamente.
+  // Datas passadas e futuras ficam bloqueadas automaticamente, liberando-se apenas via PIN de usuário com nível de privilégio.
   const isDateLockedByRule = React.useMemo(() => {
     if (!selectedClass || !selectedSubject || !currentSelectedDbDate) return false;
-    if (isFutureDate && !isDateUnlockedByPin) {
+    if ((isPastDate || isFutureDate) && !isDateUnlockedByPin) {
       return true;
     }
     return false;
-  }, [selectedClass, selectedSubject, currentSelectedDbDate, isFutureDate, isDateUnlockedByPin]);
+  }, [selectedClass, selectedSubject, currentSelectedDbDate, isPastDate, isFutureDate, isDateUnlockedByPin]);
+
+  const openPinModalForLockedDate = React.useCallback((action: 'launch' | 'save' | 'close' | 'reopen' | 'edit' = 'launch') => {
+    const dateKind = isFutureDate ? 'futura' : isPastDate ? 'passada' : '';
+    const prefix = dateKind ? `Esta data ${dateKind}` : 'Esta data';
+    const actionText =
+      action === 'save' ? 'salvar alterações' :
+      action === 'close' ? 'autorizar o fechamento' :
+      action === 'reopen' ? 'reabrir a chamada' :
+      action === 'edit' ? 'realizar alterações' :
+      'realizar lançamentos';
+
+    setPinError(`${prefix} está bloqueada para ${actionText}. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.`);
+    setEnteredPin('');
+    setIsPinModalOpen(true);
+  }, [isFutureDate, isPastDate]);
 
   // Sistema de Auto-Bloqueio: reseta qualquer autorização temporária de PIN assim que sair da data, turma ou disciplina
   useEffect(() => {
@@ -1051,10 +1100,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
   }, [availableDates, selectedClass, selectedSubject, selectedYear, loadedCalendarYear, defaultAllowedDate, selectedDate]);
 
-  // Verificação e Validação do PIN de qualquer usuário autorizado ou Master Admin
+  // Verificação e Validação do PIN de usuário ativo com privilégio (Administrador, Diretor ou Secretário)
   const handleVerifyPin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!enteredPin || enteredPin.length < 4) {
+    const normalizedEnteredPin = String(enteredPin || '').trim();
+    if (!normalizedEnteredPin || normalizedEnteredPin.length < 4) {
       setPinError('Informe a chave de segurança (PIN de 4 dígitos).');
       return;
     }
@@ -1063,39 +1113,48 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     setPinError('');
 
     try {
-      let isValid = false;
-      let authorizerTitle = '';
+      let authorizedUser: any = null;
+      let matchingNonPrivilegedOrInactive: any = null;
 
-      // 1. Verifica perfil do usuário logado
-      if (profile && profile.pin && String(profile.pin) === String(enteredPin)) {
-        isValid = true;
-        const roleLabel = profile.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Usuário';
-        authorizerTitle = `${profile.name || profile.email || 'Usuário Atual'} (${roleLabel})`;
-      }
-
-      // 2. Chave Master de emergência (0000)
-      if (!isValid && enteredPin === '0000') {
-        isValid = true;
-        authorizerTitle = 'Master Admin (PIN 0000)';
-      }
-
-      // 3. Consulta coleção de usuários para validar PIN de qualquer usuário cadastrado no sistema
-      if (!isValid) {
-        const allUsers = await fetchAll('users');
-        const matchingUser = (allUsers || []).find((u: any) => u.pin && String(u.pin) === String(enteredPin));
-
-        if (matchingUser) {
-          isValid = true;
-          const roleLabel = matchingUser.role ? matchingUser.role.charAt(0).toUpperCase() + matchingUser.role.slice(1) : 'Usuário';
-          authorizerTitle = `${matchingUser.name || matchingUser.email || 'Usuário'} (${roleLabel})`;
+      // 1. Verifica perfil do usuário logado (exige nível de privilégio e cadastro ativo)
+      if (profile && profile.pin && String(profile.pin).trim() === normalizedEnteredPin) {
+        if (isPrivilegedPinUser(profile)) {
+          authorizedUser = profile;
+        } else {
+          matchingNonPrivilegedOrInactive = profile;
         }
       }
 
-      if (!isValid) {
-        setPinError('PIN incorreto. Digite o PIN de 4 dígitos de um usuário cadastrado.');
+      // 2. Consulta coleção de usuários para validar PIN de um usuário privilegiado ativo
+      if (!authorizedUser) {
+        const allUsers = await fetchAll('users');
+        const matchingUsers = (allUsers || []).filter((u: any) => u.pin && String(u.pin).trim() === normalizedEnteredPin);
+
+        const privilegedMatch = matchingUsers.find((u: any) => isPrivilegedPinUser(u));
+        if (privilegedMatch) {
+          authorizedUser = privilegedMatch;
+        } else if (!matchingNonPrivilegedOrInactive && matchingUsers.length > 0) {
+          matchingNonPrivilegedOrInactive = matchingUsers[0];
+        }
+      }
+
+      if (!authorizedUser) {
+        if (matchingNonPrivilegedOrInactive) {
+          if (!isPinUserActive(matchingNonPrivilegedOrInactive)) {
+            setPinError('Este PIN pertence a um usuário inativo. Utilize o PIN de um Administrador, Diretor ou Secretário ativo.');
+          } else {
+            setPinError('Este PIN pertence a um usuário sem nível de privilégio para desbloqueio. Utilize o PIN de um Administrador, Diretor ou Secretário.');
+          }
+        } else {
+          setPinError('PIN incorreto. Digite o PIN de 4 dígitos de um Administrador, Diretor ou Secretário autorizado.');
+        }
         setPinSubmitting(false);
         return;
       }
+
+      const roleLabel = getRoleDisplayLabel(authorizedUser.role);
+      const authorizerTitle = `${authorizedUser.name || authorizedUser.email || 'Usuário Autorizado'} (${roleLabel})`;
+      const dateCategoryLabel = isFutureDate ? 'Data futura' : isPastDate ? 'Data passada' : 'Data';
 
       // Desbloqueio autorizado para a data atual
       setUnlockedDate(currentSelectedDbDate);
@@ -1104,7 +1163,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       setPinError('');
       setNotification({
         type: 'success',
-        message: `Data futura ${selectedDate} desbloqueada com sucesso para lançamentos por ${authorizerTitle}. O auto-bloqueio será reativado ao sair desta data.`
+        message: `${dateCategoryLabel} ${selectedDate} desbloqueada com sucesso por ${authorizerTitle}. O auto-bloqueio será reativado ao sair desta data.`
       });
     } catch (err: any) {
       console.error('Erro ao validar PIN:', err);
@@ -1132,9 +1191,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     if (!userAuth || !selectedSubject) return;
     
     if (isDateLockedByRule) {
-      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de Administrador, Diretor ou Secretário para desbloquear e salvar.');
-      setEnteredPin('');
-      setIsPinModalOpen(true);
+      openPinModalForLockedDate('save');
       return;
     }
 
@@ -1201,9 +1258,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     if (!userAuth || !selectedSubject || !selectedClass || !selectedDate) return;
     
     if (isDateLockedByRule) {
-      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de Administrador, Diretor ou Secretário para autorizar o fechamento.');
-      setEnteredPin('');
-      setIsPinModalOpen(true);
+      openPinModalForLockedDate('close');
       return;
     }
     
@@ -1258,6 +1313,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
   const reopenAttendance = async () => {
     if (!userAuth || !selectedSubject || !selectedClass || !selectedDate) return;
+
+    if (isDateLockedByRule) {
+      setReopenConfirm(false);
+      openPinModalForLockedDate('reopen');
+      return;
+    }
 
     setClosing(true);
     try {
@@ -1891,11 +1952,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       <button
                         type="button"
                         disabled={closing}
-                        onClick={() => setReopenConfirm(true)}
+                        onClick={() => {
+                          if (isDateLockedByRule) {
+                            openPinModalForLockedDate('reopen');
+                            return;
+                          }
+                          setReopenConfirm(true);
+                        }}
                         className="group flex items-center gap-1.5 h-10 px-4 bg-rose-50 text-rose-700 hover:bg-rose-100/80 border border-rose-200 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-200 hover:shadow-sm"
-                        title="Reabrir chamada finalizada para novas edições"
+                        title={isDateLockedByRule ? "Data bloqueada. Clique para inserir o PIN privilegiado e reabrir" : "Reabrir chamada finalizada para novas edições"}
                       >
-                        <Unlock size={13} className="transition-transform group-hover:rotate-12" />
+                        {isDateLockedByRule ? (
+                          <Lock size={13} className="text-rose-700" />
+                        ) : (
+                          <Unlock size={13} className="transition-transform group-hover:rotate-12" />
+                        )}
                         <span>Reabrir Chamada</span>
                       </button>
                     ) : (
@@ -1971,6 +2042,23 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <span className="font-semibold text-slate-900 font-mono">
                       {selectedDate}
                     </span>
+                    {selectedSubject && isDateLockedByRule && (
+                      <button
+                        type="button"
+                        onClick={() => openPinModalForLockedDate('launch')}
+                        title="Data bloqueada. Clique para desbloquear via PIN"
+                        className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[8px] font-bold uppercase tracking-wider cursor-pointer hover:bg-amber-200 transition-colors"
+                      >
+                        <Lock size={9} />
+                        <span>Bloqueada</span>
+                      </button>
+                    )}
+                    {selectedSubject && isDateUnlockedByPin && (
+                      <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[8px] font-bold uppercase tracking-wider">
+                        <Unlock size={9} />
+                        <span>PIN Liberado</span>
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -2154,7 +2242,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-widest px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 flex items-center gap-1">
                               <Unlock size={9} /> Desbloqueada via PIN
                             </span>
-                          ) : isFutureDate ? (
+                          ) : isDateLockedByRule ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -2163,19 +2251,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                 setIsPinModalOpen(true);
                               }}
                               className="text-[8px] font-bold text-amber-800 uppercase tracking-widest px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
-                              title="Clique para inserir PIN e desbloquear"
+                              title="Clique para inserir o PIN de usuário com privilégio e desbloquear"
                             >
-                              <Lock size={9} /> Bloqueada (Data Futura - Requer PIN)
+                              <Lock size={9} /> {isFutureDate ? 'Bloqueada (Data Futura - Requer PIN)' : 'Bloqueada (Data Passada - Requer PIN)'}
                             </button>
                           ) : isTodayDate ? (
                             <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 flex items-center gap-1">
                               <Check size={9} /> Aula de Hoje (Liberada)
                             </span>
-                          ) : (
-                            <span className="text-[8px] font-bold text-slate-700 uppercase tracking-widest px-1.5 py-0.5 bg-slate-100 border border-slate-200 flex items-center gap-1">
-                              <Check size={9} /> Aula Realizada (Liberada)
-                            </span>
-                          )
+                          ) : null
                         )}
                       </label>
                     </div>
@@ -2216,11 +2300,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             <>
                               <option value="">SELECIONAR DATA...</option>
                               {[...availableDates].reverse().map((date, dIdx) => {
-                                const isDateToday = date.dbValue === getTodayDbDate();
-                                const isDateFuture = date.dbValue > getTodayDbDate();
+                                const todayDb = getTodayDbDate();
+                                const isDateToday = date.dbValue === todayDb;
+                                const isDateFuture = date.dbValue > todayDb;
                                 const isPinUnlocked = date.dbValue === unlockedDate;
 
-                                let tag = '✓ [AULA REALIZADA]';
+                                let tag = '🔒 [DATA PASSADA - REQUER PIN]';
                                 if (isPinUnlocked) {
                                   tag = '🔓 [DESBLOQUEADA COM PIN]';
                                 } else if (isDateToday) {
@@ -2428,10 +2513,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           </div>
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wider text-amber-950">
-                              Data Futura Bloqueada para Lançamentos ({selectedDate})
+                              {isFutureDate
+                                ? `Data Futura Bloqueada para Lançamentos (${selectedDate})`
+                                : `Data Passada Bloqueada para Alterações (${selectedDate})`}
                             </p>
                             <p className="text-[11px] text-amber-850 mt-0.5">
-                              Por segurança acadêmica, lançamentos de frequência em datas futuras ficam bloqueados automaticamente. Para antecipar lançamentos nesta data, utilize o PIN de um usuário.
+                              {isFutureDate
+                                ? 'Por segurança acadêmica, lançamentos de frequência em datas futuras ficam bloqueados automaticamente. Somente a data de hoje permanece liberada. Para antecipar lançamentos nesta data, utilize o PIN de um Administrador, Diretor ou Secretário.'
+                                : 'Por segurança acadêmica, alterações de frequência em datas passadas ficam bloqueadas automaticamente. Somente a data de hoje permanece liberada. Para editar esta data, utilize o PIN de um Administrador, Diretor ou Secretário.'}
                             </p>
                           </div>
                         </div>
@@ -2442,7 +2531,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             setEnteredPin('');
                             setIsPinModalOpen(true);
                           }}
-                          title="Inserir PIN de autorização para lançar frequência em data futura"
+                          title="Inserir PIN de autorização privilegiada para liberar esta data"
                           className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-900 hover:bg-amber-950 text-white text-[10px] font-bold uppercase tracking-widest transition-all rounded-lg shrink-0 shadow-xs cursor-pointer w-full sm:w-auto justify-center"
                         >
                           <KeyRound size={13} />
@@ -2469,8 +2558,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <button
                           type="button"
                           onClick={() => setUnlockedDate(null)}
-                          title="Bloquear novamente o lançamento nesta data futura"
-                          className="text-[9px] font-bold uppercase tracking-widest text-emerald-800 hover:text-emerald-950 underline px-2 py-1 shrink-0"
+                          title="Bloquear novamente os lançamentos nesta data"
+                          className="text-[9px] font-bold uppercase tracking-widest text-emerald-800 hover:text-emerald-950 underline px-2 py-1 shrink-0 cursor-pointer"
                         >
                           Bloquear Agora
                         </button>
@@ -2528,12 +2617,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                   <button
                                     type="button"
                                     disabled={isClosed}
-                                    title={isDateLockedByRule ? "Data bloqueada. Clique para desbloquear via PIN" : "Clique para editar as observações do abono"}
+                                    title={isDateLockedByRule ? "Data bloqueada. Clique para desbloquear via PIN de usuário privilegiado" : "Clique para editar as observações do abono"}
                                     onClick={() => {
                                       if (isDateLockedByRule) {
-                                        setPinError('Esta data futura está bloqueada para alterações. Digite o PIN de um usuário cadastrado para desbloquear.');
-                                        setEnteredPin('');
-                                        setIsPinModalOpen(true);
+                                        openPinModalForLockedDate('edit');
                                         return;
                                       }
                                       const existingRecord = attendance[student.id];
@@ -2609,15 +2696,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                     : !isDateValidForSubject 
                                       ? `Data fora do ${currentSubjectSemester}` 
                                       : isDateLockedByRule
-                                        ? "Data futura bloqueada. Clique para inserir o PIN de um usuário e desbloquear"
+                                        ? `${isFutureDate ? 'Data futura' : 'Data passada'} bloqueada. Clique para inserir o PIN de Administrador, Diretor ou Secretário e desbloquear`
                                         : "Dê um clique simples para marcar ou duplo clique para limpar a seleção"
                                 }
                                 onClick={() => {
                                   if (isClosed || !isDateValidForSubject) return;
                                   if (isDateLockedByRule) {
-                                    setPinError('Esta data futura está bloqueada para lançamentos. Digite o PIN de um usuário cadastrado para desbloquear.');
-                                    setEnteredPin('');
-                                    setIsPinModalOpen(true);
+                                    openPinModalForLockedDate('launch');
                                     return;
                                   }
                                   if (btn.id === 'J') {
@@ -2657,9 +2742,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                   e.stopPropagation();
                                   if (isClosed || !isDateValidForSubject) return;
                                   if (isDateLockedByRule) {
-                                    setPinError('Esta data está bloqueada para alterações. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
-                                    setEnteredPin('');
-                                    setIsPinModalOpen(true);
+                                    openPinModalForLockedDate('edit');
                                     return;
                                   }
                                   
@@ -2676,7 +2759,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                     ? `bg-slate-800 text-white border-slate-800 shadow-sm`
                                     : `bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800`,
                                   isClosed && attendance[student.id]?.status !== btn.id && "opacity-20 grayscale cursor-not-allowed",
-                                  !isDateValidForSubject && "opacity-20 grayscale cursor-not-allowed"
+                                  !isDateValidForSubject && "opacity-20 grayscale cursor-not-allowed",
+                                  !isClosed && isDateValidForSubject && isDateLockedByRule && (
+                                    attendance[student.id]?.status === btn.id
+                                      ? "opacity-65 cursor-not-allowed"
+                                      : "opacity-45 bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed hover:border-amber-300 hover:text-amber-700"
+                                  )
                                 )}
                               >
                                 <btn.icon size={12} />
@@ -2853,7 +2941,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               </div>
               <div className="flex items-center justify-between text-slate-600 border-t border-slate-200 pt-1.5">
                 <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">Data Solicitada:</span>
-                <span className="font-bold font-mono text-amber-900 bg-amber-100 px-1.5 py-0.5 border border-amber-200">{selectedDate}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                    {isFutureDate ? '(Data Futura)' : isPastDate ? '(Data Passada)' : ''}
+                  </span>
+                  <span className="font-bold font-mono text-amber-900 bg-amber-100 px-1.5 py-0.5 border border-amber-200">{selectedDate}</span>
+                </div>
               </div>
             </div>
 
@@ -2863,7 +2956,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   Chave de Segurança (PIN de 4 Dígitos)
                 </label>
                 <p className="text-[11px] text-slate-500 mb-2.5 leading-relaxed">
-                  Digite o PIN de segurança de um usuário para autorizar o lançamento de presenças e faltas nesta data futura.
+                  {isFutureDate
+                    ? 'Digite o PIN de segurança de um usuário com nível de privilégio (Administrador, Diretor ou Secretário) para autorizar lançamentos nesta data futura.'
+                    : 'Digite o PIN de segurança de um usuário com nível de privilégio (Administrador, Diretor ou Secretário) para autorizar alterações nesta data passada.'}
                 </p>
 
                 <input
@@ -2993,6 +3088,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               <button
                 type="button"
                 onClick={() => {
+                  if (isDateLockedByRule) {
+                    setAbonoModal(null);
+                    openPinModalForLockedDate('edit');
+                    return;
+                  }
                   const finalObs = `${abonoModal.type === 'atraso' ? 'ATRASO' : abonoModal.type === 'ausencia' ? 'AUSÊNCIA' : 'OUTROS'}${abonoModal.customReason ? ` - ${abonoModal.customReason.toUpperCase()}` : ''}`;
                   setAttendance(prev => ({
                     ...prev,
