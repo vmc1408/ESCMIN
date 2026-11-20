@@ -29,12 +29,12 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
-import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject } from '../lib/academicUtils';
+import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject, getClassWeekdays, resolveAcademicSettingsForUnit, normalizeScheduleDate } from '../lib/academicUtils';
 import { getClassSubjects, doesSubjectYearMatchClass, normalizeClass, normalizeSubject, isSubjectActive } from '../lib/classSubjectUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
-import { getItemUnitId } from '../lib/unitService';
+import { getItemUnitId, isItemInUnit } from '../lib/unitService';
 import { getTeacherScope } from '../lib/teacherScope';
 import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 import { PageHeader } from '../components/PageHeader';
@@ -42,6 +42,16 @@ import { Teacher } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const getLocalTodayDbDate = (): string => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const NON_BLOCKING_HOLIDAY_KEYWORDS = ['servidor público', 'servidor publico', 'santo antônio', 'santo antonio', 'dia do professor', 'consciência negra', 'consciencia negra'];
 
 interface Student {
   id: string;
@@ -120,6 +130,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
   const [academicParams, setAcademicParams] = useState<any>(null);
+  const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
   const [calendarDays, setCalendarDays] = useState<number>(0);
   const [studentAbsences, setStudentAbsences] = useState<Record<string, number>>({});
   const [studentGrades, setStudentGrades] = useState<Record<string, any>>({});
@@ -135,7 +146,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
+  const [selectedDate, setSelectedDate] = useState<string>(() => formatDateForDisplay(getLocalTodayDbDate()));
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
@@ -156,6 +167,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   }, [classes]);
 
   const [classEvents, setClassEvents] = useState<any[]>([]);
+  const [loadedCalendarYear, setLoadedCalendarYear] = useState<number | null>(null);
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState<boolean>(false);
   
   const [loading, setLoading] = useState(false);
@@ -176,10 +188,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
   const fetchData = React.useCallback(async () => {
     try {
-      const [classesData, subjectsData, paramsData, instData, teachersData] = await Promise.all([
+      const [classesData, subjectsData, paramsData, settingsData, instData, teachersData] = await Promise.all([
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
         fetchAll('academic_parameters', '*', ''),
+        fetchAll('academic_settings', '*', '').catch(() => []),
         fetchAll('institution_settings'),
         fetchAll('teachers', 'id, name, subject_ids, status', 'name', true)
       ]);
@@ -228,7 +241,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
       setClasses(sortedClasses);
       setSubjects(normalizedSubjects);
-      setTeachers(normalizedTeachers);
+      setAcademicSettingsList(settingsData || []);
       if (paramsData && paramsData.length > 0) {
         setAcademicParams(paramsData[0]);
       }
@@ -238,23 +251,25 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   }, []);
 
   const fetchClassEvents = React.useCallback(async () => {
-    if (!selectedClass) {
-      setClassEvents([]);
-      return;
-    }
+    const yearStr = String(selectedYear);
     try {
-      // Fetch ALL calendar events for the selected year
-      // This ensures we catch global holidays/cancellations and class-specific ones
-      const events = await fetchQuery('calendar_events', [
-        { field: 'start_date', operator: '>=', value: `${selectedYear}-01-01` },
-        { field: 'start_date', operator: '<=', value: `${selectedYear}-12-31` }
-      ]);
-      
-      setClassEvents(events || []);
+      const allEvents = await fetchAll('calendar_events', '*', 'start_date', true);
+      const yearEvents = (allEvents || [])
+        .map((e: any) => ({
+          ...e,
+          start_date: normalizeScheduleDate(e.start_date),
+          end_date: normalizeScheduleDate(e.end_date || e.start_date)
+        }))
+        .filter((e: any) => e.start_date && e.start_date.startsWith(yearStr));
+
+      setClassEvents(yearEvents);
+      setLoadedCalendarYear(selectedYear);
     } catch (error) {
       console.error('Error fetching class events:', error);
+      setClassEvents([]);
+      setLoadedCalendarYear(selectedYear);
     }
-  }, [selectedClass, selectedYear]);
+  }, [selectedYear]);
 
   useEffect(() => {
     fetchData();
@@ -591,78 +606,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     setAttendance(newAttendance);
   };
 
-  const selectedClassWeekdays = React.useMemo(() => {
-    const classInfo = classes.find(c => c.id === selectedClass);
-    if (!classInfo) return [];
-
-    const dayMap: Record<string, number> = {
-      'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6,
-      'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6,
-      'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3, 'Quinta-feira': 4, 'Sexta-feira': 5,
-      'segunda-feira': 1, 'terça-feira': 2, 'quarta-feira': 3, 'quinta-feira': 4, 'sexta-feira': 5,
-    };
-
-    let targetDayIndices: number[] = [];
-
-    // A. Use explicit days_of_week if available (handling string/JSON/array)
-    let rawDays: any = classInfo.days_of_week;
-    if (typeof rawDays === 'string') {
-      try {
-        rawDays = JSON.parse(rawDays);
-      } catch (e) {
-        rawDays = rawDays.split(',').map((s: string) => s.trim());
-      }
-    }
-
-    if (Array.isArray(rawDays) && rawDays.length > 0) {
-      targetDayIndices = rawDays
-        .map(d => dayMap[d] !== undefined ? dayMap[d] : dayMap[d.charAt(0).toUpperCase() + d.slice(1).toLowerCase()])
-        .filter(d => d !== undefined);
-    }
-
-    // B. Fallback: Parse class name for weekday keywords
-    if (targetDayIndices.length === 0 && classInfo?.name) {
-      const lowerName = classInfo.name.toLowerCase();
-      const dayMatches = [
-        { keywords: ['segunda', '2ª', '2a', 'seg-'], index: 1 },
-        { keywords: ['terça', '3ª', '3a', 'ter-'], index: 2 },
-        { keywords: ['quarta', '4ª', '4a', 'qua-'], index: 3 },
-        { keywords: ['quinta', '5ª', '5a', 'qui-'], index: 4 },
-        { keywords: ['sexta', '6ª', '6a', 'sex-'], index: 5 },
-        { keywords: ['sábado', 'sab', 'sáb'], index: 6 },
-        { keywords: ['domingo', 'dom'], index: 0 },
-      ];
-      dayMatches.forEach(match => {
-        if (match.keywords.some(k => lowerName.includes(k))) {
-          targetDayIndices.push(match.index);
-        }
-      });
-    }
-
-    // C. Fallback: Check significant days in class-specific events
-    if (targetDayIndices.length === 0) {
-      const classSpecific = classEvents.filter(e => String(e.class_id) === String(selectedClass));
-      if (classSpecific.length > 0) {
-        const dayCounts: Record<number, number> = {};
-        classSpecific.forEach(e => {
-          const d = new Date(e.start_date + 'T12:00:00').getDay();
-          dayCounts[d] = (dayCounts[d] || 0) + 1;
-        });
-        
-        const entries = Object.entries(dayCounts).sort((a: any, b: any) => b[1] - a[1]);
-        if (entries.length > 0) {
-          const maxCount = entries[0][1];
-          // Include any day that has at least 25% of the frequency of the most frequent day
-          targetDayIndices = entries
-            .filter(e => e[1] >= maxCount * 0.25)
-            .map(e => parseInt(e[0]));
-        }
-      }
-    }
-
-    return targetDayIndices;
-  }, [classes, selectedClass, classEvents]);
-
   const currentSubjectObj = React.useMemo(() => {
     return subjects.find(s => s.id === selectedSubject);
   }, [subjects, selectedSubject]);
@@ -671,6 +614,34 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     return classes.find(c => c.id === selectedClass);
   }, [classes, selectedClass]);
 
+  const currentAcademicSettings = React.useMemo(() => {
+    const unitToResolve = currentClassObj?.unit_id || (currentClassObj as any)?.polo || selectedUnitId;
+    return resolveAcademicSettingsForUnit(unitToResolve, academicSettingsList).settings;
+  }, [currentClassObj, selectedUnitId, academicSettingsList]);
+
+  const selectedClassWeekdays = React.useMemo(() => {
+    if (!currentClassObj) return [];
+    return getClassWeekdays(currentClassObj, currentAcademicSettings, classEvents);
+  }, [currentClassObj, currentAcademicSettings, classEvents]);
+
+  const effectiveSemesterSettings = React.useMemo(() => {
+    const base = currentAcademicSettings || academicParams || {};
+    if (selectedClassWeekdays.length === 1 && base?.weekday_terms) {
+      const wDay = selectedClassWeekdays[0];
+      const dayTerms = base.weekday_terms[wDay] || base.weekday_terms[String(wDay)];
+      if (dayTerms && (dayTerms.term1_start || dayTerms.term1_end || dayTerms.term2_start || dayTerms.term2_end)) {
+        return {
+          ...base,
+          term1_start: dayTerms.term1_start || base.term1_start,
+          term1_end: dayTerms.term1_end || base.term1_end,
+          term2_start: dayTerms.term2_start || base.term2_start,
+          term2_end: dayTerms.term2_end || base.term2_end
+        };
+      }
+    }
+    return base;
+  }, [currentAcademicSettings, academicParams, selectedClassWeekdays]);
+
   const currentSubjectSemester = React.useMemo(() => {
     return detectSubjectSemester(currentSubjectObj, currentClassObj);
   }, [currentSubjectObj, currentClassObj]);
@@ -678,49 +649,75 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const isDateValidForSubject = React.useMemo(() => {
     if (!selectedSubject || !selectedDate) return true;
     const dbDate = parseDateToDB(selectedDate);
-    return isDateInSubjectSemester(dbDate, currentSubjectObj, currentClassObj, academicParams);
-  }, [selectedSubject, selectedDate, currentSubjectObj, currentClassObj, academicParams]);
+    if (!dbDate) return true;
+    return isDateInSubjectSemester(dbDate, currentSubjectObj, currentClassObj, effectiveSemesterSettings);
+  }, [selectedSubject, selectedDate, currentSubjectObj, currentClassObj, effectiveSemesterSettings]);
 
   const isMonthValidForSubject = React.useMemo(() => {
     if (!selectedSubject) return true;
     return isMonthInSubjectSemester(selectedMonth, currentSubjectObj, currentClassObj);
   }, [selectedSubject, selectedMonth, currentSubjectObj, currentClassObj]);
 
-  const isScheduledDay = React.useMemo(() => {
-    if (!selectedClass || !selectedDate || classEvents.length === 0) return false;
-    const dbDate = parseDateToDB(selectedDate);
-    
-    // SEMESTER FILTER: If a subject is selected, date MUST be within the subject's semester
-    if (selectedSubject && currentSubjectObj) {
-      if (!isDateInSubjectSemester(dbDate, currentSubjectObj, currentClassObj, academicParams)) {
-        return false;
-      }
-    }
+  // Contexto unificado de eventos acadêmicos da turma no ano selecionado (bloqueios + aulas válidas)
+  const classYearCalendarContext = React.useMemo(() => {
+    const emptyCtx = {
+      academicEvents: [] as any[],
+      blockingHolidayDates: new Set<string>(),
+      cancelledDates: new Set<string>()
+    };
+    if (!selectedClass) return emptyCtx;
 
     const classUnit = (currentClassObj?.unit_id || (currentClassObj as any)?.polo || 'matriz').toLowerCase();
+    const yearPrefix = String(selectedYear);
 
-    return classEvents.some(event => {
-      const isCorrectDate = event.start_date === dbDate;
-      const isForThisClass = String(event.class_id) === String(selectedClass);
-      const isGlobal = !event.class_id;
-      
-      if (!isCorrectDate) return false;
-      if (isForThisClass) return true;
-      if (isGlobal) {
-        const eventUnit = (event.unit_id || 'matriz').toLowerCase();
-        if (eventUnit !== 'all' && eventUnit !== 'todas' && eventUnit !== classUnit) {
-          return false;
-        }
-        // For global events, only count as scheduled if it matches the class weekdays
-        if (selectedClassWeekdays.length > 0) {
-          const dateObj = new Date(dbDate + 'T12:00:00');
-          return selectedClassWeekdays.includes(dateObj.getDay());
-        }
-        return true;
+    const academicEvents = (classEvents || []).filter(e => {
+      if (!e.start_date || !e.start_date.startsWith(yearPrefix)) return false;
+      if (String(e.class_id) === String(selectedClass)) return true;
+      if (!e.class_id) {
+        const evUnit = (e.unit_id || 'matriz').trim().toLowerCase();
+        return evUnit === 'all' || evUnit === 'todas' || evUnit === 'todos' || evUnit === classUnit || isItemInUnit(evUnit, classUnit);
       }
       return false;
     });
-  }, [selectedDate, classEvents, selectedClass, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, academicParams]);
+
+    const expandDateRange = (targetSet: Set<string>, startStr: string, endStr?: string) => {
+      if (!startStr) return;
+      targetSet.add(startStr);
+      if (endStr && endStr > startStr) {
+        const cur = new Date(startStr + 'T12:00:00');
+        const end = new Date(endStr + 'T12:00:00');
+        if (!isNaN(cur.getTime()) && !isNaN(end.getTime())) {
+          let guard = 0;
+          while (cur <= end && guard < 120) {
+            const y = cur.getFullYear();
+            const m = String(cur.getMonth() + 1).padStart(2, '0');
+            const d = String(cur.getDate()).padStart(2, '0');
+            targetSet.add(`${y}-${m}-${d}`);
+            cur.setDate(cur.getDate() + 1);
+            guard++;
+          }
+        }
+      }
+    };
+
+    const blockingHolidayDates = new Set<string>();
+    const cancelledDates = new Set<string>();
+
+    academicEvents.forEach(e => {
+      const tLow = (e.title || '').toLowerCase();
+      if (e.type?.includes('holiday')) {
+        if (!NON_BLOCKING_HOLIDAY_KEYWORDS.some(nb => tLow.includes(nb))) {
+          expandDateRange(blockingHolidayDates, e.start_date, e.end_date);
+        }
+      } else if (e.type === 'event' && (tLow.includes('férias') || tLow.includes('ferias') || tLow.includes('recesso') || tLow.includes('suspensão') || tLow.includes('suspensao'))) {
+        expandDateRange(blockingHolidayDates, e.start_date, e.end_date);
+      } else if (e.type === 'cancelled_class') {
+        expandDateRange(cancelledDates, e.start_date, e.end_date);
+      }
+    });
+
+    return { academicEvents, blockingHolidayDates, cancelledDates };
+  }, [selectedClass, selectedYear, classEvents, currentClassObj]);
 
   const attendanceStats = React.useMemo(() => {
     let present = 0;
@@ -747,48 +744,25 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
   const monthlyClassDays = React.useMemo(() => {
     if (!selectedClass) return [];
-    
-    // 1. Get all academic events for this class in the current year
-    const classUnit = (currentClassObj?.unit_id || (currentClassObj as any)?.polo || 'matriz').toLowerCase();
-    const academicEvents = classEvents.filter(e => {
-      if (!e.start_date.startsWith(selectedYear.toString())) return false;
-      if (String(e.class_id) === String(selectedClass)) return true;
-      if (e.type?.includes('holiday')) {
-        return !e.unit_id || e.unit_id.toLowerCase() === 'all' || e.unit_id.toLowerCase() === classUnit;
-      }
-      if (!e.class_id) {
-        const evUnit = (e.unit_id || 'matriz').toLowerCase();
-        return evUnit === 'all' || evUnit === 'todas' || evUnit === classUnit;
-      }
-      return false;
-    });
 
-    // 2. Identify holidays
-    const holidayDates = new Set(
-      academicEvents
-        .filter(e => e.type?.includes('holiday'))
-        .map(e => e.start_date)
-    );
+    const { academicEvents, blockingHolidayDates, cancelledDates } = classYearCalendarContext;
 
-    // 3. Extract and sort ALL valid lesson events (those that contribute to counting)
-    // We count: class_day, exam, excused_class (EXCEPT holidays and cancelled_class)
+    // 1. Extract and sort ALL valid lesson events (class_day, exam, excused_class EXCEPT holidays and cancelled_class)
     const lessonMap = new Map();
     academicEvents
-      .filter(e => 
+      .filter(e =>
         ['class_day', 'exam', 'excused_class'].includes(e.type) &&
-        !holidayDates.has(e.start_date) &&
-        !academicEvents.some(ce => ce.type === 'cancelled_class' && ce.start_date === e.start_date)
+        !blockingHolidayDates.has(e.start_date) &&
+        !cancelledDates.has(e.start_date)
       )
       .forEach(e => {
-        // STRICT FILTER: Only show days that match identified target weekdays
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(e.start_date + 'T12:00:00');
           if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
         }
 
-        // SEMESTER FILTER: If a subject is selected, only consider days in the subject's semester
         if (selectedSubject && currentSubjectObj) {
-          if (!isDateInSubjectSemester(e.start_date, currentSubjectObj, currentClassObj, academicParams)) {
+          if (!isDateInSubjectSemester(e.start_date, currentSubjectObj, currentClassObj, effectiveSemesterSettings)) {
             return;
           }
         }
@@ -807,23 +781,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     const sortedLessons = Array.from(lessonMap.values())
       .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
-    // 4. Extract ALL events intended for display in the columns (Lessons + Cancelled)
+    // 2. Extract ALL events intended for display in the columns (Lessons + Cancelled)
     const displayMap = new Map();
     academicEvents
-      .filter(e => 
+      .filter(e =>
         ['class_day', 'exam', 'excused_class', 'cancelled_class'].includes(e.type) &&
-        !holidayDates.has(e.start_date)
+        !blockingHolidayDates.has(e.start_date)
       )
       .forEach(e => {
-        // STRICT FILTER: Only show days that match identified target weekdays
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(e.start_date + 'T12:00:00');
           if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
         }
 
-        // SEMESTER FILTER: If a subject is selected, only consider days in the subject's semester
         if (selectedSubject && currentSubjectObj) {
-          if (!isDateInSubjectSemester(e.start_date, currentSubjectObj, currentClassObj, academicParams)) {
+          if (!isDateInSubjectSemester(e.start_date, currentSubjectObj, currentClassObj, effectiveSemesterSettings)) {
             return;
           }
         }
@@ -832,7 +804,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         if (!existing) {
           displayMap.set(e.start_date, e);
         } else {
-          // Priority: cancelled_class > exam > class_day > excused_class
           const typePriority = { 'cancelled_class': 4, 'exam': 3, 'class_day': 2, 'excused_class': 1 };
           if ((typePriority[e.type as keyof typeof typePriority] || 0) > (typePriority[existing.type as keyof typeof typePriority] || 0)) {
             displayMap.set(e.start_date, e);
@@ -842,14 +813,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
     const monthStr = String(selectedMonth + 1).padStart(2, '0');
     const prefix = `${selectedYear}-${monthStr}-`;
-    
+
     return Array.from(displayMap.values())
       .filter(e => e.start_date.startsWith(prefix))
       .map(e => {
         const date = new Date(e.start_date + 'T12:00:00');
-        // Find index in the global lesson list (if it is a lesson)
         const lessonIndex = sortedLessons.findIndex(l => l.start_date === e.start_date);
-        
+
         return {
           dbValue: e.start_date,
           dayNumber: date.getDate(),
@@ -860,13 +830,17 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         };
       })
       .sort((a, b) => a.dbValue.localeCompare(b.dbValue));
-  }, [selectedClass, selectedMonth, selectedYear, classEvents, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, academicParams]);
+  }, [selectedClass, selectedMonth, selectedYear, classYearCalendarContext, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, effectiveSemesterSettings]);
 
   const availableDates = React.useMemo(() => {
-    // 3. Process events into display dates
-    const uniqueMap = new Map();
-    const sortedEvents = [...classEvents].sort((a, b) => {
-      // Prioritize class-specific events if they exist for the same date
+    if (!selectedClass) return [];
+
+    const { academicEvents, blockingHolidayDates, cancelledDates } = classYearCalendarContext;
+    const normalizedClassStart = normalizeScheduleDate(currentClassObj?.start_date);
+    const uniqueMap = new Map<string, any>();
+
+    // Prioriza eventos específicos da turma antes de eventos globais da unidade
+    const sortedEvents = [...academicEvents].sort((a, b) => {
       if (a.class_id && !b.class_id) return -1;
       if (!a.class_id && b.class_id) return 1;
       return 0;
@@ -874,47 +848,80 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
     sortedEvents.forEach(event => {
       const dateKey = event.start_date;
+      if (!dateKey) return;
+
+      // Exclui feriados bloqueantes e aulas canceladas antes de qualquer dedup
+      if (blockingHolidayDates.has(dateKey) || cancelledDates.has(dateKey)) return;
+
+      // Apenas eventos efetivos de aula entram no seletor de chamada
+      if (!['class_day', 'exam', 'excused_class'].includes(event.type)) return;
+
+      // Para eventos globais da unidade, respeita data de início cadastrada na turma (se no mesmo ano)
+      if (!event.class_id && normalizedClassStart && normalizedClassStart.startsWith(String(selectedYear)) && dateKey < normalizedClassStart) {
+        return;
+      }
+
+      // Filtro rigoroso pelo dia da semana configurado na turma
+      if (selectedClassWeekdays.length > 0) {
+        const dateObj = new Date(dateKey + 'T12:00:00');
+        if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
+      }
+
+      // Se evento possui disciplina vinculada explícita, valida disciplina selecionada
+      if (selectedSubject && event.subject_id && String(event.subject_id) !== String(selectedSubject)) return;
+
+      // Filtro por semestre da disciplina selecionada
+      if (selectedSubject && currentSubjectObj) {
+        if (!isDateInSubjectSemester(dateKey, currentSubjectObj, currentClassObj, effectiveSemesterSettings)) {
+          return;
+        }
+      }
+
       if (!uniqueMap.has(dateKey)) {
-        // Filter which days to show in the dropdown:
-        // Include events specific to this class OR same-unit global events
-        const isGlobal = !event.class_id;
-        const isThisClass = String(event.class_id) === String(selectedClass);
-        
-        if (!isGlobal && !isThisClass) return;
-        if (isGlobal) {
-          const classUnit = (currentClassObj?.unit_id || (currentClassObj as any)?.polo || 'matriz').toLowerCase();
-          const evUnit = (event.unit_id || 'matriz').toLowerCase();
-          if (evUnit !== 'all' && evUnit !== 'todas' && evUnit !== classUnit) return;
-        }
-
-        // Only include actual lesson days (class_day, exam, excused_class)
-        if (!['class_day', 'exam', 'excused_class'].includes(event.type)) return;
-
-        // STRICT FILTER: Only show if it matches identified target weekdays
-        if (selectedClassWeekdays.length > 0) {
-          const dateObj = new Date(dateKey + 'T12:00:00');
-          if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
-        }
-
-        // Filter by subject if specified on the event
-        if (selectedSubject && event.subject_id && String(event.subject_id) !== String(selectedSubject)) return;
-
-        // SEMESTER FILTER: When a subject is selected, strictly filter out dates of the other semester!
-        if (selectedSubject && currentSubjectObj) {
-          if (!isDateInSubjectSemester(dateKey, currentSubjectObj, currentClassObj, academicParams)) {
-            return;
-          }
-        }
-
-        // Skip cancelled classes or holidays for markings
-        if (event.type === 'cancelled_class' || event.type?.includes('holiday')) return;
-
         uniqueMap.set(dateKey, event);
       }
     });
 
+    // Fallback seguro caso o calendário ainda não tenha eventos class_day gravados no banco para esta turma/semestre,
+    // derivando diretamente dos parâmetros acadêmicos e do dia da semana da turma (respeitando feriados e cancelamentos)
+    if (uniqueMap.size === 0 && loadedCalendarYear === selectedYear && selectedClassWeekdays.length > 0) {
+      const yrStr = String(selectedYear);
+      const t1s = normalizeScheduleDate(effectiveSemesterSettings?.term1_start) || (normalizedClassStart && normalizedClassStart.startsWith(yrStr) && normalizedClassStart <= `${yrStr}-07-31` ? normalizedClassStart : `${yrStr}-02-01`);
+      const t1e = normalizeScheduleDate(effectiveSemesterSettings?.term1_end) || `${yrStr}-06-30`;
+      const t2s = normalizeScheduleDate(effectiveSemesterSettings?.term2_start) || `${yrStr}-08-01`;
+      const t2e = normalizeScheduleDate(effectiveSemesterSettings?.term2_end) || `${yrStr}-12-20`;
+
+      const sem = selectedSubject && currentSubjectObj ? detectSubjectSemester(currentSubjectObj, currentClassObj) : 'Anual';
+      const ranges =
+        sem === '1º Semestre'
+          ? [{ start: t1s, end: t1e }]
+          : sem === '2º Semestre'
+            ? [{ start: t2s, end: t2e }]
+            : [{ start: t1s, end: t1e }, { start: t2s, end: t2e }];
+
+      ranges.forEach(r => {
+        if (!r.start || !r.end) return;
+        const cur = new Date(r.start + 'T12:00:00');
+        const end = new Date(r.end + 'T12:00:00');
+        if (isNaN(cur.getTime()) || isNaN(end.getTime())) return;
+        let guard = 0;
+        while (cur <= end && guard < 370) {
+          if (cur.getFullYear() === selectedYear && selectedClassWeekdays.includes(cur.getDay())) {
+            const dKey = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+            const respectsStart = !normalizedClassStart || !normalizedClassStart.startsWith(yrStr) || dKey >= normalizedClassStart;
+            const respectsSem = !selectedSubject || !currentSubjectObj || isDateInSubjectSemester(dKey, currentSubjectObj, currentClassObj, effectiveSemesterSettings);
+            if (respectsStart && respectsSem && !blockingHolidayDates.has(dKey) && !cancelledDates.has(dKey) && !uniqueMap.has(dKey)) {
+              uniqueMap.set(dKey, { start_date: dKey, type: 'class_day', derived: true });
+            }
+          }
+          cur.setDate(cur.getDate() + 1);
+          guard++;
+        }
+      });
+    }
+
     return Array.from(uniqueMap.values())
-      .sort((a: any, b: any) => a.start_date.localeCompare(b.start_date)) // Sort ascending for auto-select logic
+      .sort((a: any, b: any) => a.start_date.localeCompare(b.start_date))
       .map((event: any) => {
         const date = new Date(event.start_date + 'T12:00:00');
         const weekdayName = date.toLocaleDateString('pt-BR', { weekday: 'long' });
@@ -924,34 +931,41 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           label: `${event.start_date.split('-').reverse().join('/')} (${weekdayName.split('-')[0]})`
         };
       });
-  }, [classEvents, selectedClass, selectedSubject, selectedClassWeekdays, currentSubjectObj, currentClassObj, academicParams]);
+  }, [selectedClass, selectedYear, loadedCalendarYear, classYearCalendarContext, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, effectiveSemesterSettings]);
 
-  // Helper para obter a data de hoje no formato YYYY-MM-DD local
-  const getTodayDbDate = () => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
+  const isScheduledDay = React.useMemo(() => {
+    if (!selectedClass || !selectedDate) return false;
+    const dbDate = parseDateToDB(selectedDate);
+    if (!dbDate) return false;
 
-  // 1. Determina a data de aula padrão: aula de hoje (se houver aula hoje) ou a aula passada mais recente
+    if (selectedSubject && currentSubjectObj) {
+      if (!isDateInSubjectSemester(dbDate, currentSubjectObj, currentClassObj, effectiveSemesterSettings)) {
+        return false;
+      }
+    }
+
+    return availableDates.some(d => d.dbValue === dbDate);
+  }, [selectedClass, selectedDate, selectedSubject, currentSubjectObj, currentClassObj, effectiveSemesterSettings, availableDates]);
+
+  // Helper para obter a data de hoje no formato YYYY-MM-DD local (sem desvio UTC)
+  const getTodayDbDate = () => getLocalTodayDbDate();
+
+  // 1. Determina a data de aula padrão: aula de hoje (se houver aula hoje para esta turma) ou a aula passada mais recente
   const defaultAllowedDate = React.useMemo(() => {
     if (availableDates.length === 0) return null;
     const today = getTodayDbDate();
-    
-    // Se hoje for dia de aula válido na lista, seleciona hoje
+
+    // Se hoje for dia de aula válido na lista da turma, seleciona hoje
     const todayMatch = availableDates.find(d => d.dbValue === today);
     if (todayMatch) return todayMatch.dbValue;
-    
-    // Senão, seleciona a aula passada mais recente (<= hoje)
+
+    // Senão, seleciona a aula passada mais recente (< hoje)
     const pastDates = availableDates.filter(d => d.dbValue <= today);
     if (pastDates.length > 0) {
-      // availableDates está em ordem cronológica crescente, logo o último item é a aula passada mais recente
       return pastDates[pastDates.length - 1].dbValue;
     }
 
-    // Se nenhuma aula passada existir (ex: início do ano letivo futuro), seleciona a primeira aula da grade
+    // Se nenhuma aula passada existir (ex: início de semestre futuro), seleciona a primeira aula futura da grade
     return availableDates[0].dbValue;
   }, [availableDates]);
 
@@ -994,22 +1008,48 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
   const prevSubjectRef = React.useRef<string>('');
   const prevClassRef = React.useRef<string>('');
+  const prevYearRef = React.useRef<number>(selectedYear);
 
-  // Auto-select logic: Ao entrar em chamada ou alterar turma/disciplina, traz a data de aula do dia ou aula passada mais recente
+  // Auto-select logic: Ao entrar em chamada ou alterar turma/disciplina/ano, traz a aula de hoje ou a última aula realizada da turma
   useEffect(() => {
-    if (availableDates.length > 0 && selectedClass && selectedSubject && defaultAllowedDate) {
-      const classChanged = prevClassRef.current !== '' && prevClassRef.current !== selectedClass;
-      const subjectChanged = prevSubjectRef.current !== '' && prevSubjectRef.current !== selectedSubject;
-      const isSelectedDateInAvailable = availableDates.some(d => d.dbValue === parseDateToDB(selectedDate));
+    if (!selectedClass || !selectedSubject) {
+      if (!selectedClass) {
+        prevClassRef.current = '';
+        prevSubjectRef.current = '';
+      } else {
+        prevSubjectRef.current = '';
+      }
+      return;
+    }
 
-      if (classChanged || subjectChanged || !isSelectedDateInAvailable || !selectedDate) {
-        setSelectedDate(formatDateForDisplay(defaultAllowedDate));
+    if (loadedCalendarYear !== selectedYear) return;
+
+    if (availableDates.length === 0) {
+      if (selectedDate !== '') {
+        setSelectedDate('');
+      }
+      return;
+    }
+
+    if (defaultAllowedDate) {
+      const classChanged = prevClassRef.current !== selectedClass;
+      const subjectChanged = prevSubjectRef.current !== selectedSubject;
+      const yearChanged = prevYearRef.current !== selectedYear;
+      const currentDb = parseDateToDB(selectedDate);
+      const isSelectedDateInAvailable = !!currentDb && availableDates.some(d => d.dbValue === currentDb);
+
+      if (classChanged || subjectChanged || yearChanged || !isSelectedDateInAvailable || !selectedDate) {
+        const formattedDefault = formatDateForDisplay(defaultAllowedDate);
+        if (selectedDate !== formattedDefault) {
+          setSelectedDate(formattedDefault);
+        }
       }
 
       prevClassRef.current = selectedClass;
       prevSubjectRef.current = selectedSubject;
+      prevYearRef.current = selectedYear;
     }
-  }, [availableDates, selectedClass, selectedSubject, defaultAllowedDate, selectedDate]);
+  }, [availableDates, selectedClass, selectedSubject, selectedYear, loadedCalendarYear, defaultAllowedDate, selectedDate]);
 
   // Verificação e Validação do PIN de qualquer usuário autorizado ou Master Admin
   const handleVerifyPin = async (e?: React.FormEvent) => {
@@ -1822,7 +1862,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 {!isClosed ? (
                   <>
                     <button 
-                      disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
+                      disabled={saving || closing || !selectedSubject || !selectedDate || !isDateValidForSubject}
                       onClick={saveAttendance}
                       title="Salvar alterações atuais da chamada sem finalizar os lançamentos"
                       className="group relative flex items-center gap-2 h-10 px-4 bg-slate-100 text-slate-700 border border-slate-350 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50"
@@ -1831,7 +1871,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       <span>Salvar Rascunho</span>
                     </button>
                     <button 
-                      disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
+                      disabled={saving || closing || !selectedSubject || !selectedDate || !isDateValidForSubject}
                       onClick={closeAttendance}
                       title="Salvar e finalizar os lançamentos de frequência desta data"
                       className="group relative flex items-center gap-2 h-10 px-5 bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 border border-slate-800 transition-all active:scale-95 disabled:opacity-50"
@@ -2017,6 +2057,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       onChange={e => {
                         setSelectedClass(e.target.value);
                         setSelectedSubject('');
+                        setSelectedDate('');
                       }}
                       title="Selecionar turma para consultar ou lançar frequência"
                       className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
@@ -2108,7 +2149,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <div className="flex items-center justify-between ml-1">
                       <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                         <span>Data</span>
-                        {selectedClass && selectedSubject && (
+                        {selectedClass && selectedSubject && selectedDate && (
                           isDateUnlockedByPin ? (
                             <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-widest px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 flex items-center gap-1">
                               <Unlock size={9} /> Desbloqueada via PIN
@@ -2202,7 +2243,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       <div className="col-span-1 relative group">
                         <select
                           value={selectedYear}
-                          onChange={e => setSelectedYear(parseInt(e.target.value))}
+                          onChange={e => {
+                            setSelectedYear(parseInt(e.target.value));
+                            setSelectedDate('');
+                          }}
                           title="Selecionar ano letivo das datas disponíveis"
                           className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
                         >

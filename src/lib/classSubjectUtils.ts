@@ -279,13 +279,29 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
   normalized.subject_ids = consolidatedSids;
   normalized.is_special = isSpecial;
 
-  // Infer days_of_week as array if needed
+  // Infer days_of_week as array if needed (supports Array, JSON, Postgres '{Quarta}', comma-separated)
   if (typeof normalized.days_of_week === 'string') {
-    try {
-      normalized.days_of_week = JSON.parse(normalized.days_of_week);
-    } catch {
-      normalized.days_of_week = normalized.days_of_week ? [normalized.days_of_week] : [];
+    const rawStr = normalized.days_of_week.trim();
+    if (rawStr.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(rawStr);
+        normalized.days_of_week = Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        normalized.days_of_week = rawStr.replace(/[\[\]"']/g, '').split(/[,;]+/).map((s: string) => s.trim()).filter(Boolean);
+      }
+    } else if (rawStr.startsWith('{') && rawStr.endsWith('}')) {
+      normalized.days_of_week = rawStr
+        .slice(1, -1)
+        .split(/[,;]+/)
+        .map((s: string) => s.replace(/^["']|["']$/g, '').trim())
+        .filter(Boolean);
+    } else {
+      normalized.days_of_week = rawStr
+        ? rawStr.split(/[,;]+/).map((s: string) => s.replace(/^["']|["']$/g, '').trim()).filter(Boolean)
+        : [];
     }
+  } else if (!Array.isArray(normalized.days_of_week)) {
+    normalized.days_of_week = [];
   }
 
   return normalized as T;

@@ -2,12 +2,72 @@ import { AcademicParameters, Subject } from '../types';
 
 export const WEEKDAY_MAP: Record<string, number> = {
   'domingo': 0, 'dom': 0, '0': 0,
-  'segunda': 1, 'segunda-feira': 1, 'seg': 1, '1': 1, '2ª': 1, '2a': 1,
-  'terça': 2, 'terca': 2, 'terça-feira': 2, 'terca-feira': 2, 'ter': 2, '2': 2, '3ª': 2, '3a': 2,
-  'quarta': 3, 'quarta-feira': 3, 'qua': 3, '3': 3, '4ª': 3, '4a': 3,
-  'quinta': 4, 'quinta-feira': 4, 'qui': 4, '4': 4, '5ª': 4, '5a': 4,
-  'sexta': 5, 'sexta-feira': 5, 'sex': 5, '5': 5, '6ª': 5, '6a': 5,
-  'sábado': 6, 'sabado': 6, 'sab': 6, '6': 6, 'sáb': 6
+  'segunda': 1, 'segunda-feira': 1, 'segunda feira': 1, 'seg': 1, '1': 1, '2ª': 1, '2a': 1,
+  'terça': 2, 'terca': 2, 'terça-feira': 2, 'terca-feira': 2, 'terca feira': 2, 'ter': 2, '2': 2, '3ª': 2, '3a': 2,
+  'quarta': 3, 'quarta-feira': 3, 'quarta feira': 3, 'qua': 3, '3': 3, '4ª': 3, '4a': 3,
+  'quinta': 4, 'quinta-feira': 4, 'quinta feira': 4, 'qui': 4, '4': 4, '5ª': 4, '5a': 4,
+  'sexta': 5, 'sexta-feira': 5, 'sexta feira': 5, 'sex': 5, '5': 5, '6ª': 5, '6a': 5,
+  'sábado': 6, 'sabado': 6, 'sabado-feira': 6, 'sab': 6, '6': 6, 'sáb': 6
+};
+
+const stripWeekdayAccents = (val: string): string =>
+  val.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+const parseRawDaysArray = (rawInput: any): string[] => {
+  if (Array.isArray(rawInput)) {
+    return rawInput.map(v => String(v ?? '').trim()).filter(Boolean);
+  }
+  if (typeof rawInput === 'string') {
+    const trimmed = rawInput.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(v => String(v ?? '').trim()).filter(Boolean);
+      } catch {
+        // Fallback below
+      }
+    }
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return trimmed
+        .slice(1, -1)
+        .split(/[,;]+/)
+        .map(s => s.replace(/^["']|["']$/g, '').trim())
+        .filter(Boolean);
+    }
+    return trimmed
+      .split(/[,;]+/)
+      .map(s => s.replace(/^["'\[\]{}]|["'\[\]{}]$/g, '').trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const matchWeekdayTokenExact = (token: string): number | undefined => {
+  const rawKey = token.trim().toLowerCase();
+  if (WEEKDAY_MAP[rawKey] !== undefined) return WEEKDAY_MAP[rawKey];
+  const cleanKey = stripWeekdayAccents(token);
+  if (WEEKDAY_MAP[cleanKey] !== undefined) return WEEKDAY_MAP[cleanKey];
+  return undefined;
+};
+
+const extractWeekdaysFromText = (text: string): number[] => {
+  if (!text) return [];
+  const normalized = stripWeekdayAccents(text);
+  const patterns: { day: number; regex: RegExp }[] = [
+    { day: 0, regex: /(?:^|[\s\-\/,;()\[\]])(domingo|dom)(?=$|[\s\-\/,;()\[\]])/i },
+    { day: 1, regex: /(?:^|[\s\-\/,;()\[\]])(segunda(?:\s*-\s*feira|\s+feira)?|2[ªa]|seg)(?=$|[\s\-\/,;()\[\]])/i },
+    { day: 2, regex: /(?:^|[\s\-\/,;()\[\]])(terca(?:\s*-\s*feira|\s+feira)?|3[ªa]|ter)(?=$|[\s\-\/,;()\[\]])/i },
+    { day: 3, regex: /(?:^|[\s\-\/,;()\[\]])(quarta(?:\s*-\s*feira|\s+feira)?|4[ªa]|qua)(?=$|[\s\-\/,;()\[\]])/i },
+    { day: 4, regex: /(?:^|[\s\-\/,;()\[\]])(quinta(?:\s*-\s*feira|\s+feira)?|5[ªa]|qui)(?=$|[\s\-\/,;()\[\]])/i },
+    { day: 5, regex: /(?:^|[\s\-\/,;()\[\]])(sexta(?:\s*-\s*feira|\s+feira)?|6[ªa]|sex)(?=$|[\s\-\/,;()\[\]])/i },
+    { day: 6, regex: /(?:^|[\s\-\/,;()\[\]])(sabado(?:\s*-\s*feira|\s+feira)?|sab)(?=$|[\s\-\/,;()\[\]])/i }
+  ];
+  const matched: number[] = [];
+  patterns.forEach(({ day, regex }) => {
+    if (regex.test(normalized)) matched.push(day);
+  });
+  return matched;
 };
 
 /**
@@ -23,45 +83,40 @@ export function getClassWeekdays(
 
   const foundDays = new Set<number>();
 
-  // 1. Check days_of_week property (Array, JSON string, or comma-separated string)
-  let rawDays: any = classObj.days_of_week;
-  if (typeof rawDays === 'string') {
-    try {
-      rawDays = JSON.parse(rawDays);
-    } catch {
-      rawDays = rawDays.split(',').map((s: string) => s.trim());
-    }
-  }
-
-  if (Array.isArray(rawDays) && rawDays.length > 0) {
-    rawDays.forEach(d => {
-      const key = String(d).trim().toLowerCase();
-      if (WEEKDAY_MAP[key] !== undefined) {
-        foundDays.add(WEEKDAY_MAP[key]);
-      }
+  // 1. Check explicit days_of_week property (Array, JSON, Postgres '{...}', or delimited string)
+  const parsedDays = parseRawDaysArray(classObj.days_of_week);
+  if (parsedDays.length > 0) {
+    parsedDays.forEach(d => {
+      const idx = matchWeekdayTokenExact(d);
+      if (idx !== undefined) foundDays.add(idx);
     });
   }
+  if (foundDays.size > 0) {
+    return Array.from(foundDays).sort((a, b) => a - b);
+  }
 
-  // 2. Check shift / schedule field (e.g., "NOITE - QUINTA", "Quinta-feira", "Sábado")
-  const scheduleStr = `${classObj.schedule || ''} ${classObj.shift || ''}`.toLowerCase();
-  Object.keys(WEEKDAY_MAP).forEach(k => {
-    if (k.length >= 3 && scheduleStr.includes(k)) {
-      foundDays.add(WEEKDAY_MAP[k]);
-    }
-  });
+  // 1b. Check metadata embedded in observations if available
+  if (classObj.observations) {
+    try {
+      const match = String(classObj.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+      if (match && match[1]) {
+        const meta = JSON.parse(match[1]);
+        const metaDays = parseRawDaysArray(meta.days_of_week || meta.weekday);
+        metaDays.forEach(d => {
+          const idx = matchWeekdayTokenExact(d);
+          if (idx !== undefined) foundDays.add(idx);
+        });
+      }
+    } catch {}
+  }
+  if (foundDays.size > 0) {
+    return Array.from(foundDays).sort((a, b) => a - b);
+  }
 
-  // 3. Check class name (e.g., "Doutrina Social da Igreja 2026 - Quinta")
-  const nameLower = (classObj.name || '').toLowerCase();
-  Object.keys(WEEKDAY_MAP).forEach(k => {
-    if (k.length >= 3 && nameLower.includes(k)) {
-      foundDays.add(WEEKDAY_MAP[k]);
-    }
-  });
-
-  // 4. Check settings.weekday_classes mapping
+  // 2. Check explicit settings.weekday_classes mapping
   if (settings?.weekday_classes && classObj.id) {
     Object.entries(settings.weekday_classes).forEach(([wDay, classList]: [string, any]) => {
-      if (Array.isArray(classList) && classList.includes(classObj.id)) {
+      if (Array.isArray(classList) && classList.some(id => String(id) === String(classObj.id))) {
         const dNum = parseInt(wDay, 10);
         if (!isNaN(dNum) && dNum >= 0 && dNum <= 6) {
           foundDays.add(dNum);
@@ -69,16 +124,26 @@ export function getClassWeekdays(
       }
     });
   }
+  if (foundDays.size > 0) {
+    return Array.from(foundDays).sort((a, b) => a - b);
+  }
 
-  // 5. Fallback to attendance record patterns if still empty
-  if (foundDays.size === 0 && attendances && classObj.id) {
+  // 3. Check shift / schedule / period / class name using strict word-boundary token matching
+  const descriptorText = `${classObj.schedule || ''} ${classObj.shift || ''} ${classObj.period || ''} ${classObj.name || ''}`;
+  extractWeekdaysFromText(descriptorText).forEach(d => foundDays.add(d));
+  if (foundDays.size > 0) {
+    return Array.from(foundDays).sort((a, b) => a - b);
+  }
+
+  // 4. Fallback to attendance record patterns if still empty
+  if (attendances && classObj.id) {
     const classAtts = attendances.filter(a => String(a.class_id) === String(classObj.id) && a.date);
     if (classAtts.length > 0) {
       const counts: Record<number, number> = {};
       classAtts.forEach(a => {
         const dStr = a.date.includes('T') ? a.date.split('T')[0] : a.date;
         const d = new Date(dStr + 'T12:00:00').getDay();
-        counts[d] = (counts[d] || 0) + 1;
+        if (!isNaN(d)) counts[d] = (counts[d] || 0) + 1;
       });
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       if (sorted.length > 0 && sorted[0][1] >= 2) {
@@ -86,24 +151,35 @@ export function getClassWeekdays(
       }
     }
   }
+  if (foundDays.size > 0) {
+    return Array.from(foundDays).sort((a, b) => a - b);
+  }
 
-  // 6. Fallback to calendar events specific to this class
-  if (foundDays.size === 0 && calendarEvents && classObj.id) {
-    const specific = calendarEvents.filter(e => String(e.class_id) === String(classObj.id) && e.start_date);
+  // 5. Fallback to lesson calendar events specific to this class (excluding holidays/cancellations)
+  if (calendarEvents && classObj.id) {
+    const specific = calendarEvents.filter(e =>
+      String(e.class_id) === String(classObj.id) &&
+      e.start_date &&
+      ['class_day', 'exam', 'excused_class'].includes(e.type)
+    );
     if (specific.length > 0) {
       const counts: Record<number, number> = {};
       specific.forEach(e => {
-        const d = new Date(e.start_date + 'T12:00:00').getDay();
-        counts[d] = (counts[d] || 0) + 1;
+        const dStr = e.start_date.includes('T') ? e.start_date.split('T')[0] : e.start_date;
+        const d = new Date(dStr + 'T12:00:00').getDay();
+        if (!isNaN(d)) counts[d] = (counts[d] || 0) + 1;
       });
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       if (sorted.length > 0) {
-        foundDays.add(parseInt(sorted[0][0], 10));
+        const maxCount = sorted[0][1];
+        sorted
+          .filter(([, count]) => count >= maxCount * 0.5)
+          .forEach(([wStr]) => foundDays.add(parseInt(wStr, 10)));
       }
     }
   }
 
-  return Array.from(foundDays);
+  return Array.from(foundDays).sort((a, b) => a - b);
 }
 
 /**
