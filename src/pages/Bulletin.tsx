@@ -2055,8 +2055,8 @@ export function Bulletin() {
           #printable-boletim .boletim-print-sheet {
             display: block !important;
             position: relative !important;
-            min-height: 274mm !important;
-            padding-bottom: 22mm !important;
+            min-height: 270mm !important;
+            padding-bottom: 19mm !important;
             box-sizing: border-box !important;
           }
 
