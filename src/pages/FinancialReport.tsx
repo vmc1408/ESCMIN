@@ -42,7 +42,7 @@ import { Student, Class, Contribution, FinancialSettings } from '../types';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
-import { formatCurrency, cn, parseSafeDate, matchesStudentSearch, formatDateForDisplay, normalizeClass, detectCourseFromClass, isStudentActive, isStudentInClass, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { formatCurrency, cn, parseSafeDate, matchesStudentSearch, formatDateForDisplay, normalizeClass, detectCourseFromClass, isStudentActive, isStudentInClass, filterStudentsForClass, formatRegistrationNumber, mergeClassStudentsWithHistory, getInactiveStudentTag, formatStudentDisplayName } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -127,7 +127,6 @@ export function FinancialReport() {
     const yrSet = new Set<number>();
     const currentYr = new Date().getFullYear();
     classes.forEach(c => {
-      if (c.status === 'Inativo') return;
       const yrMatch = String(c.start_year || c.academic_year || c.year || '').match(/\b(20\d{2})\b/);
       if (yrMatch) yrSet.add(parseInt(yrMatch[1], 10));
       if (c.code) {
@@ -331,12 +330,19 @@ export function FinancialReport() {
     }
     const q = query.toLowerCase();
     const cleanDigits = q.replace(/\D/g, '');
-    return scopedStudents.filter(s => {
-      const name = (s.name || '').toLowerCase();
-      const reg = (s.registration_number || '').toLowerCase();
-      const cpf = (s.cpf || '').replace(/\D/g, '');
-      return name.includes(q) || reg.includes(q) || (cleanDigits.length > 0 && cpf.includes(cleanDigits));
-    }).slice(0, 15);
+    return scopedStudents
+      .filter(s => {
+        const name = (s.name || '').toLowerCase();
+        const reg = (s.registration_number || '').toLowerCase();
+        const cpf = (s.cpf || '').replace(/\D/g, '');
+        return name.includes(q) || reg.includes(q) || (cleanDigits.length > 0 && cpf.includes(cleanDigits));
+      })
+      .sort((a, b) => {
+        const activeDiff = (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1);
+        if (activeDiff !== 0) return activeDiff;
+        return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+      })
+      .slice(0, 15);
   }, [scopedStudents, studentSearchQuery]);
 
   const handleSelectStudent = useCallback((s: Student) => {
@@ -563,11 +569,19 @@ const getStudentFee = useCallback((student: Student) => {
   return Number(financialSettings?.default_monthly_fee) || 100;
 }, [selectedYear, classes, financialSettings, contributions, scopedStudents]);
 
-// Lista de todos os alunos pertencentes à turma selecionada
+// Lista de todos os alunos pertencentes à turma selecionada (ativos + inativos com histórico financeiro na turma)
 const studentsInSelectedClass = useMemo(() => {
   if (!selectedClassId) return [];
-  return filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
-}, [selectedClassId, scopedStudents, enrollments]);
+  const classContribStudentIds = new Set<string>(
+    contributions
+      .filter(c => {
+        const st = scopedStudents.find(s => s.id === c.student_id);
+        return st ? (isStudentInClass(st, selectedClassId, enrollments) || (c as any).class_id === selectedClassId) : false;
+      })
+      .map(c => String(c.student_id))
+  );
+  return mergeClassStudentsWithHistory(scopedStudents, selectedClassId, enrollments, classContribStudentIds);
+}, [selectedClassId, scopedStudents, enrollments, contributions]);
 
 // Processamento analítico por aluno
 const reportData = useMemo(() => {
@@ -586,7 +600,16 @@ const reportData = useMemo(() => {
       })()
     : (() => {
         if (!selectedClassId) return [];
-        let classStudents = filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
+        const yearContribStudentIds = new Set<string>(
+          contributions
+            .filter(c => {
+              if (Number(c.reference_year || (c as any).year) !== yearNum) return false;
+              const st = scopedStudents.find(s => s.id === c.student_id);
+              return st ? (isStudentInClass(st, selectedClassId, enrollments) || (c as any).class_id === selectedClassId) : false;
+            })
+            .map(c => String(c.student_id))
+        );
+        let classStudents = mergeClassStudentsWithHistory(scopedStudents, selectedClassId, enrollments, yearContribStudentIds);
         if (studentSelectionMode === 'select') {
           classStudents = classStudents.filter(student => selectedStudentIdsInClass.includes(student.id));
         }
@@ -597,6 +620,7 @@ const reportData = useMemo(() => {
       })();
 
   return filteredStudents.map(student => {
+    const isActiveStudent = isStudentActive(student);
     const studentClass = classes.find(c => c.id === student.class_id) ||
       classes.find(c => enrollments.some(e => e.student_id === student.id && e.class_id === c.id)) ||
       (filterTarget === 'class' && selectedClassId ? classes.find(c => c.id === selectedClassId) : undefined);
@@ -607,8 +631,11 @@ const reportData = useMemo(() => {
       c => c.student_id === student.id && Number(c.reference_year) === yearNum
     );
 
-    const paidMonthsInYear = studentContribs.map(c => Number(c.reference_month));
-    const allExpectedInYear = getExpectedMonthsForStudent(student, yearNum, paidMonthsInYear);
+    const paidMonthsInYear = Array.from(new Set(studentContribs.map(c => Number(c.reference_month)))).sort((a, b) => a - b);
+    // Para alunos inativos/desistentes/concluídos, preserva exatamente os períodos realizados/abonados sem cobrar meses futuros/pós-saída como inadimplência
+    const allExpectedInYear = isActiveStudent
+      ? getExpectedMonthsForStudent(student, yearNum, paidMonthsInYear)
+      : paidMonthsInYear;
 
     // Meses esperados que caem no período selecionado (se anual, 1º sem ou intervalo contendo jan, inclui taxa de matrícula se esperada/paga)
     const shouldIncludeMatricula = (periodType === 'anual' || (periodType === 'semestral' && selectedSemester === '1') || (periodType === 'intervalo' && periodMonths.includes(1))) && (allExpectedInYear.includes(0) || paidMonthsInYear.includes(0));
@@ -619,8 +646,10 @@ const reportData = useMemo(() => {
     // Contribuições correspondentes aos meses do período
     const contribsInPeriod = studentContribs.filter(c => relevantPeriods.includes(Number(c.reference_month)));
 
-    // 1. Valor Previsto: Total da arrecadação com base no calendário e na matrícula
-    const valorPrevisto = expectedInPeriod.length * fee;
+    // 1. Valor Previsto: Para ativos, base no calendário; para inativos, equipara ao valor realizado nos meses em que contribuiu
+    const valorPrevisto = isActiveStudent
+      ? expectedInPeriod.length * fee
+      : contribsInPeriod.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
 
     // 2. Valor Efetuado: Total arrecadado no período
     const valorEfetuado = contribsInPeriod.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
@@ -702,7 +731,14 @@ const reportData = useMemo(() => {
     const paidMonthsNames = monthsStatus.filter(m => m.isPaid || m.isWaived).map(m => m.monthShort);
 
     let periodSummary = '';
-    if (periodType === 'mensal') {
+    if (!isActiveStudent) {
+      const tag = getInactiveStudentTag(student) || 'INATIVO';
+      if (paidCount === 0 && waivedCount === 0) {
+        periodSummary = `Histórico (${tag}) • Sem lançamentos`;
+      } else {
+        periodSummary = `${paidCount} paga${paidCount === 1 ? '' : 's'}${waivedCount > 0 ? ` (${waivedCount} abonada${waivedCount > 1 ? 's' : ''})` : ''} • ${tag}`;
+      }
+    } else if (periodType === 'mensal') {
       const m = monthsStatus[0];
       if (!m) {
         periodSummary = '---';
@@ -890,7 +926,7 @@ const totals = useMemo(() => {
 
     // 6. Faixa de Parâmetros
     const targetDesc = isSingleStudent
-      ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Matrícula: ${formatRegistrationNumber(selectedStudent?.registration_number, '---')} • Cód. Turma: ${studentClassCode})`
+      ? `Aluno: ${selectedStudent ? formatStudentDisplayName(selectedStudent, true) : 'Aluno'} (Matrícula: ${formatRegistrationNumber(selectedStudent?.registration_number, '---')} • Cód. Turma: ${studentClassCode})`
       : `Turma: ${classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
     const statusLabel = !statusFilter || statusFilter === 'all' ? 'Todos' : statusFilter === 'paid' ? 'Adimplentes' : statusFilter === 'partial' ? 'Parciais' : 'Inadimplentes';
 
@@ -997,7 +1033,7 @@ const totals = useMemo(() => {
       
       tableBody = reportData.map((item, index) => {
         const classCodeStr = item.studentClass?.code || (item.studentClass?.name ? item.studentClass.name.split(' - ')[0] : '---');
-        const alunoEIdentificacao = `${item.student.name || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: ${classCodeStr}`;
+        const alunoEIdentificacao = `${formatStudentDisplayName(item.student, true) || '---'}\nMatrícula: ${formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: ${classCodeStr}`;
 
         return [
           (index + 1).toString(),
@@ -1092,7 +1128,7 @@ const totals = useMemo(() => {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(100, 116, 139);
           const targetContDesc = isSingleStudent
-            ? `Aluno: ${selectedStudent?.name || 'Aluno'} (Cód. Turma: ${studentClassCode})`
+            ? `Aluno: ${selectedStudent ? formatStudentDisplayName(selectedStudent, true) : 'Aluno'} (Cód. Turma: ${studentClassCode})`
             : `Turma: ${classes.find(c => c.id === selectedClassId)?.name || 'Turma Selecionada'}`;
           doc.text(
             `${targetContDesc} • Período: ${periodLabel}`,
@@ -1553,7 +1589,7 @@ return (
                   <option value="">Selecione uma turma para carregar os alunos...</option>
                   {scopedClasses.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.code ? `[${c.code}] ` : ''}{c.name} {c.period ? `(${c.period})` : ''}
+                      {c.code ? `[${c.code}] ` : ''}{c.name} {c.period ? `(${c.period})` : ''}{(c.status === 'Inativo' || c.status === 'Encerrada') ? ' [INATIVA]' : ''}
                     </option>
                   ))}
                 </select>
@@ -1581,7 +1617,12 @@ return (
                             </span>
                           ) : null;
                         })()}
-                        <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold hidden lg:inline">
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded font-semibold hidden lg:inline",
+                          isStudentActive(selectedStudent)
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800 border border-amber-200"
+                        )}>
                           {selectedStudent.status || 'Ativo'}
                         </span>
                       </div>
@@ -1668,7 +1709,7 @@ return (
                               <div className="flex items-center gap-1.5 shrink-0">
                                 <span className={cn(
                                   "text-[9px] font-bold px-2 py-0.5 rounded-md",
-                                  st.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                  isStudentActive(st) ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-amber-50 text-amber-800 border border-amber-200"
                                 )}>
                                   {st.status || 'Ativo'}
                                 </span>
@@ -2390,7 +2431,7 @@ return (
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <span>{selectedStudent.name}</span>
+                    <span>{formatStudentDisplayName(selectedStudent, true)}</span>
                     <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                       Matrícula: {selectedStudent.registration_number || '---'}
                     </span>
@@ -2705,7 +2746,7 @@ return (
                           <td className="py-2.5 px-3 text-left">
                             <div className="min-w-0">
                               <span className="font-bold text-slate-900 block truncate leading-tight text-xs">
-                                {item.student.name}
+                                {formatStudentDisplayName(item.student, true)}
                               </span>
                               <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                                 Matrícula: {formatRegistrationNumber(item.student.registration_number, '---')} • Cód. Turma: {classCodeStr}

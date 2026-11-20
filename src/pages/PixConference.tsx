@@ -43,7 +43,7 @@ import fuzzysort from 'fuzzysort';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { cn, safeFormat, parseSafeDate, formatDate, formatDateForDisplay, formatRegistrationNumber, matchesStudentSearch, matchesSearchText, calculateStudentSearchRank } from '../lib/utils';
+import { cn, safeFormat, parseSafeDate, formatDate, formatDateForDisplay, formatRegistrationNumber, matchesStudentSearch, matchesSearchText, calculateStudentSearchRank, isStudentActive, getInactiveStudentTag, formatStudentDisplayName } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { PageHeader } from '../components/PageHeader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -344,10 +344,10 @@ export function PixConference() {
             acc[batchId].created_at = curr.created_at;
           }
         } else {
-          // Link student locally if we have them in scoped state
+          // Link student locally if we have them in unit-scoped or full students state
           try {
-            if (curr.matched_student_id && scopedStudents && scopedStudents.length > 0) {
-              curr.student = scopedStudents.find(s => s.id === curr.matched_student_id);
+            if (curr.matched_student_id) {
+              curr.student = scopedStudents.find(s => s.id === curr.matched_student_id) || students.find(s => s.id === curr.matched_student_id);
             }
           } catch (err) {
             console.warn('Error linking student in history:', err);
@@ -400,7 +400,7 @@ export function PixConference() {
     
     setPinModalConfig({
       title: 'Excluir Selecionados?',
-      description: `Deseja realmente excluir permanentemente os ${selectedHistoryIds.size} registros selecionados e todos os seus vínculos financeiros em ambas as bases?`,
+      description: `Deseja realmente excluir os ${selectedHistoryIds.size} registros selecionados do histórico Pix? As contribuições já lançadas no extrato dos alunos serão preservadas.`,
       onConfirm: () => executeBulkDeleteHistory()
     });
   };
@@ -435,9 +435,9 @@ export function PixConference() {
             fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }])
           ]);
           
-          const docsToDelete = [...(s1 || []), ...(s2 || [])];
-          for (const d of docsToDelete) {
-            await deleteData('contributions', d.id);
+          const docsToUnlink = [...(s1 || []), ...(s2 || [])];
+          for (const d of docsToUnlink) {
+            await saveData('contributions', d.id, { pix_id: null });
           }
         }
 
@@ -513,7 +513,7 @@ export function PixConference() {
   const handleDeleteHistory = async (batchId: string) => {
     setPinModalConfig({
       title: 'Excluir Lote de Histórico?',
-      description: 'Deseja realmente excluir permanentemente este lote de conciliações e todos os seus vínculos financeiros?',
+      description: 'Deseja realmente remover este lote do histórico Pix? As contribuições já lançadas no extrato dos alunos serão preservadas.',
       onConfirm: () => executeDeleteHistory(batchId)
     });
   };
@@ -537,9 +537,9 @@ export function PixConference() {
             transactionId ? fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }]) : Promise.resolve([])
           ]);
           
-          const docsToDelete = [...(s1 || []), ...(s2 || [])];
-          for (const d of docsToDelete) {
-            await deleteData('contributions', d.id);
+          const docsToUnlink = [...(s1 || []), ...(s2 || [])];
+          for (const d of docsToUnlink) {
+            await saveData('contributions', d.id, { pix_id: null });
           }
 
           await deleteData('pix_reconciliations', item.id);
@@ -548,7 +548,7 @@ export function PixConference() {
 
       await fetchHistory();
       setDeleteConfirmId(null);
-      setNotification({ type: 'success', message: 'Registro e contribuições removidos sincronizadamente!' });
+      setNotification({ type: 'success', message: 'Lote Pix removido do histórico com preservação das contribuições!' });
     } catch (error: any) {
       console.error('Erro na exclusão sincronizada:', error);
       setNotification({ type: 'error', message: 'Erro ao excluir sincronizadamente: ' + error.message });
@@ -560,7 +560,7 @@ export function PixConference() {
   const handleDeleteHistoryItem = async (reconciliationId: string) => {
     setPinModalConfig({
       title: 'Excluir Registro de Histórico?',
-      description: 'Deseja realmente excluir permanentemente este registro e todos os seus vínculos financeiros?',
+      description: 'Deseja realmente remover este registro do histórico Pix? Eventuais contribuições já lançadas no extrato do aluno serão preservadas.',
       onConfirm: () => executeDeleteHistoryItem(reconciliationId)
     });
   };
@@ -579,9 +579,9 @@ export function PixConference() {
           transactionId ? fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }]) : Promise.resolve([])
         ]);
         
-        const docsToDelete = [...(s1 || []), ...(s2 || [])];
-        for (const d of docsToDelete) {
-          await deleteData('contributions', d.id);
+        const docsToUnlink = [...(s1 || []), ...(s2 || [])];
+        for (const d of docsToUnlink) {
+          await saveData('contributions', d.id, { pix_id: null });
         }
       }
 
@@ -646,21 +646,18 @@ export function PixConference() {
   };
 
   const fetchClasses = async () => {
-    // Filter for active classes as per global policy
-    const data = await fetchQuery('classes', [
-      { field: 'status', operator: '==', value: 'Ativo' }
-    ]);
+    // Carrega todas as turmas (incluindo inativas) para preservar histórico e vínculos passados
+    const data = await fetchAll('classes', '*', 'name');
     if (data) setClasses(data);
   };
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      // Filter for active students as per global policy
+      // Carrega todos os alunos (ativos e inativos) para preservar histórico Pix completo;
+      // a conciliação automática de novos arquivos continua restrita aos ativos
       const [data, enrollmentsData, classesData] = await Promise.all([
-        fetchQuery('students', [
-          { field: 'status', operator: '==', value: 'Ativo' }
-        ]),
+        fetchAll('students'),
         fetchAll('enrollments').catch(() => []),
         fetchAll('classes', '*', 'name').catch(() => [])
       ]);
@@ -672,6 +669,10 @@ export function PixConference() {
             e.student_id === s.id && 
             (e.status || 'Ativo') === 'Ativo' && 
             e.class_id && 
+            validClassIds.has(e.class_id)
+          ) || (enrollmentsData || []).find((e: any) =>
+            e.student_id === s.id &&
+            e.class_id &&
             validClassIds.has(e.class_id)
           );
           return { ...s, class_id: activeEnr ? activeEnr.class_id : '' };
@@ -736,8 +737,10 @@ export function PixConference() {
         
         console.log('Dados brutos do Excel:', jsonData);
 
-        // Use mock data if in simulation mode, otherwise use scoped students
-        const targetStudents = isSimulationMode ? MOCK_STUDENTS : scopedStudents;
+        // Use mock data if in simulation mode, otherwise match new uploads against active students only
+        const targetStudents = isSimulationMode
+          ? MOCK_STUDENTS
+          : scopedStudents.filter(s => isStudentActive(s));
 
         // Prepare searchable students with normalized names for better matching
         const searchableStudents = targetStudents.map(s => ({
@@ -985,8 +988,12 @@ export function PixConference() {
     history.forEach(batch => {
       if (batch.transactions && Array.isArray(batch.transactions)) {
         batch.transactions.forEach((t: any) => {
+          const resolvedStudent = t.matched_student_id
+            ? (scopedStudents.find(s => s.id === t.matched_student_id) || students.find(s => s.id === t.matched_student_id) || t.student)
+            : t.student;
           list.push({
             ...t,
+            student: resolvedStudent,
             batch_id: batch.batch_id,
             batch_file_name: batch.file_name,
             batch_created_at: batch.created_at
@@ -999,7 +1006,7 @@ export function PixConference() {
       const dateB = new Date(b.date || b.created_at || 0).getTime();
       return dateB - dateA;
     });
-  }, [history]);
+  }, [history, scopedStudents, students]);
 
   const availableBatches = useMemo(() => {
     const map = new Map();
@@ -1106,7 +1113,7 @@ export function PixConference() {
           'Pagador': item.payer_name ? item.payer_name.toUpperCase() : '',
           'Banco Origem': item.origin_bank || 'Não informado',
           'Valor': Number(item.amount) || 0,
-          'Aluno Vinculado': item.student?.name || 'Não identificado',
+          'Aluno Vinculado': item.student ? formatStudentDisplayName(item.student, true) : 'Não identificado',
           'Matrícula Aluno': formatRegistrationNumber(item.student?.registration_number, ''),
           'Turma': studentClass,
           'Tipo': item.is_manual ? 'Manual' : 'Automático'
@@ -1184,7 +1191,7 @@ export function PixConference() {
           (item.payer_name || '').toUpperCase(),
           item.batch_file_name || 'Importação Manual',
           item.origin_bank || 'N/I',
-          student ? `${student.name} (${formatRegistrationNumber(student.registration_number)})` : '-',
+          student ? `${formatStudentDisplayName(student, true)} (${formatRegistrationNumber(student.registration_number)})` : '-',
           className,
           new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0),
           '' // empty column for manual handwriting annotations
@@ -1297,7 +1304,7 @@ export function PixConference() {
           (item.payer_name || '').toUpperCase(),
           item.batch_file_name || 'Importação Manual',
           item.origin_bank || 'N/I',
-          student ? `${student.name} (${formatRegistrationNumber(student.registration_number)})` : '-',
+          student ? `${formatStudentDisplayName(student, true)} (${formatRegistrationNumber(student.registration_number)})` : '-',
           className,
           new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0),
           '' // empty column for manual handwriting annotations
@@ -1556,7 +1563,7 @@ export function PixConference() {
 
       // Table Data
       const tableData = transactions.map(t => {
-        const student = scopedStudents.find(s => s.id === t.matched_student_id);
+        const student = scopedStudents.find(s => s.id === t.matched_student_id) || students.find(s => s.id === t.matched_student_id);
         const className = student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : '';
         
         let statusSymbol = '-';
@@ -1569,7 +1576,7 @@ export function PixConference() {
           t.payer_name.toUpperCase(),
           new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount),
           statusSymbol,
-          student ? `${student.name} (${formatRegistrationNumber(student.registration_number)})` : '-',
+          student ? `${formatStudentDisplayName(student, true)} (${formatRegistrationNumber(student.registration_number)})` : '-',
           className
         ];
       });
@@ -2411,10 +2418,9 @@ export function PixConference() {
                                 <div className="max-w-[280px]">
                                   <p className="text-xs font-bold text-slate-900 line-clamp-1">
                                     {(() => {
-                                      const student = scopedStudents.find(s => s.id === t.matched_student_id);
+                                      const student = scopedStudents.find(s => s.id === t.matched_student_id) || students.find(s => s.id === t.matched_student_id);
                                       if (!student) return 'Não identificado';
-                                      const className = classes.find(c => c.id === student.class_id)?.name || 'Sem Turma';
-                                      return `${student.name} (${formatRegistrationNumber(student.registration_number)})`;
+                                      return `${formatStudentDisplayName(student, true)} (${formatRegistrationNumber(student.registration_number)})`;
                                     })()}
                                   </p>
                                   <div className="flex items-center gap-2 mt-0.5">
@@ -2821,8 +2827,8 @@ export function PixConference() {
                                               <div>
                                                 <p className="text-xs font-bold text-slate-800 tracking-tight uppercase">
                                                   {(() => {
-                                                    const student = scopedStudents.find(s => s.id === t.matched_student_id);
-                                                    return student ? student.name : `Aluno ID: ${t.matched_student_id}`;
+                                                    const student = scopedStudents.find(s => s.id === t.matched_student_id) || students.find(s => s.id === t.matched_student_id) || t.student;
+                                                    return student ? formatStudentDisplayName(student, true) : `Aluno ID: ${t.matched_student_id}`;
                                                   })()}
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-0.5">
@@ -2833,7 +2839,7 @@ export function PixConference() {
                                                   )}
                                                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">
                                                     {(() => {
-                                                      const student = scopedStudents.find(s => s.id === t.matched_student_id);
+                                                      const student = scopedStudents.find(s => s.id === t.matched_student_id) || students.find(s => s.id === t.matched_student_id) || t.student;
                                                       return student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : 'N/I';
                                                     })()}
                                                   </span>
@@ -3192,6 +3198,11 @@ export function PixConference() {
                                   <div>
                                     <div className="flex items-center gap-2">
                                       <p className="text-sm font-black text-[#00174b]">{t.student.name}</p>
+                                      {!isStudentActive(t.student) && (
+                                        <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-800 text-[8px] font-black uppercase rounded-md tracking-wider">
+                                          {getInactiveStudentTag(t.student) || 'INATIVO'}
+                                        </span>
+                                      )}
                                       {t.is_manual ? (
                                         <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[8px] font-black uppercase rounded-md tracking-wider">
                                           Manual
@@ -3727,6 +3738,8 @@ export function PixConference() {
                 {scopedStudents
                   .filter(s => !manualSearch.trim() || matchesStudentSearch(s, manualSearch.trim()))
                   .sort((a, b) => {
+                    const activeDiff = (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1);
+                    if (activeDiff !== 0) return activeDiff;
                     const term = manualSearch.trim();
                     if (term) {
                       const rankA = calculateStudentSearchRank(a, term);
@@ -3751,6 +3764,11 @@ export function PixConference() {
                         <div className="text-left">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{student.name}</p>
+                            {!isStudentActive(student) && (
+                              <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md uppercase">
+                                {getInactiveStudentTag(student) || 'INATIVO'}
+                              </span>
+                            )}
                             <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
                               {formatRegistrationNumber(student.registration_number, 'N/I')}
                             </span>
@@ -3837,7 +3855,7 @@ export function PixConference() {
           </thead>
           <tbody>
             {transactions.map((t, i) => {
-              const student = scopedStudents.find(s => s.id === t.matched_student_id);
+              const student = scopedStudents.find(s => s.id === t.matched_student_id) || students.find(s => s.id === t.matched_student_id);
               const className = student ? (classes.find(c => c.id === student.class_id)?.name || '---') : '---';
               return (
                 <tr key={`print-tx-${t.transaction_id || t.id || i}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -3852,7 +3870,7 @@ export function PixConference() {
                   <td className="border border-black p-2">
                     {student ? (
                       <div className="font-bold">
-                        <p className="uppercase">{student.name}</p>
+                        <p className="uppercase">{formatStudentDisplayName(student, true)}</p>
                         <p className="text-[9px] text-slate-700 font-mono font-bold">Matrícula: {formatRegistrationNumber(student.registration_number)}</p>
                       </div>
                     ) : (

@@ -742,8 +742,10 @@ export function FinancialDashboard() {
 
     // Métricas de Alunos em Dia e Inadimplência do Mês Selecionado
     const targetMonthNum = selectedMonth.monthNum;
+    const targetStudentIdSet = new Set(targetStudents.map(s => s.id));
     const payingStudentIdsInSelectedMonth = new Set<string>();
     relevantContributions.forEach(c => {
+      if (!c.student_id || !targetStudentIdSet.has(c.student_id)) return;
       let m = Number(c.reference_month);
       if (m === undefined || isNaN(m)) {
         if (c.payment_date) {
@@ -752,7 +754,7 @@ export function FinancialDashboard() {
         }
       }
       const matchesMonth = targetMonthNum === 1 ? (m === 1 || m === 0) : m === targetMonthNum;
-      if (matchesMonth && c.student_id && (Number(c.amount) > 0 || c.is_waived)) {
+      if (matchesMonth && (Number(c.amount) > 0 || c.is_waived)) {
         payingStudentIdsInSelectedMonth.add(c.student_id);
       }
     });
@@ -1801,11 +1803,11 @@ export function FinancialDashboard() {
                   aria-label="Filtrar por turma"
                 >
                   <option value="all">Todas as Turmas</option>
-                  {scopedClasses
-                    .filter(c => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo')
-                    .map(c => (
-                      <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
-                    ))}
+                  {scopedClasses.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} - {c.name}{(c.status === 'Inativo' || c.status === 'Encerrada') ? ' (Inativa)' : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
 

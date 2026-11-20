@@ -1726,13 +1726,16 @@ export function Reports() {
             dateStr = (p as any).date || '---';
           }
           const linkedStudent = scopedStudents.find(s => s.id === p.matched_student_id);
+          const studentDisplay = linkedStudent
+            ? formatStudentDisplayName(linkedStudent, true).toUpperCase()
+            : ((p as any).student ? formatStudentDisplayName((p as any).student, true).toUpperCase() : 'NÃO IDENTIFICADO');
 
           return [
             (idx + 1).toString(),
             dateStr,
             p.payer_name?.toUpperCase() || 'PAGADOR NÃO INFORMADO',
             p.payer_document || '***.***.***-**',
-            linkedStudent?.name?.toUpperCase() || (p as any).student?.name?.toUpperCase() || 'NÃO IDENTIFICADO',
+            studentDisplay,
             formatCurrency(p.amount),
             p.status === 'matched' ? 'CONCILIADO' : 'PENDENTE'
           ];
@@ -4032,13 +4035,16 @@ export function Reports() {
                 <tbody className="divide-y divide-slate-200">
                   {scopedPixTransactions.map((p, i) => {
                     const linkedStudent = scopedStudents.find(s => s.id === p.matched_student_id);
+                    const studentDisplay = linkedStudent
+                      ? formatStudentDisplayName(linkedStudent, true)
+                      : ((p as any).student ? formatStudentDisplayName((p as any).student, true) : 'Não identificado');
                     return (
                       <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
                         <td className="p-2 text-slate-500 font-bold">{i + 1}</td>
                         <td className="p-2 text-slate-700">{p.date}</td>
                         <td className="p-2 font-bold text-slate-900 uppercase">{p.payer_name}</td>
                         <td className="p-2 text-slate-500 font-mono text-[10px]">{p.payer_document || '***.***.***-**'}</td>
-                        <td className="p-2 text-slate-700 uppercase font-medium">{linkedStudent?.name || (p as any).student?.name || 'Não identificado'}</td>
+                        <td className="p-2 text-slate-700 uppercase font-medium">{studentDisplay}</td>
                         <td className="p-2 text-right font-black text-[#00174b]">{formatCurrency(p.amount)}</td>
                         <td className="p-2 text-center font-bold">
                           <span className={p.status === 'matched' ? "text-emerald-700" : "text-amber-700"}>

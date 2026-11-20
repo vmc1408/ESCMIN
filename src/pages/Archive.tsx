@@ -109,10 +109,10 @@ export function ArchivePage() {
     return allData;
   };
 
-  // Special test function to move all inactive students, teachers, and classes immediately to the archive.
+  // Special test function to move ONLY empty inactive records without financial/academic history to the archive.
   const handleRunTestMigration = async () => {
     const confirmMove = window.confirm(
-      "Atenção: Esta ação irá transferir IMEDIATAMENTE todos os Alunos, Professores e Turmas atualmente com o status 'Inativo' para a base do Arquivo Morto. As dependências associadas (matrículas, faltas e diários) serão catalogadas e removidas para garantir a integridade do banco de dados. Deseja prosseguir com este teste de limpeza?"
+      "Atenção: Esta ação irá transferir para o Arquivo Morto apenas Alunos, Professores e Turmas 'Inativo' que NÃO possuam histórico financeiro ou acadêmico (pagamentos, recibos, chamadas, notas ou avaliações). Registros com histórico permanecerão preservados como 'Inativo' para futuras consultas. Deseja prosseguir?"
     );
     if (!confirmMove) return;
 
@@ -120,33 +120,41 @@ export function ArchivePage() {
     let migratedStudents = 0;
     let migratedTeachers = 0;
     let migratedClasses = 0;
+    let preservedWithHistory = 0;
     let errorsCount = 0;
 
+    const hasAnyRow = async (table: string, col: string, val: string) => {
+      const { count } = await supabase.from(table).select('id', { count: 'exact', head: true }).eq(col, val);
+      return (count || 0) > 0;
+    };
+
     try {
-      // 1. Process Students - using the pagination helper to fetch ALL inactive students without 1000-row limits
+      // 1. Process Students - preserve any student that has financial or academic history
       const inactiveStudents = await fetchAllFromTable('students', '*', { status: 'Inativo' });
       if (inactiveStudents && inactiveStudents.length > 0) {
         for (const student of inactiveStudents) {
+          const historyFlags = await Promise.all([
+            hasAnyRow('contributions', 'student_id', student.id),
+            hasAnyRow('receipts', 'student_id', student.id),
+            hasAnyRow('pix_reconciliations', 'matched_student_id', student.id),
+            hasAnyRow('attendances', 'student_id', student.id),
+            hasAnyRow('grades', 'student_id', student.id),
+            hasAnyRow('certificates', 'student_id', student.id)
+          ]);
+          if (historyFlags.some(Boolean)) {
+            preservedWithHistory++;
+            continue;
+          }
+
           const clonePayload = { ...student, status: 'Arquivado' };
           const { error: insErr } = await supabase.from('archived_students').insert([clonePayload]);
           if (!insErr) {
-            // Delete secondary info
-            await Promise.all([
-              supabase.from('attendances').delete().eq('student_id', student.id),
-              supabase.from('grades').delete().eq('student_id', student.id),
-              supabase.from('contributions').delete().eq('student_id', student.id),
-              supabase.from('enrollments').delete().eq('student_id', student.id),
-              supabase.from('certificates').delete().eq('student_id', student.id),
-              supabase.from('receipts').delete().eq('student_id', student.id),
-              supabase.from('pix_reconciliations').update({ matched_student_id: null }).eq('matched_student_id', student.id)
-            ]);
-            // Delete from active
+            await supabase.from('enrollments').delete().eq('student_id', student.id);
             const { error: delErr } = await supabase.from('students').delete().eq('id', student.id);
             if (!delErr) {
               migratedStudents++;
             } else {
               errorsCount++;
-              // Rollback insertion inside archive
               await supabase.from('archived_students').delete().eq('id', student.id);
             }
           } else {
@@ -156,20 +164,23 @@ export function ArchivePage() {
         }
       }
 
-      // 2. Process Teachers - fetch ALL inactive teachers
+      // 2. Process Teachers - preserve any teacher referenced in subjects/classes/grades/attendances
       const inactiveTeachers = await fetchAllFromTable('teachers', '*', { status: 'Inativo' });
       if (inactiveTeachers && inactiveTeachers.length > 0) {
         for (const teacher of inactiveTeachers) {
+          const historyFlags = await Promise.all([
+            hasAnyRow('subjects', 'teacher_id', teacher.id),
+            hasAnyRow('classes', 'teacher_id', teacher.id)
+          ]);
+          if (historyFlags.some(Boolean)) {
+            preservedWithHistory++;
+            continue;
+          }
+
           const clonePayload = { ...teacher, status: 'Arquivado' };
           const { error: insErr } = await supabase.from('archived_teachers').insert([clonePayload]);
           if (!insErr) {
-            // Suppress secondary events and references
-            await Promise.all([
-              supabase.from('calendar_events').delete().eq('user_id', teacher.id),
-              supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', teacher.id),
-              supabase.from('classes').update({ teacher_id: null }).eq('teacher_id', teacher.id)
-            ]);
-            // Delete from active
+            await supabase.from('calendar_events').delete().eq('user_id', teacher.id);
             const { error: delErr } = await supabase.from('teachers').delete().eq('id', teacher.id);
             if (!delErr) {
               migratedTeachers++;
@@ -184,24 +195,29 @@ export function ArchivePage() {
         }
       }
 
-      // 3. Process Classes - fetch ALL inactive classes
+      // 3. Process Classes - preserve any class that has academic history or enrollments
       const inactiveClasses = await fetchAllFromTable('classes', '*', { status: 'Inativo' });
       if (inactiveClasses && inactiveClasses.length > 0) {
         for (const cls of inactiveClasses) {
+          const historyFlags = await Promise.all([
+            hasAnyRow('attendances', 'class_id', cls.id),
+            hasAnyRow('grades', 'class_id', cls.id),
+            hasAnyRow('assessments', 'class_id', cls.id),
+            hasAnyRow('enrollments', 'class_id', cls.id),
+            hasAnyRow('students', 'class_id', cls.id)
+          ]);
+          if (historyFlags.some(Boolean)) {
+            preservedWithHistory++;
+            continue;
+          }
+
           const clonePayload = { ...cls, status: 'Arquivado' };
           const { error: insErr } = await supabase.from('archived_classes').insert([clonePayload]);
           if (!insErr) {
-            // Suppress references
             await Promise.all([
-              supabase.from('students').update({ class_id: null }).eq('class_id', cls.id),
               supabase.from('subjects').update({ class_id: null }).eq('class_id', cls.id),
-              supabase.from('enrollments').delete().eq('class_id', cls.id),
-              supabase.from('attendances').delete().eq('class_id', cls.id),
-              supabase.from('grades').delete().eq('class_id', cls.id),
-              supabase.from('assessments').delete().eq('class_id', cls.id),
               supabase.from('calendar_events').delete().eq('class_id', cls.id)
             ]);
-            // Delete from active
             const { error: delErr } = await supabase.from('classes').delete().eq('id', cls.id);
             if (!delErr) {
               migratedClasses++;
@@ -218,7 +234,7 @@ export function ArchivePage() {
 
       triggerNotification(
         'success',
-        `Teste de limpeza concluído com sucesso! Transferidos para o arquivo morto: ${migratedStudents} Alunos, ${migratedTeachers} Professores e ${migratedClasses} Turmas.`
+        `Limpeza concluída! Arquivados (sem histórico): ${migratedStudents} Alunos, ${migratedTeachers} Professores e ${migratedClasses} Turmas.${preservedWithHistory > 0 ? ` ${preservedWithHistory} registros com histórico financeiro/acadêmico foram mantidos como Inativos.` : ''}`
       );
       
       // Refresh calculations
@@ -538,6 +554,13 @@ export function ArchivePage() {
     let successCount = 0;
     let failCount = 0;
 
+    let preservedCount = 0;
+
+    const hasAnyRow = async (table: string, col: string, val: string) => {
+      const { count } = await supabase.from(table).select('id', { count: 'exact', head: true }).eq(col, val);
+      return (count || 0) > 0;
+    };
+
     try {
       for (const item of itemsToProcess) {
         if (action === 'inactivate') {
@@ -558,7 +581,57 @@ export function ArchivePage() {
             failCount++;
           }
         } else {
-          // Archiving action. Must transfer first, resolve foreign key constraints, then delete from primary.
+          // Regra de Preservação Histórica: registros com movimentação financeira ou acadêmica
+          // nunca devem ter suas dependências apagadas; são mantidos com status 'Inativo' na base principal.
+          let hasHistory = false;
+          if (item.type === 'student') {
+            const flags = await Promise.all([
+              hasAnyRow('contributions', 'student_id', item.id),
+              hasAnyRow('receipts', 'student_id', item.id),
+              hasAnyRow('pix_reconciliations', 'matched_student_id', item.id),
+              hasAnyRow('attendances', 'student_id', item.id),
+              hasAnyRow('grades', 'student_id', item.id),
+              hasAnyRow('certificates', 'student_id', item.id)
+            ]);
+            hasHistory = flags.some(Boolean);
+          } else if (item.type === 'teacher') {
+            const flags = await Promise.all([
+              hasAnyRow('subjects', 'teacher_id', item.id),
+              hasAnyRow('classes', 'teacher_id', item.id)
+            ]);
+            hasHistory = flags.some(Boolean);
+          } else if (item.type === 'class') {
+            const flags = await Promise.all([
+              hasAnyRow('attendances', 'class_id', item.id),
+              hasAnyRow('grades', 'class_id', item.id),
+              hasAnyRow('assessments', 'class_id', item.id),
+              hasAnyRow('enrollments', 'class_id', item.id),
+              hasAnyRow('students', 'class_id', item.id)
+            ]);
+            hasHistory = flags.some(Boolean);
+          } else if (item.type === 'subject') {
+            const flags = await Promise.all([
+              hasAnyRow('attendances', 'subject_id', item.id),
+              hasAnyRow('grades', 'subject_id', item.id),
+              hasAnyRow('assessments', 'subject_id', item.id),
+              hasAnyRow('classes', 'subject_id', item.id),
+              hasAnyRow('classes', 'subject_id_sem1', item.id),
+              hasAnyRow('classes', 'subject_id_sem2', item.id)
+            ]);
+            hasHistory = flags.some(Boolean);
+          }
+
+          if (hasHistory) {
+            const tableName = item.type === 'student' ? 'students' 
+                            : item.type === 'teacher' ? 'teachers' 
+                            : item.type === 'class' ? 'classes' 
+                            : 'subjects';
+            await supabase.from(tableName).update({ status: 'Inativo' }).eq('id', item.id);
+            preservedCount++;
+            continue;
+          }
+
+          // Registro vazio (sem histórico): transfere para a tabela de arquivo morto com segurança
           const sourceTable = item.type === 'student' ? 'students' 
                             : item.type === 'teacher' ? 'teachers' 
                             : item.type === 'class' ? 'classes' 
@@ -582,44 +655,17 @@ export function ArchivePage() {
             continue;
           }
 
-          // B. Suppress secondary records (frequência, notas, contribuições, certificados, etc.) to avoid referential errors
           if (item.type === 'student') {
-            await Promise.all([
-              supabase.from('attendances').delete().eq('student_id', item.id),
-              supabase.from('grades').delete().eq('student_id', item.id),
-              supabase.from('contributions').delete().eq('student_id', item.id),
-              supabase.from('enrollments').delete().eq('student_id', item.id),
-              supabase.from('certificates').delete().eq('student_id', item.id),
-              supabase.from('receipts').delete().eq('student_id', item.id),
-              supabase.from('pix_reconciliations').update({ matched_student_id: null }).eq('matched_student_id', item.id)
-            ]);
+            await supabase.from('enrollments').delete().eq('student_id', item.id);
           } else if (item.type === 'teacher') {
-            // Nullify or wipe calendar events or classes linked to this teacher if restrictions occur
-            await Promise.all([
-              supabase.from('calendar_events').delete().eq('user_id', item.id),
-              supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', item.id),
-              supabase.from('classes').update({ teacher_id: null }).eq('teacher_id', item.id)
-            ]);
+            await supabase.from('calendar_events').delete().eq('user_id', item.id);
           } else if (item.type === 'class') {
             await Promise.all([
-              supabase.from('students').update({ class_id: null }).eq('class_id', item.id),
               supabase.from('subjects').update({ class_id: null }).eq('class_id', item.id),
-              supabase.from('enrollments').delete().eq('class_id', item.id),
-              supabase.from('attendances').delete().eq('class_id', item.id),
-              supabase.from('grades').delete().eq('class_id', item.id),
-              supabase.from('assessments').delete().eq('class_id', item.id),
               supabase.from('calendar_events').delete().eq('class_id', item.id)
             ]);
           } else if (item.type === 'subject') {
-            await Promise.all([
-              supabase.from('attendances').delete().eq('subject_id', item.id),
-              supabase.from('grades').delete().eq('subject_id', item.id),
-              supabase.from('assessments').delete().eq('subject_id', item.id),
-              supabase.from('calendar_events').delete().eq('subject_id', item.id),
-              supabase.from('classes').update({ subject_id: null }).eq('subject_id', item.id),
-              supabase.from('classes').update({ subject_id_sem1: null }).eq('subject_id_sem1', item.id),
-              supabase.from('classes').update({ subject_id_sem2: null }).eq('subject_id_sem2', item.id)
-            ]);
+            await supabase.from('calendar_events').delete().eq('subject_id', item.id);
           }
 
           // C. Delete from primary table
@@ -633,7 +679,6 @@ export function ArchivePage() {
           } else {
             console.error(`Error deleting original record ${item.id}:`, deleteError);
             failCount++;
-            // Try to clean from archive table if deleted fails to maintain consistency
             await supabase.from(archiveTable).delete().eq('id', item.id);
           }
         }
@@ -641,7 +686,7 @@ export function ArchivePage() {
 
       triggerNotification(
         'success', 
-        `Operação concluída com sucesso! Processados: ${successCount} registros.${failCount > 0 ? ` Erros: ${failCount}.` : ''}`
+        `Operação concluída! Processados: ${successCount} registros.${preservedCount > 0 ? ` ${preservedCount} registros com histórico financeiro/acadêmico foram preservados como Inativos.` : ''}${failCount > 0 ? ` Erros: ${failCount}.` : ''}`
       );
       
       // Reload stats and scan list
@@ -903,9 +948,9 @@ export function ArchivePage() {
 
               <div className="mt-6 pt-5 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="text-left w-full sm:w-auto">
-                  <span className="text-[9px] font-black uppercase text-rose-700 tracking-wider block">Área de Teste & Limpeza</span>
+                  <span className="text-[9px] font-black uppercase text-rose-700 tracking-wider block">Área de Teste & Limpeza Segura</span>
                   <p className="text-[10px] text-slate-500 font-bold max-w-sm leading-tight uppercase mt-0.5">
-                    Mover todos os Alunos, Professores e Turmas atualmente com status "Inativo" diretamente para o Arquivo Morto.
+                    Mover registros "Inativo" sem histórico para o Arquivo Morto (cadastros com histórico financeiro ou acadêmico são preservados como Inativos).
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3 w-full sm:w-auto justify-end">

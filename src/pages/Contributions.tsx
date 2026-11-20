@@ -4,7 +4,7 @@ import { financialService } from '../services/financialService';
 import { financialConfigService } from '../services/financialConfigService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
 import { Student, Contribution, Class, FinancialSettings } from '../types';
-import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, detectCourseFromClass, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, detectCourseFromClass, isInstitutionPhoneWhatsapp, isStudentActive, isStudentInClass, getInactiveStudentTag, formatStudentDisplayName } from '../lib/utils';
 import { drawPdfWhatsAppIcon } from '../lib/pdfReportHelper';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { PageHeader } from '../components/PageHeader';
@@ -271,6 +271,28 @@ export function Contributions() {
     return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
   }, [classes, selectedUnitId, activeUnits]);
 
+  // Lista dinâmica de exercícios (anos) abrangendo anos históricos, turmas e contribuições
+  const availableExerciseYears = useMemo(() => {
+    const currentYr = new Date().getFullYear();
+    const yrSet = new Set<number>();
+    for (let y = currentYr + 1; y >= Math.min(2020, currentYr - 6); y--) {
+      yrSet.add(y);
+    }
+    classes.forEach(c => {
+      const m = String(c.start_year || c.academic_year || c.year || '').match(/\b(20\d{2})\b/);
+      if (m) yrSet.add(parseInt(m[1], 10));
+    });
+    contributions.forEach(c => {
+      const y = Number(c.reference_year);
+      if (y >= 2000 && y <= 2100) yrSet.add(y);
+    });
+    periodData.forEach(c => {
+      const y = Number(c.reference_year);
+      if (y >= 2000 && y <= 2100) yrSet.add(y);
+    });
+    return Array.from(yrSet).sort((a, b) => b - a);
+  }, [classes, contributions, periodData]);
+
   const isStudentInActiveUnit = useCallback((student: Student | null | undefined, extraClasses?: Class[]) => {
     if (!student) return false;
     if (!selectedUnitId || selectedUnitId === 'all') return true;
@@ -316,8 +338,9 @@ export function Contributions() {
     return plan.expectedPeriods;
   };
 
-  // States for Unpaid (Mensalidades em Aberto) dashboard
+  // States for Unpaid (Mensalidades em Aberto) dashboard & full student pool for historical lookup
   const [unpaidLoading, setUnpaidLoading] = useState(false);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [allActiveStudents, setAllActiveStudents] = useState<Student[]>([]);
   const [unpaidContributions, setUnpaidContributions] = useState<Contribution[]>([]);
   const [unpaidClassFilter, setUnpaidClassFilter] = useState<string>('');
@@ -573,9 +596,15 @@ export function Contributions() {
       setInstitution(instData || null);
       setFinancialSettings(finData || null);
 
-      const activeStuds = (rawStudents || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
-      allStudentsCacheRef.current = activeStuds;
-      setAllActiveStudents(activeStuds as Student[]);
+      const allStudsSorted = ([...(rawStudents || [])] as Student[]).sort((a, b) => {
+        const activeDiff = (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1);
+        if (activeDiff !== 0) return activeDiff;
+        return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+      });
+      const activeStuds = allStudsSorted.filter(s => isStudentActive(s));
+      allStudentsCacheRef.current = allStudsSorted;
+      setAllStudents(allStudsSorted);
+      setAllActiveStudents(activeStuds);
       fetchRecentContributions(normalizedClasses);
 
       if (initialStudentId) {
@@ -623,7 +652,13 @@ export function Contributions() {
     try {
       if (!allStudentsCacheRef.current || allStudentsCacheRef.current.length === 0) {
         const all = await fetchAll('students');
-        allStudentsCacheRef.current = (all || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
+        const allSorted = ([...(all || [])] as Student[]).sort((a, b) => {
+          const activeDiff = (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1);
+          if (activeDiff !== 0) return activeDiff;
+          return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+        });
+        allStudentsCacheRef.current = allSorted;
+        setAllStudents(allSorted);
       }
 
       let pool = allStudentsCacheRef.current || [];
@@ -640,6 +675,8 @@ export function Contributions() {
         const rankA = calculateStudentSearchRank(a, trimmed);
         const rankB = calculateStudentSearchRank(b, trimmed);
         if (rankA !== rankB) return rankA - rankB;
+        const activeDiff = (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1);
+        if (activeDiff !== 0) return activeDiff;
         return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
       });
       setStudents(sorted);
@@ -698,16 +735,19 @@ export function Contributions() {
         const sData = await fetchQuery('students', [
           { field: 'id', operator: 'in', value: uniqueStudentIds }
         ]);
-        const activeSData = (sData || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
-        activeSData.forEach(s => studentMap.set(s.id, s));
+        // Preserva TODOS os contribuintes (ativos e inativos) no histórico financeiro
+        (sData || []).forEach((s: any) => studentMap.set(s.id, s));
       }
 
-      let data = docsData
-        .map(c => ({
-          ...c,
-          student: studentMap.get(c.student_id) || null
-        }))
-        .filter(c => c.student !== null);
+      let data = docsData.map(c => ({
+        ...c,
+        student: studentMap.get(c.student_id) || {
+          id: c.student_id,
+          name: 'Contribuinte Histórico',
+          registration_number: '---',
+          status: 'Inativo'
+        }
+      }));
 
       if (selectedUnitId && selectedUnitId !== 'all') {
         data = data.filter(c => {
@@ -721,6 +761,7 @@ export function Contributions() {
       if (reportTarget === 'class' && selectedClassId && selectedClassId !== 'all') {
         data = data.filter(c => {
           if (c.student?.class_id === selectedClassId) return true;
+          if (c.student && isStudentInClass(c.student, selectedClassId, allEnrollments)) return true;
           const sClass = resolveStudentClass(c.student);
           return sClass?.id === selectedClassId;
         });
@@ -752,11 +793,20 @@ export function Contributions() {
       return;
     }
     try {
-      const data = await fetchQuery('contributions', [
-        { field: 'student_id', operator: '==', value: studentId },
-        { field: 'reference_year', operator: '==', value: year }
-      ], 'reference_month');
-      setContributions((data || []) as Contribution[]);
+      const [dataNum, dataStr] = await Promise.all([
+        fetchQuery('contributions', [
+          { field: 'student_id', operator: '==', value: studentId },
+          { field: 'reference_year', operator: '==', value: year }
+        ], 'reference_month'),
+        fetchQuery('contributions', [
+          { field: 'student_id', operator: '==', value: studentId },
+          { field: 'reference_year', operator: '==', value: String(year) }
+        ], 'reference_month')
+      ]);
+      const combined = [...(dataNum || []), ...(dataStr || [])];
+      const unique = Array.from(new Map(combined.map(c => [c.id, c])).values())
+        .sort((a: any, b: any) => (Number(a.reference_month) || 0) - (Number(b.reference_month) || 0));
+      setContributions(unique as Contribution[]);
     } catch (error: any) {
       console.error('Error fetching contributions:', error.message);
     }
@@ -773,9 +823,12 @@ export function Contributions() {
       ]);
       setAllEnrollments(rawEnrollments || []);
 
-      const studs = (allStuds || [])
-        .filter((s: any) => (s.status || 'Ativo') === 'Ativo')
-        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      const allStudsSorted = ([...(allStuds || [])] as Student[]).sort((a, b) => {
+        const activeDiff = (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1);
+        if (activeDiff !== 0) return activeDiff;
+        return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+      });
+      const studs = allStudsSorted.filter(s => isStudentActive(s));
 
       // 2. Fetch all contributions for this year (supporting both numeric and string values for reference_year)
       const [yearContribsNum, yearContribsStr] = await Promise.all([
@@ -788,7 +841,9 @@ export function Contributions() {
       // 3. Ensure academic settings are loaded
       await fetchAcademicSettings();
 
-      setAllActiveStudents(studs as Student[]);
+      allStudentsCacheRef.current = allStudsSorted;
+      setAllStudents(allStudsSorted);
+      setAllActiveStudents(studs);
       setUnpaidContributions(uniqueContribs as Contribution[]);
     } catch (error: any) {
       console.error('Error fetching unpaid data:', error);
@@ -925,7 +980,10 @@ export function Contributions() {
 
   const currentExpectedMonths = useMemo(() => {
     if (!selectedStudent) return [];
-    const paidMonths = contributions.map(c => c.reference_month);
+    const paidMonths = Array.from(new Set(contributions.map(c => Number(c.reference_month)))).sort((a, b) => a - b);
+    if (!isStudentActive(selectedStudent)) {
+      return paidMonths;
+    }
     return getExpectedMonthsForStudent(selectedStudent, selectedYear, paidMonths);
   }, [selectedStudent, selectedYear, contributions, academicSettingsList]);
 
@@ -1268,9 +1326,10 @@ export function Contributions() {
   const handleLookupByRA = (raValue: string) => {
     const cleanRA = raValue.trim().toLowerCase();
     if (!cleanRA) return;
+    const baseStudents = allStudents.length > 0 ? allStudents : (allStudentsCacheRef.current || allActiveStudents);
     const scopedPool = (!selectedUnitId || selectedUnitId === 'all')
-      ? allActiveStudents
-      : allActiveStudents.filter(s => isStudentInActiveUnit(s));
+      ? baseStudents
+      : baseStudents.filter(s => isStudentInActiveUnit(s));
 
     const found = scopedPool.find(s =>
       (s.registration_number && s.registration_number.toLowerCase() === cleanRA) ||
@@ -1284,7 +1343,7 @@ export function Contributions() {
       return;
     }
 
-    const outsideUnitMatch = allActiveStudents.find(s =>
+    const outsideUnitMatch = baseStudents.find(s =>
       (s.registration_number && s.registration_number.toLowerCase().includes(cleanRA)) ||
       (s.id && s.id.toLowerCase() === cleanRA)
     );
@@ -1306,22 +1365,25 @@ export function Contributions() {
   const handleLookupByName = (nameValue: string) => {
     const clean = nameValue.trim().toLowerCase();
     if (!clean) return;
+    const baseStudents = allStudents.length > 0 ? allStudents : (allStudentsCacheRef.current || allActiveStudents);
     const pool = (!selectedUnitId || selectedUnitId === 'all')
-      ? allActiveStudents
-      : allActiveStudents.filter(student => isStudentInActiveUnit(student));
+      ? baseStudents
+      : baseStudents.filter(student => isStudentInActiveUnit(student));
     const exact = pool.find(s => s.name.trim().toLowerCase() === clean);
     if (exact) {
       handleSelectStudentForForm(exact);
       return;
     }
-    const matches = pool.filter(s => s.name.toLowerCase().includes(clean));
+    const matches = pool
+      .filter(s => s.name.toLowerCase().includes(clean))
+      .sort((a, b) => (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1));
     if (matches.length === 1) {
       handleSelectStudentForForm(matches[0]);
     } else if (matches.length > 1) {
       setNameSuggestions(matches.slice(0, 8));
       setIsSuggestionsOpen(true);
     } else {
-      const outsideUnitMatch = allActiveStudents.find(s => s.name.toLowerCase().includes(clean));
+      const outsideUnitMatch = baseStudents.find(s => s.name.toLowerCase().includes(clean));
       if (outsideUnitMatch) {
         setNotification({
           type: 'error',
@@ -1363,9 +1425,16 @@ export function Contributions() {
     }
   }, [selectedStudent]);
 
-  // Indicador de situação do aluno no formulário (Aluno em dia / Possui pendência)
+  // Indicador de situação do aluno no formulário (Aluno em dia / Possui pendência / Histórico Inativo)
   const studentStatusIndicator = useMemo(() => {
     if (!selectedStudent) return null;
+    if (!isStudentActive(selectedStudent)) {
+      const tag = getInactiveStudentTag(selectedStudent) || 'INATIVO';
+      return {
+        label: `${tag} • Consulta Histórica`,
+        color: 'bg-amber-50 text-amber-800 border-amber-200'
+      };
+    }
     const paidMonths = contributions.map(c => c.reference_month);
     const expected = getExpectedMonthsForStudent(selectedStudent, selectedFormYear, paidMonths);
     const unpaid = expected.filter(m => !paidMonths.includes(m));
@@ -1389,12 +1458,13 @@ export function Contributions() {
     };
   }, [selectedStudent, contributions, selectedFormYear]);
 
-  // Lista de alunos filtrados para o Modal Eclesial "Localizar Aluno"
+  // Lista de alunos filtrados para o Modal Eclesial "Localizar Aluno" (inclui inativos para consulta histórica)
   const modalFilteredStudents = useMemo(() => {
     const q = searchModalQuery.trim().toLowerCase();
+    const baseStudents = allStudents.length > 0 ? allStudents : (allStudentsCacheRef.current || allActiveStudents);
     const pool = (!selectedUnitId || selectedUnitId === 'all')
-      ? allActiveStudents
-      : allActiveStudents.filter(student => {
+      ? baseStudents
+      : baseStudents.filter(student => {
           const studentClass = resolveStudentClass(student);
           const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
           return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
@@ -1406,7 +1476,7 @@ export function Contributions() {
       (s.registration_number && s.registration_number.toLowerCase().includes(q)) ||
       (s.cpf && s.cpf.replace(/\D/g, '').includes(q.replace(/\D/g, '')))
     ).slice(0, 60);
-  }, [allActiveStudents, searchModalQuery, selectedUnitId, activeUnits, resolveStudentClass]);
+  }, [allStudents, allActiveStudents, searchModalQuery, selectedUnitId, activeUnits, resolveStudentClass]);
 
   // Formatação consistente do campo de valor monetário
   const handleAmountBlur = () => {
@@ -2285,7 +2355,7 @@ export function Contributions() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(0);
-      doc.text(`${student.registration_number || '---'} - ${student.name.toUpperCase()}`, margin + 3, startY + 37);
+      doc.text(`${student.registration_number || '---'} - ${formatStudentDisplayName(student, true).toUpperCase()}`, margin + 3, startY + 37);
       
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
@@ -2447,7 +2517,7 @@ export function Contributions() {
       doc.setFontSize(9.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42); // slate-900
-      doc.text(selectedStudent.name.toUpperCase(), margin + 4, boxY + 10);
+      doc.text(formatStudentDisplayName(selectedStudent, true).toUpperCase(), margin + 4, boxY + 10);
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
@@ -2470,7 +2540,9 @@ export function Contributions() {
       doc.text(`Janeiro a Dezembro de ${selectedYear}`, rightColX, boxY + 10);
 
       const unpaidExpected = currentExpectedMonths.filter(m => !contributions.some(c => c.reference_month === m));
-      const situationText = unpaidExpected.length === 0 ? 'Regularizado' : 'Em Aberto';
+      const situationText = !isStudentActive(selectedStudent)
+        ? `Histórico (${getInactiveStudentTag(selectedStudent) || 'Inativo'})`
+        : (unpaidExpected.length === 0 ? 'Regularizado' : 'Em Aberto');
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(71, 85, 105); // slate-600
@@ -2801,10 +2873,9 @@ export function Contributions() {
             }}
             className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-xs font-extrabold text-slate-800 cursor-pointer focus:ring-2 focus:ring-cyan-500/20"
           >
-            {[-1, 0, 1].map(offset => {
-              const y = new Date().getFullYear() + offset;
-              return <option key={y} value={y}>{y}</option>;
-            })}
+            {availableExerciseYears.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
           </select>
           <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">01/01/{selectedYear} à 31/12/{selectedYear}</span>
         </div>
@@ -2891,7 +2962,9 @@ export function Contributions() {
                 <option value="">Selecione uma turma...</option>
                 <option value="all">Todas as Turmas ({scopedClasses.length})</option>
                 {scopedClasses.map(c => (
-                  <option key={c.id} value={c.id}>{c.code ? `${c.code} - ${c.name}` : c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.code ? `${c.code} - ${c.name}` : c.name}{(c.status === 'Inativo' || c.status === 'Encerrada') ? ' [INATIVA]' : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -2907,6 +2980,11 @@ export function Contributions() {
                     <span className="text-xs font-extrabold text-blue-950 truncate max-w-[150px] sm:max-w-[200px]">
                       {selectedStudent.name}
                     </span>
+                    {!isStudentActive(selectedStudent) && (
+                      <span className="text-[9px] font-black text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded uppercase">
+                        {getInactiveStudentTag(selectedStudent) || 'INATIVO'}
+                      </span>
+                    )}
                     <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-1.5 py-0.5 rounded font-mono">
                       {selectedStudent.registration_number}
                     </span>
@@ -2979,7 +3057,14 @@ export function Contributions() {
                           className="w-full text-left p-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer"
                         >
                           <div className="min-w-0 pr-2">
-                            <p className="font-bold text-slate-800 truncate">{s.name}</p>
+                            <p className="font-bold text-slate-800 truncate flex items-center gap-1.5">
+                              <span>{s.name}</span>
+                              {!isStudentActive(s) && (
+                                <span className="text-[9px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase shrink-0">
+                                  {getInactiveStudentTag(s) || 'INATIVO'}
+                                </span>
+                              )}
+                            </p>
                             <p className="text-[10px] text-slate-400 font-mono">RA: {s.registration_number}</p>
                           </div>
                           <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">
@@ -3096,7 +3181,7 @@ export function Contributions() {
                   }}
                   className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none shrink-0"
                 >
-                  {[2026, 2025, 2024, 2023].map(yr => (
+                  {availableExerciseYears.map(yr => (
                     <option key={yr} value={yr}>{yr}</option>
                   ))}
                 </select>
@@ -3136,7 +3221,7 @@ export function Contributions() {
                   }}
                   className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none shrink-0"
                 >
-                  {[2026, 2025, 2024, 2023].map(yr => (
+                  {availableExerciseYears.map(yr => (
                     <option key={yr} value={yr}>{yr}</option>
                   ))}
                 </select>
@@ -3160,7 +3245,7 @@ export function Contributions() {
                   }}
                   className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-none"
                 >
-                  {[2026, 2025, 2024, 2023].map(yr => (
+                  {availableExerciseYears.map(yr => (
                     <option key={yr} value={yr}>{yr} (Ano Completo)</option>
                   ))}
                 </select>
@@ -3601,7 +3686,7 @@ export function Contributions() {
                   </span>
                   {selectedStudent && (
                     <span className="text-xs bg-white/20 text-cyan-50 px-2.5 py-0.5 rounded-full font-medium">
-                      {selectedStudent.name} ({selectedStudent.registration_number})
+                      {formatStudentDisplayName(selectedStudent, true)} ({selectedStudent.registration_number})
                     </span>
                   )}
                   {editingContributionId && (
@@ -3785,17 +3870,21 @@ export function Contributions() {
                                   return;
                                 }
                                 const clean = val.trim().toLowerCase();
+                                const baseStudents = allStudents.length > 0 ? allStudents : (allStudentsCacheRef.current || allActiveStudents);
                                 const pool = (!selectedUnitId || selectedUnitId === 'all')
-                                  ? allActiveStudents
-                                  : allActiveStudents.filter(student => {
+                                  ? baseStudents
+                                  : baseStudents.filter(student => {
                                       const studentClass = resolveStudentClass(student);
                                       const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
                                       return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
                                     });
-                                const matches = pool.filter(s => 
-                                  s.name.toLowerCase().includes(clean) || 
-                                  (s.registration_number && s.registration_number.toLowerCase().includes(clean))
-                                ).slice(0, 8);
+                                const matches = pool
+                                  .filter(s => 
+                                    s.name.toLowerCase().includes(clean) || 
+                                    (s.registration_number && s.registration_number.toLowerCase().includes(clean))
+                                  )
+                                  .sort((a, b) => (isStudentActive(a) ? 0 : 1) - (isStudentActive(b) ? 0 : 1))
+                                  .slice(0, 8);
                                 setNameSuggestions(matches);
                                 setIsSuggestionsOpen(matches.length > 0);
                                 setActiveSuggestionIndex(-1);
@@ -3855,7 +3944,14 @@ export function Contributions() {
                                       )}
                                     >
                                       <div className="min-w-0 pr-2">
-                                        <p className="font-bold truncate">{s.name}</p>
+                                        <p className="font-bold truncate flex items-center gap-1.5">
+                                          <span>{s.name}</span>
+                                          {!isStudentActive(s) && (
+                                            <span className="text-[9px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase shrink-0">
+                                              {getInactiveStudentTag(s) || 'INATIVO'}
+                                            </span>
+                                          )}
+                                        </p>
                                         <p className="text-[10px] text-slate-500 font-mono">
                                           RA: {s.registration_number || '---'} {sClass ? `• ${sClass.name}` : ''}
                                         </p>
@@ -4770,7 +4866,9 @@ export function Contributions() {
                                       {group.student?.name?.charAt(0) || '?'}
                                     </div>
                                     <div>
-                                      <p className="text-sm font-black text-[#131b2e] leading-snug">{group.student?.name || 'Contribuinte Deletado'}</p>
+                                      <p className="text-sm font-black text-[#131b2e] leading-snug">
+                                        {group.student ? formatStudentDisplayName(group.student, true) : 'Contribuinte Histórico'}
+                                      </p>
                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">{group.student?.registration_number || 'S/ MATRÍCULA'}</p>
                                     </div>
                                   </div>
@@ -5870,7 +5968,7 @@ export function Contributions() {
                <div className="grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded border border-slate-200 print:p-3">
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dados do Aluno</span>
-                    <p className="text-sm font-bold text-black uppercase">{selectedStudent.name}</p>
+                    <p className="text-sm font-bold text-black uppercase">{formatStudentDisplayName(selectedStudent, true)}</p>
                     <p className="text-[11px] text-slate-600 font-medium">Matrícula: {selectedStudent.registration_number || 'Não Informada'}</p>
                     <p className="text-[11px] text-slate-600 font-medium">Turma: {classes.find(cl => cl.id === selectedStudent?.class_id)?.name || 'Não informada'}</p>
                   </div>
@@ -5880,8 +5978,11 @@ export function Contributions() {
                     {(() => {
                       const unpaidExpected = currentExpectedMonths.filter(m => !contributions.some(c => c.reference_month === m));
                       const isRegularized = unpaidExpected.length === 0;
+                      const sitLabel = !isStudentActive(selectedStudent)
+                        ? `Histórico (${getInactiveStudentTag(selectedStudent) || 'Inativo'})`
+                        : (isRegularized ? 'Regularizado' : 'Em Aberto');
                       return (
-                        <p className="text-[11px] text-slate-600 font-medium">Situação: {isRegularized ? 'Regularizado' : 'Em Aberto'}</p>
+                        <p className="text-[11px] text-slate-600 font-medium">Situação: {sitLabel}</p>
                       );
                     })()}
                   </div>
@@ -6054,8 +6155,13 @@ export function Contributions() {
                       className="w-full text-left p-3 hover:bg-cyan-50/70 rounded-lg transition-colors flex items-center justify-between group cursor-pointer"
                     >
                       <div className="min-w-0 pr-3">
-                        <p className="font-bold text-xs text-slate-900 group-hover:text-cyan-900 truncate">
-                          {student.name}
+                        <p className="font-bold text-xs text-slate-900 group-hover:text-cyan-900 truncate flex items-center gap-1.5">
+                          <span>{student.name}</span>
+                          {!isStudentActive(student) && (
+                            <span className="text-[9px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase shrink-0">
+                              {getInactiveStudentTag(student) || 'INATIVO'}
+                            </span>
+                          )}
                         </p>
                         <p className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                           <span className="font-mono font-bold text-slate-600">RA: {student.registration_number || '---'}</span>
