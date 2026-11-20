@@ -191,6 +191,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [initialMonthlyAttendance, setInitialMonthlyAttendance] = useState<Record<string, Record<string, string>>>({});
   const [modifiedRecords, setModifiedRecords] = useState<Record<string, { studentId: string; date: string; status: string | null }>>({});
   const [savingMonthly, setSavingMonthly] = useState(false);
+  const [subjectAttendanceSummary, setSubjectAttendanceSummary] = useState<
+    Record<string, { total: number; present: number; absent: number; justified: number }>
+  >({});
+  const [subjectClosedDates, setSubjectClosedDates] = useState<Set<string>>(new Set());
   
   const [institution, setInstitution] = useState<any>(null);
   const [attendancePdfBlobUrl, setAttendancePdfBlobUrl] = useState<string | null>(null);
@@ -475,6 +479,55 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     fetchStudentsAndAttendance();
   }, [fetchStudentsAndAttendance]);
 
+  const fetchSubjectAttendanceSummary = React.useCallback(async () => {
+    if (!selectedClass || !selectedSubject) {
+      setSubjectAttendanceSummary({});
+      setSubjectClosedDates(new Set());
+      return;
+    }
+    try {
+      const [allSubjectAttendances, allSubjectClosures] = await Promise.all([
+        fetchQuery('attendances', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject }
+        ]).catch(() => []),
+        fetchQuery('calendar_events', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject },
+          { field: 'title', operator: '==', value: 'SISTEMA_FECHAMENTO_PRESENCA' }
+        ]).catch(() => [])
+      ]);
+
+      const summaryMap: Record<string, { total: number; present: number; absent: number; justified: number }> = {};
+      (allSubjectAttendances || []).forEach((rec: any) => {
+        const dbDate = normalizeScheduleDate(rec?.date) || String(rec?.date || '').slice(0, 10);
+        if (!dbDate || !rec?.status) return;
+        if (!summaryMap[dbDate]) {
+          summaryMap[dbDate] = { total: 0, present: 0, absent: 0, justified: 0 };
+        }
+        summaryMap[dbDate].total += 1;
+        if (rec.status === 'P') summaryMap[dbDate].present += 1;
+        else if (rec.status === 'F') summaryMap[dbDate].absent += 1;
+        else if (rec.status === 'J') summaryMap[dbDate].justified += 1;
+      });
+
+      const closedSet = new Set<string>();
+      (allSubjectClosures || []).forEach((ev: any) => {
+        const dbDate = normalizeScheduleDate(ev?.start_date) || String(ev?.start_date || '').slice(0, 10);
+        if (dbDate) closedSet.add(dbDate);
+      });
+
+      setSubjectAttendanceSummary(summaryMap);
+      setSubjectClosedDates(closedSet);
+    } catch (error) {
+      console.error('Error fetching subject attendance summary:', error);
+    }
+  }, [selectedClass, selectedSubject]);
+
+  useEffect(() => {
+    fetchSubjectAttendanceSummary();
+  }, [fetchSubjectAttendanceSummary]);
+
   const fetchMonthlyData = React.useCallback(async () => {
     if (!selectedClass || activeTab !== 'monthly') return;
     setLoading(true);
@@ -485,9 +538,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const end = `${selectedYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
 
       const filters: any[] = [
-        { field: 'class_id', operator: '==', value: selectedClass },
-        { field: 'date', operator: '>=', value: start },
-        { field: 'date', operator: '<=', value: end }
+        { field: 'class_id', operator: '==', value: selectedClass }
       ];
 
       if (selectedSubject) {
@@ -497,9 +548,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const allRecords = await fetchQuery('attendances', filters);
 
       const map: Record<string, Record<string, string>> = {};
-      (allRecords || []).forEach(record => {
+      (allRecords || []).forEach((record: any) => {
+        const normDate = normalizeScheduleDate(record?.date) || String(record?.date || '').slice(0, 10);
+        if (!normDate || normDate < start || normDate > end) return;
+        if (!record?.student_id || !record?.status) return;
         if (!map[record.student_id]) map[record.student_id] = {};
-        map[record.student_id][record.date] = record.status;
+        map[record.student_id][normDate] = record.status;
       });
       setInitialMonthlyAttendance(JSON.parse(JSON.stringify(map)));
       setMonthlyAttendance(map);
@@ -596,7 +650,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       setNotification({ type: 'success', message: 'Lançamentos mensais salvos com sucesso!' });
       setTimeout(() => setNotification(null), 3000);
 
-      await fetchMonthlyData();
+      await Promise.all([fetchMonthlyData(), fetchSubjectAttendanceSummary()]);
     } catch (error) {
       console.error("Error saving monthly edits:", error);
       setNotification({ type: 'err', message: 'Erro ao salvar lançamentos.' });
@@ -793,9 +847,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     if (!selectedClass) return [];
 
     const { academicEvents, blockingHolidayDates, cancelledDates } = classYearCalendarContext;
+    const normalizedClassStart = normalizeScheduleDate(currentClassObj?.start_date);
+    const yrStr = String(selectedYear);
 
     // 1. Extract and sort ALL valid lesson events (class_day, exam, excused_class EXCEPT holidays and cancelled_class)
-    const lessonMap = new Map();
+    const lessonMap = new Map<string, any>();
     academicEvents
       .filter(e =>
         ['class_day', 'exam', 'excused_class'].includes(e.type) &&
@@ -806,6 +862,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(e.start_date + 'T12:00:00');
           if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
+        }
+
+        if (selectedSubject && e.subject_id && String(e.subject_id) !== String(selectedSubject)) {
+          return;
         }
 
         if (selectedSubject && currentSubjectObj) {
@@ -825,11 +885,46 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         }
       });
 
-    const sortedLessons = Array.from(lessonMap.values())
-      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+    // Fallback idêntico ao availableDates quando não há class_day cadastrado para esta turma/semestre
+    if (lessonMap.size === 0 && loadedCalendarYear === selectedYear && selectedClassWeekdays.length > 0) {
+      const t1s = normalizeScheduleDate(effectiveSemesterSettings?.term1_start) || (normalizedClassStart && normalizedClassStart.startsWith(yrStr) && normalizedClassStart <= `${yrStr}-07-31` ? normalizedClassStart : `${yrStr}-02-01`);
+      const t1e = normalizeScheduleDate(effectiveSemesterSettings?.term1_end) || `${yrStr}-06-30`;
+      const t2s = normalizeScheduleDate(effectiveSemesterSettings?.term2_start) || `${yrStr}-08-01`;
+      const t2e = normalizeScheduleDate(effectiveSemesterSettings?.term2_end) || `${yrStr}-12-20`;
+
+      const sem = selectedSubject && currentSubjectObj ? detectSubjectSemester(currentSubjectObj, currentClassObj) : 'Anual';
+      const ranges =
+        sem === '1º Semestre'
+          ? [{ start: t1s, end: t1e }]
+          : sem === '2º Semestre'
+            ? [{ start: t2s, end: t2e }]
+            : [{ start: t1s, end: t1e }, { start: t2s, end: t2e }];
+
+      ranges.forEach(r => {
+        if (!r.start || !r.end) return;
+        const cur = new Date(r.start + 'T12:00:00');
+        const end = new Date(r.end + 'T12:00:00');
+        if (isNaN(cur.getTime()) || isNaN(end.getTime())) return;
+        let guard = 0;
+        while (cur <= end && guard < 370) {
+          if (cur.getFullYear() === selectedYear && selectedClassWeekdays.includes(cur.getDay())) {
+            const dKey = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+            const respectsStart = !normalizedClassStart || !normalizedClassStart.startsWith(yrStr) || dKey >= normalizedClassStart;
+            const respectsSem = !selectedSubject || !currentSubjectObj || isDateInSubjectSemester(dKey, currentSubjectObj, currentClassObj, effectiveSemesterSettings);
+            if (respectsStart && respectsSem && !blockingHolidayDates.has(dKey) && !cancelledDates.has(dKey) && !lessonMap.has(dKey)) {
+              lessonMap.set(dKey, { start_date: dKey, type: 'class_day', derived: true });
+            }
+          }
+          cur.setDate(cur.getDate() + 1);
+          guard++;
+        }
+      });
+    }
 
     // 2. Extract ALL events intended for display in the columns (Lessons + Cancelled)
-    const displayMap = new Map();
+    const displayMap = new Map<string, any>();
+    lessonMap.forEach((ev, key) => displayMap.set(key, ev));
+
     academicEvents
       .filter(e =>
         ['class_day', 'exam', 'excused_class', 'cancelled_class'].includes(e.type) &&
@@ -839,6 +934,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(e.start_date + 'T12:00:00');
           if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
+        }
+
+        if (selectedSubject && e.subject_id && String(e.subject_id) !== String(selectedSubject)) {
+          return;
         }
 
         if (selectedSubject && currentSubjectObj) {
@@ -857,6 +956,38 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           }
         }
       });
+
+    // Garante que qualquer data com registro real salvo em attendances no ano/mês selecionado apareça nas colunas e contagem
+    const recordedYearDates = new Set<string>();
+    Object.entries(subjectAttendanceSummary || {}).forEach(([dKey, info]) => {
+      if (dKey.startsWith(`${yrStr}-`) && info.total > 0) {
+        recordedYearDates.add(dKey);
+      }
+    });
+    Object.values(monthlyAttendance || {}).forEach((datesMap) => {
+      Object.entries(datesMap || {}).forEach(([dKey, st]) => {
+        if (st && dKey.startsWith(`${yrStr}-`)) {
+          recordedYearDates.add(dKey);
+        }
+      });
+    });
+    Object.values(modifiedRecords || {}).forEach((rec) => {
+      if (rec?.status && rec?.date && rec.date.startsWith(`${yrStr}-`)) {
+        recordedYearDates.add(rec.date);
+      }
+    });
+
+    recordedYearDates.forEach((dKey) => {
+      if (!lessonMap.has(dKey)) {
+        lessonMap.set(dKey, { start_date: dKey, type: 'class_day', recorded: true });
+      }
+      if (!displayMap.has(dKey)) {
+        displayMap.set(dKey, { start_date: dKey, type: 'class_day', recorded: true });
+      }
+    });
+
+    const sortedLessons = Array.from(lessonMap.values())
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
     const monthStr = String(selectedMonth + 1).padStart(2, '0');
     const prefix = `${selectedYear}-${monthStr}-`;
@@ -877,7 +1008,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         };
       })
       .sort((a, b) => a.dbValue.localeCompare(b.dbValue));
-  }, [selectedClass, selectedMonth, selectedYear, classYearCalendarContext, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, effectiveSemesterSettings]);
+  }, [selectedClass, selectedMonth, selectedYear, loadedCalendarYear, classYearCalendarContext, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, effectiveSemesterSettings, subjectAttendanceSummary, monthlyAttendance, modifiedRecords]);
 
   const availableDates = React.useMemo(() => {
     if (!selectedClass) return [];
@@ -967,6 +1098,19 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       });
     }
 
+    // Inclui também qualquer data do ano selecionado que já tenha chamada salva/fechada nesta disciplina
+    const yrPrefix = `${selectedYear}-`;
+    Object.entries(subjectAttendanceSummary || {}).forEach(([dKey, info]) => {
+      if (dKey.startsWith(yrPrefix) && info.total > 0 && !uniqueMap.has(dKey)) {
+        uniqueMap.set(dKey, { start_date: dKey, type: 'class_day', recorded: true });
+      }
+    });
+    subjectClosedDates.forEach((dKey) => {
+      if (dKey.startsWith(yrPrefix) && !uniqueMap.has(dKey)) {
+        uniqueMap.set(dKey, { start_date: dKey, type: 'class_day', recorded: true });
+      }
+    });
+
     return Array.from(uniqueMap.values())
       .sort((a: any, b: any) => a.start_date.localeCompare(b.start_date))
       .map((event: any) => {
@@ -978,7 +1122,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           label: `${event.start_date.split('-').reverse().join('/')} (${weekdayName.split('-')[0]})`
         };
       });
-  }, [selectedClass, selectedYear, loadedCalendarYear, classYearCalendarContext, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, effectiveSemesterSettings]);
+  }, [selectedClass, selectedYear, loadedCalendarYear, classYearCalendarContext, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, effectiveSemesterSettings, subjectAttendanceSummary, subjectClosedDates]);
 
   const isScheduledDay = React.useMemo(() => {
     if (!selectedClass || !selectedDate) return false;
@@ -1270,7 +1414,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         await Promise.all(keysToDelete.map(id => deleteData('attendances', id)));
       }
 
-      await fetchStudentsAndAttendance();
+      await Promise.all([fetchStudentsAndAttendance(), fetchSubjectAttendanceSummary()]);
       setNotification({ type: 'success', message: 'Presença salva com sucesso!' });
       setTimeout(() => setNotification(null), 3000);
     } catch (error) {
@@ -1326,6 +1470,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       
       // Also save attendance one last time to be sure
       await saveAttendance();
+      await fetchSubjectAttendanceSummary();
       
       setIsClosed(true);
       setNotification({ type: 'success', message: 'Lançamentos finalizados com sucesso! A data está fechada para edições.' });
@@ -1356,6 +1501,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       
       setIsClosed(false);
       setReopenConfirm(false);
+      await fetchSubjectAttendanceSummary();
       
       setNotification({ type: 'success', message: 'Chamada reaberta com sucesso! Agora você pode editar os lançamentos.' });
       setTimeout(() => setNotification(null), 4000);
@@ -1369,31 +1515,103 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   };
 
   const monthHasPresences = React.useMemo(() => {
-    if (!students || students.length === 0 || !monthlyClassDays || monthlyClassDays.length === 0) return false;
-    for (const student of students) {
-      for (const day of monthlyClassDays) {
-        if (day && day.dbValue && !day.isCancelled) {
-          const modKey = `${student.id}_${day.dbValue}`;
-          const status = modifiedRecords[modKey] !== undefined 
-            ? modifiedRecords[modKey].status 
-            : (monthlyAttendance[student.id]?.[day.dbValue] || null);
-          if (status === 'P') {
-            return true;
+    const monthStr = String(selectedMonth + 1).padStart(2, '0');
+    const prefix = `${selectedYear}-${monthStr}-`;
+
+    // 1. Verifica registros reais carregados no mês (P, F ou J) independentemente de haver evento no calendário
+    for (const datesMap of Object.values(monthlyAttendance || {})) {
+      for (const [dKey, st] of Object.entries(datesMap || {})) {
+        if (st && dKey.startsWith(prefix)) {
+          return true;
+        }
+      }
+    }
+
+    // 2. Verifica alterações locais pendentes no mês
+    for (const rec of Object.values(modifiedRecords || {})) {
+      if (rec?.status && rec?.date && rec.date.startsWith(prefix)) {
+        return true;
+      }
+    }
+
+    // 3. Verifica resumo geral da disciplina no mês
+    for (const [dKey, info] of Object.entries(subjectAttendanceSummary || {})) {
+      if (dKey.startsWith(prefix) && info.total > 0) {
+        return true;
+      }
+    }
+
+    // 4. Fallback compatível com estrutura de dias/alunos
+    if (students && students.length > 0 && monthlyClassDays && monthlyClassDays.length > 0) {
+      for (const student of students) {
+        for (const day of monthlyClassDays) {
+          if (day && day.dbValue && !day.isCancelled) {
+            const modKey = `${student.id}_${day.dbValue}`;
+            const status = modifiedRecords[modKey] !== undefined
+              ? modifiedRecords[modKey].status
+              : (monthlyAttendance[student.id]?.[day.dbValue] || null);
+            if (status === 'P' || status === 'F' || status === 'J') {
+              return true;
+            }
           }
         }
       }
     }
     return false;
-  }, [students, monthlyAttendance, monthlyClassDays, modifiedRecords]);
+  }, [students, monthlyAttendance, monthlyClassDays, modifiedRecords, selectedMonth, selectedYear, subjectAttendanceSummary]);
+
+  const registeredDatesForYear = React.useMemo(() => {
+    const yrPrefix = `${selectedYear}-`;
+    const dateSet = new Set<string>();
+    Object.entries(subjectAttendanceSummary || {}).forEach(([dKey, info]) => {
+      if (dKey.startsWith(yrPrefix) && info.total > 0) dateSet.add(dKey);
+    });
+    subjectClosedDates.forEach((dKey) => {
+      if (dKey.startsWith(yrPrefix)) dateSet.add(dKey);
+    });
+
+    return Array.from(dateSet)
+      .sort((a, b) => a.localeCompare(b))
+      .map((dbValue) => ({
+        dbValue,
+        displayValue: formatDateForDisplay(dbValue),
+        shortDate: `${dbValue.slice(8, 10)}/${dbValue.slice(5, 7)}`,
+        monthIndex: parseInt(dbValue.slice(5, 7), 10) - 1,
+        isClosed: subjectClosedDates.has(dbValue),
+        summary: subjectAttendanceSummary[dbValue] || { total: 0, present: 0, absent: 0, justified: 0 }
+      }));
+  }, [selectedYear, subjectAttendanceSummary, subjectClosedDates]);
+
+  const registeredMonthsSummary = React.useMemo(() => {
+    const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const byMonth = new Map<number, { monthIndex: number; monthName: string; datesCount: number; closedCount: number; totalRecords: number }>();
+
+    registeredDatesForYear.forEach((item) => {
+      const existing = byMonth.get(item.monthIndex) || {
+        monthIndex: item.monthIndex,
+        monthName: monthNames[item.monthIndex] || '',
+        datesCount: 0,
+        closedCount: 0,
+        totalRecords: 0
+      };
+      existing.datesCount += 1;
+      if (item.isClosed) existing.closedCount += 1;
+      existing.totalRecords += item.summary.total;
+      byMonth.set(item.monthIndex, existing);
+    });
+
+    return Array.from(byMonth.values()).sort((a, b) => a.monthIndex - b.monthIndex);
+  }, [registeredDatesForYear]);
 
   const [isPrinting, setIsPrinting] = useState(false);
 
   const processPrint = async (targetType: 'marking' | 'report') => {
     if (targetType === 'report') {
       if (!monthHasPresences) {
+        const monthLabel = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth];
         setNotification({
           type: 'err',
-          message: 'Não há lançamentos de presença (status P) nesta lista de chamada para o período selecionado. O relatório não foi emitido e o arquivo PDF não foi gerado.'
+          message: `Não há registros de chamada lançados nesta disciplina para ${monthLabel}/${selectedYear}. Realize a chamada primeiro ou selecione um mês com chamadas registradas.`
         });
         setTimeout(() => setNotification(null), 6000);
         return;
@@ -2069,6 +2287,23 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <span className="font-semibold text-slate-900 font-mono">
                       {selectedDate}
                     </span>
+                    {selectedSubject && (
+                      subjectClosedDates.has(currentSelectedDbDate) || isClosed ? (
+                        <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[8px] font-bold uppercase tracking-wider">
+                          <Check size={9} />
+                          <span>Chamada Fechada</span>
+                        </span>
+                      ) : (subjectAttendanceSummary[currentSelectedDbDate]?.total || 0) > 0 ? (
+                        <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-sky-50 text-sky-800 border border-sky-200 text-[8px] font-bold uppercase tracking-wider">
+                          <ClipboardCheck size={9} />
+                          <span>Registrada ({subjectAttendanceSummary[currentSelectedDbDate].total})</span>
+                        </span>
+                      ) : (
+                        <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 text-[8px] font-bold uppercase tracking-wider">
+                          <span>Sem Registro</span>
+                        </span>
+                      )
+                    )}
                     {selectedSubject && isDateLockedByRule && (
                       <button
                         type="button"
@@ -2262,7 +2497,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 {activeTab === 'marking' && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between ml-1">
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex flex-wrap items-center gap-1.5">
                         <span>Data</span>
                         {selectedClass && selectedSubject && selectedDate && (
                           isDateUnlockedByPin ? (
@@ -2291,6 +2526,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <Check size={9} /> Semana Atual (Liberada)
                             </span>
                           ) : null
+                        )}
+                        {selectedClass && selectedSubject && selectedDate && (
+                          subjectClosedDates.has(currentSelectedDbDate) || isClosed ? (
+                            <span className="text-[8px] font-bold text-emerald-800 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 flex items-center gap-1">
+                              <Check size={9} /> Fechada
+                            </span>
+                          ) : (subjectAttendanceSummary[currentSelectedDbDate]?.total || 0) > 0 ? (
+                            <span className="text-[8px] font-bold text-sky-800 uppercase tracking-widest px-1.5 py-0.5 bg-sky-50 border border-sky-200 flex items-center gap-1">
+                              <ClipboardCheck size={9} /> Registrada ({subjectAttendanceSummary[currentSelectedDbDate].total})
+                            </span>
+                          ) : (
+                            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest px-1.5 py-0.5 bg-slate-100 border border-slate-200">
+                              Sem Registro
+                            </span>
+                          )
                         )}
                       </label>
                     </div>
@@ -2337,21 +2587,32 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                 const isDateCurrentWeek = date.dbValue >= weekStart && date.dbValue <= weekEnd;
                                 const isDateFutureWeek = date.dbValue > weekEnd;
                                 const isPinUnlocked = date.dbValue === unlockedDate;
+                                const regInfo = subjectAttendanceSummary[date.dbValue];
+                                const isDateClosed = subjectClosedDates.has(date.dbValue);
 
-                                let tag = '🔒 [SEMANA ANTERIOR - REQUER PIN]';
+                                let tag = '🔒 [SEMANA ANTERIOR - PIN]';
                                 if (isPinUnlocked) {
-                                  tag = '🔓 [DESBLOQUEADA COM PIN]';
+                                  tag = '🔓 [DESBLOQUEADA PIN]';
                                 } else if (isDateToday) {
-                                  tag = '⭐ [AULA DE HOJE]';
+                                  tag = '⭐ [HOJE]';
                                 } else if (isDateCurrentWeek) {
-                                  tag = '✓ [SEMANA ATUAL - LIBERADA]';
+                                  tag = '✓ [SEMANA ATUAL]';
                                 } else if (isDateFutureWeek) {
-                                  tag = '🔒 [SEMANA POSTERIOR - REQUER PIN]';
+                                  tag = '🔒 [SEMANA POSTERIOR - PIN]';
+                                }
+
+                                let regTag = '';
+                                if (isDateClosed) {
+                                  regTag = ` • ✅ [FECHADA${regInfo?.total ? `: ${regInfo.total}` : ''}]`;
+                                } else if (regInfo && regInfo.total > 0) {
+                                  regTag = ` • 📝 [REGISTRADA: ${regInfo.total}]`;
+                                } else if (date.dbValue <= todayDb) {
+                                  regTag = ' • ○ [SEM REGISTRO]';
                                 }
 
                                 return (
                                   <option key={`att-dt-${date.dbValue}-${dIdx}`} value={date.dbValue}>
-                                    {date.label.toUpperCase()} - {tag}
+                                    {date.label.toUpperCase()} - {tag}{regTag}
                                   </option>
                                 );
                               })}
@@ -2380,6 +2641,54 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   </div>
                 )}
               </div>
+
+              {/* Sinalização rápida das datas com chamada registrada nesta disciplina */}
+              {activeTab === 'marking' && selectedClass && selectedSubject && (
+                <div className="mt-4 pt-3 border-t border-slate-200/80 flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                      <ClipboardCheck size={12} className="text-sky-700" />
+                      <span>Datas com Chamada Registrada ({selectedYear}):</span>
+                    </span>
+                    <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
+                      {registeredDatesForYear.length} {registeredDatesForYear.length === 1 ? 'data registrada' : 'datas registradas'}
+                    </span>
+                  </div>
+                  {registeredDatesForYear.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {registeredDatesForYear.map((item) => {
+                        const isSelected = currentSelectedDbDate === item.dbValue;
+                        return (
+                          <button
+                            key={`reg-dt-${item.dbValue}`}
+                            type="button"
+                            onClick={() => setSelectedDate(item.displayValue)}
+                            title={`${item.displayValue} • ${item.isClosed ? 'Chamada Fechada' : 'Chamada Salva'} (${item.summary.total} registros: ${item.summary.present}P / ${item.summary.absent}F / ${item.summary.justified}J). Clique para abrir.`}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer",
+                              isSelected
+                                ? "bg-slate-800 text-white border-slate-800 shadow-xs"
+                                : item.isClosed
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                                  : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
+                            )}
+                          >
+                            <span>{item.isClosed ? '✅' : '📝'}</span>
+                            <span className="font-mono">{item.shortDate}</span>
+                            <span className={cn("text-[9px] font-semibold", isSelected ? "text-slate-300" : "opacity-75")}>
+                              ({item.summary.total})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                      Nenhuma chamada registrada ainda para esta disciplina em {selectedYear}.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Placar em Tempo Real centralizado no formulário */}
               {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
@@ -2839,6 +3148,83 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           </div>
                         )}
 
+                        {/* Painel de Sinalização de Chamadas Registradas por Mês / Datas no Ano */}
+                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <ClipboardCheck size={16} className="text-slate-700" />
+                              <p className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                Chamadas Registradas no Sistema ({selectedYear})
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                              {registeredDatesForYear.filter(d => d.monthIndex === selectedMonth).length} data(s) em {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]}
+                            </span>
+                          </div>
+
+                          {registeredMonthsSummary.length > 0 ? (
+                            <div className="space-y-2.5">
+                              <div className="flex flex-wrap gap-1.5">
+                                {registeredMonthsSummary.map((mInfo) => {
+                                  const isActive = mInfo.monthIndex === selectedMonth;
+                                  return (
+                                    <button
+                                      key={`reg-m-${mInfo.monthIndex}`}
+                                      type="button"
+                                      onClick={() => setSelectedMonth(mInfo.monthIndex)}
+                                      className={cn(
+                                        "px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-1.5",
+                                        isActive
+                                          ? "bg-slate-800 text-white border-slate-800 shadow-xs"
+                                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                                      )}
+                                      title={`Clique para selecionar ${mInfo.monthName}/${selectedYear} (${mInfo.datesCount} aula(s) registrada(s))`}
+                                    >
+                                      <span>{mInfo.monthName}</span>
+                                      <span className={cn("px-1.5 py-0.2 rounded text-[9px]", isActive ? "bg-slate-700 text-white" : "bg-emerald-100 text-emerald-800")}>
+                                        {mInfo.datesCount} {mInfo.datesCount === 1 ? 'data' : 'datas'}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {registeredDatesForYear.filter(d => d.monthIndex === selectedMonth).length > 0 ? (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/80">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mr-1">
+                                    Datas lançadas no mês:
+                                  </span>
+                                  {registeredDatesForYear
+                                    .filter(d => d.monthIndex === selectedMonth)
+                                    .map((dItem) => (
+                                      <span
+                                        key={`m-dt-${dItem.dbValue}`}
+                                        className={cn(
+                                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border",
+                                          dItem.isClosed
+                                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                            : "bg-sky-50 text-sky-800 border-sky-200"
+                                        )}
+                                      >
+                                        <span>{dItem.isClosed ? '✅' : '📝'}</span>
+                                        <span className="font-mono">{dItem.shortDate}</span>
+                                        <span className="text-[9px] font-semibold opacity-80">({dItem.summary.total} alunos)</span>
+                                      </span>
+                                    ))}
+                                </div>
+                              ) : (
+                                <p className="text-[11px] font-medium text-amber-800 pt-1 border-t border-slate-200/80">
+                                  O mês selecionado não possui chamadas lançadas. Clique acima em um dos meses destacados para visualizar e imprimir o relatório.
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] font-medium text-slate-500">
+                              Nenhuma chamada foi registrada no sistema para esta disciplina em {selectedYear}.
+                            </p>
+                          )}
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Card 1: Relatório de Lançamentos */}
                           <div className="bg-white border border-slate-200 p-6 rounded-lg flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
@@ -2855,7 +3241,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             <div className="mt-6 pt-4 border-t border-slate-100 relative z-10">
                               <button 
                                 onClick={() => processPrint('report')}
-                                disabled={isPrinting}
+                                disabled={isPrinting || loading}
                                 title="Gerar e imprimir relatório mensal consolidado de frequência"
                                 className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >

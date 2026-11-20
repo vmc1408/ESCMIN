@@ -168,7 +168,7 @@ export const fetchQuery = async (
   if (!isSupabaseConfigured) return [];
 
   try {
-    const buildQuery = () => {
+    const buildQuery = (from: number, to: number) => {
       let queryBuilder = supabase.from(collectionName).select('*');
       
       if (Array.isArray(fieldOrFilters)) {
@@ -193,12 +193,21 @@ export const fetchQuery = async (
         else if (op === 'like') queryBuilder = queryBuilder.like(fieldOrFilters, value);
         else if (op === 'ilike') queryBuilder = queryBuilder.ilike(fieldOrFilters, value);
       }
-      return queryBuilder;
+      return queryBuilder.range(from, to);
     };
-    
-    const result = await fetchWithTimeout(buildQuery);
-    if (result?.error) throw result.error;
-    return result?.data || [];
+
+    const step = 1000;
+    let from = 0;
+    let allRows: any[] = [];
+    for (let page = 0; page < 25; page++) {
+      const result = await fetchWithTimeout(() => buildQuery(from, from + step - 1));
+      if (result?.error) throw result.error;
+      const chunk = result?.data || [];
+      allRows = allRows.length === 0 ? chunk : [...allRows, ...chunk];
+      if (chunk.length < step) break;
+      from += step;
+    }
+    return allRows;
   } catch (err: any) {
     if (isJwtOrTokenError(err)) {
       console.warn(`[Supabase Fetch] Token/JWT dessincronizado ao executar query em ${collectionName}. Limpando credenciais locais.`);
