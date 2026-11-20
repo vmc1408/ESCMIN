@@ -2342,38 +2342,55 @@ export function Courses() {
                     Exclusão Não Permitida
                   </h3>
                   <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    O curso <strong className="text-slate-900">"{courseSecurityModal.course.name}"</strong> não pode ser excluído porque possui <strong className="text-rose-700">{courseSecurityModal.safety.activeClasses.length} turma(s) ativa(s) e frequente(s)</strong> vinculadas a ele.
+                    {courseSecurityModal.safety.message || (
+                      <>
+                        O curso <strong className="text-slate-900">"{courseSecurityModal.course.name}"</strong> possui vínculos ou histórico de turmas protegidos.
+                      </>
+                    )}
                   </p>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Turmas Ativas / Frequentes Detectadas ({courseSecurityModal.safety.activeClasses.length}):
-                  </p>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {courseSecurityModal.safety.activeClasses.map((cls) => (
-                      <div key={cls.id} className="p-2.5 bg-white border border-slate-200 flex items-center justify-between gap-3 text-xs">
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-800 truncate">{cls.name}</p>
-                          <p className="text-[10px] text-slate-500">
-                            {cls.code ? `Cód: ${cls.code} • ` : ''}{cls.year || 'Ano Regular'} • {cls.semester || 'Semestre Único'}
-                          </p>
+                {courseSecurityModal.safety.activeClasses.length > 0 ? (
+                  <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Turmas Ativas / Frequentes Detectadas ({courseSecurityModal.safety.activeClasses.length}):
+                    </p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {courseSecurityModal.safety.activeClasses.map((cls) => (
+                        <div key={cls.id} className="p-2.5 bg-white border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 truncate">{cls.name}</p>
+                            <p className="text-[10px] text-slate-500">
+                              {cls.code ? `Cód: ${cls.code} • ` : ''}{cls.year || 'Ano Regular'} • {cls.semester || 'Semestre Único'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold uppercase tracking-wider">
+                              Ativa
+                            </span>
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold">
+                              {cls.activeStudentsCount} Alunos
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold uppercase tracking-wider">
-                            Ativa
-                          </span>
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold">
-                            {cls.activeStudentsCount} Alunos
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : courseSecurityModal.safety.reasons.length > 0 && (
+                  <div className="bg-slate-50 border border-slate-200 p-3 space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Motivos / Histórico Protegido:
+                    </p>
+                    <ul className="space-y-1 text-xs text-slate-700 list-disc list-inside">
+                      {courseSecurityModal.safety.reasons.map((r, rIdx) => (
+                        <li key={rIdx} className="font-medium">{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800 leading-snug">
-                  <strong>Diretriz de Integridade:</strong> A exclusão física de um curso com turmas ativas causaria perda de histórico escolar, diários de classe e orfandade de cadastros. É obrigatório encerrar ou inativar essas turmas antes da exclusão física.
+                  <strong>Diretriz de Integridade:</strong> A exclusão física de um curso com turmas ativas ou encerradas causaria perda de histórico escolar e orfandade de cadastros. Utilize <strong>Inativar Curso</strong> para mantê-lo fora de novas matrículas sem apagar os registros anteriores.
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2.5 pt-2">

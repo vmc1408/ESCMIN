@@ -3904,34 +3904,51 @@ export function Classes() {
                     Exclusão Não Permitida
                   </h3>
                   <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    A turma <strong className="text-slate-900">"{classSecurityModal.classItem.name}"</strong> possui <strong className="text-rose-700">{classSecurityModal.safety.activeStudentsCount} aluno(s) ativo(s) inscrito(s)</strong>.
+                    {classSecurityModal.safety.message || (
+                      <>
+                        A turma <strong className="text-slate-900">"{classSecurityModal.classItem.name}"</strong> possui vínculos ou registros históricos protegidos.
+                      </>
+                    )}
                   </p>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Alunos Ativos Inscritos ({classSecurityModal.safety.activeStudentsCount}):
-                  </p>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {classSecurityModal.safety.activeStudents.map((st) => (
-                      <div key={st.id} className="p-2.5 bg-white border border-slate-200 flex items-center justify-between gap-3 text-xs">
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-800 truncate">{st.name}</p>
-                          <p className="text-[10px] text-slate-500">
-                            {st.registration_number ? `Matrícula: ${st.registration_number} • ` : ''}
-                            {st.linkType === 'primary' ? 'Turma Principal' : 'Matrícula Concomitante'}
-                          </p>
+                {classSecurityModal.safety.activeStudentsCount > 0 ? (
+                  <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Alunos Ativos Inscritos ({classSecurityModal.safety.activeStudentsCount}):
+                    </p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {classSecurityModal.safety.activeStudents.map((st) => (
+                        <div key={st.id} className="p-2.5 bg-white border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 truncate">{st.name}</p>
+                            <p className="text-[10px] text-slate-500">
+                              {st.registration_number ? `Matrícula: ${st.registration_number} • ` : ''}
+                              {st.linkType === 'primary' ? 'Turma Principal' : 'Matrícula Concomitante'}
+                            </p>
+                          </div>
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                            Ativo
+                          </span>
                         </div>
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold uppercase tracking-wider shrink-0">
-                          Ativo
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : classSecurityModal.safety.reasons.length > 0 && (
+                  <div className="bg-slate-50 border border-slate-200 p-3 space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Motivos / Registros Históricos Protegidos:
+                    </p>
+                    <ul className="space-y-1 text-xs text-slate-700 list-disc list-inside">
+                      {classSecurityModal.safety.reasons.map((r, rIdx) => (
+                        <li key={rIdx} className="font-medium">{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800 leading-snug">
-                  <strong>Diretriz de Segurança:</strong> Não é permitido excluir uma turma enquanto houver estudantes ativos matriculados nela. Esta restrição protege contra desvinculação acidental, orfandade acadêmica e perda do histórico de notas e frequências.
+                  <strong>Diretriz de Segurança:</strong> Não é permitido excluir definitivamente turmas com estudantes vinculados ou histórico lançado (chamadas, avaliações, notas). Utilize <strong>Inativar Turma</strong> para encerrá-la preservando os dados históricos.
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
@@ -3945,19 +3962,21 @@ export function Classes() {
                     <Clock className="w-3.5 h-3.5" />
                     <span>{isProcessingClassSecurityAction ? 'Processando...' : 'Inativar Turma (Recomendado)'}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cls = classSecurityModal.classItem;
-                      setClassSecurityModal(null);
-                      setupImportModalDefaults(cls);
-                      setShowImportModal(true);
-                    }}
-                    title="Transferir os alunos ativos desta turma para outra turma"
-                    className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
-                  >
-                    Transferir Alunos
-                  </button>
+                  {classSecurityModal.safety.activeStudentsCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cls = classSecurityModal.classItem;
+                        setClassSecurityModal(null);
+                        setupImportModalDefaults(cls);
+                        setShowImportModal(true);
+                      }}
+                      title="Transferir os alunos ativos desta turma para outra turma"
+                      className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                    >
+                      Transferir Alunos
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setClassSecurityModal(null)}

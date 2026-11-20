@@ -16,7 +16,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
-import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
+import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails, matchesStudentSearch, calculateStudentSearchRank, mergeClassStudentsWithHistory, isStudentActive, getInactiveStudentTag, formatStudentDisplayName } from '../lib/utils';
 import { fetchAll, fetchQuery } from '../lib/database';
 import { supabase, fetchWithTimeout, isSupabaseConfigured } from '../lib/supabase';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
@@ -265,11 +265,24 @@ export function Bulletin() {
     }
   }, [selectedClassId, scopedClasses]);
 
-  // Filter Active Students for local class
+  // Filter Active Students + Inactive/Former students who have historical attendance/grades in this class
   const classStudents = useMemo(() => {
     if (!selectedClassId) return [];
-    return filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
-  }, [selectedClassId, scopedStudents, enrollments]);
+    const historyIds = new Set<string>();
+    for (let i = 0; i < attendanceData.length; i++) {
+      const a = attendanceData[i];
+      if (a.class_id === selectedClassId && a.student_id && a.status) {
+        historyIds.add(String(a.student_id));
+      }
+    }
+    for (let i = 0; i < dbGrades.length; i++) {
+      const g = dbGrades[i];
+      if (g.class_id === selectedClassId && g.student_id && g.value !== null && g.value !== undefined && g.value !== '') {
+        historyIds.add(String(g.student_id));
+      }
+    }
+    return mergeClassStudentsWithHistory(scopedStudents, selectedClassId, enrollments, historyIds);
+  }, [selectedClassId, scopedStudents, enrollments, attendanceData, dbGrades]);
 
   // Handle auto-selection of first student when changing class in student view mode
   useEffect(() => {
@@ -284,13 +297,13 @@ export function Bulletin() {
     }
   }, [selectedClassId, classStudents, viewMode, selectedStudentId]);
 
-  // Filter Active Subjects for local class
+  // Filter Active Subjects + Historical deactivated subjects with recorded assessments, grades or attendances
   const classSubjects = useMemo(() => {
     if (!selectedClassId) return [];
     const classObj = classes.find(c => c.id === selectedClassId);
     if (!classObj) return [];
-    return getClassSubjects(classObj, subjects, assessments, dbGrades);
-  }, [selectedClassId, classes, subjects, assessments, dbGrades]);
+    return getClassSubjects(classObj, subjects, assessments, dbGrades, attendanceData);
+  }, [selectedClassId, classes, subjects, assessments, dbGrades, attendanceData]);
 
   const academicSettings = useMemo(() => {
     const classObj = classes.find(c => c.id === selectedClassId);
@@ -860,7 +873,7 @@ export function Bulletin() {
     doc.text('ALUNO:', margin + 3.5, metaY + 5.8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    const studentText = `${formatRegistrationNumber(report.student.registration_number, 'S/M')} - ${(report.student.name || '').toUpperCase()}`;
+    const studentText = `${formatRegistrationNumber(report.student.registration_number, 'S/M')} - ${formatStudentDisplayName(report.student, true)}`;
     const fittedStudent = doc.splitTextToSize(studentText, leftColMaxW - 14)[0] || studentText;
     doc.text(fittedStudent, margin + 17.5, metaY + 5.8);
 
@@ -1208,7 +1221,7 @@ export function Bulletin() {
       const headers = [['Matrícula', 'Aluno', 'Média Notas', 'Total Faltas', 'Freq. %', 'Situação Geral']];
       const rows = sortedReports.map(res => [
         formatRegistrationNumber(res.student.registration_number, 'N/D'),
-        res.student.name.toUpperCase(),
+        formatStudentDisplayName(res.student, true),
         formatGrade(res.averageGrade),
         res.totalAbsences.toString(),
         res.averageFrequency !== null ? `${formatPresence(res.averageFrequency)}%` : '-',
@@ -1398,7 +1411,7 @@ export function Bulletin() {
                       ) : (
                         classStudents.map((s, idx) => (
                           <option key={`blt-stu-opt-${s.id || idx}-${idx}`} value={s.id}>
-                            {s.registration_number ? `${formatRegistrationNumber(s.registration_number)} - ` : ''}{s.name}
+                            {s.registration_number ? `${formatRegistrationNumber(s.registration_number)} - ` : ''}{formatStudentDisplayName(s)}
                           </option>
                         ))
                       )}
@@ -1522,7 +1535,12 @@ export function Bulletin() {
                         
                         <div className="flex flex-col gap-1 sm:items-end print:items-end">
                           <span className="text-[8px] font-bold text-slate-400">Situação Cadastral</span>
-                          <span className="text-emerald-700 font-extrabold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 inline-block text-[9px] leading-tight select-none">
+                          <span className={cn(
+                            "font-extrabold border px-2.5 py-0.5 inline-block text-[9px] leading-tight select-none",
+                            isStudentActive(activeStudentReport.student)
+                              ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                              : "text-amber-800 bg-amber-50 border-amber-300"
+                          )}>
                             {activeStudentReport.student.status || 'Ativo'}
                           </span>
                         </div>
@@ -1931,7 +1949,14 @@ export function Bulletin() {
                           return (
                             <tr key={`blt-cls-row-${res.student.id || rIdx}-${rIdx}`} className="hover:bg-slate-50/40 transition-colors">
                               <td className="px-6 py-3.5">
-                                <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{res.student.name}</p>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{res.student.name}</p>
+                                  {!isStudentActive(res.student) && (
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[8.5px] font-bold uppercase tracking-wider">
+                                      {getInactiveStudentTag(res.student)}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-[10px] font-mono font-bold text-slate-700 uppercase tracking-wide mt-0.5">Matrícula: {formatRegistrationNumber(res.student.registration_number)}</p>
                               </td>
                               {classSubjects.map((sub, sIdx) => {

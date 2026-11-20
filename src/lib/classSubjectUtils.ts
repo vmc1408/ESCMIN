@@ -697,32 +697,39 @@ export function getClassSubjects(
   classItem: ClassItemType | null | undefined,
   allSubjects: SubjectItemType[],
   assessments?: any[],
-  grades?: any[]
+  grades?: any[],
+  attendances?: any[]
 ): SubjectItemType[] {
   if (!classItem) return [];
 
   const classId = classItem.id;
   const explicitIds = extractExplicitClassSubjectIds(classItem);
 
+  // Collect subjects that already have historical academic records in this class
+  const activityIds = new Set<string>();
+  if (assessments && assessments.length > 0) {
+    assessments.forEach(a => {
+      if (a.class_id === classId && a.subject_id) activityIds.add(a.subject_id);
+    });
+  }
+  if (grades && grades.length > 0) {
+    grades.forEach(g => {
+      if (g.class_id === classId && g.subject_id) activityIds.add(g.subject_id);
+    });
+  }
+  if (attendances && attendances.length > 0) {
+    attendances.forEach(att => {
+      if (att.class_id === classId && att.subject_id) activityIds.add(att.subject_id);
+    });
+  }
+
   let matchedSubjects: SubjectItemType[] = [];
 
   if (explicitIds.size > 0) {
-    // Strictly respect explicitly linked curriculum when the class defines subjects
-    matchedSubjects = allSubjects.filter(sub => explicitIds.has(sub.id));
+    // Strictly respect explicitly linked curriculum AND retain any historical subjects with recorded activities
+    const combinedIds = new Set<string>([...explicitIds, ...activityIds]);
+    matchedSubjects = allSubjects.filter(sub => combinedIds.has(sub.id));
   } else {
-    // Legacy class without explicit subject links: check class-scoped assessments/grades first
-    const activityIds = new Set<string>();
-    if (assessments && assessments.length > 0) {
-      assessments.forEach(a => {
-        if (a.class_id === classId && a.subject_id) activityIds.add(a.subject_id);
-      });
-    }
-    if (grades && grades.length > 0) {
-      grades.forEach(g => {
-        if (g.class_id === classId && g.subject_id) activityIds.add(g.subject_id);
-      });
-    }
-
     if (activityIds.size > 0) {
       matchedSubjects = allSubjects.filter(sub => activityIds.has(sub.id));
     } else {

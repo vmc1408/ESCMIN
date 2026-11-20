@@ -28,7 +28,7 @@ import {
   ShieldAlert,
   GraduationCap
 } from 'lucide-react';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, mergeClassStudentsWithHistory, isStudentActive, getInactiveStudentTag, formatStudentDisplayName } from '../lib/utils';
 import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject, getClassWeekdays, resolveAcademicSettingsForUnit, normalizeScheduleDate } from '../lib/academicUtils';
 import { getClassSubjects, doesSubjectYearMatchClass, normalizeClass, normalizeSubject, isSubjectActive } from '../lib/classSubjectUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
@@ -179,6 +179,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [allStudentsList, setAllStudentsList] = useState<Student[]>([]);
+  const [allEnrollmentsList, setAllEnrollmentsList] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
   const [academicParams, setAcademicParams] = useState<any>(null);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
@@ -364,6 +366,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       ]);
 
       const classStudents = filterStudentsForClass(allStudents || [], selectedClass, allEnrollments || [], true);
+      setAllStudentsList(allStudents || []);
+      setAllEnrollmentsList(allEnrollments || []);
       setStudents(classStudents);
       setIsClosed(closureData && closureData.length > 0);
 
@@ -820,13 +824,45 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     return { academicEvents, blockingHolidayDates, cancelledDates };
   }, [selectedClass, selectedYear, classEvents, currentClassObj]);
 
+  // Para a chamada diária na tela: exibe alunos ativos + ex-alunos/inativos que já tenham registro salvo na data selecionada
+  const dailyDisplayStudents = React.useMemo(() => {
+    if (!selectedClass) return [];
+    const savedIds = Object.entries(attendance)
+      .filter(([, rec]) => !!rec?.status)
+      .map(([studentId]) => studentId);
+    if (savedIds.length === 0 || allStudentsList.length === 0) return students;
+    return mergeClassStudentsWithHistory(allStudentsList, selectedClass, allEnrollmentsList, savedIds);
+  }, [selectedClass, students, allStudentsList, allEnrollmentsList, attendance]);
+
+  // Para o relatório mensal consolidado (PDF): inclui alunos inativos/desistentes que possuam presença/falta/abono no mês
+  const monthlyReportStudents = React.useMemo(() => {
+    if (!selectedClass) return [];
+    const monthStr = String(selectedMonth + 1).padStart(2, '0');
+    const prefix = `${selectedYear}-${monthStr}-`;
+    const historyIds = new Set<string>();
+
+    Object.entries(monthlyAttendance || {}).forEach(([studentId, datesMap]) => {
+      if (Object.entries(datesMap || {}).some(([dKey, st]) => !!st && dKey.startsWith(prefix))) {
+        historyIds.add(studentId);
+      }
+    });
+    Object.values(modifiedRecords || {}).forEach((rec) => {
+      if (rec?.status && rec?.date && rec.date.startsWith(prefix) && rec.studentId) {
+        historyIds.add(rec.studentId);
+      }
+    });
+
+    if (historyIds.size === 0 || allStudentsList.length === 0) return students;
+    return mergeClassStudentsWithHistory(allStudentsList, selectedClass, allEnrollmentsList, historyIds);
+  }, [selectedClass, selectedMonth, selectedYear, students, allStudentsList, allEnrollmentsList, monthlyAttendance, modifiedRecords]);
+
   const attendanceStats = React.useMemo(() => {
     let present = 0;
     let absent = 0;
     let justified = 0;
     let missing = 0;
 
-    students.forEach(student => {
+    dailyDisplayStudents.forEach(student => {
       const status = attendance[student.id]?.status;
       if (status === 'P') present++;
       else if (status === 'F') absent++;
@@ -839,9 +875,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       absent,
       justified,
       missing,
-      total: students.length
+      total: dailyDisplayStudents.length
     };
-  }, [students, attendance]);
+  }, [dailyDisplayStudents, attendance]);
 
   const monthlyClassDays = React.useMemo(() => {
     if (!selectedClass) return [];
@@ -1385,7 +1421,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const payloads: any[] = [];
       const keysToDelete: string[] = [];
 
-      students.forEach(student => {
+      dailyDisplayStudents.forEach(student => {
         const docId = `${selectedClass}_${selectedSubject}_${dbDate}_${student.id}`;
         const record = attendance[student.id];
 
@@ -1541,9 +1577,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       }
     }
 
-    // 4. Fallback compatível com estrutura de dias/alunos
-    if (students && students.length > 0 && monthlyClassDays && monthlyClassDays.length > 0) {
-      for (const student of students) {
+    // 4. Fallback compatível com estrutura de dias/alunos (incluindo alunos inativos com histórico no mês)
+    if (monthlyReportStudents && monthlyReportStudents.length > 0 && monthlyClassDays && monthlyClassDays.length > 0) {
+      for (const student of monthlyReportStudents) {
         for (const day of monthlyClassDays) {
           if (day && day.dbValue && !day.isCancelled) {
             const modKey = `${student.id}_${day.dbValue}`;
@@ -1558,7 +1594,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       }
     }
     return false;
-  }, [students, monthlyAttendance, monthlyClassDays, modifiedRecords, selectedMonth, selectedYear, subjectAttendanceSummary]);
+  }, [monthlyReportStudents, monthlyAttendance, monthlyClassDays, modifiedRecords, selectedMonth, selectedYear, subjectAttendanceSummary]);
 
   const registeredDatesForYear = React.useMemo(() => {
     const yrPrefix = `${selectedYear}-`;
@@ -1722,9 +1758,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const margin = 8;
       const contentWidth = pageWidth - (margin * 2);
 
+      // Lista em branco ("marking") usa apenas alunos ativos; Relatório consolidado ("report") preserva histórico de alunos inativos com registros no mês
+      const pdfStudents = activePrintType === 'marking' ? students : monthlyReportStudents;
+
       // Standard pagination filled to capacity up to 20 items per page
       const itemsPerPage = 20;
-      const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
+      const totalPages = Math.ceil(pdfStudents.length / itemsPerPage) || 1;
 
       const currentClassObj = classes.find(c => c.id === selectedClass);
       const currentSubjectObj = subjects.find(s => s.id === selectedSubject);
@@ -1953,7 +1992,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         ];
 
         // Table Body
-        const chunk = students.slice(pageIdx * itemsPerPage, (pageIdx + 1) * itemsPerPage);
+        const chunk = pdfStudents.slice(pageIdx * itemsPerPage, (pageIdx + 1) * itemsPerPage);
         const body: any[] = chunk.map((student, idx) => {
           const overallIndex = pageIdx * itemsPerPage + idx;
           return [
@@ -1968,7 +2007,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 fontSize: 7.5
               } 
             },
-            student.name.toUpperCase(),
+            formatStudentDisplayName(student, true),
             ...(noClassDays
               ? ['']
               : [
@@ -2133,7 +2172,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                  <span className="relative flex h-1.5 w-1.5">
                    <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                  </span>
-                 <span>{students.length} Alunos Inscritos</span>
+                 <span>{activeTab === 'marking' ? dailyDisplayStudents.length : monthlyReportStudents.length} Alunos {activeTab === 'monthly' && monthlyReportStudents.length > students.length ? '(c/ Histórico)' : 'Inscritos'}</span>
               </div>
             </div>
           )}
@@ -2163,7 +2202,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
           <div className="flex items-center gap-3">
 
-            {activeTab === 'marking' && students.length > 0 && (
+            {activeTab === 'marking' && dailyDisplayStudents.length > 0 && (
               <div className="flex items-center gap-3">
                 {!isClosed ? (
                   <>
@@ -2337,7 +2376,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
               {/* Compact Stats for Daily Attendance */}
               <div className="flex items-center gap-3.5 flex-wrap">
-                {activeTab === 'marking' && selectedSubject && students.length > 0 && (
+                {activeTab === 'marking' && selectedSubject && dailyDisplayStudents.length > 0 && (
                   <div className="flex items-center gap-1 sm:gap-1.5 text-[9px] font-bold uppercase tracking-wider">
                     <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-800 text-white border border-slate-750">
                       <span>MATR:</span>
@@ -2691,7 +2730,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               )}
 
               {/* Placar em Tempo Real centralizado no formulário */}
-              {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
+              {activeTab === 'marking' && selectedClass && selectedSubject && dailyDisplayStudents.length > 0 && (
                 <div className="mt-5 pt-4 border-t border-slate-200 flex justify-center w-full">
                   <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap items-center justify-center gap-2.5 sm:gap-3.5 select-none w-full max-w-2xl md:max-w-none">
                     {/* Matriculados */}
@@ -2927,7 +2966,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
 
                     <div className="grid grid-cols-1 gap-2 mt-4">
-                      {students.map((student, idx) => (
+                      {dailyDisplayStudents.map((student, idx) => {
+                        const inactiveTag = getInactiveStudentTag(student);
+                        return (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -2952,7 +2993,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               {String(idx + 1).padStart(2, '0')}
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
+                                {inactiveTag && (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-bold uppercase tracking-wider">
+                                    {inactiveTag}
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex flex-wrap items-center gap-2 mt-1.5">
                                 <span className="text-[10px] font-mono font-bold text-slate-800 uppercase tracking-wider px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-lg shadow-2xs">
                                   Matrícula: {formatRegistrationNumber(student.registration_number)}
@@ -3117,7 +3165,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             ))}
                           </div>
                         </motion.div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ) : (

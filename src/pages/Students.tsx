@@ -36,7 +36,9 @@ import {
   UserX,
   Receipt,
   Wallet,
-  Check
+  Check,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
@@ -49,6 +51,7 @@ import { getClassStartDateFromSchedule } from '../lib/academicUtils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { Student, Class, Enrollment, Course, Contribution } from '../types';
 import { financialConfigService } from '../services/financialConfigService';
+import { academicSecurityService, EntityHistorySafetyCheckResult } from '../services/academicSecurityService';
 import { getClassStartYear } from '../lib/contributionRules';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -244,6 +247,8 @@ export function Students() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [studentDeleteSafety, setStudentDeleteSafety] = useState<EntityHistorySafetyCheckResult | null>(null);
+  const [checkingStudentSafety, setCheckingStudentSafety] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [studentEnrollments, setStudentEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
@@ -1754,6 +1759,55 @@ export function Students() {
     }
   }, [selectedStudent, formData.status, fetchStudents]);
 
+  const handleOpenDeleteConfirm = useCallback(async () => {
+    if (!selectedStudent?.id) return;
+    setStudentDeleteSafety(null);
+    setCheckingStudentSafety(true);
+    setShowDeleteConfirm(true);
+    try {
+      const safety = await academicSecurityService.checkStudentDeletionSafetyLive(
+        selectedStudent.id,
+        selectedStudent.name
+      );
+      setStudentDeleteSafety(safety);
+    } catch (err) {
+      console.warn('Erro ao validar histórico do aluno:', err);
+    } finally {
+      setCheckingStudentSafety(false);
+    }
+  }, [selectedStudent]);
+
+  const handleInactivateStudentFromModal = useCallback(async () => {
+    if (!selectedStudent?.id) return;
+    try {
+      setLoading(true);
+      await saveData('students', selectedStudent.id, { status: 'Inativo' });
+      const currentEnrs = await fetchQuery('enrollments', 'student_id', '==', selectedStudent.id).catch(() => []);
+      if (currentEnrs && currentEnrs.length > 0) {
+        for (const enr of currentEnrs) {
+          if (enr.status !== 'Inativo') {
+            await saveData('enrollments', enr.id, { status: 'Inativo' });
+          }
+        }
+      }
+      setFormData(prev => ({ ...prev, status: 'Inativo' }));
+      setSelectedStudent(prev => prev ? { ...prev, status: 'Inativo' } : null);
+      setShowDeleteConfirm(false);
+      setStudentDeleteSafety(null);
+      setNotification({
+        type: 'success',
+        message: `Aluno "${selectedStudent.name}" inativado com sucesso! Todo o histórico de chamadas, notas e pagamentos foi preservado.`
+      });
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Erro ao inativar aluno:', error);
+      setNotification({ type: 'error', message: 'Erro ao inativar aluno: ' + error.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 4000);
+    }
+  }, [selectedStudent, fetchStudents]);
+
   const handleDelete = useCallback(async () => {
     if (!selectedStudent?.id) return;
     if (!canDelete) {
@@ -1767,6 +1821,16 @@ export function Students() {
 
     try {
       setLoading(true);
+      const liveSafety = await academicSecurityService.checkStudentDeletionSafetyLive(
+        selectedStudent.id,
+        selectedStudent.name
+      );
+      if (!liveSafety.canDelete) {
+        setStudentDeleteSafety(liveSafety);
+        setNotification({ type: 'error', message: liveSafety.message });
+        return;
+      }
+
       await deleteData('students', selectedStudent.id);
       
       setNotification({ type: 'success', message: 'Aluno removido com sucesso!' });
@@ -1774,6 +1838,7 @@ export function Students() {
       setFormData(INITIAL_STUDENT_STATE);
       setIsEditing(false);
       setShowDeleteConfirm(false);
+      setStudentDeleteSafety(null);
       fetchStudents();
       if (returnOrigin) {
         navigate(returnOrigin.path, {
@@ -1787,13 +1852,13 @@ export function Students() {
       }
     } catch (error: any) {
       console.error('Error deleting student:', error);
-      setNotification({ type: 'error', message: 'Erro ao excluir aluno: ' + error.message });
+      setNotification({ type: 'error', message: error.message || 'Erro ao excluir aluno.' });
       setShowDeleteConfirm(false);
     } finally {
       setLoading(false);
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 4500);
     }
-  }, [selectedStudent, fetchStudents]);
+  }, [selectedStudent, canDelete, fetchStudents, navigate, returnOrigin]);
 
   const capturePhoto = useCallback(async () => {
     const imageSrc = webcamRef.current?.getScreenshot();
@@ -2748,7 +2813,7 @@ export function Students() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setShowDeleteConfirm(true);
+                            handleOpenDeleteConfirm();
                           }}
                           className="h-10 px-4 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
                           title="Excluir Aluno"
@@ -3894,34 +3959,116 @@ export function Students() {
         {/* Delete Confirmation Modal (Apenas para perfis autorizados com canDelete) */}
         {showDeleteConfirm && canDelete && selectedStudent && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mx-auto">
-                <Trash2 size={32} />
-              </div>
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-bold text-[#131b2e]">Excluir Aluno?</h3>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                  Tem certeza que deseja excluir a ficha do aluno <span className="font-bold text-slate-900">{selectedStudent.name}</span>? 
-                  Esta ação não pode ser desfeita.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  title="Cancelar e manter o cadastro do aluno"
-                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={loading}
-                  title="Confirmar exclusão definitiva do aluno"
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
-                >
-                  {loading ? 'Excluindo...' : 'Sim, Excluir'}
-                </button>
-              </div>
+            <div className="bg-white rounded-lg shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-200 max-h-[90vh] overflow-y-auto">
+              {checkingStudentSafety ? (
+                <div className="py-10 flex flex-col items-center justify-center gap-3 text-center">
+                  <Loader2 className="animate-spin text-slate-600" size={28} />
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Verificando histórico acadêmico e financeiro do aluno...
+                  </p>
+                </div>
+              ) : studentDeleteSafety && !studentDeleteSafety.canDelete ? (
+                <>
+                  <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center mx-auto border border-rose-200">
+                    <ShieldAlert size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-rose-100 text-rose-800 border border-rose-200">
+                      Bloqueio de Segurança Acadêmica
+                    </span>
+                    <h3 className="text-lg font-bold text-[#131b2e] uppercase tracking-tight">Exclusão Não Permitida</h3>
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      {studentDeleteSafety.message}
+                    </p>
+                  </div>
+
+                  {studentDeleteSafety.breakdown.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Registros Históricos Preservados ({studentDeleteSafety.totalLinkedRecords}):
+                      </p>
+                      <div className="space-y-1.5">
+                        {studentDeleteSafety.breakdown.map((item, bIdx) => (
+                          <div key={bIdx} className="p-2 bg-white border border-slate-200 flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700">{item.label}</span>
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 font-mono font-bold text-[11px]">
+                              {item.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-900 leading-snug">
+                    <strong>Recomendação Institucional:</strong> Utilize <strong>Inativar Aluno</strong> para desligar ou encerrar a matrícula sem apagar chamadas, notas, boletins ou recibos emitidos no período em que frequentou o curso.
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                    {formData.status !== 'Inativo' && (
+                      <button
+                        type="button"
+                        onClick={handleInactivateStudentFromModal}
+                        disabled={loading}
+                        title="Inativar aluno mantendo todo o histórico de presença, notas e pagamentos"
+                        className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        <UserX size={14} />
+                        <span>{loading ? 'Processando...' : 'Inativar Aluno (Recomendado)'}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setStudentDeleteSafety(null);
+                      }}
+                      title="Fechar aviso de segurança"
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center mx-auto border border-emerald-200">
+                    <ShieldCheck size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Sem Vínculos Históricos
+                    </span>
+                    <h3 className="text-xl font-bold text-[#131b2e]">Excluir Aluno?</h3>
+                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                      Tem certeza que deseja excluir definitivamente a ficha de <span className="font-bold text-slate-900">{selectedStudent.name}</span>?
+                      Nenhum lançamento de chamada, nota ou pagamento foi localizado. Esta ação não pode ser desfeita.
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setStudentDeleteSafety(null);
+                      }}
+                      title="Cancelar e manter o cadastro do aluno"
+                      className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={loading}
+                      title="Confirmar exclusão definitiva do aluno"
+                      className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? 'Excluindo...' : 'Sim, Excluir'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

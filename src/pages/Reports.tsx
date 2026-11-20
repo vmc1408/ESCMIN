@@ -63,7 +63,7 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, isStudentActive, isStudentInClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, isStudentActive, isStudentInClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, isInstitutionPhoneWhatsapp, mergeClassStudentsWithHistory, getInactiveStudentTag, formatStudentDisplayName } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { drawPdfWhatsAppIcon } from '../lib/pdfReportHelper';
@@ -615,12 +615,19 @@ export function Reports() {
       }
     }
 
-    const classSubjects = subjects.filter(sub => {
-      if (sIds.length > 0) return sIds.includes(sub.id);
-      return assessments.some(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
+    const classSubjects = getClassSubjects(classObj, subjects, assessments, dbGrades, attendanceData);
+
+    const diarioHistoryIds = new Set<string>();
+    attendanceData.forEach(a => {
+      if (a.class_id === selectedDiarioClass && a.student_id && a.status) diarioHistoryIds.add(String(a.student_id));
+    });
+    dbGrades.forEach(g => {
+      if (g.class_id === selectedDiarioClass && g.student_id && g.value !== null && g.value !== undefined && g.value !== '') {
+        diarioHistoryIds.add(String(g.student_id));
+      }
     });
 
-    const enrolledStudents = filterStudentsForClass(scopedStudents, selectedDiarioClass, enrollments, true);
+    const enrolledStudents = mergeClassStudentsWithHistory(scopedStudents, selectedDiarioClass, enrollments, diarioHistoryIds);
 
     // Calculations per student
     return enrolledStudents
@@ -1849,7 +1856,12 @@ export function Reports() {
       if (type === 'attendance') {
         const totalDays = totalClassDays > 0 ? totalClassDays : 33;
         const maxAllowedAbsences = Math.floor(totalDays * ((academicParams.absence_limit_percentage || 25) / 100));
-        const evaluatedStudents = scopedStudents.filter(s => isStudentActive(s));
+        const attendanceHistoryIds = new Set(
+          attendanceData.filter(a => a.student_id && a.status).map(a => String(a.student_id))
+        );
+        const evaluatedStudents = scopedStudents.filter(
+          s => isStudentActive(s) || attendanceHistoryIds.has(String(s.id))
+        );
 
         let regularCount = 0;
         let riskCount = 0;
@@ -1873,7 +1885,7 @@ export function Reports() {
           return [
             (idx + 1).toString(),
             formatRegistrationNumber(student.registration_number),
-            student.name.toUpperCase(),
+            formatStudentDisplayName(student, true),
             studentClass?.name?.toUpperCase() || 'SEM TURMA',
             totalDays.toString(),
             presences.toString(),
@@ -2674,7 +2686,12 @@ export function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {scopedStudents.filter(s => isStudentActive(s)).map((student, i) => {
+                    {(() => {
+                      const attendanceHistoryIds = new Set(
+                        attendanceData.filter(a => a.student_id && a.status).map(a => String(a.student_id))
+                      );
+                      return scopedStudents.filter(s => isStudentActive(s) || attendanceHistoryIds.has(String(s.id)));
+                    })().map((student, i) => {
                       const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
                       const studentPresences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'P')).length;
                       const studentPresence = totalClassDays > 0 ? (studentPresences / totalClassDays) * 100 : 0;
@@ -2682,11 +2699,19 @@ export function Reports() {
                       const maxAllowed = Math.floor((totalClassDays || 33) * ((academicParams.absence_limit_percentage || 25) / 100));
                       const isOverLimit = studentAbsences > maxAllowed;
                       const studentClass = scopedClasses.find(c => c.id === student.class_id);
+                      const inactiveTag = getInactiveStudentTag(student);
 
                       return (
                         <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
-                            <p className="text-sm font-black text-[#00174b] uppercase">{student.name}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-black text-[#00174b] uppercase">{student.name}</p>
+                              {inactiveTag && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-bold uppercase tracking-wider">
+                                  {inactiveTag}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">Matrícula: {formatRegistrationNumber(student.registration_number)}</p>
                           </td>
                           <td className="px-6 py-4 text-sm font-bold text-slate-500">
@@ -3053,30 +3078,7 @@ export function Reports() {
                 ) : (
                   (() => {
                     const classObj = classes.find(c => c.id === selectedDiarioClass);
-                    const classStudentIds = filterStudentsForClass(scopedStudents, selectedDiarioClass, enrollments, true).map(s => s.id);
-                    
-                    // Normalize class subject_ids
-                    let sIds: string[] = [];
-                    if (classObj) {
-                      const subjectIdsField = (classObj as any).subject_ids;
-                      if (Array.isArray(subjectIdsField)) {
-                        sIds = subjectIdsField;
-                      } else if (typeof subjectIdsField === 'string') {
-                        try {
-                          const parsed = JSON.parse(subjectIdsField);
-                          sIds = Array.isArray(parsed) ? parsed : [parsed];
-                        } catch (e) {
-                          sIds = subjectIdsField ? [subjectIdsField] : [];
-                        }
-                      } else if ((classObj as any).subject_id) {
-                        sIds = [(classObj as any).subject_id];
-                      }
-                    }
-
-                    const classSubjects = subjects.filter(sub => {
-                      if (sIds.length > 0) return sIds.includes(sub.id);
-                      return assessments.some(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
-                    });
+                    const classSubjects = getClassSubjects(classObj, subjects, assessments, dbGrades, attendanceData);
 
                     // Calculations per student
                     const results = diarioClassResults;
@@ -3202,7 +3204,14 @@ export function Reports() {
                                        return (
                                          <tr key={res.student.id} className="hover:bg-slate-50/40 transition-colors group">
                                             <td className="px-6 py-4">
-                                               <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">{res.student.name}</p>
+                                               <div className="flex flex-wrap items-center gap-1.5">
+                                                 <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">{res.student.name}</p>
+                                                 {!isStudentActive(res.student) && (
+                                                   <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[8.5px] font-bold uppercase tracking-wider">
+                                                     {getInactiveStudentTag(res.student)}
+                                                   </span>
+                                                 )}
+                                               </div>
                                                <p className="text-[9.5px] font-mono font-bold text-slate-600 uppercase tracking-wide mt-0.5">Matrícula: {formatRegistrationNumber(res.student.registration_number)}</p>
                                             </td>
                                             {res.subjectGrades.map((sg, i) => (
@@ -4128,7 +4137,12 @@ export function Reports() {
             {(() => {
               const totalDays = totalClassDays > 0 ? totalClassDays : 33;
               const maxAllowedAbsences = Math.floor(totalDays * ((academicParams.absence_limit_percentage || 25) / 100));
-              const activeStudentsList = scopedStudents.filter(s => isStudentActive(s));
+              const attendanceHistoryIds = new Set(
+                attendanceData.filter(a => a.student_id && a.status).map(a => String(a.student_id))
+              );
+              const activeStudentsList = scopedStudents.filter(
+                s => isStudentActive(s) || attendanceHistoryIds.has(String(s.id))
+              );
               let regCount = 0;
               let riskCount = 0;
 
@@ -4188,7 +4202,7 @@ export function Reports() {
                             <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
                               <td className="p-2 text-slate-400 font-bold">{i + 1}</td>
                               <td className="p-2 font-mono font-bold text-slate-700">{formatRegistrationNumber(student.registration_number)}</td>
-                              <td className="p-2 font-black text-[#00174b] uppercase">{student.name}</td>
+                              <td className="p-2 font-black text-[#00174b] uppercase">{formatStudentDisplayName(student, true)}</td>
                               <td className="p-2 text-slate-600 uppercase font-medium">{studentClass?.name || 'Sem turma'}</td>
                               <td className="p-2 text-center font-bold text-slate-700">{presences}</td>
                               <td className="p-2 text-center font-bold text-[#00174b]">{absences}</td>

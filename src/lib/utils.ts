@@ -624,6 +624,85 @@ export function filterStudentsForClass(
 }
 
 /**
+ * Returns a standardized uppercase tag (e.g., "INATIVO", "DESISTENTE", "TRANCADO")
+ * when a student is no longer active, or null for active students.
+ */
+export function getInactiveStudentTag(student: any): string | null {
+  if (!student || isStudentActive(student)) return null;
+  const raw = student.status ? String(student.status).trim() : '';
+  if (!raw) return 'INATIVO';
+  const low = raw.toLowerCase();
+  if (low === 'inativo') return 'INATIVO';
+  if (low === 'ex-aluno' || low === 'egresso' || low === 'concluído' || low === 'concluido') return 'CONCLUÍDO';
+  return raw.toUpperCase();
+}
+
+/**
+ * Formats student name for reports/historical views, appending "[INATIVO]" (or status tag)
+ * when the student is deactivated/inactive.
+ */
+export function formatStudentDisplayName(student: any, uppercase: boolean = false): string {
+  if (!student) return '';
+  const rawName = student.name || student.full_name || '';
+  const name = uppercase ? rawName.toUpperCase() : rawName;
+  const tag = getInactiveStudentTag(student);
+  return tag ? `${name} [${tag}]` : name;
+}
+
+/**
+ * Merges currently active students in a class with any inactive/former students
+ * who have recorded historical participation (e.g., attendance, grades) in historyStudentIds.
+ * Blank/unmarked daily lists continue using filterStudentsForClass(..., true) only.
+ */
+export function mergeClassStudentsWithHistory(
+  students: any[],
+  classId: string,
+  enrollments?: any[],
+  historyStudentIds?: Set<string> | string[]
+): any[] {
+  if (!Array.isArray(students) || !classId) return [];
+
+  const activeStudents = filterStudentsForClass(students, classId, enrollments, true);
+  const historySet = Array.isArray(historyStudentIds)
+    ? new Set(historyStudentIds.map(String))
+    : (historyStudentIds instanceof Set ? historyStudentIds : new Set<string>());
+
+  if (historySet.size === 0) {
+    return activeStudents;
+  }
+
+  const seenIds = new Set<string>(activeStudents.map(s => String(s.id)));
+  const merged = [...activeStudents];
+
+  // 1. Check all historical students linked to the class (even with inactive enrollment)
+  const allClassCandidates = filterStudentsForClass(students, classId, enrollments, false);
+  for (const cand of allClassCandidates) {
+    if (!cand || !cand.id) continue;
+    const idStr = String(cand.id);
+    if (!seenIds.has(idStr) && historySet.has(idStr)) {
+      merged.push(cand);
+      seenIds.add(idStr);
+    }
+  }
+
+  // 2. Fallback direct ID lookup across all students (e.g. if student changed class_id or enrollment was altered)
+  for (const s of students) {
+    if (!s || !s.id) continue;
+    const idStr = String(s.id);
+    if (!seenIds.has(idStr) && historySet.has(idStr)) {
+      merged.push(s);
+      seenIds.add(idStr);
+    }
+  }
+
+  return merged.sort((a, b) => {
+    const nameA = a.name || a.full_name || '';
+    const nameB = b.name || b.full_name || '';
+    return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+  });
+}
+
+/**
  * Formats a student registration number (Matrícula / RA) for optimal visual presentation on screen and print.
  * Converts raw continuous 10-digit formats (e.g. '0020202017' -> '002020/2017')
  * and normalizes unpadded slashed codes (e.g. '2530/2026' -> '002530/2026').

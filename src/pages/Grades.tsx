@@ -21,7 +21,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment, Teacher } from '../types';
-import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass, isSubjectActive } from '../lib/utils';
+import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass, isSubjectActive, mergeClassStudentsWithHistory, isStudentActive, getInactiveStudentTag, formatStudentDisplayName } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -173,7 +173,13 @@ export function Grades() {
         ])
       ]);
 
-      const classStudents = filterStudentsForClass(allStudents || [], selectedClass, allEnrollments || [], true);
+      const gradeHistoryIds = new Set<string>();
+      (gradesList || []).forEach((g: any) => {
+        if (g?.student_id && g.value !== null && g.value !== undefined && g.value !== '') {
+          gradeHistoryIds.add(String(g.student_id));
+        }
+      });
+      const classStudents = mergeClassStudentsWithHistory(allStudents || [], selectedClass, allEnrollments || [], gradeHistoryIds);
       setStudents(classStudents);
       setAssessments(assessmentsList as Assessment[] || []);
       setDbGrades(gradesList || []);
@@ -958,7 +964,7 @@ export function Grades() {
                 return `
                   <tr>
                     <td class="col-number">${idx + 1}</td>
-                    <td class="col-name">${student.name}</td>
+                    <td class="col-name">${formatStudentDisplayName(student)}</td>
                     <td class="col-ra font-mono" style="font-weight: bold; font-family: monospace;">${formatRegistrationNumber(student.registration_number)}</td>
                     <td class="col-grade" style="text-align: center;">${gradeValue}</td>
                     <td class="col-status">
@@ -1323,7 +1329,14 @@ export function Grades() {
                         {idx + 1}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-900 leading-tight">{student.name}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-900 leading-tight">{student.name}</p>
+                          {!isStudentActive(student) && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-bold uppercase tracking-wider">
+                              {getInactiveStudentTag(student)}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[11px] font-mono font-bold text-slate-700 mt-0.5">Matrícula: {formatRegistrationNumber(student.registration_number)}</p>
                         {grades[student.id]?.observations && (
                           <p className="text-[10px] font-medium text-red-600 flex items-center gap-1 mt-0.5">

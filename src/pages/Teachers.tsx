@@ -30,7 +30,7 @@ import { formatCurrency, cn, detectSubjectSemester, formatSubjectDisplayName, is
 import { fetchAll, saveData, deleteData, uploadImage } from '../lib/database';
 import { drawStandardReportHeader, drawStandardReportFooter, drawPdfWhatsAppIcon } from '../lib/pdfReportHelper';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
-import { RotateCcw, FileText as FileIcon, Building2, UserX } from 'lucide-react';
+import { RotateCcw, FileText as FileIcon, Building2, UserX, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
@@ -38,6 +38,7 @@ import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { maskRG, calculateRGValidation, RG_MAX_FORMATTED_LENGTH } from '../lib/rgUtils';
 import { fetchAddressByCEP } from '../lib/cepUtils';
 import { DEFAULT_LOGO } from '../lib/default-logo';
+import { academicSecurityService, EntityHistorySafetyCheckResult } from '../services/academicSecurityService';
 
 interface Teacher {
   id: string;
@@ -207,6 +208,8 @@ export function Teachers() {
   const [hoverShowList, setHoverShowList] = useState(false);
   const [formData, setFormData] = useState<Partial<Teacher>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [teacherDeleteSafety, setTeacherDeleteSafety] = useState<EntityHistorySafetyCheckResult | null>(null);
+  const [checkingTeacherSafety, setCheckingTeacherSafety] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   // Estados e busca automática de endereço via CEP (ViaCEP)
@@ -720,12 +723,60 @@ export function Teachers() {
       fetchTeachers();
     } catch (error: any) {
       console.error('Erro ao alterar status:', error);
-      alert('Erro ao alterar status do professor: ' + error.message);
+      setNotification({ type: 'error', message: 'Erro ao alterar status do professor: ' + error.message });
     } finally {
       setLoading(false);
       setTimeout(() => setNotification(null), 3000);
     }
   }, [selectedTeacher, formData.status, fetchTeachers, canManipulateTeacher]);
+
+  const handleOpenDeleteConfirm = React.useCallback(async () => {
+    if (!selectedTeacher?.id) return;
+    setTeacherDeleteSafety(null);
+    setCheckingTeacherSafety(true);
+    setShowDeleteConfirm(true);
+    try {
+      const safety = await academicSecurityService.checkTeacherDeletionSafetyLive(
+        selectedTeacher.id,
+        selectedTeacher.name
+      );
+      setTeacherDeleteSafety(safety);
+    } catch (err) {
+      console.warn('Erro ao validar histórico do professor:', err);
+    } finally {
+      setCheckingTeacherSafety(false);
+    }
+  }, [selectedTeacher]);
+
+  const handleInactivateTeacherFromModal = React.useCallback(async () => {
+    if (!selectedTeacher?.id) return;
+    if (!canManipulateTeacher(selectedTeacher)) {
+      setNotification({
+        type: 'error',
+        message: 'Acesso restrito: você não tem permissão para alterar o status de professores de outro polo ou compartilhados.'
+      });
+      return;
+    }
+    try {
+      setLoading(true);
+      await saveData('teachers', selectedTeacher.id, { status: 'Inativo' });
+      setFormData(prev => ({ ...prev, status: 'Inativo' }));
+      setSelectedTeacher(prev => prev ? { ...prev, status: 'Inativo' } : null);
+      setShowDeleteConfirm(false);
+      setTeacherDeleteSafety(null);
+      setNotification({
+        type: 'success',
+        message: `Professor "${selectedTeacher.name}" inativado com sucesso! Histórico de disciplinas e diários anteriores preservado.`
+      });
+      fetchTeachers();
+    } catch (error: any) {
+      console.error('Erro ao inativar professor:', error);
+      setNotification({ type: 'error', message: 'Erro ao inativar professor: ' + error.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 4000);
+    }
+  }, [selectedTeacher, canManipulateTeacher, fetchTeachers]);
 
   const handleDelete = React.useCallback(async () => {
     if (!selectedTeacher?.id) return;
@@ -738,28 +789,44 @@ export function Teachers() {
       return;
     }
     if (!canDelete) {
-      alert('Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Professor.');
+      setNotification({
+        type: 'error',
+        message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Professor.'
+      });
       setShowDeleteConfirm(false);
       return;
     }
 
     try {
       setLoading(true);
+      const liveSafety = await academicSecurityService.checkTeacherDeletionSafetyLive(
+        selectedTeacher.id,
+        selectedTeacher.name
+      );
+      if (!liveSafety.canDelete) {
+        setTeacherDeleteSafety(liveSafety);
+        setNotification({ type: 'error', message: liveSafety.message });
+        return;
+      }
+
       await deleteData('teachers', selectedTeacher.id);
       
       setSelectedTeacher(null);
       setFormData({});
       setIsEditing(false);
       setShowDeleteConfirm(false);
+      setTeacherDeleteSafety(null);
+      setNotification({ type: 'success', message: 'Professor removido com sucesso!' });
       fetchTeachers();
     } catch (error: any) {
       console.error('Error deleting teacher:', error);
-      alert('Erro ao excluir professor: ' + error.message);
+      setNotification({ type: 'error', message: error.message || 'Erro ao excluir professor.' });
       setShowDeleteConfirm(false);
     } finally {
       setLoading(false);
+      setTimeout(() => setNotification(null), 4000);
     }
-  }, [selectedTeacher, fetchTeachers]);
+  }, [selectedTeacher, canDelete, fetchTeachers, canManipulateTeacher]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -1579,7 +1646,7 @@ export function Teachers() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setShowDeleteConfirm(true);
+                            handleOpenDeleteConfirm();
                           }}
                           className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
                           title="Excluir Professor"
@@ -2128,34 +2195,116 @@ export function Teachers() {
         {/* Delete Confirmation Modal (Apenas para canDelete) */}
         {showDeleteConfirm && canDelete && selectedTeacher && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mx-auto">
-                <Trash2 size={32} />
-              </div>
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-bold text-[#131b2e]">Excluir Professor?</h3>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                  Tem certeza que deseja excluir a ficha do professor <span className="font-bold text-slate-900">{selectedTeacher.name}</span>? 
-                  Esta ação não pode ser desfeita.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  title="Cancelar e manter o professor cadastrado"
-                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={loading}
-                  title="Confirmar exclusão definitiva do professor"
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
-                >
-                  {loading ? 'Excluindo...' : 'Sim, Excluir'}
-                </button>
-              </div>
+            <div className="bg-white rounded-lg shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-200 max-h-[90vh] overflow-y-auto">
+              {checkingTeacherSafety ? (
+                <div className="py-10 flex flex-col items-center justify-center gap-3 text-center">
+                  <Loader2 className="animate-spin text-slate-600" size={28} />
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Verificando vínculos e histórico docente...
+                  </p>
+                </div>
+              ) : teacherDeleteSafety && !teacherDeleteSafety.canDelete ? (
+                <>
+                  <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center mx-auto border border-rose-200">
+                    <ShieldAlert size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-rose-100 text-rose-800 border border-rose-200">
+                      Bloqueio de Segurança Acadêmica
+                    </span>
+                    <h3 className="text-lg font-bold text-[#131b2e] uppercase tracking-tight">Exclusão Não Permitida</h3>
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      {teacherDeleteSafety.message}
+                    </p>
+                  </div>
+
+                  {teacherDeleteSafety.breakdown.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Vínculos e Registros Associados ({teacherDeleteSafety.totalLinkedRecords}):
+                      </p>
+                      <div className="space-y-1.5">
+                        {teacherDeleteSafety.breakdown.map((item, bIdx) => (
+                          <div key={bIdx} className="p-2 bg-white border border-slate-200 flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700">{item.label}</span>
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 font-mono font-bold text-[11px]">
+                              {item.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-900 leading-snug">
+                    <strong>Recomendação Institucional:</strong> Utilize <strong>Inativar Professor</strong> para afastamento ou desligamento sem apagar a autoria nas disciplinas, diários e relatórios anteriores.
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                    {formData.status !== 'Inativo' && (
+                      <button
+                        type="button"
+                        onClick={handleInactivateTeacherFromModal}
+                        disabled={loading}
+                        title="Inativar professor preservando disciplinas e histórico"
+                        className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        <UserX size={14} />
+                        <span>{loading ? 'Processando...' : 'Inativar Professor (Recomendado)'}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setTeacherDeleteSafety(null);
+                      }}
+                      title="Fechar aviso de segurança"
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center mx-auto border border-emerald-200">
+                    <ShieldCheck size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Sem Vínculos Históricos
+                    </span>
+                    <h3 className="text-xl font-bold text-[#131b2e]">Excluir Professor?</h3>
+                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                      Tem certeza que deseja excluir definitivamente a ficha do professor <span className="font-bold text-slate-900">{selectedTeacher.name}</span>?
+                      Nenhuma disciplina ou registro histórico vinculado foi localizado. Esta ação não pode ser desfeita.
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setTeacherDeleteSafety(null);
+                      }}
+                      title="Cancelar e manter o professor cadastrado"
+                      className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={loading}
+                      title="Confirmar exclusão definitiva do professor"
+                      className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? 'Excluindo...' : 'Sim, Excluir'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

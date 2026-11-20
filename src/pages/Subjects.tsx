@@ -24,13 +24,14 @@ import autoTable from 'jspdf-autotable';
 import { cn, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { detectSubjectSemester } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
-import { RotateCcw, FileText as FileIcon, UserX } from 'lucide-react';
+import { RotateCcw, FileText as FileIcon, UserX, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { DEFAULT_LOGO } from '../lib/default-logo';
 import { drawStandardReportHeader, drawStandardReportFooter } from '../lib/pdfReportHelper';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
+import { academicSecurityService, EntityHistorySafetyCheckResult } from '../services/academicSecurityService';
 
 interface Subject {
   id: string;
@@ -147,6 +148,8 @@ export function Subjects() {
   const [hoverShowList, setHoverShowList] = useState(false);
   const [formData, setFormData] = useState<Partial<Subject>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [subjectDeleteSafety, setSubjectDeleteSafety] = useState<EntityHistorySafetyCheckResult | null>(null);
+  const [checkingSubjectSafety, setCheckingSubjectSafety] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
   const canManipulateSubject = React.useCallback((subj: Subject | null) => {
@@ -484,7 +487,10 @@ export function Subjects() {
   const handleToggleSubjectStatus = React.useCallback(async () => {
     if (!selectedSubject?.id) return;
     if (!canManipulateSubject(selectedSubject)) {
-      alert('Você não tem permissão para alterar disciplinas de outra unidade.');
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para alterar disciplinas de outra unidade.'
+      });
       return;
     }
     const isCurrentlyInactive = formData.status === 'Inativo';
@@ -509,41 +515,110 @@ export function Subjects() {
       fetchSubjects();
     } catch (error: any) {
       console.error('Erro ao alterar status da disciplina:', error);
-      alert('Erro ao alterar status da disciplina: ' + error.message);
+      setNotification({
+        type: 'error',
+        message: 'Erro ao alterar status da disciplina: ' + error.message
+      });
     } finally {
       setLoading(false);
     }
   }, [selectedSubject, formData.status, canManipulateSubject, fetchSubjects]);
 
+  const handleOpenDeleteConfirm = React.useCallback(async () => {
+    if (!selectedSubject?.id) return;
+    setSubjectDeleteSafety(null);
+    setCheckingSubjectSafety(true);
+    setShowDeleteConfirm(true);
+    try {
+      const safety = await academicSecurityService.checkSubjectDeletionSafetyLive(
+        selectedSubject.id,
+        selectedSubject.name
+      );
+      setSubjectDeleteSafety(safety);
+    } catch (err) {
+      console.warn('Erro ao validar histórico da disciplina:', err);
+    } finally {
+      setCheckingSubjectSafety(false);
+    }
+  }, [selectedSubject]);
+
+  const handleInactivateSubjectFromModal = React.useCallback(async () => {
+    if (!selectedSubject?.id) return;
+    if (!canManipulateSubject(selectedSubject)) {
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para alterar disciplinas de outra unidade.'
+      });
+      return;
+    }
+    try {
+      setLoading(true);
+      await saveData('subjects', selectedSubject.id, { status: 'Inativo' });
+      setFormData(prev => ({ ...prev, status: 'Inativo' }));
+      setSelectedSubject(prev => prev ? { ...prev, status: 'Inativo' } : null);
+      setShowDeleteConfirm(false);
+      setSubjectDeleteSafety(null);
+      setNotification({
+        type: 'success',
+        message: `Disciplina "${selectedSubject.name}" inativada com sucesso! Histórico de aulas, notas e matrizes anteriores preservado.`
+      });
+      fetchSubjects();
+    } catch (error: any) {
+      console.error('Erro ao inativar disciplina:', error);
+      setNotification({ type: 'error', message: 'Erro ao inativar disciplina: ' + error.message });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSubject, canManipulateSubject, fetchSubjects]);
+
   const handleDelete = React.useCallback(async () => {
     if (!selectedSubject?.id) return;
     if (!canManipulateSubject(selectedSubject)) {
-      alert('Você não tem permissão para excluir disciplinas de outra unidade.');
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para excluir disciplinas de outra unidade.'
+      });
+      setShowDeleteConfirm(false);
       return;
     }
     if (!canDelete) {
-      alert('Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Disciplina.');
+      setNotification({
+        type: 'error',
+        message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Disciplina.'
+      });
       setShowDeleteConfirm(false);
       return;
     }
 
     try {
       setLoading(true);
+      const liveSafety = await academicSecurityService.checkSubjectDeletionSafetyLive(
+        selectedSubject.id,
+        selectedSubject.name
+      );
+      if (!liveSafety.canDelete) {
+        setSubjectDeleteSafety(liveSafety);
+        setNotification({ type: 'error', message: liveSafety.message });
+        return;
+      }
+
       await deleteData('subjects', selectedSubject.id);
       
       setSelectedSubject(null);
       setFormData({});
       setIsEditing(false);
       setShowDeleteConfirm(false);
+      setSubjectDeleteSafety(null);
+      setNotification({ type: 'success', message: 'Disciplina removida com sucesso!' });
       fetchSubjects();
     } catch (error: any) {
       console.error('Error deleting subject:', error);
-      alert('Erro ao excluir disciplina: ' + error.message);
+      setNotification({ type: 'error', message: error.message || 'Erro ao excluir disciplina.' });
       setShowDeleteConfirm(false);
     } finally {
       setLoading(false);
     }
-  }, [selectedSubject, fetchSubjects, canManipulateSubject]);
+  }, [selectedSubject, canDelete, fetchSubjects, canManipulateSubject]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -872,7 +947,7 @@ export function Subjects() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setShowDeleteConfirm(true);
+                            handleOpenDeleteConfirm();
                           }}
                           className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
                           title="Excluir Disciplina"
@@ -1270,34 +1345,116 @@ export function Subjects() {
       {/* Delete Confirmation Modal (Apenas para canDelete) */}
       {showDeleteConfirm && canDelete && selectedSubject && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-lg flex items-center justify-center mx-auto">
-              <Trash2 size={32} />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-bold text-[#131b2e]">Excluir Disciplina?</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                Tem certeza que deseja excluir a disciplina <span className="font-bold text-slate-900">{selectedSubject.name}</span>? 
-                Esta ação não pode ser desfeita.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                title="Cancelar exclusão da disciplina"
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                title="Confirmar exclusão definitiva da disciplina"
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
-              >
-                {loading ? 'Excluindo...' : 'Sim, Excluir'}
-              </button>
-            </div>
+          <div className="bg-white rounded-lg shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-200 max-h-[90vh] overflow-y-auto">
+            {checkingSubjectSafety ? (
+              <div className="py-10 flex flex-col items-center justify-center gap-3 text-center">
+                <Loader2 className="animate-spin text-slate-600" size={28} />
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Verificando vínculos e histórico da disciplina...
+                </p>
+              </div>
+            ) : subjectDeleteSafety && !subjectDeleteSafety.canDelete ? (
+              <>
+                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center mx-auto border border-rose-200">
+                  <ShieldAlert size={28} />
+                </div>
+                <div className="text-center space-y-2">
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-rose-100 text-rose-800 border border-rose-200">
+                    Bloqueio de Segurança Acadêmica
+                  </span>
+                  <h3 className="text-lg font-bold text-[#131b2e] uppercase tracking-tight">Exclusão Não Permitida</h3>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    {subjectDeleteSafety.message}
+                  </p>
+                </div>
+
+                {subjectDeleteSafety.breakdown.length > 0 && (
+                  <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Vínculos e Registros Históricos ({subjectDeleteSafety.totalLinkedRecords}):
+                    </p>
+                    <div className="space-y-1.5">
+                      {subjectDeleteSafety.breakdown.map((item, bIdx) => (
+                        <div key={bIdx} className="p-2 bg-white border border-slate-200 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-700">{item.label}</span>
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 font-mono font-bold text-[11px]">
+                            {item.count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-900 leading-snug">
+                  <strong>Recomendação Institucional:</strong> Utilize <strong>Inativar Disciplina</strong> para retirá-la de novas ofertas mantendo boletins, históricos escolares, avaliações e chamadas anteriores intactos.
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                  {formData.status !== 'Inativo' && (
+                    <button
+                      type="button"
+                      onClick={handleInactivateSubjectFromModal}
+                      disabled={loading}
+                      title="Inativar disciplina preservando histórico de chamadas e notas"
+                      className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <UserX size={14} />
+                      <span>{loading ? 'Processando...' : 'Inativar Disciplina (Recomendado)'}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setSubjectDeleteSafety(null);
+                    }}
+                    title="Fechar aviso de segurança"
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center mx-auto border border-emerald-200">
+                  <ShieldCheck size={28} />
+                </div>
+                <div className="text-center space-y-2">
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Sem Vínculos Históricos
+                  </span>
+                  <h3 className="text-xl font-bold text-[#131b2e]">Excluir Disciplina?</h3>
+                  <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                    Tem certeza que deseja excluir definitivamente a disciplina <span className="font-bold text-slate-900">{selectedSubject.name}</span>?
+                    Nenhum registro de chamada, nota ou turma foi localizado. Esta ação não pode ser desfeita.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setSubjectDeleteSafety(null);
+                    }}
+                    title="Cancelar exclusão da disciplina"
+                    className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={loading}
+                    title="Confirmar exclusão definitiva da disciplina"
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50 cursor-pointer"
+                  >
+                    {loading ? 'Excluindo...' : 'Sim, Excluir'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -575,7 +575,7 @@ export const deleteData = async (collectionName: string, id: string) => {
   if (!isSupabaseConfigured) return;
   
   try {
-    // 0. Validações de Segurança Acadêmica Rígidas
+    // 0. Validações de Segurança Acadêmica e Preservação Histórica Rígidas
     if (collectionName === 'courses') {
       const courseCheck = await academicSecurityService.checkCourseDeletionSafetyLive(id);
       if (!courseCheck.canDelete) {
@@ -588,24 +588,30 @@ export const deleteData = async (collectionName: string, id: string) => {
         console.warn(`[deleteData] Exclusão bloqueada para a turma "${id}": ${classCheck.message}`);
         throw new Error(classCheck.message);
       }
+    } else if (collectionName === 'students') {
+      const studentCheck = await academicSecurityService.checkStudentDeletionSafetyLive(id);
+      if (!studentCheck.canDelete) {
+        console.warn(`[deleteData] Exclusão bloqueada para o aluno "${id}": ${studentCheck.message}`);
+        throw new Error(studentCheck.message);
+      }
+    } else if (collectionName === 'subjects') {
+      const subjectCheck = await academicSecurityService.checkSubjectDeletionSafetyLive(id);
+      if (!subjectCheck.canDelete) {
+        console.warn(`[deleteData] Exclusão bloqueada para a disciplina "${id}": ${subjectCheck.message}`);
+        throw new Error(subjectCheck.message);
+      }
+    } else if (collectionName === 'teachers') {
+      const teacherCheck = await academicSecurityService.checkTeacherDeletionSafetyLive(id);
+      if (!teacherCheck.canDelete) {
+        console.warn(`[deleteData] Exclusão bloqueada para o professor "${id}": ${teacherCheck.message}`);
+        throw new Error(teacherCheck.message);
+      }
     }
 
-    // 1. Tratamento abrangente de Chaves Estrangeiras antes da exclusão física
+    // 1. Limpeza segura apenas de vínculos vazios/nuláveis (nunca apagar tabelas históricas de frequência/notas/financeiro/certificados)
     if (collectionName === 'classes') {
       try {
         await supabase.from('students').update({ class_id: null }).eq('class_id', id);
-      } catch (e: any) {}
-      try {
-        await supabase.from('enrollments').delete().eq('class_id', id);
-      } catch (e: any) {}
-      try {
-        await supabase.from('attendances').delete().eq('class_id', id);
-      } catch (e: any) {}
-      try {
-        await supabase.from('grades').delete().eq('class_id', id);
-      } catch (e: any) {}
-      try {
-        await supabase.from('assessments').delete().eq('class_id', id);
       } catch (e: any) {}
       try {
         await supabase.from('calendar_events').delete().eq('class_id', id);
@@ -616,21 +622,6 @@ export const deleteData = async (collectionName: string, id: string) => {
     } else if (collectionName === 'students') {
       try {
         await supabase.from('enrollments').delete().eq('student_id', id);
-      } catch (e) {}
-      try {
-        await supabase.from('attendances').delete().eq('student_id', id);
-      } catch (e) {}
-      try {
-        await supabase.from('grades').delete().eq('student_id', id);
-      } catch (e) {}
-      try {
-        await supabase.from('contributions').delete().eq('student_id', id);
-      } catch (e) {}
-      try {
-        await supabase.from('certificates').delete().eq('student_id', id);
-      } catch (e) {}
-      try {
-        await supabase.from('receipts').delete().eq('student_id', id);
       } catch (e) {}
       try {
         await supabase.from('pix_reconciliations').update({ matched_student_id: null }).eq('matched_student_id', id);
@@ -646,15 +637,6 @@ export const deleteData = async (collectionName: string, id: string) => {
         await supabase.from('calendar_events').delete().eq('user_id', id);
       } catch (e) {}
     } else if (collectionName === 'subjects') {
-      try {
-        await supabase.from('attendances').delete().eq('subject_id', id);
-      } catch (e) {}
-      try {
-        await supabase.from('grades').delete().eq('subject_id', id);
-      } catch (e) {}
-      try {
-        await supabase.from('assessments').delete().eq('subject_id', id);
-      } catch (e) {}
       try {
         await supabase.from('calendar_events').delete().eq('subject_id', id);
       } catch (e) {}
@@ -695,7 +677,7 @@ export const deleteData = async (collectionName: string, id: string) => {
 };
 
 /**
- * Exclui múltiplos registros em lote diretamente do Supabase garantindo limpeza prévia de vínculos.
+ * Exclui múltiplos registros em lote diretamente do Supabase garantindo validação de segurança histórica.
  */
 export const deleteBatch = async (collectionName: string, ids: string[]) => {
   if (!ids || ids.length === 0) return;
@@ -704,23 +686,28 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
     throw new Error('Ação não permitida: O perfil de Assistente não possui autorização para exclusão definitiva de registros. É permitido apenas inativar ou desabilitar o registro.');
   }
   if (!isSupabaseConfigured) return;
-  
-  // Limpeza de dependências em lote no Supabase
+
+  // Validação de segurança acadêmica e histórica para cadastros principais em lote
+  if (['courses', 'classes', 'students', 'subjects', 'teachers'].includes(collectionName)) {
+    for (const id of ids) {
+      let checkResult: { canDelete: boolean; message: string } = { canDelete: true, message: '' };
+      if (collectionName === 'courses') checkResult = await academicSecurityService.checkCourseDeletionSafetyLive(id);
+      else if (collectionName === 'classes') checkResult = await academicSecurityService.checkClassDeletionSafetyLive(id);
+      else if (collectionName === 'students') checkResult = await academicSecurityService.checkStudentDeletionSafetyLive(id);
+      else if (collectionName === 'subjects') checkResult = await academicSecurityService.checkSubjectDeletionSafetyLive(id);
+      else if (collectionName === 'teachers') checkResult = await academicSecurityService.checkTeacherDeletionSafetyLive(id);
+
+      if (!checkResult.canDelete) {
+        console.warn(`[deleteBatch] Exclusão em lote bloqueada em "${collectionName}" para "${id}": ${checkResult.message}`);
+        throw new Error(checkResult.message);
+      }
+    }
+  }
+
+  // Limpeza segura apenas de vínculos vazios/nuláveis (nunca apagar tabelas históricas em lote)
   if (collectionName === 'classes') {
     try {
       await supabase.from('students').update({ class_id: null }).in('class_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('enrollments').delete().in('class_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('attendances').delete().in('class_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('grades').delete().in('class_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('assessments').delete().in('class_id', ids);
     } catch (e) {}
     try {
       await supabase.from('calendar_events').delete().in('class_id', ids);
@@ -731,21 +718,6 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
   } else if (collectionName === 'students') {
     try {
       await supabase.from('enrollments').delete().in('student_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('attendances').delete().in('student_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('grades').delete().in('student_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('contributions').delete().in('student_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('certificates').delete().in('student_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('receipts').delete().in('student_id', ids);
     } catch (e) {}
     try {
       await supabase.from('pix_reconciliations').update({ matched_student_id: null }).in('matched_student_id', ids);
@@ -762,19 +734,16 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
     } catch (e) {}
   } else if (collectionName === 'subjects') {
     try {
-      await supabase.from('attendances').delete().in('subject_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('grades').delete().in('subject_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('assessments').delete().in('subject_id', ids);
-    } catch (e) {}
-    try {
       await supabase.from('calendar_events').delete().in('subject_id', ids);
     } catch (e) {}
     try {
       await supabase.from('classes').update({ subject_id: null }).in('subject_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('classes').update({ subject_id_sem1: null }).in('subject_id_sem1', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('classes').update({ subject_id_sem2: null }).in('subject_id_sem2', ids);
     } catch (e) {}
   } else if (collectionName === 'courses') {
     try {
