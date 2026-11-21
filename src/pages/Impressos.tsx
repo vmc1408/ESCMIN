@@ -22,7 +22,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
 import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
-import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank, isInstitutionPhoneWhatsapp, isStudentActive } from '../lib/utils';
+import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
@@ -386,36 +386,66 @@ export function Impressos() {
   const institutionNameLabel = institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS';
   const institutionSubtitleLabel = institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO';
 
-  // Find pending payments for the activeStudent
+  // Find pending payments for the activeStudent respecting [enrollment_date .. inactivation_date]
   const pendingPayments = useMemo(() => {
     if (!activeStudent) return { isPending: false, months: [], year: new Date().getFullYear() };
 
     const currentYear = new Date().getFullYear();
-    if (!isStudentActive(activeStudent)) {
-      return { isPending: false, months: [], year: currentYear };
-    }
-    
-    // Filter contributions for this student in the current year
-    const studentConts = contributions.filter(
-      c => c.student_id === activeStudent.id && Number(c.reference_year) === currentYear
-    );
-    
     const studentClass = classes.find(c => c.id === activeStudent.class_id);
-    const paidMonths = studentConts.map(c => Number(c.reference_month));
-    const plan = getStudentContributionPlan(activeStudent, studentClass, currentYear, paidMonths);
 
-    // Meses ou períodos vencidos até o momento atual
-    const unpaidPeriods = plan.expectedPeriods.filter(m => {
-      if (paidMonths.includes(m)) return false;
-      return isPeriodOverdue(m, currentYear, plan.meetingsStartMonth);
+    // Verifica ano atual + eventual ano anterior onde houve vínculo encerrado com data explícita
+    const yearsToCheck = new Set<number>([currentYear]);
+    const stEnrs = enrollments.filter((e: any) => String(e.student_id) === String(activeStudent.id));
+    stEnrs.forEach((e: any) => {
+      if (e.inactivation_date) {
+        const y = parseInt(String(e.inactivation_date).slice(0, 4), 10);
+        if (y >= 2000 && y <= currentYear) yearsToCheck.add(y);
+      }
+      if (e.enrollment_date && e.inactivation_date) {
+        const y = parseInt(String(e.enrollment_date).slice(0, 4), 10);
+        if (y >= 2000 && y <= currentYear) yearsToCheck.add(y);
+      }
     });
-    
+    if ((activeStudent as any).inactivation_date) {
+      const y = parseInt(String((activeStudent as any).inactivation_date).slice(0, 4), 10);
+      if (y >= 2000 && y <= currentYear) yearsToCheck.add(y);
+    }
+
+    const sortedYears = Array.from(yearsToCheck).sort((a, b) => b - a);
+    const pendingItems: string[] = [];
+    let primaryPendingYear = currentYear;
+
+    for (const yr of sortedYears) {
+      const studentConts = contributions.filter(
+        c => c.student_id === activeStudent.id && Number(c.reference_year) === yr
+      );
+      const paidMonths = studentConts.map(c => Number(c.reference_month));
+      const plan = getStudentContributionPlan(activeStudent, studentClass, yr, paidMonths, undefined, {
+        enrollments,
+        classes
+      });
+
+      const unpaidPeriods = plan.expectedPeriods.filter(m => {
+        if (paidMonths.includes(m)) return false;
+        return isPeriodOverdue(m, yr, plan.meetingsStartMonth);
+      });
+
+      if (unpaidPeriods.length > 0) {
+        if (pendingItems.length === 0) primaryPendingYear = yr;
+        unpaidPeriods.forEach(m => {
+          pendingItems.push(sortedYears.length > 1 && yr !== currentYear
+            ? `${formatContributionMonth(m)}/${yr}`
+            : formatContributionMonth(m));
+        });
+      }
+    }
+
     return {
-      isPending: unpaidPeriods.length > 0,
-      months: unpaidPeriods.map(m => formatContributionMonth(m)),
-      year: currentYear
+      isPending: pendingItems.length > 0,
+      months: pendingItems,
+      year: primaryPendingYear
     };
-  }, [activeStudent, contributions, classes]);
+  }, [activeStudent, contributions, classes, enrollments]);
 
   const formatPendingMonthsText = useCallback((months: string[]) => {
     if (months.length === 0) return '';

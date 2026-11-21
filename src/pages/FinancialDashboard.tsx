@@ -422,13 +422,14 @@ export function FinancialDashboard() {
     const currentMonth = now.getMonth() + 1;
     const isCurrentYear = targetYear === currentYear;
 
-    // Alunos elegíveis no escopo selecionado (unidade e opcionalmente turma filtrada)
+    // Alunos elegíveis no escopo selecionado (ativos ou com janela histórica datada no ano)
     const targetStudents = scopedStudents.filter(s => {
       const isActive = !s.status || s.status === 'Ativo' || String(s.status).toLowerCase() === 'ativo';
-      if (!isActive) return false;
+      const hasDatedHistory = Boolean((s as any).inactivation_date) || enrollments.some(e => e.student_id === s.id && Boolean(e.inactivation_date));
+      if (!isActive && !hasDatedHistory) return false;
       const classId = s.class_id || (s as any).current_class_id;
       if (delinquencyClassFilter !== 'all') {
-        return classId === delinquencyClassFilter;
+        return classId === delinquencyClassFilter || enrollments.some(e => e.student_id === s.id && e.class_id === delinquencyClassFilter);
       }
       return true;
     });
@@ -459,7 +460,10 @@ export function FinancialDashboard() {
       const paidMonths = studentContribs
         .filter(c => Number(c.amount) > 0 || c.is_waived)
         .map(c => Number(c.reference_month));
-      const plan = getStudentContributionPlan(student, studentClass, targetYear, paidMonths, activeAcad);
+      const plan = getStudentContributionPlan(student, studentClass, targetYear, paidMonths, activeAcad, {
+        enrollments,
+        classes
+      });
 
       return {
         student,

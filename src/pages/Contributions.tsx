@@ -320,21 +320,16 @@ export function Contributions() {
   const [pinError, setPinError] = useState('');
   // Helper to calculate expected months for a student in a specific year
   const getExpectedMonthsForStudent = (student: Student, year: number, paidMonths: number[] = []) => {
-    // If student started after this year, they are not expected to pay anything for this year
-    if (student.start_date) {
-      const startDate = parseSafeDate(student.start_date);
-      if (!isNaN(startDate.getTime()) && startDate.getFullYear() > year) {
-        return [];
-      }
-    }
-
     const studentClass = resolveStudentClass(student);
     const classSettings = academicSettingsList.find(s => s.id === student.class_id);
     const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
     const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
     const activeSettings = classSettings || unitSettings;
 
-    const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings);
+    const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings, {
+      enrollments: allEnrollments,
+      classes
+    });
     return plan.expectedPeriods;
   };
 
@@ -873,9 +868,10 @@ export function Contributions() {
     const targetClass = reportTarget === 'class' ? (selectedClassId || unpaidClassFilter) : (unpaidClassFilter || 'all');
     if (reportTarget === 'class' && !targetClass) return [];
 
+    const basePool = allStudents.length > 0 ? allStudents : allActiveStudents;
     const scopedPool = (!selectedUnitId || selectedUnitId === 'all')
-      ? allActiveStudents
-      : allActiveStudents.filter(student => {
+      ? basePool
+      : basePool.filter(student => {
           const studentClass = resolveStudentClass(student);
           const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
           return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
@@ -941,9 +937,9 @@ export function Contributions() {
         return false;
       }
       if (!targetClass || targetClass === 'all') return true;
-      return item.student.class_id === targetClass;
+      return isStudentInClass(item.student, targetClass, allEnrollments);
     });
-  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, searchTerm, searchByName, unpaidClassFilter, selectedClassId, reportTarget, selectedStudent, periodOption, selectedMonth, selectedSemester, selectedUnitId, activeUnits, classes, financialSettings, resolveStudentClass]);
+  }, [allStudents, allActiveStudents, allEnrollments, unpaidContributions, unpaidYear, unpaidSearchTerm, searchTerm, searchByName, unpaidClassFilter, selectedClassId, reportTarget, selectedStudent, periodOption, selectedMonth, selectedSemester, selectedUnitId, activeUnits, classes, financialSettings, resolveStudentClass]);
 
   // Calculate stats breakdown for top overview cards (overdue vs future/to-be-due)
   const unpaidStats = useMemo(() => {
@@ -981,11 +977,8 @@ export function Contributions() {
   const currentExpectedMonths = useMemo(() => {
     if (!selectedStudent) return [];
     const paidMonths = Array.from(new Set(contributions.map(c => Number(c.reference_month)))).sort((a, b) => a - b);
-    if (!isStudentActive(selectedStudent)) {
-      return paidMonths;
-    }
     return getExpectedMonthsForStudent(selectedStudent, selectedYear, paidMonths);
-  }, [selectedStudent, selectedYear, contributions, academicSettingsList]);
+  }, [selectedStudent, selectedYear, contributions, academicSettingsList, allEnrollments, classes]);
 
   const studentPlan = useMemo(() => {
     if (!selectedStudent) return null;
@@ -995,8 +988,11 @@ export function Contributions() {
     const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
     const activeSettings = classSettings || unitSettings;
     const paidMonths = contributions.map(c => c.reference_month);
-    return getStudentContributionPlan(selectedStudent, studentClass, selectedYear, paidMonths, activeSettings);
-  }, [selectedStudent, selectedYear, contributions, academicSettingsList, classes]);
+    return getStudentContributionPlan(selectedStudent, studentClass, selectedYear, paidMonths, activeSettings, {
+      enrollments: allEnrollments,
+      classes
+    });
+  }, [selectedStudent, selectedYear, contributions, academicSettingsList, classes, allEnrollments]);
 
   // Parcelas em aberto do aluno selecionado no ano corrente
   const individualUnpaidMonths = useMemo(() => {
@@ -1428,17 +1424,24 @@ export function Contributions() {
   // Indicador de situação do aluno no formulário (Aluno em dia / Possui pendência / Histórico Inativo)
   const studentStatusIndicator = useMemo(() => {
     if (!selectedStudent) return null;
+    const paidMonths = contributions.map(c => Number(c.reference_month));
+    const expected = getExpectedMonthsForStudent(selectedStudent, selectedFormYear, paidMonths);
+    const unpaid = expected.filter(m => !paidMonths.includes(m));
+    const overdue = unpaid.filter(m => isPeriodOverdue(m, selectedFormYear));
+
     if (!isStudentActive(selectedStudent)) {
       const tag = getInactiveStudentTag(selectedStudent) || 'INATIVO';
+      if (overdue.length > 0) {
+        return {
+          label: `${tag} • ${overdue.length} ${overdue.length === 1 ? 'pendência no período' : 'pendências no período'}`,
+          color: 'bg-rose-50 text-rose-700 border-rose-200'
+        };
+      }
       return {
         label: `${tag} • Consulta Histórica`,
         color: 'bg-amber-50 text-amber-800 border-amber-200'
       };
     }
-    const paidMonths = contributions.map(c => c.reference_month);
-    const expected = getExpectedMonthsForStudent(selectedStudent, selectedFormYear, paidMonths);
-    const unpaid = expected.filter(m => !paidMonths.includes(m));
-    const overdue = unpaid.filter(m => isPeriodOverdue(m, selectedFormYear));
 
     if (overdue.length > 0) {
       return {
@@ -1456,7 +1459,7 @@ export function Contributions() {
       label: 'Aluno em dia',
       color: 'bg-emerald-50 text-emerald-800 border-emerald-300'
     };
-  }, [selectedStudent, contributions, selectedFormYear]);
+  }, [selectedStudent, contributions, selectedFormYear, allEnrollments, classes]);
 
   // Lista de alunos filtrados para o Modal Eclesial "Localizar Aluno" (inclui inativos para consulta histórica)
   const modalFilteredStudents = useMemo(() => {

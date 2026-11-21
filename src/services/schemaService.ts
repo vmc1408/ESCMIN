@@ -153,6 +153,7 @@ export const schemaService = {
       col === 'payment_date' || 
       col === 'foundation_date' || 
       col === 'enrollment_date' ||
+      col === 'inactivation_date' ||
       col === 'issue_date' ||
       col === 'issuance_date' ||
       col === 'fee_payment_date' ||

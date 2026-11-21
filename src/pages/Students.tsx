@@ -209,6 +209,7 @@ const INITIAL_STUDENT_STATE: Partial<Student> = {
   course: '',
   pastoral_participates: '',
   start_date: '',
+  inactivation_date: '',
   photo_url: '',
   unit_id: 'matriz'
 };
@@ -249,6 +250,7 @@ export function Students() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [studentDeleteSafety, setStudentDeleteSafety] = useState<EntityHistorySafetyCheckResult | null>(null);
   const [checkingStudentSafety, setCheckingStudentSafety] = useState(false);
+  const [modalInactivationDate, setModalInactivationDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [studentEnrollments, setStudentEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
@@ -765,6 +767,7 @@ export function Students() {
       class_id: effectiveClassId,
       course: detectedCourse,
       start_date: startDate,
+      inactivation_date: student.inactivation_date ? student.inactivation_date.split('T')[0] : '',
       unit_id: studentUnitId,
       email: student.email || '',
       phone_mobile: student.phone_mobile || '',
@@ -1112,8 +1115,10 @@ export function Students() {
       }
 
       if (hasHistory && enrToRemove) {
+        const exitDate = new Date().toISOString().split('T')[0];
         await saveData('enrollments', enrollmentId, {
-          status: 'Trancado'
+          status: 'Trancado',
+          inactivation_date: enrToRemove.inactivation_date || exitDate
         });
       } else {
         await deleteData('enrollments', enrollmentId);
@@ -1279,17 +1284,45 @@ export function Students() {
     const targetClass = classes.find(c => c.id === data.classId);
     const studentUnitId = formData.unit_id || selectedStudent.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
 
+    const todayYmd = new Date().toISOString().split('T')[0];
+    const effectiveEnrollDate = parseDateToDB(data.paymentDate) || todayYmd;
+
     const newEnrollment: Partial<Enrollment> = {
       student_id: selectedStudent.id,
       class_id: data.classId,
       unit_id: studentUnitId,
       status: 'Ativo',
-      enrollment_date: new Date().toISOString().split('T')[0],
+      enrollment_date: effectiveEnrollDate,
+      inactivation_date: undefined,
       created_at: new Date().toISOString()
     };
 
     try {
       await saveData('enrollments', undefined, newEnrollment);
+
+      // Se o aluno estava Inativo/Concluído/Suspenso e está retornando em uma nova turma, reativa o cadastro preservando ciclos antigos
+      if (selectedStudent.status && selectedStudent.status !== 'Ativo') {
+        await saveData('students', selectedStudent.id, {
+          status: 'Ativo',
+          inactivation_date: null,
+          ...( !selectedStudent.class_id ? { class_id: data.classId } : {} ),
+          start_date: effectiveEnrollDate
+        });
+        setSelectedStudent(prev => prev ? {
+          ...prev,
+          status: 'Ativo',
+          inactivation_date: '',
+          start_date: effectiveEnrollDate,
+          ...(!prev.class_id ? { class_id: data.classId } : {})
+        } : null);
+        setFormData(prev => ({
+          ...prev,
+          status: 'Ativo',
+          inactivation_date: '',
+          start_date: effectiveEnrollDate,
+          ...(!prev.class_id ? { class_id: data.classId } : {})
+        }));
+      }
 
       if (data.feeStatus === 'paid') {
         const targetYear = targetClass ? getClassStartYear(targetClass) : (Number(targetClass?.start_year) || new Date().getFullYear());
@@ -1298,9 +1331,9 @@ export function Students() {
           reference_month: 0,
           reference_year: Number(targetYear) || new Date().getFullYear(),
           amount: Number(data.feeAmount) || 0,
-          payment_date: parseDateToDB(data.paymentDate) || new Date().toISOString().split('T')[0],
+          payment_date: parseDateToDB(data.paymentDate) || todayYmd,
           payment_method: data.paymentMethod,
-          observations: data.observations || `Taxa de Matrícula - Turma Adicional: ${targetClass?.name || ''}`,
+          observations: data.observations || `Taxa de Matrícula - Turma: ${targetClass?.name || ''}`,
           created_at: new Date().toISOString()
         };
         await saveData('contributions', undefined, newFeeContrib);
@@ -1313,7 +1346,7 @@ export function Students() {
           feeStatus: 'paid',
           paymentMethod: data.paymentMethod,
           paymentDate: data.paymentDate,
-          observations: data.observations || `Matrícula em curso adicional: ${targetClass?.name || ''}`
+          observations: data.observations || `Matrícula em curso: ${targetClass?.name || ''}`
         });
       }
 
@@ -1608,11 +1641,18 @@ export function Students() {
         ? (targetClass?.unit_id && targetClass.unit_id !== 'all' ? targetClass.unit_id : 'matriz')
         : rawRequestedUnit;
 
+      const todayYmd = new Date().toISOString().split('T')[0];
+      const isInactiveStatus = formData.status && formData.status !== 'Ativo';
+      const resolvedInactivationDate = isInactiveStatus
+        ? (parseDateToDB(formData.inactivation_date) || selectedStudent?.inactivation_date || todayYmd)
+        : null;
+
       const dataToSave: any = { 
         ...formData,
         unit_id: studentUnitId,
         birth_date: parseDateToDB(formData.birth_date),
         start_date: finalStartDate,
+        inactivation_date: resolvedInactivationDate,
         class_id: formData.class_id || null,
         course: resolvedCourse || null
       };
@@ -1660,34 +1700,51 @@ export function Students() {
 
       const effectiveStudentId = savedId || selectedStudent?.id;
 
-      // Auto-ensure enrollment in selected primary class in the enrollments table
+      // Auto-ensure enrollment in selected primary class preserving closed/historical enrollment cycles
       if (effectiveStudentId) {
         try {
-          const targetStatus = dataToSave.status === 'Inativo' ? 'Inativo' : 'Ativo';
+          const isClosing = dataToSave.status && dataToSave.status !== 'Ativo';
+          const targetEnrStatus = dataToSave.status === 'Concluído' ? 'Concluído' : (isClosing ? 'Inativo' : 'Ativo');
           const currentEnrs = await fetchQuery('enrollments', 'student_id', '==', effectiveStudentId).catch(() => []);
-          
-          if (dataToSave.status === 'Inativo' && currentEnrs && currentEnrs.length > 0) {
+
+          if (isClosing && currentEnrs && currentEnrs.length > 0) {
+            const exitDate = dataToSave.inactivation_date || todayYmd;
             for (const enr of currentEnrs) {
-              if (enr.status !== 'Inativo') {
-                await saveData('enrollments', enr.id, { status: 'Inativo' });
+              if (!enr.status || enr.status === 'Ativo') {
+                await saveData('enrollments', enr.id, {
+                  status: targetEnrStatus,
+                  inactivation_date: enr.inactivation_date || exitDate
+                });
               }
             }
-          } else if (dataToSave.class_id) {
-            const existingEnr = (currentEnrs || []).find((e: any) => e.class_id === dataToSave.class_id);
-            if (!existingEnr) {
-              await saveData('enrollments', undefined, {
-                student_id: effectiveStudentId,
-                class_id: dataToSave.class_id,
-                unit_id: studentUnitId,
-                status: targetStatus,
-                enrollment_date: dataToSave.start_date || new Date().toISOString().split('T')[0],
-                created_at: new Date().toISOString()
-              });
-            } else if (existingEnr.status !== targetStatus) {
-              await saveData('enrollments', existingEnr.id, {
-                status: targetStatus,
-                unit_id: studentUnitId
-              });
+          } else if (!isClosing && dataToSave.class_id) {
+            const activeForClass = (currentEnrs || []).find(
+              (e: any) => e.class_id === dataToSave.class_id && (!e.status || e.status === 'Ativo')
+            );
+            if (!activeForClass) {
+              const closedWithoutExitDate = (currentEnrs || []).find(
+                (e: any) => e.class_id === dataToSave.class_id && !e.inactivation_date
+              );
+              const wasInactiveStudent = Boolean(selectedStudent && selectedStudent.status && selectedStudent.status !== 'Ativo');
+              if (closedWithoutExitDate && !wasInactiveStudent) {
+                await saveData('enrollments', closedWithoutExitDate.id, {
+                  status: 'Ativo',
+                  inactivation_date: null,
+                  unit_id: studentUnitId
+                });
+              } else {
+                const newCycleDate = wasInactiveStudent
+                  ? (targetClass?.start_date && parseDateToDB(targetClass.start_date) >= todayYmd.slice(0, 4) ? parseDateToDB(targetClass.start_date) : todayYmd)
+                  : (dataToSave.start_date || todayYmd);
+                await saveData('enrollments', undefined, {
+                  student_id: effectiveStudentId,
+                  class_id: dataToSave.class_id,
+                  unit_id: studentUnitId,
+                  status: 'Ativo',
+                  enrollment_date: newCycleDate,
+                  created_at: new Date().toISOString()
+                });
+              }
             }
           }
         } catch (enrollErr) {
@@ -1770,36 +1827,62 @@ export function Students() {
     if (!selectedStudent?.id) return;
     const isCurrentlyInactive = formData.status === 'Inativo';
     const newStatus = isCurrentlyInactive ? 'Ativo' : 'Inativo';
+    const todayYmd = new Date().toISOString().split('T')[0];
     const confirmMsg = isCurrentlyInactive
-      ? `Deseja reativar o aluno "${selectedStudent.name}"?`
-      : `Deseja inativar o aluno "${selectedStudent.name}"? (O perfil de Assistente pode inativar ou desabilitar registros).`;
+      ? `Deseja reativar o aluno "${selectedStudent.name}"? (As matrículas encerradas anteriores serão preservadas no histórico).`
+      : `Deseja inativar o aluno "${selectedStudent.name}" em ${formatDateForDisplay(formData.inactivation_date || todayYmd)}?`;
 
     if (!window.confirm(confirmMsg)) return;
 
     try {
       setLoading(true);
+      const nextExitDate = isCurrentlyInactive
+        ? null
+        : (parseDateToDB(formData.inactivation_date) || todayYmd);
+
       await saveData('students', selectedStudent.id, {
-        status: newStatus
+        status: newStatus,
+        inactivation_date: nextExitDate
       });
-      setFormData(prev => ({ ...prev, status: newStatus }));
-      setSelectedStudent(prev => prev ? { ...prev, status: newStatus } : null);
+
+      if (!isCurrentlyInactive) {
+        const currentEnrs = await fetchQuery('enrollments', 'student_id', '==', selectedStudent.id).catch(() => []);
+        if (currentEnrs && currentEnrs.length > 0) {
+          for (const enr of currentEnrs) {
+            if (!enr.status || enr.status === 'Ativo') {
+              await saveData('enrollments', enr.id, {
+                status: 'Inativo',
+                inactivation_date: enr.inactivation_date || nextExitDate
+              });
+            }
+          }
+        }
+      }
+
+      setFormData(prev => ({ ...prev, status: newStatus, inactivation_date: nextExitDate || '' }));
+      setSelectedStudent(prev => prev ? { ...prev, status: newStatus, inactivation_date: nextExitDate || '' } : null);
       setNotification({
         type: 'success',
-        message: isCurrentlyInactive ? 'Aluno reativado com sucesso!' : 'Aluno inativado com sucesso!'
+        message: isCurrentlyInactive
+          ? 'Aluno reativado com sucesso! Para iniciar um novo ciclo/ano letivo, selecione a nova turma ou clique em Matricular.'
+          : `Aluno inativado com sucesso em ${formatDateForDisplay(nextExitDate || todayYmd)}!`
       });
+      fetchEnrollments(selectedStudent.id);
+      fetchAllEnrollments();
       fetchStudents();
     } catch (error: any) {
       console.error('Erro ao alterar status:', error);
       setNotification({ type: 'error', message: 'Erro ao alterar status do aluno: ' + error.message });
     } finally {
       setLoading(false);
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 4000);
     }
-  }, [selectedStudent, formData.status, fetchStudents]);
+  }, [selectedStudent, formData.status, formData.inactivation_date, fetchStudents, fetchEnrollments, fetchAllEnrollments]);
 
   const handleOpenDeleteConfirm = useCallback(async () => {
     if (!selectedStudent?.id) return;
     setStudentDeleteSafety(null);
+    setModalInactivationDate(formData.inactivation_date ? formData.inactivation_date.split('T')[0] : new Date().toISOString().split('T')[0]);
     setCheckingStudentSafety(true);
     setShowDeleteConfirm(true);
     try {
@@ -1813,29 +1896,38 @@ export function Students() {
     } finally {
       setCheckingStudentSafety(false);
     }
-  }, [selectedStudent]);
+  }, [selectedStudent, formData.inactivation_date]);
 
   const handleInactivateStudentFromModal = useCallback(async () => {
     if (!selectedStudent?.id) return;
+    const exitDate = parseDateToDB(modalInactivationDate) || new Date().toISOString().split('T')[0];
     try {
       setLoading(true);
-      await saveData('students', selectedStudent.id, { status: 'Inativo' });
+      await saveData('students', selectedStudent.id, {
+        status: 'Inativo',
+        inactivation_date: exitDate
+      });
       const currentEnrs = await fetchQuery('enrollments', 'student_id', '==', selectedStudent.id).catch(() => []);
       if (currentEnrs && currentEnrs.length > 0) {
         for (const enr of currentEnrs) {
-          if (enr.status !== 'Inativo') {
-            await saveData('enrollments', enr.id, { status: 'Inativo' });
+          if (!enr.status || enr.status === 'Ativo') {
+            await saveData('enrollments', enr.id, {
+              status: 'Inativo',
+              inactivation_date: enr.inactivation_date || exitDate
+            });
           }
         }
       }
-      setFormData(prev => ({ ...prev, status: 'Inativo' }));
-      setSelectedStudent(prev => prev ? { ...prev, status: 'Inativo' } : null);
+      setFormData(prev => ({ ...prev, status: 'Inativo', inactivation_date: exitDate }));
+      setSelectedStudent(prev => prev ? { ...prev, status: 'Inativo', inactivation_date: exitDate } : null);
       setShowDeleteConfirm(false);
       setStudentDeleteSafety(null);
       setNotification({
         type: 'success',
-        message: `Aluno "${selectedStudent.name}" inativado com sucesso! Todo o histórico de chamadas, notas e pagamentos foi preservado.`
+        message: `Aluno "${selectedStudent.name}" inativado em ${formatDateForDisplay(exitDate)}! Histórico acadêmico e financeiro preservado.`
       });
+      fetchEnrollments(selectedStudent.id);
+      fetchAllEnrollments();
       fetchStudents();
     } catch (error: any) {
       console.error('Erro ao inativar aluno:', error);
@@ -1844,7 +1936,7 @@ export function Students() {
       setLoading(false);
       setTimeout(() => setNotification(null), 4000);
     }
-  }, [selectedStudent, fetchStudents]);
+  }, [selectedStudent, modalInactivationDate, fetchStudents, fetchEnrollments, fetchAllEnrollments]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedStudent?.id) return;
@@ -2460,6 +2552,14 @@ export function Students() {
       (e.status || 'Ativo') === 'Ativo'
     );
   }, [studentEnrollments, primaryClsId, validClassIds]);
+
+  const historicalEnrollments = React.useMemo(() => {
+    return studentEnrollments.filter(e => 
+      e.class_id &&
+      (e.status && e.status !== 'Ativo')
+    ).sort((a, b) => String(b.inactivation_date || b.enrollment_date || '').localeCompare(String(a.inactivation_date || a.enrollment_date || '')));
+  }, [studentEnrollments]);
+
   const hasParallelCourses = secondaryEnrollments.length > 0;
 
   return (
@@ -3048,7 +3148,15 @@ export function Students() {
                           disabled={!isEditing}
                           title="Situação cadastral do aluno"
                           value={formData.status || 'Ativo'}
-                          onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+                          onChange={(e) => {
+                            const nextStatus = e.target.value as any;
+                            const todayYmd = new Date().toISOString().split('T')[0];
+                            setFormData(prev => ({
+                              ...prev,
+                              status: nextStatus,
+                              inactivation_date: nextStatus === 'Ativo' ? '' : (prev.inactivation_date || todayYmd)
+                            }));
+                          }}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={3}
@@ -3059,6 +3167,20 @@ export function Students() {
                           <option value="Suspenso">Suspenso</option>
                         </select>
                       </div>
+                      {(formData.status && formData.status !== 'Ativo') && (
+                        <div className="col-span-12 sm:col-span-3 space-y-1">
+                          <label className="text-xs font-bold text-amber-800">Data de Inativação / Saída</label>
+                          <input
+                            type="date"
+                            disabled={!isEditing}
+                            title="Data em que o aluno desistiu, concluiu ou foi inativado (define até qual mês a mensalidade é calculada)"
+                            value={formData.inactivation_date ? formData.inactivation_date.split('T')[0] : ''}
+                            onChange={(e) => setFormData({ ...formData, inactivation_date: e.target.value })}
+                            onKeyDown={handleKeyDown}
+                            className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-lg text-sm font-medium text-amber-950 focus:ring-2 focus:ring-amber-500/20 disabled:opacity-70"
+                          />
+                        </div>
+                      )}
                       <div className="col-span-12 sm:col-span-3 space-y-1">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">CPF</label>
@@ -3500,6 +3622,39 @@ export function Students() {
                               })
                             )}
                           </div>
+
+                          {historicalEnrollments.length > 0 && (
+                            <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                Histórico de Ciclos Anteriores / Matrículas Encerradas ({historicalEnrollments.length})
+                              </p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {historicalEnrollments.map((hEnr, hIdx) => {
+                                  const hCls = classes.find(c => c.id === hEnr.class_id);
+                                  return (
+                                    <div
+                                      key={`hist-enr-${hEnr.id || hIdx}`}
+                                      className="p-2.5 bg-slate-100/80 border border-slate-200 rounded-lg flex items-center justify-between gap-2 text-[10px]"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="font-bold text-slate-700 truncate uppercase">
+                                          {hCls ? `${hCls.name} (${hCls.code})` : 'Turma Histórica'}
+                                        </p>
+                                        <p className="text-slate-500 font-mono">
+                                          Início: {hEnr.enrollment_date ? formatDateForDisplay(hEnr.enrollment_date) : 'N/I'}
+                                          {' • '}
+                                          Saída: {hEnr.inactivation_date ? formatDateForDisplay(hEnr.inactivation_date) : 'Sem data'}
+                                        </p>
+                                      </div>
+                                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 font-bold uppercase text-[9px] shrink-0">
+                                        {hEnr.status}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg mb-6 text-center">
@@ -4038,8 +4193,23 @@ export function Students() {
                     </div>
                   )}
 
-                  <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-900 leading-snug">
-                    <strong>Recomendação Institucional:</strong> Utilize <strong>Inativar Aluno</strong> para desligar ou encerrar a matrícula sem apagar chamadas, notas, boletins ou recibos emitidos no período em que frequentou o curso.
+                  <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-900 leading-snug space-y-2">
+                    <p>
+                      <strong>Recomendação Institucional:</strong> Utilize <strong>Inativar Aluno</strong> para desligar ou encerrar a matrícula sem apagar chamadas, notas, boletins ou recibos emitidos no período em que frequentou o curso.
+                    </p>
+                    {formData.status !== 'Inativo' && (
+                      <div className="pt-1 flex items-center justify-between gap-2 border-t border-amber-200/80">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-amber-950 whitespace-nowrap">
+                          Data da Inativação / Desistência:
+                        </label>
+                        <input
+                          type="date"
+                          value={modalInactivationDate}
+                          onChange={(e) => setModalInactivationDate(e.target.value)}
+                          className="px-2.5 py-1 bg-white border border-amber-300 rounded text-xs font-bold text-slate-800"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2.5 pt-1">

@@ -1,5 +1,62 @@
-import { Student, Class, Contribution } from '../types';
+import { Student, Class, Enrollment } from '../types';
 import { parseSafeDate } from './utils';
+
+interface DateParts {
+  year: number;
+  month: number;
+  day: number;
+}
+
+function parseLocalDateParts(raw?: string | null): DateParts | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+
+  // YYYY-MM-DD (or ISO timestamp)
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12) {
+      return { year, month, day };
+    }
+  }
+
+  // DD/MM/YYYY
+  const brMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (brMatch) {
+    const day = parseInt(brMatch[1], 10);
+    const month = parseInt(brMatch[2], 10);
+    const year = parseInt(brMatch[3], 10);
+    if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12) {
+      return { year, month, day };
+    }
+  }
+
+  const d = parseSafeDate(s);
+  if (!isNaN(d.getTime())) {
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      day: d.getDate()
+    };
+  }
+
+  return null;
+}
+
+function isStudentStatusActive(status?: string | null): boolean {
+  if (!status) return true;
+  const s = String(status).trim().toLowerCase();
+  return s === 'ativo' || s === 'active' || s === '';
+}
+
+function isEnrollmentStatusClosed(status?: string | null): boolean {
+  if (!status) return false;
+  const s = String(status).trim().toLowerCase();
+  return s !== 'ativo' && s !== 'active' && s !== '';
+}
 
 /**
  * Extrai o ano de início de uma turma com base em múltiplos metadados.
@@ -19,8 +76,8 @@ export function getClassStartYear(studentClass: Class | any): number {
     }
   }
   if (studentClass.start_date) {
-    const d = parseSafeDate(studentClass.start_date);
-    if (!isNaN(d.getTime())) return d.getFullYear();
+    const dp = parseLocalDateParts(studentClass.start_date);
+    if (dp) return dp.year;
   }
   if (studentClass.created_at) {
     const yr = new Date(studentClass.created_at).getFullYear();
@@ -91,12 +148,12 @@ export function isFirstYearOrStarting(
   // 2. Verificação pelo cadastro do estudante
   if (student) {
     if (student.start_date) {
-      const d = parseSafeDate(student.start_date);
-      if (!isNaN(d.getTime())) {
+      const dp = parseLocalDateParts(student.start_date);
+      if (dp) {
         // Se o estudante ingressou antes do ano analisado -> é veterano
-        if (d.getFullYear() < targetYear) return false;
+        if (dp.year < targetYear) return false;
         // Se ingressou exatamente no targetYear -> é ingressante / 1º ano
-        if (d.getFullYear() === targetYear) return true;
+        if (dp.year === targetYear) return true;
       }
     }
 
@@ -127,17 +184,17 @@ export function getMeetingsStartMonth(
 
   if (academicSettings) {
     if (academicSettings.term1_start) {
-      const d = parseSafeDate(academicSettings.term1_start);
-      if (!isNaN(d.getTime())) {
-        startMonth = d.getMonth() + 1;
+      const dp = parseLocalDateParts(academicSettings.term1_start);
+      if (dp) {
+        startMonth = dp.month;
       }
     }
   }
 
   if (studentClass?.start_date) {
-    const cd = parseSafeDate(studentClass.start_date);
-    if (!isNaN(cd.getTime())) {
-      startMonth = cd.getMonth() + 1;
+    const dp = parseLocalDateParts(studentClass.start_date);
+    if (dp) {
+      startMonth = dp.month;
     }
   }
 
@@ -158,69 +215,219 @@ export interface ContributionPlan {
   expectedPeriods: number[]; // Períodos esperados (0 para matrícula se devida, mais os meses obrigatórios e facultativos pagos)
 }
 
+export interface ContributionPlanOptions {
+  enrollments?: Enrollment[];
+  classes?: Class[];
+}
+
+function getAcademicEndMonth(studentClass: Class | undefined, academicSettings?: any): number {
+  let academicEndMonth = 12;
+  if (academicSettings?.term2_end) {
+    const dp = parseLocalDateParts(academicSettings.term2_end);
+    if (dp) {
+      academicEndMonth = dp.month;
+    }
+  }
+  if (studentClass?.semester === '1') {
+    academicEndMonth = Math.min(academicEndMonth, 6);
+  }
+  return academicEndMonth;
+}
+
 /**
- * Calcula o plano acadêmico e financeiro de contribuições do estudante para o ano letivo.
- * 
- * Regra:
- * - 1º ano / início de curso:
- *   - Matrícula (mês 0): Obrigatória.
- *   - Janeiro (1) e Fevereiro (2): FACULTATIVOS (não geram pendência se não pagos; se pagos, são reconhecidos).
- *   - Mês de início dos encontros em diante (ex: 3 a 12): Obrigatórios.
- * - Veteranos (2º ano em diante):
- *   - Janeiro (1) e Fevereiro (2): NÃO SÃO FACULTATIVOS. São meses normais de contribuição escolar.
- *   - Todos os meses do ano letivo (1 a 12) são obrigatórios.
+ * Calcula o plano acadêmico e financeiro de contribuições do estudante para o ano letivo,
+ * respeitando a janela exata [Data de Matrícula .. Data de Inativação] de cada ciclo/matrícula.
  */
 export function getStudentContributionPlan(
   student: Student,
   studentClass: Class | undefined,
   targetYear: number,
   paidMonths: number[] = [],
-  academicSettings?: any
+  academicSettings?: any,
+  options?: ContributionPlanOptions
 ): ContributionPlan {
+  const normalizedPaid = Array.from(
+    new Set(paidMonths.map(m => Number(m)).filter(m => !isNaN(m) && m >= 0 && m <= 12))
+  ).sort((a, b) => a - b);
+
+  const studentEnrollments = (options?.enrollments || []).filter(
+    e => String(e.student_id) === String(student.id)
+  );
+
+  // ============================================================================
+  // MODO 1: Cálculo preciso por ciclos de matrícula (enrollments)
+  // ============================================================================
+  if (studentEnrollments.length > 0) {
+    const expectedSet = new Set<number>(normalizedPaid);
+    const mandatorySet = new Set<number>();
+    const facultativeSet = new Set<number>();
+    let anyFirstYearInTarget = false;
+    let anyEnrollmentFeeRequired = false;
+    let effectiveMeetingsStart = getMeetingsStartMonth(studentClass, academicSettings);
+    let hasActiveOrDatedEnrollmentInYear = false;
+
+    for (const enr of studentEnrollments) {
+      const clsE =
+        options?.classes?.find(c => c.id === enr.class_id) ||
+        (studentClass && studentClass.id === enr.class_id ? studentClass : undefined);
+
+      // Para determinar se é 1º ano neste ciclo, prioriza a data desta matrícula
+      const effectiveStudentForCycle: Student = enr.enrollment_date
+        ? { ...student, start_date: enr.enrollment_date }
+        : student;
+
+      const isFirstYearE = isFirstYearOrStarting(effectiveStudentForCycle, clsE, targetYear);
+      const meetingsStartE = getMeetingsStartMonth(clsE, academicSettings);
+      const academicEndE = getAcademicEndMonth(clsE, academicSettings);
+
+      const startParts =
+        parseLocalDateParts(enr.enrollment_date) ||
+        parseLocalDateParts(clsE?.start_date) ||
+        parseLocalDateParts(student.start_date) ||
+        parseLocalDateParts(enr.created_at);
+
+      // Se iniciou depois do targetYear, este ciclo não existia em targetYear
+      if (startParts && startParts.year > targetYear) {
+        continue;
+      }
+
+      const enrClosed = isEnrollmentStatusClosed(enr.status);
+      const studentActive = isStudentStatusActive(student.status);
+
+      // Data de saída/inativação deste vínculo
+      const rawEndDate =
+        enr.inactivation_date ||
+        (enrClosed && !studentActive ? student.inactivation_date : undefined) ||
+        (!studentActive ? student.inactivation_date : undefined);
+
+      const endParts = parseLocalDateParts(rawEndDate);
+
+      // Se a matrícula (ou aluno) já estava encerrada sem data de saída gravada (legado),
+      // não inventa cobranças para não gerar falsas pendências retroativas.
+      if ((enrClosed || !studentActive) && !endParts) {
+        continue;
+      }
+
+      // Se encerrou antes do targetYear, este ciclo não gera cobranças em targetYear
+      if (endParts && endParts.year < targetYear) {
+        continue;
+      }
+
+      const wasFirstMatched = !hasActiveOrDatedEnrollmentInYear;
+      hasActiveOrDatedEnrollmentInYear = true;
+      if (isFirstYearE) anyFirstYearInTarget = true;
+
+      const baseStartMonth = isFirstYearE ? meetingsStartE : 1;
+      const winStartMonth =
+        startParts && startParts.year === targetYear
+          ? Math.max(baseStartMonth, startParts.month)
+          : baseStartMonth;
+
+      const winEndMonth =
+        endParts && endParts.year === targetYear
+          ? Math.min(academicEndE, endParts.month)
+          : academicEndE;
+
+      if (wasFirstMatched || winStartMonth < effectiveMeetingsStart) {
+        effectiveMeetingsStart = winStartMonth;
+      }
+
+      if (isFirstYearE) {
+        [1, 2].filter(m => m < meetingsStartE).forEach(m => facultativeSet.add(m));
+      }
+
+      // Se o ciclo esteve vigente no targetYear e é ingressante / 1º ano (ou iniciou no ano), taxa de matrícula é esperada
+      const enrolledInTargetYear = startParts ? startParts.year === targetYear : false;
+      if (isFirstYearE || enrolledInTargetYear) {
+        anyEnrollmentFeeRequired = true;
+        expectedSet.add(0);
+      }
+
+      if (winStartMonth <= winEndMonth) {
+        for (let m = winStartMonth; m <= winEndMonth; m++) {
+          mandatorySet.add(m);
+          expectedSet.add(m);
+        }
+      }
+    }
+
+    const expectedPeriods = Array.from(expectedSet).sort((a, b) => a - b);
+    const mandatoryMonths = Array.from(mandatorySet).sort((a, b) => a - b);
+    const facultativeMonths = Array.from(facultativeSet).sort((a, b) => a - b);
+
+    return {
+      isFirstYear: anyFirstYearInTarget,
+      enrollmentFeeRequired: anyEnrollmentFeeRequired,
+      meetingsStartMonth: effectiveMeetingsStart,
+      facultativeMonths,
+      mandatoryMonths,
+      expectedPeriods
+    };
+  }
+
+  // ============================================================================
+  // MODO 2: Fallback quando não há registros em enrollments (aluno legado/direto)
+  // ============================================================================
   const isFirstYear = isFirstYearOrStarting(student, studentClass, targetYear);
   const meetingsStart = getMeetingsStartMonth(studentClass, academicSettings);
+  const academicEndMonth = getAcademicEndMonth(studentClass, academicSettings);
+  const studentActive = isStudentStatusActive(student.status);
 
-  let academicEndMonth = 12;
-  if (academicSettings?.term2_end) {
-    const ed = new Date(academicSettings.term2_end + 'T00:00:00');
-    if (!isNaN(ed.getTime())) {
-      academicEndMonth = ed.getMonth() + 1;
-    }
-  }
-  if (studentClass?.semester === '1') {
-    academicEndMonth = Math.min(academicEndMonth, 6);
+  const startParts = parseLocalDateParts(student.start_date);
+  const endParts = parseLocalDateParts(student.inactivation_date);
+
+  // Aluno inativo sem data de inativação registrada: preserva somente o que já foi pago
+  if (!studentActive && !endParts) {
+    return {
+      isFirstYear,
+      enrollmentFeeRequired: normalizedPaid.includes(0),
+      meetingsStartMonth: meetingsStart,
+      facultativeMonths: isFirstYear ? [1, 2].filter(m => m < meetingsStart) : [],
+      mandatoryMonths: [],
+      expectedPeriods: normalizedPaid
+    };
   }
 
-  // Verifica se o aluno já pagou a matrícula (mês 0 ou referência a matrícula)
-  const hasPaidMatricula = paidMonths.includes(0);
+  // Se iniciou depois do ano analisado ou encerrou antes do ano analisado -> somente pagos
+  if ((startParts && startParts.year > targetYear) || (endParts && endParts.year < targetYear)) {
+    return {
+      isFirstYear,
+      enrollmentFeeRequired: normalizedPaid.includes(0),
+      meetingsStartMonth: meetingsStart,
+      facultativeMonths: [],
+      mandatoryMonths: [],
+      expectedPeriods: normalizedPaid
+    };
+  }
+
+  const baseStartMonth = isFirstYear ? meetingsStart : 1;
+  const effectiveStartMonth =
+    startParts && startParts.year === targetYear
+      ? Math.max(baseStartMonth, startParts.month)
+      : baseStartMonth;
+  const effectiveEndMonth =
+    endParts && endParts.year === targetYear
+      ? Math.min(academicEndMonth, endParts.month)
+      : academicEndMonth;
 
   if (isFirstYear) {
-    // 1º Ano / Início de curso:
-    // Janeiro e Fevereiro são facultativos
     const facultativeMonths = [1, 2].filter(m => m < meetingsStart);
-    
-    // Meses regulares obrigatórios: do início dos encontros até o encerramento letivo
     const mandatoryMonths: number[] = [];
-    for (let m = meetingsStart; m <= academicEndMonth; m++) {
-      mandatoryMonths.push(m);
+    if (effectiveStartMonth <= effectiveEndMonth) {
+      for (let m = effectiveStartMonth; m <= effectiveEndMonth; m++) {
+        mandatoryMonths.push(m);
+      }
     }
 
-    // Períodos esperados:
-    // 1) Matrícula (0) é obrigatória para o 1º ano!
     const expectedPeriods: number[] = [0];
-
-    // 2) Meses obrigatórios (encontros)
     mandatoryMonths.forEach(m => {
       if (!expectedPeriods.includes(m)) expectedPeriods.push(m);
     });
-
-    // 3) Se o aluno pagou os facultativos (Janeiro ou Fevereiro), inclui para não sumir do status de pago
-    paidMonths.forEach(m => {
-      if (facultativeMonths.includes(m) && !expectedPeriods.includes(m)) {
+    normalizedPaid.forEach(m => {
+      if (!expectedPeriods.includes(m)) {
         expectedPeriods.push(m);
       }
     });
-
     expectedPeriods.sort((a, b) => a - b);
 
     return {
@@ -232,33 +439,28 @@ export function getStudentContributionPlan(
       expectedPeriods
     };
   } else {
-    // Veteranos (2º ano em diante):
-    // Janeiro e Fevereiro NÃO SÃO FACULTATIVOS.
     const mandatoryMonths: number[] = [];
-    for (let m = 1; m <= academicEndMonth; m++) {
-      mandatoryMonths.push(m);
+    if (effectiveStartMonth <= effectiveEndMonth) {
+      for (let m = effectiveStartMonth; m <= effectiveEndMonth; m++) {
+        mandatoryMonths.push(m);
+      }
     }
 
     const expectedPeriods: number[] = [...mandatoryMonths];
-
-    // Se o veterano pagou matrícula/rematrícula (mês 0), inclui nos períodos esperados
-    if (hasPaidMatricula && !expectedPeriods.includes(0)) {
+    if (normalizedPaid.includes(0) && !expectedPeriods.includes(0)) {
       expectedPeriods.unshift(0);
     }
-
-    // Inclui eventuais antecipações pagas
-    paidMonths.forEach(m => {
+    normalizedPaid.forEach(m => {
       if (!expectedPeriods.includes(m)) {
         expectedPeriods.push(m);
       }
     });
-
     expectedPeriods.sort((a, b) => a - b);
 
     return {
       isFirstYear: false,
       enrollmentFeeRequired: false,
-      meetingsStartMonth: 1, // Veteranos têm ciclo contínuo desde Janeiro
+      meetingsStartMonth: effectiveStartMonth,
       facultativeMonths: [],
       mandatoryMonths,
       expectedPeriods

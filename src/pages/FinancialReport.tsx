@@ -502,22 +502,18 @@ const isMonthFuture = (month: number, year: number) => {
 
 // Helper para descobrir os meses esperados academicamente para o aluno no ano com base no plano de contribuições
 const getExpectedMonthsForStudent = useCallback((student: Student, year: number, paidMonths: number[] = []) => {
-  if (student.start_date) {
-    const startDate = parseSafeDate(student.start_date);
-    if (!isNaN(startDate.getTime()) && startDate.getFullYear() > year) {
-      return [];
-    }
-  }
-
   const studentClass = classes.find(c => c.id === student.class_id);
   const classSettings = academicSettingsList.find(s => s && (s.id === student.class_id || s.id === `academic_settings_${student.class_id}`));
   const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
   const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
   const activeSettings = classSettings || unitSettings;
 
-  const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings);
+  const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings, {
+    enrollments,
+    classes
+  });
   return plan.expectedPeriods;
-}, [academicSettingsList, classes]);
+}, [academicSettingsList, classes, enrollments]);
 
 // Helper para descobrir o valor da contribuição mensal do aluno:
 // 1. Resolve pelas configurações do sistema por ano letivo e curso/turma (Regra Customizada -> Curso -> Turno/Período -> Ano -> Padrão Geral)
@@ -632,10 +628,8 @@ const reportData = useMemo(() => {
     );
 
     const paidMonthsInYear = Array.from(new Set(studentContribs.map(c => Number(c.reference_month)))).sort((a, b) => a - b);
-    // Para alunos inativos/desistentes/concluídos, preserva exatamente os períodos realizados/abonados sem cobrar meses futuros/pós-saída como inadimplência
-    const allExpectedInYear = isActiveStudent
-      ? getExpectedMonthsForStudent(student, yearNum, paidMonthsInYear)
-      : paidMonthsInYear;
+    // Calcula exatamente dentro da janela [data de matrícula .. data de inativação] do aluno no ano consultado
+    const allExpectedInYear = getExpectedMonthsForStudent(student, yearNum, paidMonthsInYear);
 
     // Meses esperados que caem no período selecionado (se anual, 1º sem ou intervalo contendo jan, inclui taxa de matrícula se esperada/paga)
     const shouldIncludeMatricula = (periodType === 'anual' || (periodType === 'semestral' && selectedSemester === '1') || (periodType === 'intervalo' && periodMonths.includes(1))) && (allExpectedInYear.includes(0) || paidMonthsInYear.includes(0));
@@ -646,8 +640,9 @@ const reportData = useMemo(() => {
     // Contribuições correspondentes aos meses do período
     const contribsInPeriod = studentContribs.filter(c => relevantPeriods.includes(Number(c.reference_month)));
 
-    // 1. Valor Previsto: Para ativos, base no calendário; para inativos, equipara ao valor realizado nos meses em que contribuiu
-    const valorPrevisto = isActiveStudent
+    // 1. Valor Previsto: Para ativos ou inativos com janela datada em aberto, considera os meses esperados; para legado sem data, equipara ao realizado
+    const hasUnresolvedExpected = expectedInPeriod.some(m => !paidMonthsInYear.includes(m));
+    const valorPrevisto = (isActiveStudent || hasUnresolvedExpected)
       ? expectedInPeriod.length * fee
       : contribsInPeriod.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
 
@@ -733,7 +728,9 @@ const reportData = useMemo(() => {
     let periodSummary = '';
     if (!isActiveStudent) {
       const tag = getInactiveStudentTag(student) || 'INATIVO';
-      if (paidCount === 0 && waivedCount === 0) {
+      if (overdueMonthsCount > 0) {
+        periodSummary = `${paidCount}/${expectedInPeriod.length} paga${paidCount === 1 ? '' : 's'} (${overdueMonthsCount} em atraso) • ${tag}`;
+      } else if (paidCount === 0 && waivedCount === 0) {
         periodSummary = `Histórico (${tag}) • Sem lançamentos`;
       } else {
         periodSummary = `${paidCount} paga${paidCount === 1 ? '' : 's'}${waivedCount > 0 ? ` (${waivedCount} abonada${waivedCount > 1 ? 's' : ''})` : ''} • ${tag}`;

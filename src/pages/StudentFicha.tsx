@@ -21,7 +21,7 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge, isInstitutionPhoneWhatsapp, isStudentActive } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
@@ -306,6 +306,7 @@ export function StudentFicha() {
   const [dbGrades, setDbGrades] = useState<Grade[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [institution, setInstitution] = useState<any>(null);
   
   const [loading, setLoading] = useState(true);
@@ -314,13 +315,11 @@ export function StudentFicha() {
   const [studentContributions, setStudentContributions] = useState<any[]>([]);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
 
-  // Fetch student contributions for alerts on change of selected student
+  // Fetch student contributions (all years) for alerts on change of selected student
   useEffect(() => {
     if (selectedStudentId) {
-      const currentYear = new Date().getFullYear();
       fetchQuery('contributions', [
-        { field: 'student_id', operator: '==', value: selectedStudentId },
-        { field: 'reference_year', operator: '==', value: currentYear }
+        { field: 'student_id', operator: '==', value: selectedStudentId }
       ])
       .then(data => {
         setStudentContributions(data || []);
@@ -483,6 +482,7 @@ export function StudentFicha() {
       setDbGrades(grds || []);
       setAttendanceData(atts || []);
       setCertificates(certs || []);
+      setEnrollments(enrollmentsData || []);
       setCalendarEvents(calendarData || []);
       setAcademicSettings(acadSettings || null);
 
@@ -528,10 +528,10 @@ export function StudentFicha() {
     });
   }, [students, classes, selectedUnitId, activeUnits]);
 
-  // Compute unpaid months alert for the current year
+  // Compute unpaid months alert using exact [enrollment_date .. inactivation_date] windows
   const unpaidMonthsAlert = useMemo(() => {
     const student = scopedStudents.find(s => s.id === selectedStudentId);
-    if (!student || !isStudentActive(student)) return null;
+    if (!student) return null;
 
     const currentYear = new Date().getFullYear();
 
@@ -547,37 +547,76 @@ export function StudentFicha() {
     const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
     const activeSettings = classSettings || unitSettings;
 
-    const paidMonths = studentContributions.map(c => Number(c.reference_month));
-    const plan = getStudentContributionPlan(student, studentClass, currentYear, paidMonths, activeSettings);
-
-    // Meses ou períodos vencidos até o momento atual
-    const unpaidMonths = plan.expectedPeriods.filter(m => {
-      if (paidMonths.includes(m)) return false;
-      return isPeriodOverdue(m, currentYear, plan.meetingsStartMonth);
+    const yearsToCheck = new Set<number>([currentYear]);
+    const stEnrs = enrollments.filter((e: any) => String(e.student_id) === String(student.id));
+    stEnrs.forEach((e: any) => {
+      if (e.inactivation_date) {
+        const y = parseInt(String(e.inactivation_date).slice(0, 4), 10);
+        if (y >= 2000 && y <= currentYear) yearsToCheck.add(y);
+      }
+      if (e.enrollment_date && e.inactivation_date) {
+        const y = parseInt(String(e.enrollment_date).slice(0, 4), 10);
+        if (y >= 2000 && y <= currentYear) yearsToCheck.add(y);
+      }
     });
+    if ((student as any).inactivation_date) {
+      const y = parseInt(String((student as any).inactivation_date).slice(0, 4), 10);
+      if (y >= 2000 && y <= currentYear) yearsToCheck.add(y);
+    }
 
-    if (unpaidMonths.length > 0) {
-      const studentFee = financialConfigService.resolveFee({
-        year: currentYear,
-        classId: student.class_id || studentClass?.id,
-        className: studentClass?.name,
-        studentClass,
-        student,
-        subjectId: (student as any).subject_id || (student as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
-        courseName: studentClass?.course || (student as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
-        period: (student as any).period || studentClass?.period
+    const sortedYears = Array.from(yearsToCheck).sort((a, b) => b - a);
+    const pendingLabels: string[] = [];
+    const currentYearUnpaidMonths: number[] = [];
+    let totalEstimated = 0;
+    let baseFee = 0;
+
+    for (const yr of sortedYears) {
+      const yrContribs = studentContributions.filter(c => Number(c.reference_year) === yr);
+      const paidMonths = yrContribs.map(c => Number(c.reference_month));
+      const plan = getStudentContributionPlan(student, studentClass, yr, paidMonths, activeSettings, {
+        enrollments,
+        classes
       });
 
+      const unpaidMonths = plan.expectedPeriods.filter(m => {
+        if (paidMonths.includes(m)) return false;
+        return isPeriodOverdue(m, yr, plan.meetingsStartMonth);
+      });
+
+      if (unpaidMonths.length > 0) {
+        const studentFee = financialConfigService.resolveFee({
+          year: yr,
+          classId: student.class_id || studentClass?.id,
+          className: studentClass?.name,
+          studentClass,
+          student,
+          subjectId: (student as any).subject_id || (student as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+          courseName: studentClass?.course || (student as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+          period: (student as any).period || studentClass?.period
+        });
+        if (!baseFee) baseFee = studentFee;
+        totalEstimated += unpaidMonths.length * studentFee;
+        unpaidMonths.forEach(m => {
+          if (yr === currentYear) currentYearUnpaidMonths.push(m);
+          pendingLabels.push(sortedYears.length > 1 && yr !== currentYear
+            ? `${formatContributionMonth(m)}/${yr}`
+            : formatContributionMonth(m));
+        });
+      }
+    }
+
+    if (pendingLabels.length > 0) {
       return {
-        months: unpaidMonths,
-        count: unpaidMonths.length,
-        studentFee,
-        totalEstimated: unpaidMonths.length * studentFee
+        months: currentYearUnpaidMonths,
+        labels: pendingLabels,
+        count: pendingLabels.length,
+        studentFee: baseFee,
+        totalEstimated
       };
     }
 
     return null;
-  }, [selectedStudentId, studentContributions, scopedStudents, classes, academicSettingsList]);
+  }, [selectedStudentId, studentContributions, scopedStudents, classes, academicSettingsList, enrollments]);
 
   // Handle auto-selection when coming from other screens (bloqueia aluno de outro polo)
   useEffect(() => {
@@ -1211,7 +1250,7 @@ export function StudentFicha() {
                     <div className="flex items-center gap-2 text-xs text-amber-900">
                       <AlertCircle className="text-amber-600 shrink-0" size={16} />
                       <span>
-                        <strong>Aviso de Mensalidades:</strong> {unpaidMonthsAlert.count} obrigação(ões) pendente(s) em {new Date().getFullYear()} ({unpaidMonthsAlert.months.map(m => formatContributionMonth(m)).join(', ')}).
+                        <strong>Aviso de Mensalidades:</strong> {unpaidMonthsAlert.count} obrigação(ões) pendente(s) ({unpaidMonthsAlert.labels.join(', ')}).
                       </span>
                     </div>
                     <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 border border-amber-300">

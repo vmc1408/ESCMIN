@@ -50,7 +50,8 @@ export interface Student {
   cpf?: string;
   rg?: string;
   birth_date?: string;
-  start_date?: string; // DD/MM/YYYY
+  start_date?: string; // DD/MM/YYYY ou YYYY-MM-DD
+  inactivation_date?: string; // YYYY-MM-DD
   status: StudentStatus;
   is_former_student: boolean;
   class_id?: string;
@@ -98,6 +99,7 @@ export interface Enrollment {
   unit_id?: string;
   status: EnrollmentStatus;
   enrollment_date: string;
+  inactivation_date?: string;
   user_id: string;
   created_at: string;
   fee_status?: 'paid' | 'pending' | 'exempt';
