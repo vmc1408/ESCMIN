@@ -1314,6 +1314,39 @@ export function StudentFicha() {
                     </div>
                   </div>
 
+                  {/* Indicação, Data e Motivo de Inativação (exibido apenas quando inativo) */}
+                  {activeStudent.status && activeStudent.status.toLowerCase() !== 'ativo' && (() => {
+                    const reasonText = activeStudent.inactivation_reason || activeStudent.observations?.match(/\[INATIVACAO_MOTIVO:([\s\S]*?)\]/)?.[1]?.trim() || '';
+                    return (
+                      <div className="bg-rose-50/70 border border-rose-200 rounded-lg p-3 space-y-1.5 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rose-200/80 pb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9.5px] font-black uppercase tracking-wider text-rose-900">
+                              Situação:
+                            </span>
+                            <span className="px-2 py-0.5 bg-rose-700 text-white rounded text-[9px] font-black uppercase tracking-wider">
+                              INATIVO{activeStudent.status.toLowerCase() !== 'inativo' ? ` — ${activeStudent.status}` : ''}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-rose-900">
+                            Data de Inativação:{' '}
+                            <span className="font-mono font-black">
+                              {activeStudent.inactivation_date ? formatDateForDisplay(activeStudent.inactivation_date) : 'Não informada'}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-800">
+                          <span className="font-bold uppercase text-[9.5px] text-rose-900 mr-1.5">
+                            Observação / Motivo:
+                          </span>
+                          <span className="font-medium">
+                            {reasonText || 'Não informado'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Identification & Document Fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                     <div className="space-y-2 bg-slate-50/50 p-3 border border-slate-100">
@@ -2011,11 +2044,43 @@ export function StudentFicha() {
                 </div>
                 <div className="col-span-4 flex items-baseline gap-2 justify-end">
                   <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500">Situação:</span>
-                  <span className="font-extrabold text-[9.5pt] uppercase text-slate-900 tracking-wide">
-                    {activeStudent.status || 'ATIVO'}
+                  <span className={cn(
+                    "font-extrabold text-[9.5pt] uppercase tracking-wide",
+                    activeStudent.status && activeStudent.status.toLowerCase() !== 'ativo'
+                      ? "text-rose-800"
+                      : "text-slate-900"
+                  )}>
+                    {activeStudent.status && activeStudent.status.toLowerCase() !== 'ativo'
+                      ? (activeStudent.status.toLowerCase() === 'inativo'
+                          ? 'INATIVO'
+                          : `INATIVO (${activeStudent.status.toUpperCase()})`)
+                      : (activeStudent.status || 'ATIVO')}
                   </span>
                 </div>
               </div>
+
+              {activeStudent.status && activeStudent.status.toLowerCase() !== 'ativo' && (() => {
+                const printReasonText = activeStudent.inactivation_reason || activeStudent.observations?.match(/\[INATIVACAO_MOTIVO:([\s\S]*?)\]/)?.[1]?.trim() || '';
+                return (
+                  <div className="pt-1.5 mt-1 border-t border-rose-200 bg-rose-50/50 px-2.5 py-1.5 rounded space-y-0.5 text-[8.5pt]">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-black uppercase tracking-wider text-rose-900">
+                        Registro de Inativação
+                      </span>
+                      <span className="font-bold text-slate-800">
+                        Data de Inativação:{' '}
+                        <span className="font-mono font-black">
+                          {activeStudent.inactivation_date ? formatDateForDisplay(activeStudent.inactivation_date) : 'Não informada'}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 text-slate-900">
+                      <span className="font-bold uppercase text-[8pt] text-slate-700 shrink-0">Motivo / Observação:</span>
+                      <span className="font-semibold">{printReasonText || 'Não informado'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* CONTROLE DE FREQUÊNCIA COM IDENTIFICAÇÃO POR SEMESTRE */}

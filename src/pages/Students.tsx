@@ -1869,20 +1869,33 @@ export function Students() {
 
       const effectiveStudentId = savedId || selectedStudent?.id;
 
-      // Auto-ensure enrollment in selected primary class preserving closed/historical enrollment cycles
+      // Auto-ensure enrollment in selected primary class preserving genuinely distinct historical cycles without duplicating identical rows
       if (effectiveStudentId) {
         try {
-          const isClosing = dataToSave.status && dataToSave.status !== 'Ativo';
+          const isClosing = Boolean(dataToSave.status && dataToSave.status !== 'Ativo');
           const targetEnrStatus = dataToSave.status === 'Concluído' ? 'Concluído' : (isClosing ? 'Inativo' : 'Ativo');
           const currentEnrs = await fetchQuery('enrollments', 'student_id', '==', effectiveStudentId).catch(() => []);
 
           if (isClosing && currentEnrs && currentEnrs.length > 0) {
             const exitDate = dataToSave.inactivation_date || todayYmd;
+            let backfilledCurrentClassExit = false;
             for (const enr of currentEnrs) {
               if (!enr.status || enr.status === 'Ativo') {
                 await saveData('enrollments', enr.id, {
                   status: targetEnrStatus,
                   inactivation_date: enr.inactivation_date || exitDate
+                });
+                if (enr.class_id === dataToSave.class_id) backfilledCurrentClassExit = true;
+              }
+            }
+            if (!backfilledCurrentClassExit && dataToSave.class_id) {
+              const latestMissingExit = currentEnrs
+                .filter((e: any) => e.class_id === dataToSave.class_id && !e.inactivation_date)
+                .sort((a: any, b: any) => String(b.enrollment_date || b.created_at || '').localeCompare(String(a.enrollment_date || a.created_at || '')))[0];
+              if (latestMissingExit) {
+                await saveData('enrollments', latestMissingExit.id, {
+                  status: targetEnrStatus,
+                  inactivation_date: exitDate
                 });
               }
             }
@@ -1891,20 +1904,25 @@ export function Students() {
               (e: any) => e.class_id === dataToSave.class_id && (!e.status || e.status === 'Ativo')
             );
             if (!activeForClass) {
-              const closedWithoutExitDate = (currentEnrs || []).find(
-                (e: any) => e.class_id === dataToSave.class_id && !e.inactivation_date
-              );
               const wasInactiveStudent = Boolean(selectedStudent && selectedStudent.status && selectedStudent.status !== 'Ativo');
-              if (closedWithoutExitDate && !wasInactiveStudent) {
-                await saveData('enrollments', closedWithoutExitDate.id, {
+              const newCycleDate = wasInactiveStudent
+                ? (targetClass?.start_date && parseDateToDB(targetClass.start_date) >= todayYmd.slice(0, 4) ? parseDateToDB(targetClass.start_date) : todayYmd)
+                : (dataToSave.start_date || todayYmd);
+              const normalizedNewCycleYmd = String(newCycleDate || '').split('T')[0];
+
+              const reusableEnrollment = (currentEnrs || []).find(
+                (e: any) =>
+                  e.class_id === dataToSave.class_id &&
+                  (!e.inactivation_date || String(e.enrollment_date || '').split('T')[0] === normalizedNewCycleYmd)
+              );
+
+              if (reusableEnrollment) {
+                await saveData('enrollments', reusableEnrollment.id, {
                   status: 'Ativo',
                   inactivation_date: null,
                   unit_id: studentUnitId
                 });
               } else {
-                const newCycleDate = wasInactiveStudent
-                  ? (targetClass?.start_date && parseDateToDB(targetClass.start_date) >= todayYmd.slice(0, 4) ? parseDateToDB(targetClass.start_date) : todayYmd)
-                  : (dataToSave.start_date || todayYmd);
                 await saveData('enrollments', undefined, {
                   student_id: effectiveStudentId,
                   class_id: dataToSave.class_id,
@@ -2221,6 +2239,14 @@ export function Students() {
   const PrintableGrade = () => {
     if (!selectedStudent) return null;
     const currentClass = classes.find(c => c.id === selectedStudent.class_id);
+    const isStudentInactive = Boolean(selectedStudent.status && selectedStudent.status.toLowerCase() !== 'ativo');
+    const studentInactivationReason =
+      selectedStudent.inactivation_reason ||
+      selectedStudent.observations?.match(/\[INATIVACAO_MOTIVO:([\s\S]*?)\]/)?.[1]?.trim() ||
+      '';
+    const studentInactivationDateLabel = selectedStudent.inactivation_date
+      ? formatDateForDisplay(selectedStudent.inactivation_date)
+      : 'Não informada';
     
     return (
       <div id="printable-student-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0 box-border printable-single-page">
@@ -2258,7 +2284,7 @@ export function Students() {
             </div>
 
             {/* Document Title with balanced breathing room */}
-            <div className="text-center mt-5 mb-5">
+            <div className={cn("text-center", isStudentInactive ? "mt-3 mb-3" : "mt-5 mb-5")}>
               <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-10 inline-block">
                 Ficha de Inscrição
               </h2>
@@ -2495,8 +2521,34 @@ export function Students() {
             </div>
           </div>
 
+          {/* INATIVAÇÃO / OBSERVAÇÃO (Exibido apenas quando o aluno está inativo; quando ativo, mantém a ficha normal) */}
+          {isStudentInactive && (
+            <div className="mt-2 mb-3 p-2.5 border-[1.5px] border-rose-800 bg-rose-50/40 rounded space-y-1.5 text-[7.8pt]">
+              <div className="flex items-center justify-between gap-4 border-b border-rose-300 pb-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-black uppercase tracking-wider text-rose-900">
+                    Situação do Aluno:
+                  </span>
+                  <span className="px-1.5 py-0.5 bg-rose-800 text-white font-black uppercase text-[7pt] tracking-wider rounded-[2px]">
+                    INATIVO{selectedStudent.status && selectedStudent.status.toLowerCase() !== 'inativo' ? ` — ${selectedStudent.status.toUpperCase()}` : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold uppercase text-slate-700">Data de Inativação:</span>
+                  <span className="font-black font-mono text-slate-950">{studentInactivationDateLabel}</span>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold uppercase shrink-0 text-slate-800">Motivo / Observação:</span>
+                <span className="flex-1 font-semibold text-slate-900 leading-snug">
+                  {studentInactivationReason || 'Não informado'}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* BASIC INFORMATION SECTION - NORMAS */}
-          <div className="mt-6 mb-6 p-3.5 bg-slate-50/80 border border-slate-300 rounded-md">
+          <div className={cn("p-3.5 bg-slate-50/80 border border-slate-300 rounded-md", isStudentInactive ? "mt-2 mb-3" : "mt-6 mb-6")}>
             <h4 className="text-[8pt] font-black uppercase text-center mb-1.5 tracking-wider text-slate-900 border-b border-slate-200 pb-1">
               Normas Básicas para Admissão
             </h4>
@@ -2766,10 +2818,39 @@ export function Students() {
   }, [studentEnrollments, primaryClsId, validClassIds]);
 
   const historicalEnrollments = React.useMemo(() => {
-    return studentEnrollments.filter(e => 
-      e.class_id &&
-      (e.status && e.status !== 'Ativo')
-    ).sort((a, b) => String(b.inactivation_date || b.enrollment_date || '').localeCompare(String(a.inactivation_date || a.enrollment_date || '')));
+    const sorted = studentEnrollments
+      .filter(e => e.class_id && e.status && e.status !== 'Ativo')
+      .sort((a, b) => {
+        const aExit = a.inactivation_date ? String(a.inactivation_date) : '';
+        const bExit = b.inactivation_date ? String(b.inactivation_date) : '';
+        // Prioriza registros com data de saída preenchida quando comparados com "Sem data"
+        if (Boolean(aExit) !== Boolean(bExit)) return aExit ? -1 : 1;
+        const cmpExit = bExit.localeCompare(aExit);
+        if (cmpExit !== 0) return cmpExit;
+        return String(b.enrollment_date || b.created_at || '').localeCompare(String(a.enrollment_date || a.created_at || ''));
+      });
+
+    const seenKeys = new Set<string>();
+    const deduped: Enrollment[] = [];
+    for (const enr of sorted) {
+      const startKey = enr.enrollment_date ? String(enr.enrollment_date).split('T')[0] : '';
+      const statusKey = String(enr.status || '').trim().toLowerCase();
+      // Agrupa entradas repetidas da mesma turma, data de início e status para evitar duplicidade visual sem efeito prático
+      const dedupeKey = `${enr.class_id}__${startKey}__${statusKey}`;
+      if (seenKeys.has(dedupeKey)) {
+        // Mantém separado apenas se possuir uma data de saída distinta e preenchida
+        const exitKey = enr.inactivation_date ? String(enr.inactivation_date).split('T')[0] : '';
+        const exactExitKey = `${dedupeKey}__${exitKey}`;
+        if (!exitKey || seenKeys.has(exactExitKey)) continue;
+        seenKeys.add(exactExitKey);
+      } else {
+        seenKeys.add(dedupeKey);
+        const exitKey = enr.inactivation_date ? String(enr.inactivation_date).split('T')[0] : '';
+        if (exitKey) seenKeys.add(`${dedupeKey}__${exitKey}`);
+      }
+      deduped.push(enr);
+    }
+    return deduped;
   }, [studentEnrollments]);
 
   const hasParallelCourses = secondaryEnrollments.length > 0;
@@ -4190,6 +4271,11 @@ export function Students() {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {historicalEnrollments.map((hEnr, hIdx) => {
                                   const hCls = classes.find(c => c.id === hEnr.class_id);
+                                  const isStudentInactive = Boolean(selectedStudent?.status && selectedStudent.status.toLowerCase() !== 'ativo');
+                                  const effectiveExitDate = hEnr.inactivation_date || (isStudentInactive && hEnr.class_id === selectedStudent?.class_id ? selectedStudent?.inactivation_date : '');
+                                  const badgeLabel = (isStudentInactive && hEnr.class_id === selectedStudent?.class_id && String(hEnr.status || '').toLowerCase() === 'inativo' && selectedStudent?.status)
+                                    ? selectedStudent.status
+                                    : hEnr.status;
                                   return (
                                     <div
                                       key={`hist-enr-${hEnr.id || hIdx}`}
@@ -4202,11 +4288,11 @@ export function Students() {
                                         <p className="text-slate-500 font-mono">
                                           Início: {hEnr.enrollment_date ? formatDateForDisplay(hEnr.enrollment_date) : 'N/I'}
                                           {' • '}
-                                          Saída: {hEnr.inactivation_date ? formatDateForDisplay(hEnr.inactivation_date) : 'Sem data'}
+                                          Saída: {effectiveExitDate ? formatDateForDisplay(effectiveExitDate) : 'Sem data'}
                                         </p>
                                       </div>
                                       <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 font-bold uppercase text-[9px] shrink-0">
-                                        {hEnr.status}
+                                        {badgeLabel}
                                       </span>
                                     </div>
                                   );
