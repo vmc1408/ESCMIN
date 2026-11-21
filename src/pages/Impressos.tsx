@@ -1387,7 +1387,7 @@ export function Impressos() {
                     value={signerName}
                     onChange={(e) => setSignerName(e.target.value)}
                     maxLength={35}
-                    title="Nome do responsável que assinará a certidão de quitação"
+                    title="Nome do responsável que assinará a declaração financeira"
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                   />
                 </div>
@@ -1398,7 +1398,7 @@ export function Impressos() {
                     value={signerTitle}
                     onChange={(e) => setSignerTitle(e.target.value)}
                     maxLength={30}
-                    title="Cargo exibido abaixo da assinatura na certidão"
+                    title="Cargo exibido abaixo da assinatura na declaração"
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold"
                   />
                 </div>
@@ -2209,7 +2209,7 @@ export function Impressos() {
             )}
 
 
-            {/* 5. DECLARAÇÃO DE QUITAÇÃO FINANCEIRA */}
+            {/* 5. DECLARAÇÃO FINANCEIRA */}
             {selectedType === 'quitacao' && (
               <div className="flex-1 min-h-0 flex flex-col justify-between pt-[10mm] pb-[14mm]">
                 {activeStudent ? (
@@ -2218,7 +2218,7 @@ export function Impressos() {
                       {/* Título Formal */}
                       <div className="text-center space-y-1.5">
                         <h2 className="text-[15pt] font-bold uppercase tracking-[0.18em] font-serif border-b-2 border-slate-900 pb-1.5 px-8 inline-block text-slate-950">
-                          Certidão de Quitação Financeira
+                          Declaração Financeira
                         </h2>
                         <p className="text-[8.5pt] text-slate-600 tracking-[0.16em] uppercase font-mono font-bold pt-0.5">
                           Exercício Letivo {new Date().getFullYear()} • Matrícula Nº {formatRegistrationNumber(activeStudent.registration_number)}
@@ -2257,7 +2257,7 @@ export function Impressos() {
                         )}
 
                         <p className="indent-8 pt-1">
-                          Por ser a expressão da verdade e a pedido da parte interessada para que conste e produza seus devidos efeitos legais, expedimos e assinamos o presente termo.
+                          Por ser a expressão da verdade e a pedido da parte interessada, expedimos e assinamos o presente termo.
                         </p>
                       </div>
                     </div>
@@ -2293,7 +2293,7 @@ export function Impressos() {
                     <div className="space-y-1.5 max-w-sm font-sans">
                       <h4 className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Nenhum Aluno Selecionado</h4>
                       <p className="text-[11px] text-slate-500 leading-normal">
-                        Para emitir a <strong>Certidão de Quitação Financeira</strong>, por favor busque e selecione o aluno desejado no painel de configurações à esquerda.
+                        Para emitir a <strong>Declaração Financeira</strong>, por favor busque e selecione o aluno desejado no painel de configurações à esquerda.
                       </p>
                     </div>
                   </div>

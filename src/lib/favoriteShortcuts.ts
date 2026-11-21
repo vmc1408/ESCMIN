@@ -291,8 +291,8 @@ export const ALL_SHORTCUT_REGISTRY: Record<string, ShortcutItem> = {
   },
   '/impressos?type=quitacao': {
     path: '/impressos?type=quitacao',
-    label: 'Certidão de Quitação',
-    subtitle: 'Declaração financeira',
+    label: 'Declaração Financeira',
+    subtitle: 'Situação junto à tesouraria',
     icon: BadgeCheck,
     iconBg: 'bg-emerald-50 border border-emerald-200/80',
     iconColor: 'text-emerald-700'

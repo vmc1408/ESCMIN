@@ -106,7 +106,7 @@ const navItems = [
           { icon: PixIcon, label: 'Contribuições', path: '/contributions', tooltip: 'Lançar e controlar mensalidades, taxas de matrícula e pagamentos' },
           { icon: ReportsIcon, label: 'Relatório Financeiro', path: '/financial-report', tooltip: 'Analisar previsto versus realizado, inadimplência e extratos' },
           { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference', tooltip: 'Conciliar extratos bancários e comprovantes Pix com alunos' },
-          { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao', tooltip: 'Emitir certidão negativa de débitos e quitação financeira' },
+          { icon: CertificateIcon, label: 'Declaração Financeira', path: '/impressos?type=quitacao', tooltip: 'Emitir declaração financeira e demonstrativo de situação junto à tesouraria' },
           { icon: FileText, label: 'Recibos', path: '/receipts', tooltip: 'Consultar, reimprimir e gerenciar recibos financeiros emitidos' },
         ]
       },
