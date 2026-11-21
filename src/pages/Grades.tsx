@@ -97,7 +97,7 @@ export function Grades() {
   const fetchData = React.useCallback(async () => {
     const [params, classesData, subjectsData, instSettings, teachersData] = await Promise.all([
       fetchAll('academic_parameters', '*', ''), // Passing empty string to avoid ordering by created_at
-      fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+      fetchAll('classes', '*', 'name'),
       fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
       financialService.getInstitutionSettings(),
       fetchAll('teachers', '*', 'name')
@@ -115,6 +115,9 @@ export function Grades() {
     const normalizedClasses = (classesData || []).map((cls: any) => normalizeClass(cls, normalizedSubjects));
 
     const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
+      const activeA = !a.status || a.status === 'Ativo';
+      const activeB = !b.status || b.status === 'Ativo';
+      if (activeA !== activeB) return activeA ? -1 : 1;
       const extract = (s: string) => {
         const match = s.match(/\d+/);
         const yrStr = match ? match[0] : '0';
@@ -1144,9 +1147,10 @@ export function Grades() {
                 </option>
                 {availableClasses.map((c, idx) => {
                   const clsUnitName = getUnitName(getItemUnitId(c));
+                  const statusTag = c.status && c.status !== 'Ativo' ? ` • [${String(c.status).toUpperCase()}]` : '';
                   return (
                     <option key={`grd-cls-${c.id}-${idx}`} value={c.id}>
-                      {c.name} ({c.code}){clsUnitName && units.length > 1 ? ` • [${clsUnitName}]` : ''}
+                      {c.name} ({c.code}){clsUnitName && units.length > 1 ? ` • [${clsUnitName}]` : ''}{statusTag}
                     </option>
                   );
                 })}

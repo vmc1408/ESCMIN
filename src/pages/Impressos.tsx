@@ -22,7 +22,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
 import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
-import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank, isInstitutionPhoneWhatsapp, isStudentActive } from '../lib/utils';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
@@ -256,6 +256,10 @@ export function Impressos() {
               (e.status || 'Ativo') === 'Ativo' && 
               e.class_id && 
               validClassIds.has(e.class_id)
+            ) || (enrollmentsData || []).find((e: any) => 
+              e.student_id === s.id && 
+              e.class_id && 
+              validClassIds.has(e.class_id)
             );
             return {
               ...s,
@@ -357,6 +361,8 @@ export function Impressos() {
     }
     const activeEnr = enrollments.find(
       (e: any) => e.student_id === activeStudent.id && (e.status || 'Ativo') === 'Ativo' && e.class_id
+    ) || enrollments.find(
+      (e: any) => e.student_id === activeStudent.id && e.class_id
     );
     return activeEnr ? classes.find(c => c.id === activeEnr.class_id) || null : null;
   }, [activeStudent, classes, enrollments]);
@@ -383,15 +389,19 @@ export function Impressos() {
   // Find pending payments for the activeStudent
   const pendingPayments = useMemo(() => {
     if (!activeStudent) return { isPending: false, months: [], year: new Date().getFullYear() };
+
+    const currentYear = new Date().getFullYear();
+    if (!isStudentActive(activeStudent)) {
+      return { isPending: false, months: [], year: currentYear };
+    }
     
     // Filter contributions for this student in the current year
-    const currentYear = new Date().getFullYear();
     const studentConts = contributions.filter(
-      c => c.student_id === activeStudent.id && c.reference_year === currentYear
+      c => c.student_id === activeStudent.id && Number(c.reference_year) === currentYear
     );
     
     const studentClass = classes.find(c => c.id === activeStudent.class_id);
-    const paidMonths = studentConts.map(c => c.reference_month);
+    const paidMonths = studentConts.map(c => Number(c.reference_month));
     const plan = getStudentContributionPlan(activeStudent, studentClass, currentYear, paidMonths);
 
     // Meses ou períodos vencidos até o momento atual

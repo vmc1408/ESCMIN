@@ -24,7 +24,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStudentActive, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesSearchText } from '../lib/utils';
+import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStudentActive, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesSearchText, mergeClassStudentsWithHistory, formatStudentDisplayName } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -489,8 +489,15 @@ export function Documents() {
       const normalizedSubjects = (subs || []).map((s: any) => normalizeSubject(s));
       const normalizedClasses = (clss || []).map((cls: Class) => normalizeClass(cls, normalizedSubjects));
       
-      setClasses(normalizedClasses.filter((c: any) => c.status === 'Ativo'));
-      setSubjects(normalizedSubjects.filter((sub: any) => sub.status === 'Ativo' || !sub.status));
+      const sortedClasses = [...normalizedClasses].sort((a: any, b: any) => {
+        const activeA = !a.status || a.status === 'Ativo';
+        const activeB = !b.status || b.status === 'Ativo';
+        if (activeA !== activeB) return activeA ? -1 : 1;
+        return (a.name || '').localeCompare(b.name || '', 'pt-BR');
+      });
+
+      setClasses(sortedClasses);
+      setSubjects(normalizedSubjects);
       setAssessments(assms || []);
       setDbGrades(grds || []);
       setAttendanceData(atts || []);
@@ -547,12 +554,26 @@ export function Documents() {
       }
     }
 
-    const classSubjects = subjects.filter(sub => {
-      if (sIds.length > 0) return sIds.includes(sub.id);
-      return assessments.some(a => a.class_id === selectedClassId && a.subject_id === sub.id);
+    const classSubjects = getClassSubjects(classObj, subjects, assessments, dbGrades, attendanceData);
+
+    const historyIds = new Set<string>();
+    attendanceData.forEach(a => {
+      if (a.class_id === selectedClassId && a.student_id && a.status) historyIds.add(String(a.student_id));
+    });
+    dbGrades.forEach(g => {
+      if (g.class_id === selectedClassId && g.student_id && g.value !== null && g.value !== undefined && g.value !== '') {
+        historyIds.add(String(g.student_id));
+      }
+    });
+    certificates.forEach(cert => {
+      if (cert.student_id && (!classObj?.name || (cert.course || '').includes(classObj.name))) {
+        historyIds.add(String(cert.student_id));
+      }
     });
 
-    const enrolledStudents = filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
+    const enrolledStudents = classObj && classObj.status && classObj.status !== 'Ativo'
+      ? filterStudentsForClass(scopedStudents, selectedClassId, enrollments, false)
+      : mergeClassStudentsWithHistory(scopedStudents, selectedClassId, enrollments, historyIds);
 
     return enrolledStudents
       .map(student => {
@@ -1082,7 +1103,12 @@ export function Documents() {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                     >
                       <option value="">Selecione a turma...</option>
-                      {scopedClasses.map((c, cIdx) => <option key={`doc-cls-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>)}
+                      {scopedClasses.map((c, cIdx) => {
+                        const statusTag = c.status && c.status !== 'Ativo' ? ` [${String(c.status).toUpperCase()}]` : '';
+                        return (
+                          <option key={`doc-cls-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}{statusTag}</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -1137,7 +1163,7 @@ export function Documents() {
                           <div key={cs.student.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/40 transition-colors">
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-bold text-slate-850 uppercase">{cs.student.name}</span>
+                                <span className="text-xs font-bold text-slate-850 uppercase">{formatStudentDisplayName(cs.student, true)}</span>
                                 <span className="text-[9.5px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 border border-slate-200">
                                   Matrícula: {formatRegistrationNumber(cs.student.registration_number, 'N/D')}
                                 </span>

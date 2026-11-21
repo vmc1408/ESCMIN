@@ -1084,9 +1084,42 @@ export function Students() {
   const handleRemoveEnrollment = async (enrollmentId: string) => {
     try {
       const enrToRemove = studentEnrollments.find(e => e.id === enrollmentId);
-      await deleteData('enrollments', enrollmentId);
+      let hasHistory = false;
 
-      // If this removed enrollment was the student's primary class_id, re-evaluate primary class
+      if (enrToRemove && selectedStudent) {
+        const hasPaidFee =
+          enrToRemove.fee_status === 'paid' ||
+          String(enrToRemove.fee_status || '').toLowerCase() === 'pago' ||
+          Boolean(enrToRemove.fee_contribution_id);
+
+        if (hasPaidFee) {
+          hasHistory = true;
+        } else if (enrToRemove.class_id) {
+          const [attRows, gradeRows] = await Promise.all([
+            fetchQuery('attendances', [
+              { field: 'student_id', operator: '==', value: selectedStudent.id },
+              { field: 'class_id', operator: '==', value: enrToRemove.class_id }
+            ]).catch(() => []),
+            fetchQuery('grades', [
+              { field: 'student_id', operator: '==', value: selectedStudent.id },
+              { field: 'class_id', operator: '==', value: enrToRemove.class_id }
+            ]).catch(() => [])
+          ]);
+          if ((attRows && attRows.length > 0) || (gradeRows && gradeRows.length > 0)) {
+            hasHistory = true;
+          }
+        }
+      }
+
+      if (hasHistory && enrToRemove) {
+        await saveData('enrollments', enrollmentId, {
+          status: 'Trancado'
+        });
+      } else {
+        await deleteData('enrollments', enrollmentId);
+      }
+
+      // If this removed/inactivated enrollment was the student's primary class_id, re-evaluate primary class
       if (enrToRemove && selectedStudent && selectedStudent.class_id === enrToRemove.class_id) {
         const remaining = studentEnrollments.filter(e => e.id !== enrollmentId && (e.status || 'Ativo') === 'Ativo');
         const nextPrimaryClassId = remaining[0]?.class_id || null;
@@ -1110,7 +1143,12 @@ export function Students() {
         }) : null);
       }
 
-      setNotification({ type: 'success', message: 'Matrícula removida com sucesso!' });
+      setNotification({
+        type: 'success',
+        message: hasHistory
+          ? 'Matrícula encerrada (Trancado) para preservar o histórico acadêmico/financeiro vinculado!'
+          : 'Matrícula removida com sucesso!'
+      });
       if (selectedStudent) fetchEnrollments(selectedStudent.id);
       fetchAllEnrollments();
       fetchStudents();

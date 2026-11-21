@@ -21,7 +21,7 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText, calculateAge, isInstitutionPhoneWhatsapp, isStudentActive } from '../lib/utils';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
@@ -460,6 +460,10 @@ export function StudentFicha() {
             (e.status || 'Ativo') === 'Ativo' && 
             e.class_id && 
             validClassIds.has(e.class_id)
+          ) || (enrollmentsData || []).find((e: any) =>
+            e.student_id === s.id &&
+            e.class_id &&
+            validClassIds.has(e.class_id)
           );
           return {
             ...s,
@@ -527,7 +531,7 @@ export function StudentFicha() {
   // Compute unpaid months alert for the current year
   const unpaidMonthsAlert = useMemo(() => {
     const student = scopedStudents.find(s => s.id === selectedStudentId);
-    if (!student || student.status !== 'Ativo') return null;
+    if (!student || !isStudentActive(student)) return null;
 
     const currentYear = new Date().getFullYear();
 
@@ -543,7 +547,7 @@ export function StudentFicha() {
     const { settings: unitSettings } = resolveAcademicSettingsForUnit(studentUnit, academicSettingsList);
     const activeSettings = classSettings || unitSettings;
 
-    const paidMonths = studentContributions.map(c => c.reference_month);
+    const paidMonths = studentContributions.map(c => Number(c.reference_month));
     const plan = getStudentContributionPlan(student, studentClass, currentYear, paidMonths, activeSettings);
 
     // Meses ou períodos vencidos até o momento atual

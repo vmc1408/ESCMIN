@@ -27,7 +27,7 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject, Teacher } from '../types';
-import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass, isSubjectActive } from '../lib/utils';
+import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects, doesSubjectYearMatchClass, isSubjectActive, mergeClassStudentsWithHistory } from '../lib/utils';
 import { detectSubjectSemester, getAvailablePeriodsForSubject } from '../lib/academicUtils';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
@@ -111,7 +111,7 @@ export const Assessments: React.FC = () => {
     try {
       const [assessData, classesData, subjectsData, studentsData, enrollmentsData, gradesData, teachersData] = await Promise.all([
         fetchAll('assessments'),
-        fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+        fetchAll('classes', '*', 'name'),
         fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
         fetchAll('students'),
         fetchAll('enrollments').catch(() => []),
@@ -123,8 +123,11 @@ export const Assessments: React.FC = () => {
       const normalizedClasses = (classesData || []).map((cls: any) => normalizeClass(cls, normalizedSubjects));
 
       const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
+        const activeA = !a.status || a.status === 'Ativo';
+        const activeB = !b.status || b.status === 'Ativo';
+        if (activeA !== activeB) return activeA ? -1 : 1;
         const extract = (s: string) => {
-          const match = s.match(/\d{4}/);
+          const match = s.match(/\d+/);
           const yr = match ? parseInt(match[0]) : 0;
           const name = s.replace(/\d{4}/, '').trim().toLowerCase();
           return { yr, name };
@@ -139,6 +142,7 @@ export const Assessments: React.FC = () => {
       setClasses(sortedClasses as Class[] || []);
       setSubjects(normalizedSubjects as Subject[] || []);
       setStudents(studentsData || []);
+      setEnrollments(enrollmentsData || []);
       setGrades(gradesData || []);
       setTeachers(teachersData || []);
     } catch (error: any) {
@@ -613,7 +617,12 @@ export const Assessments: React.FC = () => {
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Turmas</option>
-                  {availableClasses.map((c, idx) => <option key={`ass-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)}
+                  {availableClasses.map((c, idx) => {
+                    const statusTag = c.status && c.status !== 'Ativo' ? ` [${String(c.status).toUpperCase()}]` : '';
+                    return (
+                      <option key={`ass-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}{statusTag}</option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -741,16 +750,15 @@ export const Assessments: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {filteredAssessments.map((a, aIdx) => {
-              // Calculate status values dynamically
-              const classStudents = filterStudentsForClass(students, a.class_id, enrollments, true);
-              const totalClassStudentsCount = classStudents.length;
-              
               const registeredGradesForAssessment = grades.filter(g => 
                 g.class_id === a.class_id && 
                 g.subject_id === a.subject_id && 
                 (g.period === a.id || g.period === a.title) &&
                 g.value !== null && g.value !== undefined && g.value !== ''
               );
+              const historyIds = new Set<string>(registeredGradesForAssessment.map(g => String(g.student_id)).filter(Boolean));
+              const classStudents = mergeClassStudentsWithHistory(students, a.class_id, enrollments, historyIds);
+              const totalClassStudentsCount = classStudents.length;
               const registeredGradesCount = registeredGradesForAssessment.length;
               const hasGrades = registeredGradesCount > 0;
               const isDiaryComplete = totalClassStudentsCount > 0 && registeredGradesCount === totalClassStudentsCount;

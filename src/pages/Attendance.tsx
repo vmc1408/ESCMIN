@@ -118,6 +118,7 @@ interface Class {
   name: string;
   code: string;
   room?: string;
+  status?: 'Ativo' | 'Inativo' | 'Encerrada' | string;
   year?: string;
   semester?: string;
   subject_ids?: string[];
@@ -246,7 +247,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const fetchData = React.useCallback(async () => {
     try {
       const [classesData, subjectsData, paramsData, settingsData, instData, teachersData] = await Promise.all([
-        fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+        fetchAll('classes', '*', 'name'),
         fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
         fetchAll('academic_parameters', '*', ''),
         fetchAll('academic_settings', '*', '').catch(() => []),
@@ -282,6 +283,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const normalizedClasses = (classesData || []).map((cls: any) => normalizeClass(cls, normalizedSubjects));
 
       const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
+        const activeA = !a.status || a.status === 'Ativo';
+        const activeB = !b.status || b.status === 'Ativo';
+        if (activeA !== activeB) return activeA ? -1 : 1;
         const extract = (s: string) => {
           const match = s.match(/\d+/);
           const yrStr = match ? match[0] : '0';
@@ -2458,9 +2462,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       </option>
                       {availableClasses.map((c, idx) => {
                         const clsUnitName = getUnitName(getItemUnitId(c));
+                        const statusTag = c.status && c.status !== 'Ativo' ? ` • [${String(c.status).toUpperCase()}]` : '';
                         return (
                           <option key={`att-cls-${c.id}-${idx}`} value={c.id}>
-                            {c.name} ({c.code}){clsUnitName && units.length > 1 ? ` • [${clsUnitName}]` : ''}
+                            {c.name} ({c.code}){clsUnitName && units.length > 1 ? ` • [${clsUnitName}]` : ''}{statusTag}
                           </option>
                         );
                       })}

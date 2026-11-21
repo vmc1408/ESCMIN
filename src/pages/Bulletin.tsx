@@ -90,7 +90,7 @@ export function Bulletin() {
           instSettings,
           acadSettings
         ] = await Promise.all([
-          fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+          fetchAll('classes', '*', 'name'),
           fetchAll('subjects', 'id,name,code,year,semester,status,program_content,teacher_id'),
           fetchAll('students', 'id,name,registration_number,class_id,unit_id,status,observations'),
           fetchAll('enrollments', 'id,student_id,class_id,status').catch(() => []),
@@ -103,9 +103,12 @@ export function Bulletin() {
         const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
         const normalizedClasses = (classesData || []).map((c: any) => normalizeClass(c, normalizedSubjects));
 
-        const sortedClasses = normalizedClasses.sort((a: any, b: any) => 
-          (a.name || '').localeCompare(b.name || '')
-        );
+        const sortedClasses = normalizedClasses.sort((a: any, b: any) => {
+          const activeA = !a.status || a.status === 'Ativo';
+          const activeB = !b.status || b.status === 'Ativo';
+          if (activeA !== activeB) return activeA ? -1 : 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
 
         setClasses(sortedClasses);
         setSubjects(normalizedSubjects);
@@ -1384,9 +1387,12 @@ export function Bulletin() {
                     className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                   >
                     <option value="">SELECIONAR TURMA...</option>
-                    {scopedClasses.map((c, idx) => (
-                      <option key={`blt-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
-                    ))}
+                    {scopedClasses.map((c, idx) => {
+                      const statusTag = c.status && c.status !== 'Ativo' ? ` [${String(c.status).toUpperCase()}]` : '';
+                      return (
+                        <option key={`blt-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}{statusTag}</option>
+                      );
+                    })}
                   </select>
                   <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                 </div>
@@ -1407,7 +1413,7 @@ export function Bulletin() {
                       className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                     >
                       {classStudents.length === 0 ? (
-                        <option value="">Nenhum Aluno Ativo Encontrado</option>
+                        <option value="">Nenhum Aluno Encontrado</option>
                       ) : (
                         classStudents.map((s, idx) => (
                           <option key={`blt-stu-opt-${s.id || idx}-${idx}`} value={s.id}>
@@ -1849,8 +1855,8 @@ export function Bulletin() {
             ) : (
               <div className="bg-white border border-slate-200 p-8 text-center rounded-lg print:hidden">
                 <AlertTriangle className="text-amber-500 mx-auto mb-3" size={24} />
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Nenhum Aluno Ativo</h3>
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Essa turma não possui alunos regularmente matriculados.</p>
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Nenhum Aluno Encontrado</h3>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Essa turma não possui alunos ou histórico vinculado.</p>
               </div>
             )
           ) : (
@@ -1859,7 +1865,7 @@ export function Bulletin() {
               {/* Class Summary widgets */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 print:hidden">
                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg shadow-none">
-                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
+                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos na Pauta</p>
                    <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
                  </div>
                  <div className="bg-blue-50/50 border border-blue-250 p-5 rounded-lg shadow-none border-l-4 border-l-blue-600">

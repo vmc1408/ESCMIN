@@ -3009,7 +3009,7 @@ export function Reports() {
                          <span className="relative flex h-1.5 w-1.5">
                             <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                          </span>
-                         <span>{filterStudentsForClass(scopedStudents, selectedDiarioClass, enrollments, true).length} Alunos Ativos</span>
+                         <span>{diarioClassResults.length} Alunos na Pauta</span>
                       </div>
                    </div>
                 )}
@@ -3036,9 +3036,19 @@ export function Reports() {
                               className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                             >
                               <option value="">SELECIONAR TURMA...</option>
-                              {scopedClasses.filter(c => c.status === 'Ativo' || !c.status).map((c, cIdx) => (
-                                <option key={`rep-opt-c-${c.id || c.code || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
-                              ))}
+                              {[...scopedClasses]
+                                .sort((a, b) => {
+                                  const actA = !a.status || a.status === 'Ativo';
+                                  const actB = !b.status || b.status === 'Ativo';
+                                  if (actA !== actB) return actA ? -1 : 1;
+                                  return (a.name || '').localeCompare(b.name || '', 'pt-BR');
+                                })
+                                .map((c, cIdx) => {
+                                  const tag = c.status && c.status !== 'Ativo' ? ` [${String(c.status).toUpperCase()}]` : '';
+                                  return (
+                                    <option key={`rep-opt-c-${c.id || c.code || cIdx}-${cIdx}`} value={c.id}>{c.name}{tag}</option>
+                                  );
+                                })}
                             </select>
                             <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                          </div>
@@ -3157,7 +3167,7 @@ export function Reports() {
                         {/* Class Summary widgets */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                            <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg shadow-none">
-                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
+                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos na Pauta</p>
                              <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
                            </div>
                            <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-lg shadow-none border-l-4 border-l-emerald-600">
@@ -4089,16 +4099,17 @@ export function Reports() {
 
             <div className="space-y-6">
               {filteredClasses.map((c, cIdx) => {
-                const classStudents = filterStudentsForClass(scopedStudents, c.id, enrollments, true);
+                const isClsClosed = c.status && c.status !== 'Ativo';
+                const classStudents = filterStudentsForClass(scopedStudents, c.id, enrollments, !isClsClosed);
                 return (
                   <div key={cIdx} className="border border-slate-200 rounded-xl overflow-hidden">
                     <div className="bg-slate-100 px-4 py-2.5 flex items-center justify-between border-b border-slate-200">
                       <div>
                         <span className="font-black text-[#00174b] uppercase text-xs">{c.name}</span>
-                        <span className="text-[10px] text-slate-500 font-bold ml-2">Código: {c.code} • Turno: {c.period || 'Geral'}</span>
+                        <span className="text-[10px] text-slate-500 font-bold ml-2">Código: {c.code} • Turno: {c.period || 'Geral'}{isClsClosed ? ` • [${String(c.status).toUpperCase()}]` : ''}</span>
                       </div>
                       <span className="text-xs font-black text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                        {classStudents.length} Aluno(s) Matriculado(s)
+                        {classStudents.length} Aluno(s) {isClsClosed ? 'Vinculado(s)' : 'Matriculado(s)'}
                       </span>
                     </div>
 
@@ -4118,9 +4129,9 @@ export function Reports() {
                             <tr key={sIdx} className={sIdx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
                               <td className="p-2 text-slate-400 font-bold">{sIdx + 1}</td>
                               <td className="p-2 font-mono font-bold text-slate-700 text-[11px]">{formatRegistrationNumber(s.registration_number)}</td>
-                              <td className="p-2 font-bold text-slate-900 uppercase">{s.name}</td>
+                              <td className="p-2 font-bold text-slate-900 uppercase">{formatStudentDisplayName(s, true)}</td>
                               <td className="p-2 text-slate-600">{(s as any).phone_mobile || (s as any).phone || (s as any).whatsapp || '---'}</td>
-                              <td className="p-2 text-right font-bold text-emerald-700 uppercase text-[10px]">{s.status || 'Ativo'}</td>
+                              <td className={cn("p-2 text-right font-bold uppercase text-[10px]", isStudentActive(s) ? "text-emerald-700" : "text-amber-700")}>{s.status || 'Ativo'}</td>
                             </tr>
                           ))
                         ) : (

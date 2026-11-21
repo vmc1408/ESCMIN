@@ -615,21 +615,32 @@ export const academicSecurityService = {
         gradesCount,
         contributionsCount,
         receiptsCount,
-        certificatesCount
+        certificatesCount,
+        pixCount,
+        paidEnrollmentRes
       ] = await Promise.all([
         supabase.from('students').select('id, name').eq('id', studentId).maybeSingle(),
         countTableRows('attendances', 'student_id', studentId),
         countTableRows('grades', 'student_id', studentId),
         countTableRows('contributions', 'student_id', studentId),
         countTableRows('receipts', 'student_id', studentId),
-        countTableRows('certificates', 'student_id', studentId)
+        countTableRows('certificates', 'student_id', studentId),
+        countTableRows('pix_reconciliations', 'matched_student_id', studentId),
+        supabase
+          .from('enrollments')
+          .select('id', { count: 'exact', head: true })
+          .eq('student_id', studentId)
+          .or('fee_status.eq.paid,fee_status.eq.Pago,fee_contribution_id.not.is.null')
       ]);
 
+      const paidEnrollmentsCount = paidEnrollmentRes?.error ? 0 : (paidEnrollmentRes?.count || 0);
       const entityName = studentData?.name || knownName || 'Aluno';
       const breakdown: HistoryBreakdownItem[] = [
         { label: 'Registros de Frequência / Chamadas', count: attendancesCount },
         { label: 'Notas / Avaliações Lançadas', count: gradesCount },
         { label: 'Contribuições / Mensalidades', count: contributionsCount },
+        { label: 'Conciliações Pix Vinculadas', count: pixCount },
+        { label: 'Matrículas com Taxa Paga', count: paidEnrollmentsCount },
         { label: 'Recibos Financeiros', count: receiptsCount },
         { label: 'Certificados Emitidos', count: certificatesCount }
       ].filter(item => item.count > 0);
@@ -822,11 +833,25 @@ export const academicSecurityService = {
       const linkedClassesCount = (classesData || []).filter((c: any) => c.teacher_id === teacherId).length;
       const entityName = teacherData?.name || knownName || 'Professor';
 
+      let teacherReceiptsCount = 0;
+      if (teacherData?.name && teacherData.name.trim()) {
+        try {
+          const { count } = await supabase
+            .from('receipts')
+            .select('id', { count: 'exact', head: true })
+            .ilike('payee_name', teacherData.name.trim());
+          teacherReceiptsCount = count || 0;
+        } catch {
+          teacherReceiptsCount = 0;
+        }
+      }
+
       const breakdown: HistoryBreakdownItem[] = [
         { label: 'Disciplinas Atribuídas', count: directlyTaughtSubjectIds.length || linkedSubjectList.length },
         { label: 'Turmas Vinculadas', count: linkedClassesCount },
         { label: 'Chamadas nas Disciplinas Lecionadas', count: subjectAttendancesCount },
         { label: 'Notas nas Disciplinas Lecionadas', count: subjectGradesCount },
+        { label: 'Recibos Financeiros Emitidos', count: teacherReceiptsCount },
         { label: 'Eventos no Calendário', count: calendarCount }
       ].filter(item => item.count > 0);
 

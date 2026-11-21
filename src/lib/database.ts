@@ -623,9 +623,6 @@ export const deleteData = async (collectionName: string, id: string) => {
       try {
         await supabase.from('enrollments').delete().eq('student_id', id);
       } catch (e) {}
-      try {
-        await supabase.from('pix_reconciliations').update({ matched_student_id: null }).eq('matched_student_id', id);
-      } catch (e) {}
     } else if (collectionName === 'teachers') {
       try {
         await supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', id);
@@ -718,9 +715,6 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
   } else if (collectionName === 'students') {
     try {
       await supabase.from('enrollments').delete().in('student_id', ids);
-    } catch (e) {}
-    try {
-      await supabase.from('pix_reconciliations').update({ matched_student_id: null }).in('matched_student_id', ids);
     } catch (e) {}
   } else if (collectionName === 'teachers') {
     try {
