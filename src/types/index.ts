@@ -40,7 +40,7 @@ export interface Unit {
   color?: string; // Cor exclusiva da unidade / polo
 }
 
-export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Suspenso';
+export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Desistente' | 'Suspenso';
 
 export interface Student {
   id: string;
@@ -52,6 +52,7 @@ export interface Student {
   birth_date?: string;
   start_date?: string; // DD/MM/YYYY ou YYYY-MM-DD
   inactivation_date?: string; // YYYY-MM-DD
+  inactivation_reason?: string; // Motivo da inativação
   status: StudentStatus;
   is_former_student: boolean;
   class_id?: string;

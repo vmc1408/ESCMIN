@@ -39,6 +39,7 @@
         "birth_date": { "type": "string" },
         "start_date": { "type": "string" },
         "inactivation_date": { "type": "string", "format": "date" },
+        "inactivation_reason": { "type": "string" },
         "status": { "type": "string" },
         "is_former_student": { "type": "boolean" },
         "class_id": { "type": "string" },

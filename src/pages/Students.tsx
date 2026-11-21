@@ -222,6 +222,7 @@ const INITIAL_STUDENT_STATE: Partial<Student> = {
   pastoral_participates: '',
   start_date: '',
   inactivation_date: '',
+  inactivation_reason: '',
   photo_url: '',
   unit_id: 'matriz'
 };
@@ -616,12 +617,19 @@ export function Students() {
         const startDate = s.start_date || schedDate || targetClass?.start_date || '';
 
         let resolvedUnitId = s.unit_id;
+        let parsedInactivationReason = s.inactivation_reason || '';
         if (s.observations) {
           const match = s.observations.match(/\[UNIT_ID:([^\]]+)\]/);
           if (match && match[1]) {
             const parsed = match[1].trim();
             if (parsed && (!resolvedUnitId || resolvedUnitId === 'matriz' || parsed !== 'matriz')) {
               resolvedUnitId = parsed;
+            }
+          }
+          if (!parsedInactivationReason) {
+            const reasonMatch = s.observations.match(/\[INATIVACAO_MOTIVO:([\s\S]*?)\]/);
+            if (reasonMatch && reasonMatch[1]) {
+              parsedInactivationReason = reasonMatch[1].trim();
             }
           }
         }
@@ -634,7 +642,8 @@ export function Students() {
           unit_id: resolvedUnitId || s.unit_id,
           class_id: effectiveClassId,
           course: effectiveCourse,
-          start_date: startDate
+          start_date: startDate,
+          inactivation_reason: parsedInactivationReason
         };
       });
 
@@ -781,6 +790,7 @@ export function Students() {
       course: detectedCourse,
       start_date: startDate,
       inactivation_date: student.inactivation_date ? student.inactivation_date.split('T')[0] : '',
+      inactivation_reason: student.inactivation_reason || (student.observations?.match(/\[INATIVACAO_MOTIVO:([\s\S]*?)\]/)?.[1]?.trim() || ''),
       unit_id: studentUnitId,
       email: student.email || '',
       phone_mobile: student.phone_mobile || '',
@@ -1659,6 +1669,9 @@ export function Students() {
       const resolvedInactivationDate = isInactiveStatus
         ? (parseDateToDB(formData.inactivation_date) || selectedStudent?.inactivation_date || todayYmd)
         : null;
+      const resolvedInactivationReason = isInactiveStatus
+        ? ((formData.inactivation_reason || '').trim() || null)
+        : null;
 
       const dataToSave: any = { 
         ...formData,
@@ -1666,13 +1679,20 @@ export function Students() {
         birth_date: parseDateToDB(formData.birth_date),
         start_date: finalStartDate,
         inactivation_date: resolvedInactivationDate,
+        inactivation_reason: resolvedInactivationReason,
         class_id: formData.class_id || null,
         course: resolvedCourse || null
       };
 
-      // Ensure unit_id is also preserved in observations metadata
-      let cleanStudentObs = (dataToSave.observations || '').replace(/\[UNIT_ID:[^\]]+\]/g, '').trim();
-      dataToSave.observations = `${cleanStudentObs} [UNIT_ID:${studentUnitId}]`.trim();
+      // Ensure unit_id and inactivation reason are also preserved in observations metadata
+      let cleanStudentObs = (dataToSave.observations || '')
+        .replace(/\[UNIT_ID:[^\]]+\]/g, '')
+        .replace(/\[INATIVACAO_MOTIVO:[\s\S]*?\]/g, '')
+        .trim();
+      const reasonTag = resolvedInactivationReason
+        ? ` [INATIVACAO_MOTIVO:${resolvedInactivationReason.replace(/[\[\]]/g, '')}]`
+        : '';
+      dataToSave.observations = `${cleanStudentObs} [UNIT_ID:${studentUnitId}]${reasonTag}`.trim();
 
       // Set created_at only if it's the first time saving (no id)
       const isNew = !selectedStudent?.id;
@@ -1838,7 +1858,7 @@ export function Students() {
 
   const handleToggleStudentStatus = useCallback(async () => {
     if (!selectedStudent?.id) return;
-    const isCurrentlyInactive = formData.status === 'Inativo';
+    const isCurrentlyInactive = Boolean(formData.status && formData.status.toLowerCase() !== 'ativo');
     const newStatus = isCurrentlyInactive ? 'Ativo' : 'Inativo';
     const todayYmd = new Date().toISOString().split('T')[0];
     const confirmMsg = isCurrentlyInactive
@@ -1855,7 +1875,8 @@ export function Students() {
 
       await saveData('students', selectedStudent.id, {
         status: newStatus,
-        inactivation_date: nextExitDate
+        inactivation_date: nextExitDate,
+        ...(isCurrentlyInactive ? { inactivation_reason: null } : {})
       });
 
       if (!isCurrentlyInactive) {
@@ -1872,8 +1893,18 @@ export function Students() {
         }
       }
 
-      setFormData(prev => ({ ...prev, status: newStatus, inactivation_date: nextExitDate || '' }));
-      setSelectedStudent(prev => prev ? { ...prev, status: newStatus, inactivation_date: nextExitDate || '' } : null);
+      setFormData(prev => ({
+        ...prev,
+        status: newStatus,
+        inactivation_date: nextExitDate || '',
+        ...(isCurrentlyInactive ? { inactivation_reason: '' } : {})
+      }));
+      setSelectedStudent(prev => prev ? {
+        ...prev,
+        status: newStatus,
+        inactivation_date: nextExitDate || '',
+        ...(isCurrentlyInactive ? { inactivation_reason: '' } : {})
+      } : null);
       setNotification({
         type: 'success',
         message: isCurrentlyInactive
@@ -3107,15 +3138,15 @@ export function Students() {
                           }}
                           className={cn(
                             "h-10 px-4 border rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
-                            formData.status === 'Inativo'
+                            (formData.status && formData.status.toLowerCase() !== 'ativo')
                               ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                               : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
                           )}
-                          title={formData.status === 'Inativo' ? "Reativar Aluno" : "Inativar Aluno (Exclusão física vedada para Assistente)"}
+                          title={(formData.status && formData.status.toLowerCase() !== 'ativo') ? "Reativar Aluno" : "Inativar Aluno (Exclusão física vedada para Assistente)"}
                         >
                           <UserX size={16} />
                           <span className="hidden sm:inline">
-                            {formData.status === 'Inativo' ? "Reativar Aluno" : "Inativar Aluno"}
+                            {(formData.status && formData.status.toLowerCase() !== 'ativo') ? "Reativar Aluno" : "Inativar Aluno"}
                           </span>
                         </button>
                       )
@@ -3282,41 +3313,161 @@ export function Students() {
                       </div>
                       <div className="col-span-12 sm:col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Situação</label>
-                        <select 
-                          disabled={!isEditing}
-                          title="Situação cadastral do aluno"
-                          value={formData.status || 'Ativo'}
-                          onChange={(e) => {
-                            const nextStatus = e.target.value as any;
-                            const todayYmd = new Date().toISOString().split('T')[0];
-                            setFormData(prev => ({
-                              ...prev,
-                              status: nextStatus,
-                              inactivation_date: nextStatus === 'Ativo' ? '' : (prev.inactivation_date || todayYmd)
-                            }));
-                          }}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          tabIndex={3}
-                        >
-                          <option value="Ativo">Ativo</option>
-                          <option value="Inativo">Inativo</option>
-                          <option value="Concluído">Concluído</option>
-                          <option value="Suspenso">Suspenso</option>
-                        </select>
+                        {(() => {
+                          const isSwitchActive = !formData.status || formData.status.toLowerCase() === 'ativo';
+                          return (
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={isSwitchActive}
+                              disabled={!isEditing}
+                              tabIndex={3}
+                              title={isEditing ? (isSwitchActive ? 'Ligado: Aluno Ativo (clique para desligar / inativar)' : 'Desligado: Aluno Inativo (clique para ligar / reativar)') : `Situação atual: ${formData.status || 'Ativo'}`}
+                              onClick={() => {
+                                if (!isEditing) return;
+                                const todayYmd = new Date().toISOString().split('T')[0];
+                                if (isSwitchActive) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    status: 'Inativo',
+                                    inactivation_date: prev.inactivation_date || todayYmd
+                                  }));
+                                } else {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    status: 'Ativo',
+                                    inactivation_date: '',
+                                    inactivation_reason: ''
+                                  }));
+                                }
+                              }}
+                              onKeyDown={handleKeyDown}
+                              className={cn(
+                                "w-full h-[38px] px-3 rounded-lg border flex items-center justify-between gap-2 transition-all select-none",
+                                isEditing ? "cursor-pointer" : "cursor-default opacity-80",
+                                isSwitchActive
+                                  ? "bg-emerald-50 border-emerald-300 hover:bg-emerald-100/70"
+                                  : "bg-rose-50 border-rose-300 hover:bg-rose-100/70"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className={cn(
+                                    "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 p-0.5",
+                                    isSwitchActive ? "bg-emerald-600" : "bg-rose-600"
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      "inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200",
+                                      isSwitchActive ? "translate-x-4" : "translate-x-0"
+                                    )}
+                                  />
+                                </span>
+                                <span className={cn(
+                                  "text-xs font-black uppercase tracking-wider truncate",
+                                  isSwitchActive ? "text-emerald-800" : "text-rose-800"
+                                )}>
+                                  {isSwitchActive ? 'Ativo' : 'Inativo'}
+                                </span>
+                              </div>
+                              <span className={cn(
+                                "text-[9px] font-bold uppercase tracking-wide shrink-0 px-1.5 py-0.5 rounded",
+                                isSwitchActive
+                                  ? "bg-emerald-600/15 text-emerald-800"
+                                  : "bg-rose-600/15 text-rose-800"
+                              )}>
+                                {isSwitchActive ? 'Ligado' : 'Desligado'}
+                              </span>
+                            </button>
+                          );
+                        })()}
                       </div>
-                      {(formData.status && formData.status !== 'Ativo') && (
-                        <div className="col-span-12 sm:col-span-3 space-y-1">
-                          <label className="text-xs font-bold text-amber-800">Data de Inativação / Saída</label>
-                          <input
-                            type="date"
-                            disabled={!isEditing}
-                            title="Data em que o aluno desistiu, concluiu ou foi inativado (define até qual mês a mensalidade é calculada)"
-                            value={formData.inactivation_date ? formData.inactivation_date.split('T')[0] : ''}
-                            onChange={(e) => setFormData({ ...formData, inactivation_date: e.target.value })}
-                            onKeyDown={handleKeyDown}
-                            className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-lg text-sm font-medium text-amber-950 focus:ring-2 focus:ring-amber-500/20 disabled:opacity-70"
-                          />
+
+                      {/* Pequeno formulário de identificação da inatividade (aberto automaticamente quando desligado/inativo) */}
+                      {(formData.status && formData.status.toLowerCase() !== 'ativo') && (
+                        <div className="col-span-12 bg-rose-50/50 border border-rose-200 rounded-lg p-3.5 space-y-3 animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between gap-2 border-b border-rose-200/70 pb-2">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-rose-900 flex items-center gap-1.5">
+                              <UserX size={14} className="text-rose-600 shrink-0" />
+                              Identificação da Inatividade
+                            </span>
+                            <span className="text-[10px] font-semibold text-rose-700">
+                              Tipo: <strong className="uppercase">{formData.status}</strong>
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-12 gap-3 items-start">
+                            <div className="col-span-12 sm:col-span-8 space-y-1.5">
+                              <label className="text-xs font-bold text-slate-700 block">
+                                Classificação da Inatividade
+                              </label>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                {(['Concluído', 'Desistente', 'Suspenso', 'Inativo'] as const).map((inactType) => {
+                                  const isSelectedType = formData.status === inactType;
+                                  return (
+                                    <button
+                                      key={inactType}
+                                      type="button"
+                                      disabled={!isEditing}
+                                      onClick={() => {
+                                        if (!isEditing) return;
+                                        const todayYmd = new Date().toISOString().split('T')[0];
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          status: inactType,
+                                          inactivation_date: prev.inactivation_date || todayYmd
+                                        }));
+                                      }}
+                                      title={`Identificar inatividade como: ${inactType}`}
+                                      className={cn(
+                                        "px-2.5 py-2 rounded-lg border text-[11px] font-bold uppercase tracking-wide transition-all text-center",
+                                        isEditing ? "cursor-pointer" : "cursor-default",
+                                        isSelectedType
+                                          ? (inactType === 'Concluído'
+                                              ? "bg-indigo-600 border-indigo-700 text-white shadow-sm"
+                                              : "bg-rose-600 border-rose-700 text-white shadow-sm")
+                                          : "bg-white border-rose-200 text-slate-600 hover:border-rose-300 hover:bg-rose-50/40 disabled:opacity-65"
+                                      )}
+                                    >
+                                      {inactType}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <label className="text-xs font-bold text-rose-900">Data de Inativação</label>
+                                <span className="text-[9.5px] font-semibold text-rose-700">Auto / Manual</span>
+                              </div>
+                              <input
+                                type="date"
+                                disabled={!isEditing}
+                                title="Data da inativação (preenchida automaticamente ao desligar, editável manualmente)"
+                                value={formData.inactivation_date ? formData.inactivation_date.split('T')[0] : ''}
+                                onChange={(e) => setFormData({ ...formData, inactivation_date: e.target.value })}
+                                onKeyDown={handleKeyDown}
+                                className="w-full px-3 py-2 bg-white border border-rose-300 rounded-lg text-sm font-medium text-slate-900 focus:ring-2 focus:ring-rose-500/20 disabled:opacity-75"
+                              />
+                            </div>
+
+                            <div className="col-span-12 space-y-1">
+                              <label className="text-xs font-bold text-slate-700">
+                                Motivo da Inatividade
+                              </label>
+                              <textarea
+                                rows={2}
+                                disabled={!isEditing}
+                                title="Descreva brevemente o motivo da inatividade do aluno"
+                                placeholder="Descreva brevemente o motivo da inatividade (ex: concluiu o curso, incompatibilidade de horário, mudança de cidade, suspensão temporária...)"
+                                value={formData.inactivation_reason || ''}
+                                onChange={(e) => setFormData({ ...formData, inactivation_reason: e.target.value })}
+                                className="w-full px-3 py-2 bg-white border border-rose-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-rose-500/20 outline-none resize-none disabled:opacity-75 placeholder:text-slate-400"
+                              />
+                            </div>
+                          </div>
                         </div>
                       )}
                       <div className="col-span-12 sm:col-span-3 space-y-1">
@@ -4335,7 +4486,7 @@ export function Students() {
                     <p>
                       <strong>Recomendação Institucional:</strong> Utilize <strong>Inativar Aluno</strong> para desligar ou encerrar a matrícula sem apagar chamadas, notas, boletins ou recibos emitidos no período em que frequentou o curso.
                     </p>
-                    {formData.status !== 'Inativo' && (
+                    {(!formData.status || formData.status.toLowerCase() === 'ativo') && (
                       <div className="pt-1 flex items-center justify-between gap-2 border-t border-amber-200/80">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-amber-950 whitespace-nowrap">
                           Data da Inativação / Desistência:
@@ -4351,7 +4502,7 @@ export function Students() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-                    {formData.status !== 'Inativo' && (
+                    {(!formData.status || formData.status.toLowerCase() === 'ativo') && (
                       <button
                         type="button"
                         onClick={handleInactivateStudentFromModal}

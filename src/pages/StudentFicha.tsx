@@ -1185,7 +1185,7 @@ export function StudentFicha() {
                             "px-1.5 py-0.2 text-[7.5px] font-extrabold uppercase shrink-0 border",
                             isSelected
                               ? "bg-slate-800 text-slate-200 border-slate-700"
-                              : (stuStatus as string) === 'Inativo' || (stuStatus as string) === 'Suspenso'
+                              : (stuStatus as string) === 'Inativo' || (stuStatus as string) === 'Suspenso' || (stuStatus as string) === 'Desistente'
                                 ? "bg-rose-50 text-rose-700 border-rose-200" 
                                 : (stuStatus as string) === 'Concluído'
                                 ? "bg-indigo-50 text-indigo-700 border-indigo-200"
@@ -1277,11 +1277,11 @@ export function StudentFicha() {
                           </h2>
                           <span className={cn(
                             "px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider border",
-                            activeStudent.status === 'Inativo' 
-                              ? "bg-rose-50 text-rose-700 border-rose-250" 
+                            (!activeStudent.status || activeStudent.status.toLowerCase() === 'ativo')
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-250"
                               : activeStudent.status === 'Concluído'
-                              ? "bg-indigo-50 text-indigo-700 border-indigo-250"
-                              : "bg-emerald-50 text-emerald-700 border-emerald-250"
+                                ? "bg-indigo-50 text-indigo-700 border-indigo-250"
+                                : "bg-rose-50 text-rose-700 border-rose-250"
                           )}>
                             {activeStudent.status || 'Ativo'}
                           </span>
