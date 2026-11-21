@@ -72,6 +72,7 @@ const StudentItem = React.memo(({
   isUnallocated,
   parallelClassesCount,
   unitName,
+  isSearchHighlight,
   className 
 }: { 
   student: Student, 
@@ -80,17 +81,25 @@ const StudentItem = React.memo(({
   isUnallocated?: boolean,
   parallelClassesCount?: number,
   unitName?: string,
+  isSearchHighlight?: boolean,
   className?: string
 }) => {
+  const isActive = !student.status || student.status.toLowerCase() === 'ativo';
+
   return (
     <button
       onClick={() => onSelect(student)}
-      title={`Selecionar ficha do aluno ${student.name}`}
+      title={`Selecionar ficha do aluno ${student.name} (${student.status || 'Ativo'})`}
       className={cn(
-        "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left",
-        isSelected 
-          ? "bg-slate-50 border-slate-200 shadow-sm" 
-          : "hover:bg-slate-50 border-transparent",
+        "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left border",
+        isSearchHighlight
+          ? (isActive
+              ? "border-emerald-200 border-l-4 border-l-emerald-500 bg-emerald-50/35 hover:bg-emerald-50/60"
+              : "border-rose-200 border-l-4 border-l-rose-500 bg-rose-50/35 hover:bg-rose-50/60")
+          : isSelected 
+            ? "bg-slate-50 border-slate-200 shadow-sm" 
+            : "hover:bg-slate-50 border-transparent",
+        isSelected && isSearchHighlight && (isActive ? "ring-1 ring-emerald-400" : "ring-1 ring-rose-400"),
         className
       )}
     >
@@ -105,9 +114,12 @@ const StudentItem = React.memo(({
         <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{student.name}</p>
         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
           <span className={cn(
-            "text-[9px] font-bold px-1.5 py-0.5 rounded-lg uppercase tracking-wider",
-            student.status === 'Inativo' ? "bg-red-50 text-red-700 border border-red-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+            "inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-lg uppercase tracking-wider border",
+            isActive
+              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+              : "bg-rose-100 text-rose-800 border-rose-300"
           )}>
+            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isActive ? "bg-emerald-600" : "bg-rose-600")} />
             {student.status || 'Ativo'}
           </span>
           {unitName && (
@@ -236,6 +248,7 @@ export function Students() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [searchStatusNarrowing, setSearchStatusNarrowing] = useState<'Ativo' | 'Inativo' | 'Todos' | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [hoverShowList, setHoverShowList] = useState(false);
@@ -2477,17 +2490,15 @@ export function Students() {
     return unallocatedStudentIdsSet.has(selectedStudent.id);
   }, [selectedStudent, unallocatedStudentIdsSet]);
 
-  const filteredStudents = React.useMemo(() => {
+  const searchBaseMatches = React.useMemo(() => {
     const trimmedSearch = searchTerm.trim();
     return students.filter(s => {
       const matchesSearch = !trimmedSearch || matchesStudentSearch(s, trimmedSearch);
-      
-      const studentStatus = s.status || 'Ativo';
-      const matchesStatus = statusFilter === 'Todos' || studentStatus.toLowerCase() === statusFilter.toLowerCase();
-      
+      if (!matchesSearch) return false;
+
       // Filter logic
       let matchesYear = true;
-      if (selectedYear !== '' && selectedYear !== 'all' && selectedClassId !== 'unallocated') {
+      if (!trimmedSearch && selectedYear !== '' && selectedYear !== 'all' && selectedClassId !== 'unallocated') {
         const studentYear = getYearFromRegistration(s.registration_number);
         matchesYear = studentYear === selectedYear;
       }
@@ -2495,14 +2506,14 @@ export function Students() {
       let matchesClass = true;
       if (selectedClassId === 'unallocated') {
         matchesClass = unallocatedStudentIdsSet.has(s.id);
-      } else if (selectedClassId !== '') {
+      } else if (!trimmedSearch && selectedClassId !== '') {
         const isInPrimaryClass = s.class_id === selectedClassId;
         const isEnrolledViaMultiTurma = allEnrollments.some(e => e.student_id === s.id && e.class_id === selectedClassId && e.status === 'Ativo');
         matchesClass = isInPrimaryClass || isEnrolledViaMultiTurma;
       }
 
       // If user selected "all" for year or unallocated is selected, year match is true
-      if (selectedYear === 'all' || selectedClassId === 'unallocated') matchesYear = true;
+      if (selectedYear === 'all' || selectedClassId === 'unallocated' || trimmedSearch) matchesYear = true;
 
       let matchesUnit = true;
       if (globalUnitId && globalUnitId !== 'all') {
@@ -2511,7 +2522,41 @@ export function Students() {
         matchesUnit = isItemInUnit(studentUnit, globalUnitId, activeUnits);
       }
 
-      return matchesSearch && matchesStatus && matchesYear && matchesClass && matchesUnit;
+      return matchesYear && matchesClass && matchesUnit;
+    });
+  }, [students, searchTerm, selectedYear, selectedClassId, allEnrollments, unallocatedStudentIdsSet, globalUnitId, classes, activeUnits]);
+
+  const searchMatchStats = React.useMemo(() => {
+    const trimmedSearch = searchTerm.trim();
+    if (!trimmedSearch) {
+      return { active: 0, inactive: 0, total: 0 };
+    }
+    let active = 0;
+    let inactive = 0;
+    searchBaseMatches.forEach(s => {
+      const isActive = !s.status || s.status.toLowerCase() === 'ativo';
+      if (isActive) active += 1;
+      else inactive += 1;
+    });
+    return { active, inactive, total: searchBaseMatches.length };
+  }, [searchTerm, searchBaseMatches]);
+
+  const filteredStudents = React.useMemo(() => {
+    const trimmedSearch = searchTerm.trim();
+    const isSearchActive = trimmedSearch.length > 0;
+
+    return searchBaseMatches.filter(s => {
+      const isActive = !s.status || s.status.toLowerCase() === 'ativo';
+
+      if (isSearchActive) {
+        if (searchStatusNarrowing === 'Ativo') return isActive;
+        if (searchStatusNarrowing === 'Inativo') return !isActive;
+        return true; // Busca independente do status quando digitado nome/número/CPF
+      }
+
+      if (statusFilter === 'Todos') return true;
+      if (statusFilter === 'Ativo') return isActive;
+      return !isActive;
     }).sort((a, b) => {
       // If user typed a search term, prioritize highest relevance matches first
       if (trimmedSearch) {
@@ -2531,7 +2576,7 @@ export function Students() {
         return (b.registration_number || '').localeCompare(a.registration_number || '', undefined, { numeric: true });
       }
     });
-  }, [students, searchTerm, statusFilter, selectedYear, selectedClassId, sortBy, allEnrollments, unallocatedStudentIdsSet, hasMultipleUnits, globalUnitId, classes]);
+  }, [searchBaseMatches, searchTerm, statusFilter, searchStatusNarrowing, sortBy]);
 
   const availableYears = React.useMemo(() => {
     return Array.from(new Set(students.map(s => getYearFromRegistration(s.registration_number)).filter(Boolean))).sort().reverse();
@@ -2680,29 +2725,119 @@ export function Students() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input 
                 type="text"
-                placeholder="Buscar por nome, RA ou CPF..."
-                title="Buscar alunos por nome, matrícula (RA) ou CPF"
+                placeholder="Buscar por nome, RA ou CPF (todos os status)..."
+                title="Buscar alunos por nome, matrícula (RA) ou CPF independente do status"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] focus:ring-1 focus:ring-slate-500/10 focus:bg-white transition-all outline-none"
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSearchStatusNarrowing(null);
+                }}
+                className="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] focus:ring-2 focus:ring-slate-500/15 focus:bg-white transition-all outline-none"
               />
+              {searchTerm.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSearchStatusNarrowing(null);
+                  }}
+                  title="Limpar busca"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
             <div className="flex gap-1.5">
-              {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  title={`Filtrar alunos por status: ${status}`}
-                  className={cn(
-                    "flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all border uppercase tracking-wider",
-                    statusFilter === status 
-                      ? "bg-slate-800 border-slate-800 text-white shadow-sm" 
-                      : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                  )}
-                >
-                  {status}
-                </button>
-              ))}
+              {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => {
+                const isSearchActive = searchTerm.trim().length > 0;
+                const activeLit = isSearchActive && status === 'Ativo' && searchMatchStats.active > 0;
+                const inactiveLit = isSearchActive && status === 'Inativo' && searchMatchStats.inactive > 0;
+                const isNarrowed = isSearchActive && searchStatusNarrowing === status;
+
+                let btnClass = "bg-white border-slate-200 text-slate-500 hover:border-slate-300";
+                if (isSearchActive) {
+                  if (status === 'Ativo') {
+                    if (activeLit) {
+                      btnClass = searchStatusNarrowing === 'Inativo'
+                        ? "bg-emerald-50 border-emerald-400 text-emerald-800 hover:bg-emerald-100"
+                        : "bg-emerald-600 border-emerald-700 text-white shadow-md shadow-emerald-600/25 ring-2 ring-emerald-400/60";
+                    } else {
+                      btnClass = "bg-slate-50 border-slate-200 text-slate-400 opacity-70";
+                    }
+                  } else if (status === 'Inativo') {
+                    if (inactiveLit) {
+                      btnClass = searchStatusNarrowing === 'Ativo'
+                        ? "bg-rose-50 border-rose-400 text-rose-800 hover:bg-rose-100"
+                        : "bg-rose-600 border-rose-700 text-white shadow-md shadow-rose-600/25 ring-2 ring-rose-400/60";
+                    } else {
+                      btnClass = "bg-slate-50 border-slate-200 text-slate-400 opacity-70";
+                    }
+                  } else {
+                    btnClass = (searchStatusNarrowing === 'Todos' || (searchMatchStats.active > 0 && searchMatchStats.inactive > 0 && !searchStatusNarrowing))
+                      ? "bg-slate-800 border-slate-800 text-white shadow-sm"
+                      : "bg-white border-slate-200 text-slate-500 hover:border-slate-300";
+                  }
+                } else if (statusFilter === status) {
+                  if (status === 'Ativo') {
+                    btnClass = "bg-emerald-600 border-emerald-700 text-white shadow-sm";
+                  } else if (status === 'Inativo') {
+                    btnClass = "bg-rose-600 border-rose-700 text-white shadow-sm";
+                  } else {
+                    btnClass = "bg-slate-800 border-slate-800 text-white shadow-sm";
+                  }
+                }
+
+                const countForBadge = isSearchActive
+                  ? (status === 'Ativo' ? searchMatchStats.active : status === 'Inativo' ? searchMatchStats.inactive : searchMatchStats.total)
+                  : null;
+
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => {
+                      if (isSearchActive) {
+                        setSearchStatusNarrowing(prev => (prev === status ? null : status));
+                      } else {
+                        setStatusFilter(status);
+                      }
+                    }}
+                    title={
+                      isSearchActive
+                        ? (status === 'Ativo'
+                            ? `${searchMatchStats.active} aluno(s) ativo(s) encontrado(s) na busca`
+                            : status === 'Inativo'
+                              ? `${searchMatchStats.inactive} aluno(s) inativo(s) encontrado(s) na busca`
+                              : `Exibir todos os ${searchMatchStats.total} aluno(s) localizados`)
+                        : `Filtrar alunos por status: ${status}`
+                    }
+                    className={cn(
+                      "flex-1 py-1.5 px-1.5 text-[9px] font-bold rounded-lg transition-all border uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer",
+                      btnClass,
+                      isNarrowed && "underline underline-offset-2"
+                    )}
+                  >
+                    {activeLit && (
+                      <span className={cn("w-2 h-2 rounded-full shrink-0", searchStatusNarrowing === 'Inativo' ? "bg-emerald-600" : "bg-emerald-200 animate-pulse")} />
+                    )}
+                    {inactiveLit && (
+                      <span className={cn("w-2 h-2 rounded-full shrink-0", searchStatusNarrowing === 'Ativo' ? "bg-rose-600" : "bg-rose-200 animate-pulse")} />
+                    )}
+                    <span>{status}</span>
+                    {isSearchActive && countForBadge !== null && countForBadge > 0 && (
+                      <span className={cn(
+                        "px-1 py-0.2 rounded text-[8px] font-black leading-tight",
+                        (activeLit && searchStatusNarrowing !== 'Inativo') || (inactiveLit && searchStatusNarrowing !== 'Ativo') || (status === 'Todos' && (searchStatusNarrowing === 'Todos' || (searchMatchStats.active > 0 && searchMatchStats.inactive > 0 && !searchStatusNarrowing)))
+                          ? "bg-white/25 text-white"
+                          : "bg-slate-200 text-slate-700"
+                      )}>
+                        {countForBadge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Quick Unallocated Filter Button */}
@@ -2784,7 +2919,7 @@ export function Students() {
             <div className="flex items-center justify-center h-32">
               <Loader2 className="animate-spin text-slate-705" />
             </div>
-          ) : (!selectedYear && selectedClassId !== 'unallocated') ? (
+          ) : (!searchTerm.trim() && !selectedYear && selectedClassId !== 'unallocated') ? (
             <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
               <GraduationCap size={32} className="mb-2 opacity-20" />
               <p className="text-xs font-medium">Selecione uma turma ou ano para visualizar os alunos</p>
@@ -2802,6 +2937,7 @@ export function Students() {
               onSelect={handleSelectStudent}
               isUnallocated={unallocatedStudentIdsSet.has(student.id)}
               parallelClassesCount={studentParallelEnrollmentsMap.get(student.id)}
+              isSearchHighlight={searchTerm.trim().length > 0}
               unitName={hasMultipleUnits ? getUnitName(student.unit_id || classes.find(c => c.id === student.class_id)?.unit_id) : undefined}
             />
           ))}
@@ -2889,9 +3025,11 @@ export function Students() {
                     </span>
                     <span className={cn(
                       "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border tracking-wider shrink-0",
-                      formData.status === 'Ativo' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-500 border-slate-200"
+                      (!formData.status || formData.status.toLowerCase() === 'ativo')
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                        : "bg-rose-100 text-rose-800 border-rose-300"
                     )}>
-                      {formData.status}
+                      {formData.status || 'Ativo'}
                     </span>
                     {hasParallelCourses && (
                       <span className="px-2 py-0.5 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-amber-100 text-amber-950 border border-amber-400 shadow-2xs flex items-center gap-1.5 shrink-0 animate-in fade-in" title={`Aluno com ${secondaryEnrollments.length + 1} matrículas ativas simultâneas`}>
