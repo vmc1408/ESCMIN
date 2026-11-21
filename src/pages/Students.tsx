@@ -45,7 +45,7 @@ import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank, safeFormat, numberToPortugueseWords, calculateAge, formatAge, isBirthdayToday, isValidCPF, isInstitutionPhoneWhatsapp } from '../lib/utils';
+import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank, normalizeSearchString, safeFormat, numberToPortugueseWords, calculateAge, formatAge, isBirthdayToday, isValidCPF, isInstitutionPhoneWhatsapp } from '../lib/utils';
 import { FooterWhatsAppIcon } from '../components/print/StandardPrintLayout';
 import { getClassStartDateFromSchedule } from '../lib/academicUtils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
@@ -265,6 +265,14 @@ export function Students() {
   const [studentDeleteSafety, setStudentDeleteSafety] = useState<EntityHistorySafetyCheckResult | null>(null);
   const [checkingStudentSafety, setCheckingStudentSafety] = useState(false);
   const [modalInactivationDate, setModalInactivationDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [duplicateSavePrompt, setDuplicateSavePrompt] = useState<{
+    type: 'cpf_blocked' | 'name_confirm';
+    matches: Array<{
+      student: Student;
+      matchType: 'cpf_and_name' | 'cpf' | 'exact_name' | 'similar_name';
+      reasonLabel: string;
+    }>;
+  } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [studentEnrollments, setStudentEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
@@ -449,6 +457,83 @@ export function Students() {
       message: valid ? 'CPF válido' : 'Dígitos verificadores inconsistentes'
     };
   }, [formData.cpf]);
+
+  // Detecção em tempo real de pessoa já cadastrada (por Nome completo/semelhante e/ou CPF)
+  const duplicateMatches = useMemo(() => {
+    if (!isEditing) return [];
+
+    const normTypedName = normalizeSearchString(formData.name || '');
+    const cleanTypedCpf = (formData.cpf || '').replace(/\D/g, '');
+    const hasRealTypedCpf = cleanTypedCpf.length === 11 && !/^(\d)\1{10}$/.test(cleanTypedCpf);
+
+    if (normTypedName.length < 4 && !hasRealTypedCpf) return [];
+
+    const typedTokens = normTypedName
+      .split(/\s+/)
+      .filter(t => t.length >= 2 && !['de', 'da', 'do', 'dos', 'das', 'e'].includes(t));
+
+    const results: Array<{
+      student: Student;
+      matchType: 'cpf_and_name' | 'cpf' | 'exact_name' | 'similar_name';
+      reasonLabel: string;
+      priority: number;
+    }> = [];
+
+    for (const s of students) {
+      if (selectedStudent?.id && s.id === selectedStudent.id) continue;
+
+      const normExistingName = normalizeSearchString(s.name || '');
+      const cleanExistingCpf = (s.cpf || '').replace(/\D/g, '');
+      const hasRealExistingCpf = cleanExistingCpf.length === 11 && !/^(\d)\1{10}$/.test(cleanExistingCpf);
+
+      const cpfMatched = hasRealTypedCpf && hasRealExistingCpf && cleanExistingCpf === cleanTypedCpf;
+      const exactNameMatched = normTypedName.length >= 4 && normExistingName === normTypedName;
+
+      let similarNameMatched = false;
+      if (!exactNameMatched && typedTokens.length >= 2 && normTypedName.length >= 6) {
+        const existingTokens = normExistingName
+          .split(/\s+/)
+          .filter(t => t.length >= 2 && !['de', 'da', 'do', 'dos', 'das', 'e'].includes(t));
+        if (existingTokens.length >= 2) {
+          similarNameMatched = typedTokens.every(tt =>
+            existingTokens.some(et => et === tt || (tt.length >= 4 && et.startsWith(tt)))
+          );
+        }
+      }
+
+      if (cpfMatched && (exactNameMatched || similarNameMatched)) {
+        results.push({
+          student: s,
+          matchType: 'cpf_and_name',
+          reasonLabel: 'Mesmo Nome e Mesmo CPF',
+          priority: 1
+        });
+      } else if (cpfMatched) {
+        results.push({
+          student: s,
+          matchType: 'cpf',
+          reasonLabel: 'Mesmo CPF já cadastrado',
+          priority: 2
+        });
+      } else if (exactNameMatched) {
+        results.push({
+          student: s,
+          matchType: 'exact_name',
+          reasonLabel: 'Mesmo Nome Completo',
+          priority: 3
+        });
+      } else if (similarNameMatched) {
+        results.push({
+          student: s,
+          matchType: 'similar_name',
+          reasonLabel: 'Nome semelhante localizado',
+          priority: 4
+        });
+      }
+    }
+
+    return results.sort((a, b) => a.priority - b.priority);
+  }, [isEditing, formData.name, formData.cpf, students, selectedStudent?.id]);
 
   // Cálculo da idade em tempo real a partir da data de nascimento
   const calculatedAge = useMemo(() => {
@@ -1468,7 +1553,7 @@ export function Students() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (bypassNameDupCheck: boolean = false) => {
     if (uploadingPhoto) {
       setNotification({ type: 'error', message: 'Aguarde o upload da foto terminar' });
       return;
@@ -1638,6 +1723,28 @@ export function Students() {
           });
           return;
         }
+      }
+    }
+
+    // 9. Verificação de cadastro duplicado por CPF ou Nome Completo coincidente
+    const cpfDupMatches = duplicateMatches.filter(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name');
+    if (cpfDupMatches.length > 0) {
+      setDuplicateSavePrompt({
+        type: 'cpf_blocked',
+        matches: cpfDupMatches.map(({ student, matchType, reasonLabel }) => ({ student, matchType, reasonLabel }))
+      });
+      return;
+    }
+
+    if (!bypassNameDupCheck) {
+      const exactNameDupMatches = duplicateMatches.filter(m => m.matchType === 'exact_name');
+      const isNameChanged = !selectedStudent || normalizeSearchString(selectedStudent.name) !== normalizeSearchString(formData.name || '');
+      if (exactNameDupMatches.length > 0 && isNameChanged) {
+        setDuplicateSavePrompt({
+          type: 'name_confirm',
+          matches: exactNameDupMatches.map(({ student, matchType, reasonLabel }) => ({ student, matchType, reasonLabel }))
+        });
+        return;
       }
     }
     
@@ -3173,7 +3280,7 @@ export function Students() {
                       <span className="uppercase tracking-wider text-[10px] sm:hidden">Cancelar</span>
                     </button>
                     <button 
-                      onClick={handleSave}
+                      onClick={() => handleSave(false)}
                       disabled={loading || uploadingPhoto}
                       title="Salvar dados cadastrais da ficha do aluno"
                       className="h-10 px-5 bg-[#00174b] hover:bg-indigo-950 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-95 disabled:opacity-50"
@@ -3513,6 +3620,119 @@ export function Students() {
                           </span>
                         )}
                       </div>
+
+                      {/* Alerta em tempo real caso seja localizada pessoa já cadastrada (Nome e/ou CPF) */}
+                      {isEditing && duplicateMatches.length > 0 && (
+                        <div className="col-span-12">
+                          <div className={cn(
+                            "rounded-lg border-2 p-3 space-y-2.5 animate-in fade-in duration-200",
+                            duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name')
+                              ? "bg-rose-50/90 border-rose-300"
+                              : "bg-amber-50/90 border-amber-300"
+                          )}>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <AlertTriangle
+                                  size={16}
+                                  className={duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name') ? "text-rose-600 shrink-0" : "text-amber-600 shrink-0"}
+                                />
+                                <span className={cn(
+                                  "text-xs font-black uppercase tracking-wide",
+                                  duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name') ? "text-rose-900" : "text-amber-950"
+                                )}>
+                                  {duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name' || m.matchType === 'exact_name')
+                                    ? `Atenção: Pessoa já cadastrada no sistema (${duplicateMatches.length} coincidência${duplicateMatches.length > 1 ? 's' : ''})`
+                                    : `Possível cadastro existente localizado (${duplicateMatches.length})`}
+                                </span>
+                              </div>
+                              <span className="text-[10px] font-semibold text-slate-600">
+                                Verifique antes de criar um novo registro duplicado
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              {duplicateMatches.slice(0, 3).map(({ student: matchStu, matchType, reasonLabel }) => {
+                                const matchActive = !matchStu.status || matchStu.status.toLowerCase() === 'ativo';
+                                const matchClass = classes.find(c => c.id === matchStu.class_id);
+                                const matchUnitId = getItemUnitId(matchStu) || (matchClass ? getItemUnitId(matchClass) : 'matriz');
+                                const matchUnitName = hasMultipleUnits ? getUnitName(matchUnitId) : '';
+                                const canOpenMatch = !globalUnitId || globalUnitId === 'all' || isItemInUnit(matchUnitId, globalUnitId, activeUnits);
+
+                                return (
+                                  <div
+                                    key={`dup-match-${matchStu.id}`}
+                                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs"
+                                  >
+                                    <div className="min-w-0 space-y-1">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="text-xs font-bold text-slate-900 truncate">
+                                          {matchStu.name}
+                                        </span>
+                                        <span className={cn(
+                                          "px-1.5 py-0.5 rounded text-[9px] font-black uppercase border",
+                                          matchActive
+                                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                            : matchStu.status === 'Concluído'
+                                              ? "bg-indigo-100 text-indigo-800 border-indigo-300"
+                                              : "bg-rose-100 text-rose-800 border-rose-300"
+                                        )}>
+                                          {matchStu.status || 'Ativo'}
+                                        </span>
+                                        <span className={cn(
+                                          "px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase",
+                                          (matchType === 'cpf' || matchType === 'cpf_and_name')
+                                            ? "bg-rose-600 text-white"
+                                            : matchType === 'exact_name'
+                                              ? "bg-amber-200 text-amber-950"
+                                              : "bg-slate-100 text-slate-700"
+                                        )}>
+                                          {reasonLabel}
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10.5px] text-slate-600 font-medium">
+                                        <span className="font-mono font-bold text-slate-800">
+                                          RA: {formatRegistrationNumber(matchStu.registration_number)}
+                                        </span>
+                                        {matchStu.cpf && (
+                                          <span className="font-mono">CPF: {matchStu.cpf}</span>
+                                        )}
+                                        {matchClass && (
+                                          <span className="truncate">Turma: {matchClass.name}</span>
+                                        )}
+                                        {matchUnitName && (
+                                          <span className="text-blue-700 font-semibold">Polo: {matchUnitName}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {canOpenMatch ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setDuplicateSavePrompt(null);
+                                          handleSelectStudent(matchStu);
+                                        }}
+                                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                                        title={`Abrir ficha já cadastrada de ${matchStu.name}`}
+                                      >
+                                        Abrir Cadastro Existente
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-1 rounded border border-amber-300 shrink-0">
+                                        Cadastrado em outro polo
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {duplicateMatches.length > 3 && (
+                                <p className="text-[10px] font-semibold text-slate-600 pl-1">
+                                  + {duplicateMatches.length - 3} outro(s) registro(s) semelhante(s) encontrado(s).
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="col-span-12 sm:col-span-4 space-y-1">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">RG / Identidade</label>
@@ -4566,6 +4786,116 @@ export function Students() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Alerta / Confirmação de Cadastro Já Existente (Nome e/ou CPF) */}
+        {duplicateSavePrompt && (
+          <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-lg shadow-2xl p-6 max-w-lg w-full space-y-4 border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "w-11 h-11 rounded-lg flex items-center justify-center shrink-0 border",
+                  duplicateSavePrompt.type === 'cpf_blocked'
+                    ? "bg-rose-50 text-rose-600 border-rose-200"
+                    : "bg-amber-50 text-amber-600 border-amber-200"
+                )}>
+                  <AlertTriangle size={22} />
+                </div>
+                <div className="space-y-1">
+                  <span className={cn(
+                    "inline-block px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider rounded border",
+                    duplicateSavePrompt.type === 'cpf_blocked'
+                      ? "bg-rose-100 text-rose-800 border-rose-200"
+                      : "bg-amber-100 text-amber-900 border-amber-200"
+                  )}>
+                    {duplicateSavePrompt.type === 'cpf_blocked' ? 'CPF Já Cadastrado' : 'Nome Coincidente Localizado'}
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {duplicateSavePrompt.type === 'cpf_blocked'
+                      ? 'Esta pessoa já possui cadastro com este CPF'
+                      : 'Já existe uma pessoa cadastrada com este nome'}
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {duplicateSavePrompt.type === 'cpf_blocked'
+                      ? 'Para evitar duplicidade de histórico acadêmico e financeiro, não é permitido salvar um novo cadastro com o mesmo CPF. Abra o cadastro existente para atualizar ou reativar a matrícula.'
+                      : 'Verifique abaixo se trata da mesma pessoa (ex: ex-aluno retornando ao curso) ou se é um homônimo antes de prosseguir.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {duplicateSavePrompt.matches.map(({ student: mStu, reasonLabel }) => {
+                  const mActive = !mStu.status || mStu.status.toLowerCase() === 'ativo';
+                  const mClass = classes.find(c => c.id === mStu.class_id);
+                  const mUnitId = getItemUnitId(mStu) || (mClass ? getItemUnitId(mClass) : 'matriz');
+                  const canOpen = !globalUnitId || globalUnitId === 'all' || isItemInUnit(mUnitId, globalUnitId, activeUnits);
+
+                  return (
+                    <div
+                      key={`dup-modal-${mStu.id}`}
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-900 truncate">{mStu.name}</span>
+                          <span className={cn(
+                            "px-1.5 py-0.5 rounded text-[9px] font-black uppercase border",
+                            mActive
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                              : "bg-rose-100 text-rose-800 border-rose-300"
+                          )}>
+                            {mStu.status || 'Ativo'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-slate-600">
+                          <span className="font-mono font-bold text-slate-800">
+                            RA: {formatRegistrationNumber(mStu.registration_number)}
+                          </span>
+                          {mStu.cpf && <span className="font-mono">CPF: {mStu.cpf}</span>}
+                          {mClass && <span>Turma: {mClass.name}</span>}
+                          <span className="font-semibold text-slate-700">• {reasonLabel}</span>
+                        </div>
+                      </div>
+                      {canOpen && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDuplicateSavePrompt(null);
+                            handleSelectStudent(mStu);
+                          }}
+                          className="px-3 py-2 bg-[#00174b] hover:bg-indigo-950 text-white rounded-lg text-[10.5px] font-bold uppercase tracking-wider transition-colors cursor-pointer shrink-0"
+                        >
+                          Abrir Ficha Existente
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDuplicateSavePrompt(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Voltar e Revisar
+                </button>
+                {duplicateSavePrompt.type === 'name_confirm' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDuplicateSavePrompt(null);
+                      handleSave(true);
+                    }}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Salvar Mesmo Assim (Homônimo)
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
