@@ -164,6 +164,8 @@ CREATE TABLE IF NOT EXISTS public.students (
     rg TEXT,
     birth_date TEXT,
     start_date TEXT,
+    inactivation_date TEXT,
+    inactivation_reason TEXT,
     status TEXT DEFAULT 'Ativo',
     is_former_student BOOLEAN DEFAULT false,
     class_id TEXT,
@@ -196,6 +198,9 @@ CREATE TABLE IF NOT EXISTS public.students (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE IF EXISTS public.students ADD COLUMN IF NOT EXISTS inactivation_date TEXT;
+ALTER TABLE IF EXISTS public.students ADD COLUMN IF NOT EXISTS inactivation_reason TEXT;
+
 -- 9. Matrículas (Multi-turma)
 CREATE TABLE IF NOT EXISTS public.enrollments (
     id TEXT PRIMARY KEY,
@@ -204,6 +209,7 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
     academic_year TEXT,
     status TEXT DEFAULT 'Ativo',
     enrollment_date TEXT,
+    inactivation_date TEXT,
     fee_status TEXT,
     fee_amount NUMERIC(10,2) DEFAULT 0.00,
     fee_payment_method TEXT,
@@ -214,6 +220,8 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE IF EXISTS public.enrollments ADD COLUMN IF NOT EXISTS inactivation_date TEXT;
 
 -- 10. Reconciliações PIX
 CREATE TABLE IF NOT EXISTS public.pix_reconciliations (
@@ -537,6 +545,8 @@ CREATE TABLE IF NOT EXISTS public.import_history (
 
 -- 27-30. Arquivo Morto (Tabelas Espelho)
 CREATE TABLE IF NOT EXISTS public.archived_students (LIKE public.students INCLUDING ALL);
+ALTER TABLE IF EXISTS public.archived_students ADD COLUMN IF NOT EXISTS inactivation_date TEXT;
+ALTER TABLE IF EXISTS public.archived_students ADD COLUMN IF NOT EXISTS inactivation_reason TEXT;
 CREATE TABLE IF NOT EXISTS public.archived_teachers (LIKE public.teachers INCLUDING ALL);
 CREATE TABLE IF NOT EXISTS public.archived_classes (LIKE public.classes INCLUDING ALL);
 CREATE TABLE IF NOT EXISTS public.archived_subjects (LIKE public.subjects INCLUDING ALL);
