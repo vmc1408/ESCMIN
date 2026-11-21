@@ -99,17 +99,22 @@ export function BackupSection() {
   // Contagens e Notificações
   const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(false);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string; duration?: number } | null>(null);
+
+  useEffect(() => {
+    if (!notification) return;
+    const ms = notification.duration ?? 6000;
+    if (ms <= 0) return;
+    const timer = setTimeout(() => setNotification(null), ms);
+    return () => clearTimeout(timer);
+  }, [notification]);
 
   useEffect(() => {
     fetchTableRecordsCounts();
   }, []);
 
   const showToast = (type: 'success' | 'error' | 'info', message: string, duration = 6000) => {
-    setNotification({ type, message });
-    if (duration > 0) {
-      setTimeout(() => setNotification(null), duration);
-    }
+    setNotification({ type, message, duration });
   };
 
   const fetchTableRecordsCounts = async () => {

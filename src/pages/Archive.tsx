@@ -62,9 +62,14 @@ export function ArchivePage() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [loadingTestMigration, setLoadingTestMigration] = useState(false);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => setNotification(null), 6000);
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const triggerNotification = (type: 'success' | 'err' | 'info', message: string) => {
     setNotification({ type, message });
-    setTimeout(() => setNotification(null), 7000);
   };
 
   // Helper function to bypass standard Supabase 1000-records limit by paginating the fetch.

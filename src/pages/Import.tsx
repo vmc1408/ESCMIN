@@ -197,6 +197,15 @@ export function Import() {
   const [classesList, setClassesList] = useState<Class[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'error' ? 5500 : 4500
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll logs

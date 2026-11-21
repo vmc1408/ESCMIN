@@ -261,6 +261,16 @@ export function Students() {
   const [showWebcam, setShowWebcam] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'error' ? 5000 : 3500
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [studentDeleteSafety, setStudentDeleteSafety] = useState<EntityHistorySafetyCheckResult | null>(null);
   const [checkingStudentSafety, setCheckingStudentSafety] = useState(false);
@@ -834,6 +844,10 @@ export function Students() {
   };
 
   const handleSelectStudent = useCallback((student: Student) => {
+    setNotification(null);
+    setDuplicateSavePrompt(null);
+    setShowDeleteConfirm(false);
+    setStudentDeleteSafety(null);
     const validClassIds = new Set(classes.map(c => c.id));
     // 1. Check if student already has a direct VALID class_id
     let effectiveClassId = (student.class_id && validClassIds.has(student.class_id)) ? student.class_id : '';
@@ -949,6 +963,10 @@ export function Students() {
   }, [allEnrollments, classes, coursesList]);
 
   const handleNew = useCallback(() => {
+    setNotification(null);
+    setDuplicateSavePrompt(null);
+    setShowDeleteConfirm(false);
+    setStudentDeleteSafety(null);
     setSelectedStudent(null);
     const nextReg = generateNextRegistrationNumber(students);
     const defaultUnitId = globalUnitId !== 'all' ? globalUnitId : (activeUnits[0]?.id || 'matriz');
@@ -974,6 +992,10 @@ export function Students() {
 
   // Fecha a ficha e retorna para a tela / modal de origem se veio de outro módulo
   const handleCloseFicha = useCallback(() => {
+    setNotification(null);
+    setDuplicateSavePrompt(null);
+    setShowDeleteConfirm(false);
+    setStudentDeleteSafety(null);
     if (returnOrigin) {
       navigate(returnOrigin.path, {
         state: {
@@ -3267,6 +3289,8 @@ export function Students() {
                     )}
                     <button 
                       onClick={() => {
+                        setNotification(null);
+                        setDuplicateSavePrompt(null);
                         setIsEditing(false);
                         setUploadingPhoto(false);
                         if (selectedStudent) {
@@ -3614,7 +3638,12 @@ export function Students() {
                           disabled={!isEditing}
                           title="CPF do aluno (somente números ou formatado)"
                           value={formData.cpf || ''}
-                          onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
+                          onChange={(e) => {
+                            if (notification?.type === 'error' && notification.message.includes('CPF')) {
+                              setNotification(null);
+                            }
+                            setFormData({...formData, cpf: maskCPF(e.target.value)});
+                          }}
                           onKeyDown={handleKeyDown}
                           className={cn(
                             "w-full px-4 py-2 bg-white border rounded-lg text-sm focus:ring-2 disabled:opacity-60 transition-colors",

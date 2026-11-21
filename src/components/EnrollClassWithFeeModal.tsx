@@ -39,6 +39,10 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
+    setErrorMessage(null);
+  }, [isOpen, student?.id, targetClass?.id]);
+
+  useEffect(() => {
     if (suggestedFee !== undefined) {
       setAmount(suggestedFee);
       setAmountStr(Number(suggestedFee).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -48,6 +52,7 @@ export const EnrollClassWithFeeModal: React.FC<EnrollClassWithFeeModalProps> = (
   if (!isOpen || !student || !targetClass) return null;
 
   const handleAmountChange = (val: string) => {
+    setErrorMessage(null);
     setAmountStr(val);
     const clean = val.replace(/[^\d.,]/g, '');
     let numStr = clean;

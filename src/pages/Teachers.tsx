@@ -212,6 +212,15 @@ export function Teachers() {
   const [checkingTeacherSafety, setCheckingTeacherSafety] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'error' ? 5000 : 3500
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   // Estados e busca automática de endereço via CEP (ViaCEP)
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepSuccess, setCepSuccess] = useState(false);
@@ -349,6 +358,7 @@ export function Teachers() {
   }, [fetchTeachers]);
 
   const handleSelectTeacher = React.useCallback((teacher: Teacher) => {
+    setNotification(null);
     let subjectIds = teacher.subject_ids || [];
     
     // Handle potential Postgres array string format "{id1,id2}"
@@ -587,6 +597,7 @@ export function Teachers() {
   };
 
   const handleNew = () => {
+    setNotification(null);
     setSelectedTeacher(null);
     
     // Suggest next numeric code
@@ -1676,7 +1687,16 @@ export function Teachers() {
                       )
                     )}
                     <button 
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        setNotification(null);
+                        setIsEditing(false);
+                        setUploadingPhoto(false);
+                        if (selectedTeacher) {
+                          setFormData(selectedTeacher);
+                        } else {
+                          setFormData({});
+                        }
+                      }}
                       title="Cancelar edição e descartar alterações"
                       className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
@@ -1697,6 +1717,7 @@ export function Teachers() {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => {
+                          setNotification(null);
                           setSelectedTeacher(null);
                           setIsEditing(false);
                         }}

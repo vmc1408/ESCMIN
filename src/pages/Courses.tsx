@@ -107,9 +107,17 @@ export function Courses() {
   const [courseSecurityModal, setCourseSecurityModal] = useState<{ course: Course; safety: CourseSafetyCheckResult } | null>(null);
   const [isProcessingSecurityAction, setIsProcessingSecurityAction] = useState(false);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'error' ? 5000 : 4000
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const showNotification = useCallback((type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
-    setTimeout(() => setNotification(null), 4000);
   }, []);
 
   const loadData = useCallback(async () => {

@@ -380,9 +380,17 @@ export function StudentFicha() {
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'error' ? 5000 : 3500
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const showToast = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3500);
   };
 
   const fetchAcademicSettings = useCallback(async () => {

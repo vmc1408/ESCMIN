@@ -527,10 +527,18 @@ export function Documents() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'error' ? 5000 : 4000
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   // Handle trigger notification
   const showToast = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
-    setTimeout(() => setNotification(null), 4000);
   };
 
   // Run dynamic results per class

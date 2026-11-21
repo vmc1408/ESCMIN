@@ -391,6 +391,15 @@ export function Reports() {
   });
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'error' ? 5000 : 3500
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   // Unit Context
   const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
 

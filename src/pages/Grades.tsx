@@ -92,6 +92,15 @@ export function Grades() {
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'err' ? 5000 : 3500
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const periods = ['Avaliação 1', 'Avaliação 2', 'Avaliação 3', 'Avaliação 4', 'Resultado Final'];
 
   const fetchData = React.useCallback(async () => {

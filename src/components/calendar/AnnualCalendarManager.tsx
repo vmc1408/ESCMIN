@@ -119,6 +119,10 @@ export function AnnualCalendarManager({
       setTargetUnitId('matriz');
     }
   }, [selectedUnitId, isRestricted]);
+
+  useEffect(() => {
+    setErrorMsg(null);
+  }, [targetUnitId, targetYear]);
   const [stateUf, setStateUf] = useState<string>('SP');
   const [cityName, setCityName] = useState<string>('Guarulhos');
 

@@ -34,6 +34,10 @@ export const LiquidateEnrollmentFeeModal: React.FC<LiquidateEnrollmentFeeModalPr
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    setErrorMessage(null);
+  }, [isOpen, student?.id]);
+
+  useEffect(() => {
     if (suggestedAmount !== undefined) {
       setAmount(suggestedAmount);
       setAmountStr(Number(suggestedAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));

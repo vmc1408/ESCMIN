@@ -56,6 +56,15 @@ export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(
+      () => setFeedback(null),
+      feedback.type === 'error' ? 5000 : 4000
+    );
+    return () => clearTimeout(timer);
+  }, [feedback]);
   
   // Status do banco
   const [dbStatus, setDbStatus] = useState<{

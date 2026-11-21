@@ -234,6 +234,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [isClosed, setIsClosed] = useState(false);
   const [reopenConfirm, setReopenConfirm] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
+
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(
+      () => setNotification(null),
+      notification.type === 'err' ? 5000 : 3500
+    );
+    return () => clearTimeout(timer);
+  }, [notification]);
   const [abonoModal, setAbonoModal] = useState<{
     isOpen: boolean;
     studentId: string;
