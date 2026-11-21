@@ -535,6 +535,12 @@ export function Students() {
     return results.sort((a, b) => a.priority - b.priority);
   }, [isEditing, formData.name, formData.cpf, students, selectedStudent?.id]);
 
+  const isCpfLocked = useMemo(() => {
+    return isEditing && duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name');
+  }, [isEditing, duplicateMatches]);
+
+  const isFieldsLocked = !isEditing || isCpfLocked;
+
   // Cálculo da idade em tempo real a partir da data de nascimento
   const calculatedAge = useMemo(() => {
     return calculateAge(formData.birth_date);
@@ -1537,6 +1543,7 @@ export function Students() {
     if (e.key === 'Enter') {
       if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
       e.preventDefault();
+      if (isCpfLocked) return;
       const target = e.target as HTMLElement;
       const currentTabIndex = target.tabIndex || 0;
       let nextElement: HTMLElement | null = null;
@@ -3137,7 +3144,7 @@ export function Students() {
                       </div>
                     )}
                   </div>
-                  {isEditing && !uploadingPhoto && (
+                  {isEditing && !uploadingPhoto && !isCpfLocked && (
                     <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button 
                         onClick={() => setShowWebcam(true)}
@@ -3281,9 +3288,9 @@ export function Students() {
                     </button>
                     <button 
                       onClick={() => handleSave(false)}
-                      disabled={loading || uploadingPhoto}
-                      title="Salvar dados cadastrais da ficha do aluno"
-                      className="h-10 px-5 bg-[#00174b] hover:bg-indigo-950 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-95 disabled:opacity-50"
+                      disabled={loading || uploadingPhoto || isCpfLocked}
+                      title={isCpfLocked ? "Salvamento bloqueado: CPF já registrado no sistema" : "Salvar dados cadastrais da ficha do aluno"}
+                      className="h-10 px-5 bg-[#00174b] hover:bg-indigo-950 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-95 disabled:opacity-45 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <>
@@ -3392,33 +3399,33 @@ export function Students() {
                       Dados Pessoais
                     </h4>
                     <div className="grid grid-cols-12 gap-3">
-                      <div className="col-span-12 sm:col-span-3 space-y-1">
+                      <div className={cn("col-span-12 sm:col-span-3 space-y-1", isCpfLocked && "opacity-55")}>
                         <label className="text-xs font-bold text-slate-700">Matrícula</label>
                         <input 
                           type="text"
-                          disabled={!isEditing}
+                          disabled={isFieldsLocked}
                           title="Número de matrícula (RA) do aluno"
                           value={formData.registration_number || ''}
                           onChange={(e) => setFormData({...formData, registration_number: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 disabled:bg-slate-100 disabled:cursor-not-allowed"
                           tabIndex={1}
                         />
                       </div>
-                      <div className="col-span-12 sm:col-span-6 space-y-1">
+                      <div className={cn("col-span-12 sm:col-span-6 space-y-1", isCpfLocked && "opacity-55")}>
                         <label className="text-xs font-bold text-slate-700">Nome Completo</label>
                         <input 
                           type="text"
-                          disabled={!isEditing}
+                          disabled={isFieldsLocked}
                           title="Nome completo do aluno"
                           value={formData.name || ''}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 disabled:bg-slate-100 disabled:cursor-not-allowed"
                           tabIndex={2}
                         />
                       </div>
-                      <div className="col-span-12 sm:col-span-3 space-y-1">
+                      <div className={cn("col-span-12 sm:col-span-3 space-y-1", isCpfLocked && "opacity-55")}>
                         <label className="text-xs font-bold text-slate-700">Situação</label>
                         {(() => {
                           const isSwitchActive = !formData.status || formData.status.toLowerCase() === 'ativo';
@@ -3427,11 +3434,11 @@ export function Students() {
                               type="button"
                               role="switch"
                               aria-checked={isSwitchActive}
-                              disabled={!isEditing}
+                              disabled={isFieldsLocked}
                               tabIndex={3}
                               title={isEditing ? (isSwitchActive ? 'Ligado: Aluno Ativo (clique para desligar / inativar)' : 'Desligado: Aluno Inativo (clique para ligar / reativar)') : `Situação atual: ${formData.status || 'Ativo'}`}
                               onClick={() => {
-                                if (!isEditing) return;
+                                if (isFieldsLocked) return;
                                 const todayYmd = new Date().toISOString().split('T')[0];
                                 if (isSwitchActive) {
                                   setFormData(prev => ({
@@ -3516,9 +3523,9 @@ export function Students() {
                                     <button
                                       key={inactType}
                                       type="button"
-                                      disabled={!isEditing}
+                                      disabled={isFieldsLocked}
                                       onClick={() => {
-                                        if (!isEditing) return;
+                                        if (isFieldsLocked) return;
                                         const todayYmd = new Date().toISOString().split('T')[0];
                                         setFormData(prev => ({
                                           ...prev,
@@ -3529,7 +3536,7 @@ export function Students() {
                                       title={`Identificar inatividade como: ${inactType}`}
                                       className={cn(
                                         "px-2.5 py-2 rounded-lg border text-[11px] font-bold uppercase tracking-wide transition-all text-center",
-                                        isEditing ? "cursor-pointer" : "cursor-default",
+                                        !isFieldsLocked ? "cursor-pointer" : "cursor-default",
                                         isSelectedType
                                           ? (inactType === 'Concluído'
                                               ? "bg-indigo-600 border-indigo-700 text-white shadow-sm"
@@ -3551,7 +3558,7 @@ export function Students() {
                               </div>
                               <input
                                 type="date"
-                                disabled={!isEditing}
+                                disabled={isFieldsLocked}
                                 title="Data da inativação (preenchida automaticamente ao desligar, editável manualmente)"
                                 value={formData.inactivation_date ? formData.inactivation_date.split('T')[0] : ''}
                                 onChange={(e) => setFormData({ ...formData, inactivation_date: e.target.value })}
@@ -3566,7 +3573,7 @@ export function Students() {
                               </label>
                               <textarea
                                 rows={2}
-                                disabled={!isEditing}
+                                disabled={isFieldsLocked}
                                 title="Descreva brevemente o motivo da inatividade do aluno"
                                 placeholder="Descreva brevemente o motivo da inatividade (ex: concluiu o curso, incompatibilidade de horário, mudança de cidade, suspensão temporária...)"
                                 value={formData.inactivation_reason || ''}
@@ -3580,7 +3587,11 @@ export function Students() {
                       <div className="col-span-12 sm:col-span-3 space-y-1">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">CPF</label>
-                          {formData.cpf ? (
+                          {isCpfLocked ? (
+                            <span className="text-[10px] font-black text-rose-800 bg-rose-100 px-1.5 py-0.5 border border-rose-300 rounded animate-pulse">
+                              🚫 Já cadastrado
+                            </span>
+                          ) : formData.cpf ? (
                             cpfValidation.rawLength === 11 ? (
                               cpfValidation.isValid ? (
                                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1 py-0.5 border border-emerald-200">
@@ -3607,9 +3618,11 @@ export function Students() {
                           onKeyDown={handleKeyDown}
                           className={cn(
                             "w-full px-4 py-2 bg-white border rounded-lg text-sm focus:ring-2 disabled:opacity-60 transition-colors",
-                            formData.cpf && cpfValidation.rawLength === 11 && !cpfValidation.isValid
-                              ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                              : "border-slate-200 focus:ring-slate-500/10"
+                            isCpfLocked
+                              ? "border-rose-500 ring-2 ring-rose-500/25 bg-rose-50/40 font-bold text-rose-950 focus:border-rose-600 focus:ring-rose-500/30"
+                              : formData.cpf && cpfValidation.rawLength === 11 && !cpfValidation.isValid
+                                ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                                : "border-slate-200 focus:ring-slate-500/10"
                           )}
                           placeholder="000.000.000-00"
                           tabIndex={4}
@@ -3626,27 +3639,34 @@ export function Students() {
                         <div className="col-span-12">
                           <div className={cn(
                             "rounded-lg border-2 p-3 space-y-2.5 animate-in fade-in duration-200",
-                            duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name')
-                              ? "bg-rose-50/90 border-rose-300"
+                            isCpfLocked
+                              ? "bg-rose-50 border-rose-400 shadow-sm"
                               : "bg-amber-50/90 border-amber-300"
                           )}>
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
                                 <AlertTriangle
                                   size={16}
-                                  className={duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name') ? "text-rose-600 shrink-0" : "text-amber-600 shrink-0"}
+                                  className={isCpfLocked ? "text-rose-600 shrink-0" : "text-amber-600 shrink-0"}
                                 />
                                 <span className={cn(
                                   "text-xs font-black uppercase tracking-wide",
-                                  duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name') ? "text-rose-900" : "text-amber-950"
+                                  isCpfLocked ? "text-rose-900" : "text-amber-950"
                                 )}>
-                                  {duplicateMatches.some(m => m.matchType === 'cpf' || m.matchType === 'cpf_and_name' || m.matchType === 'exact_name')
-                                    ? `Atenção: Pessoa já cadastrada no sistema (${duplicateMatches.length} coincidência${duplicateMatches.length > 1 ? 's' : ''})`
-                                    : `Possível cadastro existente localizado (${duplicateMatches.length})`}
+                                  {isCpfLocked
+                                    ? `Cadastro Bloqueado: CPF já registrado (${duplicateMatches.length} coincidência${duplicateMatches.length > 1 ? 's' : ''})`
+                                    : duplicateMatches.some(m => m.matchType === 'exact_name')
+                                      ? `Atenção: Pessoa já cadastrada no sistema (${duplicateMatches.length} coincidência${duplicateMatches.length > 1 ? 's' : ''})`
+                                      : `Possível cadastro existente localizado (${duplicateMatches.length})`}
                                 </span>
                               </div>
-                              <span className="text-[10px] font-semibold text-slate-600">
-                                Verifique antes de criar um novo registro duplicado
+                              <span className={cn(
+                                "text-[10px] font-bold",
+                                isCpfLocked ? "text-rose-800" : "text-slate-600"
+                              )}>
+                                {isCpfLocked
+                                  ? 'Demais campos desativados — abra o cadastro existente ou corrija o CPF'
+                                  : 'Verifique antes de criar um novo registro duplicado'}
                               </span>
                             </div>
 
@@ -3733,7 +3753,7 @@ export function Students() {
                           </div>
                         </div>
                       )}
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                      <div className={cn("col-span-12 sm:col-span-4 space-y-1", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">RG / Identidade</label>
                           {formData.rg ? (
@@ -3755,13 +3775,13 @@ export function Students() {
                         <div className="relative">
                           <input 
                             type="text"
-                            disabled={!isEditing}
+                            disabled={isFieldsLocked}
                             title="RG ou documento de identidade do aluno"
                             value={formData.rg || ''}
                             onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                             onKeyDown={handleKeyDown}
                             maxLength={RG_MAX_FORMATTED_LENGTH}
-                            className={`w-full px-4 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 transition-colors ${
+                            className={`w-full px-4 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 disabled:bg-slate-100 disabled:cursor-not-allowed transition-colors ${
                               !formData.rg 
                                 ? 'border-slate-200' 
                                 : rgValidation.isValid 
@@ -3781,7 +3801,7 @@ export function Students() {
                           </span>
                         </div>
                       </div>
-                      <div className="col-span-8 sm:col-span-3 space-y-1">
+                      <div className={cn("col-span-8 sm:col-span-3 space-y-1", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">Data de Nascimento</label>
                           {!birthDateValidation.isValid ? (
@@ -3794,13 +3814,13 @@ export function Students() {
                         </div>
                         <input 
                           type="date"
-                          disabled={!isEditing}
+                          disabled={isFieldsLocked}
                           title="Data de nascimento do aluno"
                           value={formData.birth_date || ''}
                           onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className={cn(
-                            "w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 disabled:opacity-60 text-slate-900 font-medium",
+                            "w-full px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 disabled:opacity-60 disabled:bg-slate-100 disabled:cursor-not-allowed text-slate-900 font-medium",
                             !birthDateValidation.isValid
                               ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
                               : "border-slate-200 focus:ring-slate-500/10"
@@ -3808,7 +3828,7 @@ export function Students() {
                           tabIndex={6}
                         />
                       </div>
-                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                      <div className={cn("col-span-4 sm:col-span-2 space-y-1", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">Idade</label>
                           {calculatedAge !== null && (
@@ -3848,10 +3868,10 @@ export function Students() {
                         </div>
                       </div>
                       {/* Turma Principal (Vínculo Direto) */}
-                      <div className="col-span-12 sm:col-span-5 space-y-1">
+                      <div className={cn("col-span-12 sm:col-span-5 space-y-1", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
                         <label className="text-xs font-bold text-slate-700">Turma Principal (Vínculo Direto)</label>
                         <select 
-                          disabled={!isEditing}
+                          disabled={isFieldsLocked}
                           title="Turma principal à qual o aluno está vinculado"
                           value={formData.class_id || ''}
                           onChange={(e) => {
@@ -3880,7 +3900,7 @@ export function Students() {
                             }
                           }}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 disabled:bg-slate-100 disabled:cursor-not-allowed font-bold"
                           tabIndex={7}
                         >
                           <option value="">
@@ -3897,7 +3917,7 @@ export function Students() {
                       </div>
 
                       {/* Curso / Identificação - Campo Somente Informativo */}
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                      <div className={cn("col-span-12 sm:col-span-4 space-y-1", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">Curso / Identificação</label>
                           <span className="text-[10px] text-slate-400 font-medium">Informativo</span>
@@ -3918,7 +3938,7 @@ export function Students() {
                       </div>
 
                       {/* Data Início da Turma - Campo Somente Informativo com mesmo comprimento da Data de Nascimento (3 colunas) */}
-                      <div className="col-span-12 sm:col-span-3 space-y-1">
+                      <div className={cn("col-span-12 sm:col-span-3 space-y-1", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
                         <div className="flex items-center justify-between gap-1">
                           <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Data Início da Turma</label>
                           {effectiveClassStartDate && (
@@ -3943,7 +3963,7 @@ export function Students() {
                       </div>
 
                       {hasMultipleUnits && (
-                        <div className="col-span-12 bg-blue-50/60 p-2.5 border border-blue-200/80 space-y-1">
+                        <div className={cn("col-span-12 bg-blue-50/60 p-2.5 border border-blue-200/80 space-y-1", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
                           <div className="flex items-center justify-between">
                             <label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
                               <Building2 size={13} className="text-blue-700" />
@@ -3955,7 +3975,7 @@ export function Students() {
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <select
-                              disabled={!isEditing || (isRestricted && !canSwitchUnit)}
+                              disabled={isFieldsLocked || (isRestricted && !canSwitchUnit)}
                               title={isRestricted && !canSwitchUnit ? 'Polo fixado conforme seu acesso restrito' : 'Selecionar polo ou unidade educacional específica do aluno'}
                               value={formData.unit_id && formData.unit_id !== 'all' ? formData.unit_id : (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
                               onChange={(e) => {
@@ -3993,6 +4013,7 @@ export function Students() {
                       {selectedStudent?.id ? (
                         <div className={cn(
                           "col-span-12 p-3.5 sm:p-5 rounded-lg space-y-3 sm:space-y-4 mt-2 mb-6 shadow-sm overflow-hidden transition-all",
+                          isCpfLocked && "opacity-45 pointer-events-none select-none",
                           hasParallelCourses 
                             ? "bg-gradient-to-r from-amber-50/90 via-orange-50/50 to-amber-50/90 border-2 border-amber-400 ring-2 ring-amber-400/20" 
                             : "bg-slate-50/50 border border-slate-200"
@@ -4037,7 +4058,7 @@ export function Students() {
 
                           <div className="flex flex-col sm:flex-row gap-2">
                             <select 
-                              disabled={!isEditing}
+                              disabled={isFieldsLocked}
                               title="Selecionar outra turma ativa para matrícula paralela"
                               value={enrollClassId}
                               onChange={(e) => setEnrollClassId(e.target.value)}
@@ -4061,7 +4082,7 @@ export function Students() {
                               onClick={() => {
                                 handleOpenEnrollModal(enrollClassId);
                               }}
-                              disabled={!enrollClassId || !isEditing}
+                              disabled={!enrollClassId || isFieldsLocked}
                               title="Matricular aluno na turma adicional selecionada"
                               className={cn(
                                 "w-full sm:w-auto px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap cursor-pointer",
@@ -4117,7 +4138,7 @@ export function Students() {
                                         </div>
                                       </div>
                                     </div>
-                                    {isEditing && (
+                                    {!isFieldsLocked && (
                                       <button 
                                         onClick={() => handleRemoveEnrollment(enrollment.id)}
                                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shrink-0 ml-2 cursor-pointer"
@@ -4166,7 +4187,7 @@ export function Students() {
                           )}
                         </div>
                       ) : (
-                        <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg mb-6 text-center">
+                        <div className={cn("col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg mb-6 text-center", isCpfLocked && "opacity-45")}>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             Salve o registro para habilitar matrículas em outras turmas
                           </p>
@@ -4174,6 +4195,8 @@ export function Students() {
                       )}
                     </div>
                   </section>
+
+                  <fieldset disabled={isCpfLocked} className={cn("space-y-4 border-0 p-0 m-0 min-w-0", isCpfLocked && "opacity-45 pointer-events-none select-none")}>
 
                   {/* Contact & Address */}
                   <section className="space-y-3">
@@ -4631,6 +4654,8 @@ export function Students() {
                       )}
                     </section>
                   )}
+
+                  </fieldset>
 
                   {/* Action Buttons removed from footer and moved to the persistent top header actions bar */}
                 </div>
