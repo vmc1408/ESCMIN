@@ -586,22 +586,6 @@ export const Assessments: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* SEARCH TEXT FILTER */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Título / Conteúdo</label>
-              <div className="relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={filterSearch}
-                  onChange={(e) => setFilterSearch(e.target.value)}
-                  placeholder="Pesquisar por título..."
-                  title="Filtrar avaliações por título ou conteúdo"
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none"
-                />
-              </div>
-            </div>
-
             {/* Class Filter */}
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Turma</label>
@@ -682,6 +666,22 @@ export const Assessments: React.FC = () => {
                     );
                   })()}
                 </select>
+              </div>
+            </div>
+
+            {/* SEARCH TEXT FILTER (Last option) */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Título / Conteúdo</label>
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  placeholder="Pesquisar por título..."
+                  title="Filtrar avaliações por título ou conteúdo"
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none"
+                />
               </div>
             </div>
           </div>
